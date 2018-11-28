@@ -94,25 +94,25 @@ public class MainApplication extends FlutterApplication implements PluginRegistr
 
 ## Help/Contribute
 
-If you know how to implement any of these features in iOS, pull requests are welcome! As a guideline, prefer to keep the same dart API for both Android and iOS where possible. In cases where there are unavoidable differences between Android and iOS, name the feature with an `android` or `ios` prefix. 
+* If you know how to implement any of these features in iOS, pull requests are welcome! As a guideline, prefer to keep the same dart API for both Android and iOS where possible. In cases where there are unavoidable differences between Android and iOS, name the feature with an `android` or `ios` prefix. 
 
-If you find a flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
+* If you find a flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
 
 ### Sample bug report
 
-Below is a sample bug report I submitted to the `wifi` plugin project.
+Here is a sample bug report I submitted to the `wifi` plugin project (https://github.com/once10301/wifi).
 
-Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
-
-`		WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
-
-`registrar.activity()` may now return null, and this leads to a `NullPointerException`:
-
-```
-E/AndroidRuntime( 2453): 	at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
-E/AndroidRuntime( 2453): 	at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
-```
-
-The solution is to change the above line of code to this:
-
-`		WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
+> Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
+> 
+> `		WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
+> 
+> `registrar.activity()` may now return null, and this leads to a `NullPointerException`:
+> 
+> ```
+> E/AndroidRuntime( 2453): 	at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
+> E/AndroidRuntime( 2453): 	at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
+> ```
+> 
+> The solution is to change the above line of code to this:
+> 
+> `		WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
