@@ -18,10 +18,10 @@ Client-side code:
 
 ```dart
 await AudioService.start(
-	backgroundTask: myBackgroundTask,
-	notificationChannelName: 'Music Player',
-	notificationColor: 0xFF2196f3,
-	androidNotificationIcon: "mipmap/ic_launcher",
+  backgroundTask: myBackgroundTask,
+  notificationChannelName: 'Music Player',
+  notificationColor: 0xFF2196f3,
+  androidNotificationIcon: "mipmap/ic_launcher",
 );
 ```
 
@@ -29,23 +29,23 @@ Background code:
 
 ```dart
 void myBackgroundTask() {
-	Completer completer = Completer();
-	
-	AudioServiceBackground.run(
-		doTask: () async {
-			// play audio (custom code)
-			// ...
-			// ...
-			await completer.future;
-			// Background execution stops as soon as doTask completes
-		},
-		onStop: () {
-			completer.complete(); // one way to control completion
-		},
-		onClick: (int eventTime, MediaButton button) {
-			// custom code
-		},
-	);
+  Completer completer = Completer();
+  
+  AudioServiceBackground.run(
+    doTask: () async {
+      // play audio (custom code)
+      // ...
+      // ...
+      await completer.future;
+      // Background execution stops as soon as doTask completes
+    },
+    onStop: () {
+      completer.complete(); // one way to control completion
+    },
+    onClick: (int eventTime, MediaButton button) {
+      // custom code
+    },
+  );
 }
 ```
 
@@ -53,25 +53,25 @@ Android manifest file:
 
 ```xml
 <manifest ...>
-	<uses-permission android:name="android.permission.WAKE_LOCK"/>
-	<application
-		android:name=".MainApplication"
-		...>
-		
-		...
-		
-		<service android:name="com.ryanheise.audioservice.AudioService">
-			<intent-filter>
-				<action android:name="android.media.browse.MediaBrowserService" />
-			</intent-filter>
-		</service>
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <application
+    android:name=".MainApplication"
+    ...>
+    
+    ...
+    
+    <service android:name="com.ryanheise.audioservice.AudioService">
+      <intent-filter>
+        <action android:name="android.media.browse.MediaBrowserService" />
+      </intent-filter>
+    </service>
 
-		<receiver android:name="android.support.v4.media.session.MediaButtonReceiver" >
-			<intent-filter>
-				<action android:name="android.intent.action.MEDIA_BUTTON" />
-			</intent-filter>
-		</receiver> 
-	</application>
+    <receiver android:name="android.support.v4.media.session.MediaButtonReceiver" >
+      <intent-filter>
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </receiver> 
+  </application>
 </manifest>
 ```
 
@@ -79,16 +79,16 @@ Application class:
 
 ```java
 public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
-	@Override
-	public void onCreate() {
-		super.onCreate();
-		AudioServicePlugin.setPluginRegistrantCallback(this);
-	}
+  @Override
+  public void onCreate() {
+    super.onCreate();
+    AudioServicePlugin.setPluginRegistrantCallback(this);
+  }
 
-	@Override
-	public void registerWith(PluginRegistry registry) {
-		GeneratedPluginRegistrant.registerWith(registry);
-	}
+  @Override
+  public void registerWith(PluginRegistry registry) {
+    GeneratedPluginRegistrant.registerWith(registry);
+  }
 }
 ```
 
@@ -104,15 +104,15 @@ Here is a sample bug report I submitted to the `wifi` plugin project (https://gi
 
 > Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
 > 
-> `		WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
+> `    WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
 > 
 > `registrar.activity()` may now return null, and this leads to a `NullPointerException`:
 > 
 > ```
-> E/AndroidRuntime( 2453): 	at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
-> E/AndroidRuntime( 2453): 	at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
+> E/AndroidRuntime( 2453):   at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
+> E/AndroidRuntime( 2453):   at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
 > ```
 > 
 > The solution is to change the above line of code to this:
 > 
-> `		WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
+> `    WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
