@@ -16,26 +16,44 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => new _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   PlaybackState state;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    connect();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        connect();
+        break;
+      case AppLifecycleState.paused:
+        AudioService.disconnect();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void connect() {
     AudioService.connect(
       onPlaybackStateChanged: (state, position, speed, updateTime) {
-        print('demo onPlaybackStateChanged: $state');
         setState(() {
           this.state = state;
         });
       },
     );
-  }
-
-  @override
-  void dispose() {
-    AudioService.disconnect();
-    super.dispose();
   }
 
   @override

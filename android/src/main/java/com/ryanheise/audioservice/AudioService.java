@@ -67,13 +67,22 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		queueIndex = queue.isEmpty() ? -1 : 0;
 	}
 
-	public static void stop(Context context) {
-		context.stopService(new Intent(context, AudioService.class));
+	public void stop() {
+		queue.clear();
+		queueIndex = -1;
+		mediaSession.setQueue(queue);
+		audioManager.abandonAudioFocus(instance);
+		unregisterNoisyReceiver();
+		mediaSession.setActive(false);
+		if (wakeLock.isHeld()) wakeLock.release();
+		stopForeground(true);
+		stopSelf();
+		running = false;
 	}
 
-	public static void pause() {
-		instance.unregisterNoisyReceiver();
-		instance.stopForeground(false);
+	public void pause() {
+		unregisterNoisyReceiver();
+		stopForeground(false);
 	}
 
 	public static synchronized boolean isRunning() {
@@ -257,21 +266,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@Override
 	public void onDestroy() {
-		finishService();
 		instance = null;
 		super.onDestroy();
-	}
-
-	private void finishService() {
-		queue.clear();
-		queueIndex = -1;
-		mediaSession.setQueue(queue);
-		audioManager.abandonAudioFocus(this);
-		unregisterNoisyReceiver();
-		mediaSession.setActive(false);
-		if (wakeLock.isHeld()) wakeLock.release();
-		stopForeground(true);
-		running = false;
 	}
 
 	@Override

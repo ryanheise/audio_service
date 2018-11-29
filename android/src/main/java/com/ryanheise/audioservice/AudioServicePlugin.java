@@ -55,6 +55,7 @@ public class AudioServicePlugin {
 	private static class ClientHandler implements MethodCallHandler {
 		private Registrar registrar;
 		private MethodChannel channel;
+		private boolean playPending;
 		public MediaBrowserCompat mediaBrowser;
 		public MediaControllerCompat mediaController;
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
@@ -70,8 +71,7 @@ public class AudioServicePlugin {
 
 			@Override
 			public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
-				List<Map<?,?>> rawQueue = queue2raw(queue);
-				invokeMethod("onQueueChanged", rawQueue);
+				invokeMethod("onQueueChanged", queue2raw(queue));
 			}
 		};
 
@@ -79,10 +79,10 @@ public class AudioServicePlugin {
 			@Override
 			public void onConnected() {
 				try {
-					Context context = registrar.activeContext();
+					Activity activity = registrar.activity();
 					MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
-					mediaController = new MediaControllerCompat(context, token);
-					//MediaControllerCompat.setMediaController(context, mediaController);
+					mediaController = new MediaControllerCompat(activity, token);
+					MediaControllerCompat.setMediaController(activity, mediaController);
 					mediaController.registerCallback(controllerCallback);
 					PlaybackStateCompat state = mediaController.getPlaybackState();
 					controllerCallback.onPlaybackStateChanged(state);
@@ -91,8 +91,11 @@ public class AudioServicePlugin {
 						controllerCallback.onMetadataChanged(metadata);
 					controllerCallback.onQueueChanged(mediaController.getQueue());
 
-					if (state.getState() != PlaybackStateCompat.STATE_PLAYING) {
-						mediaController.getTransportControls().play();
+					synchronized (this) {
+						if (playPending) {
+							mediaController.getTransportControls().play();
+							playPending = false;
+						}
 					}
 				}
 				catch (RemoteException e) {
@@ -255,7 +258,17 @@ public class AudioServicePlugin {
 					}
 				});
 
-				// TODO: let the "connect" case handle this
+				synchronized (connectionCallback) {
+					if (mediaController != null)
+						mediaController.getTransportControls().play();
+					else
+						playPending = true;
+				}
+
+				result.success(true);
+				break;
+			}
+			case "connect":
 				if (mediaBrowser == null) {
 					mediaBrowser = new MediaBrowserCompat(context,
 							new ComponentName(context, AudioService.class),
@@ -266,23 +279,13 @@ public class AudioServicePlugin {
 
 				result.success(true);
 				break;
-			}
-			case "connect":
-				// TODO: remove the isRunning() condition
-				// We'd just need to ensure that we don't play before
-				// the connection has been established.
-				if (AudioService.isRunning() && mediaBrowser == null) {
-					mediaBrowser = new MediaBrowserCompat(context,
-							new ComponentName(context, AudioService.class),
-							connectionCallback,
-							null);
-					mediaBrowser.connect();
-				}
-
-				result.success(true);
-				break;
 			case "disconnect":
-				// TODO: disconnect browser here (if it's connected)
+				if (mediaController != null) {
+					mediaController.unregisterCallback(controllerCallback);
+					mediaController = null;
+				}
+				mediaBrowser.disconnect();
+				mediaBrowser = null;
 				result.success(true);
 				break;
 			case "addQueueItem": {
@@ -358,14 +361,6 @@ public class AudioServicePlugin {
 			ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
 			channel.invokeMethod(method, list);
 		}
-
-		public void stopped() {
-			if (mediaController != null) {
-				mediaController.unregisterCallback(controllerCallback);
-			}
-			mediaBrowser.disconnect();
-			mediaBrowser = null;
-		}
 	}
 
 	private static class BackgroundHandler implements MethodCallHandler {
@@ -412,11 +407,10 @@ public class AudioServicePlugin {
 				AudioService.instance.setState(actions, actionBits, playbackState, position, speed, updateTime);
 				break;
 			case "stopped":
-				clientHandler.stopped();
-				AudioService.stop(registrar.activeContext());
+				AudioService.instance.stop();
 				break;
 			case "paused":
-				AudioService.pause();
+				AudioService.instance.pause();
 				break;
 			}
 		}

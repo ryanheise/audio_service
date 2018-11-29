@@ -17,7 +17,7 @@ Only the Android side is implemented for now. iOS contributors are welcome to he
 Client-side code:
 
 ```dart
-await AudioService.start(
+AudioService.start(
   backgroundTask: myBackgroundTask,
   notificationChannelName: 'Music Player',
   notificationColor: 0xFF2196f3,
@@ -54,6 +54,7 @@ Android manifest file:
 ```xml
 <manifest ...>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  
   <application
     android:name=".MainApplication"
     ...>
@@ -96,11 +97,11 @@ public class MainApplication extends FlutterApplication implements PluginRegistr
 
 * If you know how to implement any of these features in iOS, pull requests are welcome! As a guideline, prefer to keep the same dart API for both Android and iOS where possible. In cases where there are unavoidable differences between Android and iOS, name the feature with an `android` or `ios` prefix. 
 
-* If you find a flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
+* If you find another flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
 
 ### Sample bug report
 
-Here is a sample bug report I submitted to the `wifi` plugin project (https://github.com/once10301/wifi).
+Here is a sample bug report.
 
 > Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
 > 
