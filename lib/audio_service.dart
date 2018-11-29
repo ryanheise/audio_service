@@ -345,7 +345,6 @@ class AudioServiceBackground {
     VoidCallback onPause,
     VoidCallback onPrepare,
     ValueChanged<String> onPrepareFromMediaId,
-    VoidCallback onResume,
     ValueChanged<String> onPlayFromMediaId,
     ValueChanged<String> onAddQueueItem,
     void onAddQueueItemAt(String mediaId, int index),
@@ -416,9 +415,6 @@ class AudioServiceBackground {
             String mediaId = args[0];
             onPrepareFromMediaId(mediaId);
           }
-          break;
-        case 'onResume':
-          if (onResume != null) onResume();
           break;
         case 'onPlayFromMediaId':
           if (onPlayFromMediaId != null) {
