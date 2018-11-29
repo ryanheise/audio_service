@@ -316,8 +316,8 @@ class AudioServiceBackground {
   /// Each callback function you supply handles an action initiated from a
   /// connected client. For example, [onPause] will be called if a button in
   /// your Flutter UI requested playback to be paused via [AudioService.pause],
-  /// or if the stop button in the Android notification is clicked, or if the
-  /// stop button in Wear OS or Android Auto is clicked. [onClick] will be
+  /// or if the pause button in the Android notification is clicked, or if the
+  /// pause button in Wear OS or Android Auto is clicked. [onClick] will be
   /// called if a media button is clicked on the headset or if a button in your
   /// Flutter UI simulated a media button click via [AudioService.click].
   ///
@@ -329,7 +329,9 @@ class AudioServiceBackground {
   /// Android Auto). It is [onStop]'s responsibility to perform whatever code
   /// is necessary to cause [doTask] to complete. This may be done by using a
   /// [Completer] or by setting a flag that will trigger a play loop to
-  /// complete.
+  /// complete. Both [onStop] and [onPause] are similar in that they should both
+  /// cause [doTask] to complete. The only difference is that [onPause] will
+  /// leave the media session active so that it can be later resumed.
   static Future<void> run({
     @required Future<void> doTask(),
     Future<List<MediaItem>> onLoadChildren(),
