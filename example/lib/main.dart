@@ -1,13 +1,10 @@
-import 'dart:io';
-
+import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:flutter/services.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:soundpool/soundpool.dart';
+
+MediaItem mediaItem = MediaItem(id: '1', album: 'Sample', title: 'Clicks');
 
 void main() => runApp(new MyApp());
 
@@ -88,6 +85,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               resumeOnClick: true,
               notificationChannelName: 'Audio Service Demo',
               androidNotificationIcon: 'mipmap/ic_launcher',
+              queue: [mediaItem],
             );
           }
         },
@@ -112,64 +110,67 @@ void _backgroundCallback() async {
     doTask: player.run,
     onPause: player.pause,
     onStop: player.stop,
+    onClick: (MediaButton button) => player.pause(),
   );
 }
 
 class ClickPlayer {
-  bool running = false;
-  Soundpool soundpool = Soundpool(streamType: StreamType.music);
+  static const streamUri =
+      'http://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3';
+  AudioPlayer audioPlayer = new AudioPlayer();
+  Completer completer = Completer();
 
   Future<void> run() async {
-    running = true;
-    soundpool = Soundpool(streamType: StreamType.music);
-    String clickName = 'click.wav';
-    String path = p.join((await getTemporaryDirectory()).path, clickName);
-    final file = new File(path);
-    await file.writeAsBytes(
-        (await rootBundle.load('assets/$clickName')).buffer.asUint8List());
+    AudioServiceBackground.setMediaItem(mediaItem);
 
-    int clickSoundId = await soundpool.loadUri('file://$path');
     AudioServiceBackground.setState(
       controls: [
-        MediaControl(
-            androidIcon: 'drawable/ic_action_stop',
-            label: 'Stop',
-            action: MediaAction.stop),
         MediaControl(
             androidIcon: 'drawable/ic_action_pause',
             label: 'Pause',
             action: MediaAction.pause),
-      ],
-      state: PlaybackState.playing,
-    );
-    for (int i = 1; running && i <= 100; i++) {
-      await soundpool.play(clickSoundId);
-      await Future.delayed(Duration(milliseconds: 1000));
-    }
-  }
-
-  void stop() {
-    AudioServiceBackground.setState(
-      controls: [],
-      state: PlaybackState.stopped,
-    );
-    running = false;
-  }
-
-  void pause() {
-    AudioServiceBackground.setState(
-      controls: [
         MediaControl(
             androidIcon: 'drawable/ic_action_stop',
             label: 'Stop',
             action: MediaAction.stop),
+      ],
+      state: PlaybackState.playing,
+    );
+
+    var playerStateSubscription = audioPlayer.onPlayerStateChanged
+        .where((state) => state == AudioPlayerState.COMPLETED)
+        .listen((state) {
+          stop();
+        });
+    await audioPlayer.play(streamUri);
+    await completer.future;
+    playerStateSubscription.cancel();
+  }
+
+  void stop() {
+    audioPlayer.stop();
+    AudioServiceBackground.setState(
+      controls: [],
+      state: PlaybackState.stopped,
+    );
+    completer.complete();
+  }
+
+  void pause() {
+    audioPlayer.stop();
+    AudioServiceBackground.setState(
+      controls: [
         MediaControl(
             androidIcon: 'drawable/ic_action_play_arrow',
             label: 'Play',
             action: MediaAction.play),
+        MediaControl(
+            androidIcon: 'drawable/ic_action_stop',
+            label: 'Stop',
+            action: MediaAction.stop),
       ],
       state: PlaybackState.paused,
     );
-    running = false;
+    completer.complete();
   }
 }
