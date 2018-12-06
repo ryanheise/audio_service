@@ -226,7 +226,7 @@ class AudioService {
   /// Programmatically simulates a click of a media button on the headset.
   ///
   /// This passes through to `onClick` in the background task.
-  static Future<void> click({MediaButton button = MediaButton.media}) async {
+  static Future<void> click([MediaButton button = MediaButton.media]) async {
     await _channel.invokeMethod('click', button.index);
   }
 
@@ -341,7 +341,7 @@ class AudioServiceBackground {
     VoidCallback onAudioFocusLostTransient,
     VoidCallback onAudioFocusLostTransientCanDuck,
     VoidCallback onAudioBecomingNoisy,
-    void onClick({int eventTime, int lag, MediaButton button}),
+    void onClick(MediaButton button),
     @required VoidCallback onStop,
     VoidCallback onPause,
     VoidCallback onPrepare,
@@ -395,8 +395,8 @@ class AudioServiceBackground {
         case 'onClick':
           if (onClick != null) {
             final List args = call.arguments;
-            MediaButton button = MediaButton.values[args[2]];
-            onClick(eventTime: args[0], lag: args[1], button: button);
+            MediaButton button = MediaButton.values[args[0]];
+            onClick(button);
           }
           break;
         case 'onStop':
