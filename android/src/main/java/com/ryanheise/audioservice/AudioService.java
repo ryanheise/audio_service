@@ -43,6 +43,8 @@ import android.support.annotation.RequiresApi;
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
 	private static final int NOTIFICATION_ID = 1124;
 	private static final String MEDIA_ROOT_ID = "root";
+	public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
+	public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
 
 	private static volatile boolean running;
 	static AudioService instance;
@@ -108,7 +110,32 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	NotificationCompat.Action action(String resource, String label, long actionCode) {
 		int iconId = getResourceId(resource);
 		return new NotificationCompat.Action(iconId, label,
-				MediaButtonReceiver.buildMediaButtonPendingIntent(AudioService.this, actionCode));
+				buildMediaButtonPendingIntent(actionCode));
+	}
+
+	PendingIntent buildMediaButtonPendingIntent(long action) {
+		ComponentName component = new ComponentName(getPackageName(), "android.support.v4.media.session.MediaButtonReceiver");
+		return buildMediaButtonPendingIntent(component, action);
+	}
+
+	PendingIntent buildMediaButtonPendingIntent(ComponentName component, long action) {
+		int keyCode = toKeyCode(action);
+		if (keyCode == KeyEvent.KEYCODE_UNKNOWN)
+			return null;
+		Intent intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+		intent.setComponent(component);
+		intent.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
+		return PendingIntent.getBroadcast(this, keyCode, intent, 0);
+	}
+
+	public static int toKeyCode(long action) {
+		if (action == PlaybackStateCompat.ACTION_PLAY) {
+			return KEYCODE_BYPASS_PLAY;
+		} else if (action == PlaybackStateCompat.ACTION_PAUSE) {
+			return KEYCODE_BYPASS_PAUSE;
+		} else {
+			return PlaybackStateCompat.toKeyCode(action);
+		}
 	}
 
 	void setState(List<NotificationCompat.Action> actions, int actionBits, int playbackState, long position, float speed, long updateTime) {
@@ -142,7 +169,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 				//.setContentIntent(controller.getSessionActivity())
 
-				.setDeleteIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(AudioService.this, PlaybackStateCompat.ACTION_STOP))
+				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				;
 		if (notificationColor != null)
 			builder.setColor(notificationColor);
@@ -153,8 +180,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setMediaSession(mediaSession.getSessionToken())
 				.setShowActionsInCompactView(actionIndices)
 				.setShowCancelButton(true)
-				.setCancelButtonIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(AudioService.this,
-					PlaybackStateCompat.ACTION_STOP))
+				.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				);
 		Notification notification = builder.build();
 		return notification;
@@ -368,10 +394,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
 			if (event.getAction() == KeyEvent.ACTION_DOWN) {
 				switch (event.getKeyCode()) {
-				case KeyEvent.KEYCODE_MEDIA_PLAY:
+				case KEYCODE_BYPASS_PLAY:
 					onPlay();
 					break;
-				case KeyEvent.KEYCODE_MEDIA_PAUSE:
+				case KEYCODE_BYPASS_PAUSE:
 					onPause();
 					break;
 				case KeyEvent.KEYCODE_MEDIA_NEXT:
@@ -389,6 +415,20 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				case KeyEvent.KEYCODE_MEDIA_REWIND:
 					onRewind();
 					break;
+				// The remaining cases are for media button clicks.
+				// Unfortunately Android reroutes media button clicks to PLAY/PAUSE
+				// events making them indistinguishable from from play/pause button presses.
+				// We do our best to distinguish...
+				case KeyEvent.KEYCODE_MEDIA_PLAY:
+					// If you press the media button while in the pause state, it resumes.
+					MediaControllerCompat controller = mediaSession.getController();
+					if (controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
+						onPlay();
+						break;
+					}
+					// Otherwise fall through and pass it to onClick
+				case KeyEvent.KEYCODE_MEDIA_PAUSE:
+				// These are the "genuine" media button click events
 				case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
 				case KeyEvent.KEYCODE_HEADSETHOOK:
 					long now = SystemClock.uptimeMillis();
@@ -410,7 +450,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
 				return MediaControl.previous;
 			default:
-				return MediaControl.media; // return null?
+				return MediaControl.media;
 			}
 		}
 
