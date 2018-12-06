@@ -41,7 +41,6 @@ import android.support.annotation.RequiresApi;
 // TODO:
 // - deep link to a specified route when user clicks on the notification
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
-	private static final String CHANNEL_ID = "com.ryanheise.audioservice.channel";
 	private static final int NOTIFICATION_ID = 1124;
 	private static final String MEDIA_ROOT_ID = "root";
 
@@ -97,6 +96,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private MediaMetadataCompat preparedMedia;
 	private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
 	private MediaMetadataCompat mediaMetadata;
+	private String notificationChannelId;
 
 	int getResourceId(String resource) {
 		String[] parts = resource.split("/");
@@ -135,7 +135,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			contentTitle = description.getTitle().toString();
 			contentText = description.getSubtitle().toString();
 		}
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(AudioService.this, CHANNEL_ID)
+		NotificationCompat.Builder builder = new NotificationCompat.Builder(AudioService.this, notificationChannelId)
 				.setSmallIcon(iconId)
 				.setContentTitle(contentTitle)
 				.setContentText(contentText)
@@ -163,9 +163,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	@RequiresApi(Build.VERSION_CODES.O)
 	private void createChannel() {
 		NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-		NotificationChannel channel = notificationManager.getNotificationChannel(CHANNEL_ID);
+		NotificationChannel channel = notificationManager.getNotificationChannel(notificationChannelId);
 		if (channel == null) {
-			channel = new NotificationChannel(CHANNEL_ID, notificationChannelName, NotificationManager.IMPORTANCE_LOW);
+			channel = new NotificationChannel(notificationChannelId, notificationChannelName, NotificationManager.IMPORTANCE_LOW);
 			notificationManager.createNotificationChannel(channel);
 		}
 	}
@@ -223,6 +223,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	public void onCreate() {
 		super.onCreate();
 		instance = this;
+		notificationChannelId = getApplication().getPackageName() + ".channel";
 		audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
 
 		mediaSession = new MediaSessionCompat(this, "media-session");
