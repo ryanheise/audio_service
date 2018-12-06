@@ -133,6 +133,7 @@ public class AudioServicePlugin {
 				}
 				Map<?,?> arguments = (Map<?,?>)call.arguments;
 				final long callbackHandle = getLong(arguments.get("callbackHandle"));
+				boolean resumeOnClick = (Boolean)arguments.get("resumeOnClick");
 				String notificationChannelName = (String)arguments.get("notificationChannelName");
 				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
@@ -141,7 +142,7 @@ public class AudioServicePlugin {
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, notificationChannelName, notificationColor, androidNotificationIcon, queue, new AudioService.ServiceListener() {
+				AudioService.init(activity, resumeOnClick, notificationChannelName, notificationColor, androidNotificationIcon, queue, new AudioService.ServiceListener() {
 					@Override
 					public void onAudioFocusGained() {
 						backgroundHandler.invokeMethod("onAudioFocusGained");

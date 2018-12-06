@@ -85,6 +85,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           } else {
             AudioService.start(
               backgroundTask: _backgroundCallback,
+              resumeOnClick: true,
               notificationChannelName: 'Audio Service Demo',
               androidNotificationIcon: 'mipmap/ic_launcher',
             );

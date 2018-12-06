@@ -50,6 +50,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	private static volatile boolean running;
 	static AudioService instance;
+	private static boolean resumeOnClick;
 	private static ServiceListener listener;
 	static String notificationChannelName;
 	static Integer notificationColor;
@@ -58,11 +59,12 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
-	public static synchronized void init(Context context, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, List<MediaSessionCompat.QueueItem> queue, ServiceListener listener) {
+	public static synchronized void init(Context context, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, List<MediaSessionCompat.QueueItem> queue, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
 		AudioService.listener = listener;
+		AudioService.resumeOnClick = resumeOnClick;
 		AudioService.notificationChannelName = notificationChannelName;
 		AudioService.notificationColor = notificationColor;
 		AudioService.notificationAndroidIcon = notificationAndroidIcon;
@@ -458,7 +460,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				case KeyEvent.KEYCODE_MEDIA_PLAY:
 					// If you press the media button while in the pause state, it resumes.
 					MediaControllerCompat controller = mediaSession.getController();
-					if (controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
+					if (resumeOnClick && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
 						onPlay();
 						break;
 					}
