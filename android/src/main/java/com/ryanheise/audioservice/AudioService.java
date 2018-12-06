@@ -36,6 +36,8 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
+import android.media.AudioFocusRequest;
+import android.media.AudioAttributes;
 import android.support.annotation.RequiresApi;
 
 // TODO:
@@ -72,7 +74,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		queue.clear();
 		queueIndex = -1;
 		mediaSession.setQueue(queue);
-		audioManager.abandonAudioFocus(instance);
+		instance.abandonAudioFocus();
 		unregisterNoisyReceiver();
 		mediaSession.setActive(false);
 		if (wakeLock.isHeld()) wakeLock.release();
@@ -98,6 +100,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private MediaMetadataCompat preparedMedia;
 	private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
 	private MediaMetadataCompat mediaMetadata;
+	private Object audioFocusRequest;
 	private String notificationChannelId;
 
 	int getResourceId(String resource) {
@@ -184,6 +187,41 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				);
 		Notification notification = builder.build();
 		return notification;
+	}
+
+	private int requestAudioFocus() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			return requestAudioFocusO();
+		else
+			return audioManager.requestAudioFocus(this,
+					AudioManager.STREAM_MUSIC,
+					AudioManager.AUDIOFOCUS_GAIN);
+	}
+
+	@RequiresApi(Build.VERSION_CODES.O)
+	private int requestAudioFocusO() {
+		AudioAttributes audioAttributes = new AudioAttributes.Builder()
+				.setUsage(AudioAttributes.USAGE_MEDIA)
+				.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+				.build();
+		audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+				.setAudioAttributes(audioAttributes)
+				.setWillPauseWhenDucked(true)
+				.setOnAudioFocusChangeListener(this)
+				.build();
+		return audioManager.requestAudioFocus((AudioFocusRequest)audioFocusRequest);
+	}
+
+	private void abandonAudioFocus() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			abandonAudioFocusO();
+		else
+			audioManager.abandonAudioFocus(this);
+	}
+
+	@RequiresApi(Build.VERSION_CODES.O)
+	private void abandonAudioFocusO() {
+		audioManager.abandonAudioFocusRequest((AudioFocusRequest)audioFocusRequest);
 	}
 
 	@RequiresApi(Build.VERSION_CODES.O)
@@ -350,9 +388,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 
 		private void play(Runnable runner) {
-			int result = audioManager.requestAudioFocus(AudioService.this,
-					AudioManager.STREAM_MUSIC,
-					AudioManager.AUDIOFOCUS_GAIN);
+			int result = requestAudioFocus();
 			if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
 				throw new RuntimeException("Failed to gain audio focus");
 			}
