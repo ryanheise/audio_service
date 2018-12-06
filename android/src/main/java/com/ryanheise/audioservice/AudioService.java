@@ -431,9 +431,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				// These are the "genuine" media button click events
 				case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
 				case KeyEvent.KEYCODE_HEADSETHOOK:
-					long now = SystemClock.uptimeMillis();
-					long lag = event.getEventTime() - now;
-					listener.onClick(event.getEventTime(), lag, mediaControl(event));
+					listener.onClick(mediaControl(event));
 					break;
 				}
 			}
@@ -496,7 +494,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onAudioBecomingNoisy();
 
 		void doTask(Context context);
-		void onClick(long eventTime, long lag, MediaControl mediaControl);
+		void onClick(MediaControl mediaControl);
 		void onPrepare();
 		void onPrepareFromMediaId(String mediaId);
 		//void onPrepareFromSearch(String query);

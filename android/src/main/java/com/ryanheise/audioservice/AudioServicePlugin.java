@@ -189,8 +189,8 @@ public class AudioServicePlugin {
 						result.detach();
 					}
 					@Override
-					public void onClick(long eventTime, long lag, MediaControl mediaControl) {
-						backgroundHandler.invokeMethod("onClick", eventTime, lag, mediaControl.ordinal());
+					public void onClick(MediaControl mediaControl) {
+						backgroundHandler.invokeMethod("onClick", mediaControl.ordinal());
 					}
 					@Override
 					public void onPause() {
@@ -311,10 +311,8 @@ public class AudioServicePlugin {
 			}
 			//case "setVolumeTo"
 			case "click":
-				long eventTime = SystemClock.uptimeMillis();
-				long lag = 0;
 				int buttonIndex = (int)call.arguments;
-				backgroundHandler.invokeMethod("onClick", eventTime, lag, buttonIndex);
+				backgroundHandler.invokeMethod("onClick", buttonIndex);
 				break;
 			case "prepare":
 				mediaController.getTransportControls().prepare();
