@@ -39,6 +39,7 @@ public class AudioServicePlugin {
 	private static PluginRegistrantCallback pluginRegistrantCallback;
 	private static ClientHandler clientHandler;
 	private static BackgroundHandler backgroundHandler;
+	private static FlutterNativeView backgroundFlutterView;
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
@@ -206,6 +207,26 @@ public class AudioServicePlugin {
 						backgroundHandler.invokeMethod("onPrepare", mediaId);
 					}
 					@Override
+					public void onPlay() {
+						if (backgroundFlutterView == null) {
+							FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
+							if (cb == null) {
+								return;
+							}
+							backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
+							if (appBundlePath != null) {
+								pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
+								FlutterRunArguments args = new FlutterRunArguments();
+								args.bundlePath = appBundlePath;
+								args.entrypoint = cb.callbackName;
+								args.libraryPath = cb.callbackLibraryPath;
+								backgroundFlutterView.runFromBundle(args);
+							}
+						}
+						else
+							backgroundHandler.invokeMethod("onPlay");
+					}
+					@Override
 					public void onPlayFromMediaId(String mediaId) {
 						backgroundHandler.invokeMethod("onPlayFromMediaId", mediaId);
 					}
@@ -240,22 +261,6 @@ public class AudioServicePlugin {
 					@Override
 					public void onSeekTo(long pos) {
 						backgroundHandler.invokeMethod("onSeekTo", pos);
-					}
-					@Override
-					public void doTask(Context context) {
-						FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-						if (cb == null) {
-							return;
-						}
-						FlutterNativeView backgroundFlutterView = new FlutterNativeView(context, true);
-						if (appBundlePath != null) {
-							pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
-							FlutterRunArguments args = new FlutterRunArguments();
-							args.bundlePath = appBundlePath;
-							args.entrypoint = cb.callbackName;
-							args.libraryPath = cb.callbackLibraryPath;
-							backgroundFlutterView.runFromBundle(args);
-						}
 					}
 				});
 
@@ -324,7 +329,7 @@ public class AudioServicePlugin {
 				break;
 			//prepareFromSearch
 			//prepareFromUri
-			case "resume":
+			case "play":
 				mediaController.getTransportControls().play();
 				break;
 			//playFromMediaId
@@ -407,9 +412,7 @@ public class AudioServicePlugin {
 				break;
 			case "stopped":
 				AudioService.instance.stop();
-				break;
-			case "paused":
-				AudioService.instance.pause();
+				backgroundFlutterView = null;
 				break;
 			}
 		}

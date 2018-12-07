@@ -3,14 +3,14 @@
 Play audio in the background.
 
 * Continues playing while the screen is off or the app is in the background
-* Control playback from your flutter UI, headest, Wear OS or Android Auto
-* Drive audio playback from custom Dart code
+* Control playback from your flutter UI, headset, Wear OS or Android Auto
+* Drive audio playback from Dart code
 
-This plugin provides a framework for playing arbitrary audio in the background (e.g. audio files, or even text-to-speech). For Android, this means acquiring a wake lock so that it will run even with the screen turned off, acquiring audio focus so that you can control your app from a headset, creating a media session and media browser service so that your app can be controlled by wearable devices and Android Auto. The plugin provides all of this while you simply supply the dart code to drive audio playback.
+This plugin provides a complete framework for playing audio in the background. You implement callbacks in Dart to play/pause/seek/etc audio, which means that you will need to use *other* Dart plugins in conjunction with this one to actually play the audio. This gives you the flexibility to play any kind of audio in the background. For example, if you want to play music in the background, you may use the [audioplayer](https://pub.dartlang.org/packages/audioplayer) plugin in conjunction with this one. If you would rather play text-to-speech in the background, you may use the [flutter_tts](https://pub.dartlang.org/packages/flutter_tts) plugin in conjunction with this one.
 
-Since you can write the audio playback code in dart, you are free to use any other flutter audio plugin in conjunction with this one to play whatever audio you want. There are already a number of flutter plugins for playing audio files or synthesising text to speech, however since background execution of dart code is a relatively new feature of flutter, not all of those plugins are yet compatible (I am contacting some of these authors to make their packages compatible.)
+[audio_service](https://pub.dartlang.org/packages/audio_service) itself manages all of the platform-specific code for setting up the environment for background audio, and interfacing with various peripherals used to control audio playback. For Android, this means acquiring a wake lock so that audio will play with the screen turned off, acquiring audio focus so that you can control your app from a headset, creating a media session and media browser service so that your app can be controlled by wearable devices and Android Auto. The iOS side is currently not implemented and so contributors are welcome (please see the Help section at the bottom of this page).
 
-Only the Android side is implemented for now. iOS contributors are welcome to help complete the iOS side (see the bottom of this page for details).
+Since background execution of Dart code is a relatively new feature of flutter, not all plugins are yet compatible with audio_service (I am contacting some of these authors to make their packages compatible.)
 
 ## Example
 
@@ -20,7 +20,6 @@ Client-side code:
 AudioService.start(
   backgroundTask: myBackgroundTask,
   notificationChannelName: 'Music Player',
-  notificationColor: 0xFF2196f3,
   androidNotificationIcon: "mipmap/ic_launcher",
 );
 ```
@@ -30,22 +29,27 @@ Background code:
 ```dart
 void myBackgroundTask() {
   Completer completer = Completer();
+  MyAudioPlayer player = MyAudioPlayer();
   
   AudioServiceBackground.run(
-    doTask: () async {
-      // play audio (custom code)
-      // ...
-      // ...
+    onStart: () async {
+      player.play();
+      // Keep the background environment alive
+      // Until we're finished playing...
       await completer.future;
-      // Background execution stops as soon as doTask completes
     },
     onStop: () {
-      completer.complete(); // one way to control completion
+      player.stop();
+      completer.complete();
     },
-    onClick: (int eventTime, MediaButton button) {
-      // custom code
+    onClick: (MediaButton button) {
+      player.togglePlay();
     },
   );
+}
+
+class MyAudioPlayer {
+  // your custom dart code
 }
 ```
 

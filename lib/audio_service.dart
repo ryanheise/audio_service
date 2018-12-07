@@ -243,9 +243,9 @@ class AudioService {
   //static Future<void> prepareFromSearch(String query, Bundle extras) async {}
   //static Future<void> prepareFromUri(Uri uri, Bundle extras) async {}
 
-  /// Restarts the background task after a pause.
-  static Future<void> resume() async {
-    await _channel.invokeMethod('resume');
+  /// Passes through to 'onPlay' in the background task.
+  static Future<void> play() async {
+    await _channel.invokeMethod('play');
   }
 
   //static Future<void> playFromMediaId(String mediaId, Bundle extras) async {}
@@ -315,26 +315,28 @@ class AudioServiceBackground {
   /// Initialises the isolate in which your background task runs.
   ///
   /// Each callback function you supply handles an action initiated from a
-  /// connected client. For example, [onPause] will be called if a button in
-  /// your Flutter UI requested playback to be paused via [AudioService.pause],
-  /// or if the pause button in the Android notification is clicked, or if the
-  /// pause button in Wear OS or Android Auto is clicked. [onClick] will be
-  /// called if a media button is clicked on the headset or if a button in your
-  /// Flutter UI simulated a media button click via [AudioService.click].
+  /// connected client. In particular:
   ///
-  /// The two required callbacks are [doTask] and [onStop]. [doTask] is an
-  /// asynchronous function responsible for playing your audio, and happens in
-  /// response to [AudioService.start]. The isolate automatically terminates
-  /// after the completion of this task. [onStop] is called in response to
-  /// [AudioService.stop] (or the stop button in the notification or Wear OS or
-  /// Android Auto). It is [onStop]'s responsibility to perform whatever code
-  /// is necessary to cause [doTask] to complete. This may be done by using a
-  /// [Completer] or by setting a flag that will trigger a play loop to
-  /// complete. Both [onStop] and [onPause] are similar in that they should both
-  /// cause [doTask] to complete. The only difference is that [onPause] will
-  /// leave the media session active so that it can be later resumed.
+  /// [onStart] (required) is an asynchronous function that is called in
+  /// response to [AudioService.start]. It is responsible for starting audio
+  /// playback and should not complete until there is no more audio to be
+  /// played. Once this function completes, the background isolate will be
+  /// permanently shut down (although a new one can be started by calling
+  /// [AudioService.start] again).
+  ///
+  /// [onStop] (required) is called in response to [AudioService.stop] (or the
+  /// stop button in the notification or Wear OS or Android Auto). It is
+  /// [onStop]'s responsibility to perform whatever code is necessary to cause
+  /// [onStart] to complete. This may be done by using a [Completer] or by
+  /// setting a flag that will trigger a loop in [onStart] to complete.
+  ///
+  /// [onPause] is called in response to [AudioService.pause], or the pause
+  /// button in the notification or Wear OS or Android Auto.
+  ///
+  /// [onClick] is called in response to [AudioService.click], or if a media
+  /// button is clicked on the headset.
   static Future<void> run({
-    @required Future<void> doTask(),
+    @required Future<void> onStart(),
     Future<List<MediaItem>> onLoadChildren(),
     VoidCallback onAudioFocusGained,
     VoidCallback onAudioFocusLost,
@@ -346,6 +348,7 @@ class AudioServiceBackground {
     VoidCallback onPause,
     VoidCallback onPrepare,
     ValueChanged<String> onPrepareFromMediaId,
+    VoidCallback onPlay,
     ValueChanged<String> onPlayFromMediaId,
     ValueChanged<String> onAddQueueItem,
     void onAddQueueItemAt(String mediaId, int index),
@@ -359,7 +362,6 @@ class AudioServiceBackground {
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
-    var paused = false;
     _backgroundChannel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'onLoadChildren':
@@ -400,12 +402,10 @@ class AudioServiceBackground {
           }
           break;
         case 'onStop':
-          if (onStop != null) onStop();
-          paused = false;
+          onStop();
           break;
         case 'onPause':
           if (onPause != null) onPause();
-          paused = true;
           break;
         case 'onPrepare':
           if (onPrepare != null) onPrepare();
@@ -416,6 +416,9 @@ class AudioServiceBackground {
             String mediaId = args[0];
             onPrepareFromMediaId(mediaId);
           }
+          break;
+        case 'onPlay':
+          if (onPlay != null) onPlay();
           break;
         case 'onPlayFromMediaId':
           if (onPlayFromMediaId != null) {
@@ -476,8 +479,9 @@ class AudioServiceBackground {
           break;
       }
     });
-    await doTask();
-    await _backgroundChannel.invokeMethod(paused ? 'paused' : 'stopped');
+    await onStart();
+    await _backgroundChannel.invokeMethod('stopped');
+    _backgroundChannel.setMethodCallHandler(null);
   }
 
   /// Sets the current playback state and dictate which controls should be

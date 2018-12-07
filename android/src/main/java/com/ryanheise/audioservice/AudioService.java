@@ -73,8 +73,16 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	public void stop() {
+		running = false;
+		resumeOnClick = false;
+		listener = null;
+		notificationChannelName = null;
+		notificationColor = null;
+		notificationAndroidIcon = null;
 		queue.clear();
 		queueIndex = -1;
+		mediaMetadataCache.clear();
+
 		mediaSession.setQueue(queue);
 		instance.abandonAudioFocus();
 		unregisterNoisyReceiver();
@@ -82,12 +90,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (wakeLock.isHeld()) wakeLock.release();
 		stopForeground(true);
 		stopSelf();
-		running = false;
-	}
-
-	public void pause() {
-		unregisterNoisyReceiver();
-		stopForeground(false);
 	}
 
 	public static synchronized boolean isRunning() {
@@ -323,6 +325,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@Override
 	public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
+		if (listener == null) return;
 		listener.onLoadChildren(parentMediaId, result);
 	}
 
@@ -361,21 +364,25 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	public class MediaSessionCallback extends MediaSessionCompat.Callback {
 		@Override
 		public void onAddQueueItem(MediaDescriptionCompat description) {
+			if (listener == null) return;
 			listener.onAddQueueItem(description.getMediaId());
 		}
 
 		@Override
 		public void onAddQueueItem(MediaDescriptionCompat description, int index) {
+			if (listener == null) return;
 			listener.onAddQueueItemAt(description.getMediaId(), index);
 		}
 
 		@Override
 		public void onRemoveQueueItem(MediaDescriptionCompat description) {
+			if (listener == null) return;
 			listener.onRemoveQueueItem(description.getMediaId());
 		}
 
 		@Override
 		public void onPrepare() {
+			if (listener == null) return;
 			if (!mediaSession.isActive())
 				mediaSession.setActive(true);
 			listener.onPrepare();
@@ -383,9 +390,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		@Override
 		public void onPlay() {
+			if (listener == null) return;
 			play(new Runnable() {
 				public void run() {
-					listener.doTask(AudioService.this);
+					listener.onPlay();
 				}
 			});
 		}
@@ -409,6 +417,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		@Override
 		public void onPrepareFromMediaId(String mediaId, Bundle extras) {
+			if (listener == null) return;
 			if (!mediaSession.isActive())
 				mediaSession.setActive(true);
 			listener.onPrepareFromMediaId(mediaId);
@@ -416,6 +425,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		@Override
 		public void onPlayFromMediaId(final String mediaId, final Bundle extras) {
+			if (listener == null) return;
 			play(new Runnable() {
 				public void run() {
 					listener.onPlayFromMediaId(mediaId);
@@ -430,6 +440,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		@Override
 		public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+			if (listener == null) return false;
 			KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
 			if (event.getAction() == KeyEvent.ACTION_DOWN) {
 				switch (event.getKeyCode()) {
@@ -493,31 +504,39 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		@Override
 		public void onPause() {
+			if (listener == null) return;
 			listener.onPause();
+			unregisterNoisyReceiver();
+			stopForeground(false);
 		}
 
 		@Override
 		public void onStop() {
+			if (listener == null) return;
 			listener.onStop();
 		}
 
 		@Override
 		public void onSkipToNext() {
+			if (listener == null) return;
 			listener.onSkipToNext();
 		}
 
 		@Override
 		public void onSkipToPrevious() {
+			if (listener == null) return;
 			listener.onSkipToPrevious();
 		}
 
 		@Override
 		public void onSkipToQueueItem(long id) {
+			if (listener == null) return;
 			listener.onSkipToQueueItem(id);
 		}
 
 		@Override
 		public void onSeekTo(long pos) {
+			if (listener == null) return;
 			listener.onSeekTo(pos);
 		}
 	}
@@ -532,12 +551,12 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onAudioFocusLostTransientCanDuck();
 		void onAudioBecomingNoisy();
 
-		void doTask(Context context);
 		void onClick(MediaControl mediaControl);
 		void onPrepare();
 		void onPrepareFromMediaId(String mediaId);
 		//void onPrepareFromSearch(String query);
 		//void onPrepareFromUri(String uri);
+		void onPlay();
 		void onPlayFromMediaId(String mediaId);
 		//void onPlayFromSearch(String query, Map<?,?> extras);
 		//void onPlayFromUri(String uri, Map<?,?> extras);

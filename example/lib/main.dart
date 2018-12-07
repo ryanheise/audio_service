@@ -4,7 +4,23 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 
-MediaItem mediaItem = MediaItem(id: '1', album: 'Sample', title: 'Clicks');
+MediaItem mediaItem = MediaItem(id: '1', album: 'Sample Album', title: 'Sample Title');
+
+MediaControl playControl = MediaControl(
+  androidIcon: 'drawable/ic_action_play_arrow',
+  label: 'Play',
+  action: MediaAction.play,
+);
+MediaControl pauseControl = MediaControl(
+  androidIcon: 'drawable/ic_action_pause',
+  label: 'Pause',
+  action: MediaAction.pause,
+);
+MediaControl stopControl = MediaControl(
+  androidIcon: 'drawable/ic_action_stop',
+  label: 'Stop',
+  action: MediaAction.stop,
+);
 
 void main() => runApp(new MyApp());
 
@@ -63,10 +79,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         body: new Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              state == PlaybackState.playing ? pauseButton() : playButton(),
-              stopButton(),
-            ],
+            children: state == PlaybackState.playing
+                ? [pauseButton(), stopButton()]
+                : state == PlaybackState.paused
+                    ? [playButton(), stopButton()]
+                    : [playButton()],
           ),
         ),
       ),
@@ -78,12 +95,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         iconSize: 64.0,
         onPressed: () {
           if (state == PlaybackState.paused) {
-            AudioService.resume();
+            AudioService.play();
           } else {
             AudioService.start(
               backgroundTask: _backgroundCallback,
               resumeOnClick: true,
               notificationChannelName: 'Audio Service Demo',
+              notificationColor: 0xFF2196f3,
               androidNotificationIcon: 'mipmap/ic_launcher',
               queue: [mediaItem],
             );
@@ -105,46 +123,57 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 }
 
 void _backgroundCallback() async {
-  ClickPlayer player = ClickPlayer();
+  CustomAudioPlayer player = CustomAudioPlayer();
   AudioServiceBackground.run(
-    doTask: player.run,
+    onStart: player.run,
+    onPlay: player.play,
     onPause: player.pause,
     onStop: player.stop,
-    onClick: (MediaButton button) => player.pause(),
+    onClick: (MediaButton button) => player.playPause(),
   );
 }
 
-class ClickPlayer {
+class CustomAudioPlayer {
   static const streamUri =
       'http://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3';
   AudioPlayer audioPlayer = new AudioPlayer();
   Completer completer = Completer();
+  bool playing = true;
 
   Future<void> run() async {
     AudioServiceBackground.setMediaItem(mediaItem);
 
-    AudioServiceBackground.setState(
-      controls: [
-        MediaControl(
-            androidIcon: 'drawable/ic_action_pause',
-            label: 'Pause',
-            action: MediaAction.pause),
-        MediaControl(
-            androidIcon: 'drawable/ic_action_stop',
-            label: 'Stop',
-            action: MediaAction.stop),
-      ],
-      state: PlaybackState.playing,
-    );
-
     var playerStateSubscription = audioPlayer.onPlayerStateChanged
         .where((state) => state == AudioPlayerState.COMPLETED)
         .listen((state) {
-          stop();
-        });
-    await audioPlayer.play(streamUri);
+      stop();
+    });
+    play();
     await completer.future;
     playerStateSubscription.cancel();
+  }
+
+  void playPause() {
+    if (playing)
+      pause();
+    else
+      play();
+  }
+
+  void play() {
+    audioPlayer.play(streamUri);
+    AudioServiceBackground.setState(
+      controls: [pauseControl, stopControl],
+      state: PlaybackState.playing,
+    );
+  }
+
+  void pause() {
+    audioPlayer.pause();
+    AudioServiceBackground.setState(
+      controls: [playControl, stopControl],
+      state: PlaybackState.paused,
+    );
   }
 
   void stop() {
@@ -152,24 +181,6 @@ class ClickPlayer {
     AudioServiceBackground.setState(
       controls: [],
       state: PlaybackState.stopped,
-    );
-    completer.complete();
-  }
-
-  void pause() {
-    audioPlayer.stop();
-    AudioServiceBackground.setState(
-      controls: [
-        MediaControl(
-            androidIcon: 'drawable/ic_action_play_arrow',
-            label: 'Play',
-            action: MediaAction.play),
-        MediaControl(
-            androidIcon: 'drawable/ic_action_stop',
-            label: 'Stop',
-            action: MediaAction.stop),
-      ],
-      state: PlaybackState.paused,
     );
     completer.complete();
   }
