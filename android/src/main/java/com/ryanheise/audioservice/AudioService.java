@@ -147,12 +147,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	void setState(List<NotificationCompat.Action> actions, int actionBits, int playbackState, long position, float speed, long updateTime) {
 		this.actions = actions;
-		updateNotification();
 
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 			.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE|actionBits)
 			.setState(playbackState, position, speed, updateTime);
 		mediaSession.setPlaybackState(stateBuilder.build());
+
+		updateNotification();
 	}
 
 	private Notification buildNotification() {
@@ -316,6 +317,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	void setMetadata(MediaMetadataCompat mediaMetadata) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
+		updateNotification();
 	}
 
 	@Override

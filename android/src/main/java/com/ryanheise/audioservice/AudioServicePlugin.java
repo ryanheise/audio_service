@@ -29,6 +29,9 @@ import android.support.v4.media.MediaDescriptionCompat;
 import android.content.ComponentName;
 import android.os.Bundle;
 import java.util.HashMap;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.media.AudioFormat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
 /** AudioservicePlugin */
@@ -298,6 +301,7 @@ public class AudioServicePlugin {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
 				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
 				mediaController.addQueueItem(mediaMetadata.getDescription());
+				result.success(true);
 				break;
 			}
 			case "addQueueItemAt": {
@@ -306,6 +310,7 @@ public class AudioServicePlugin {
 				int index = (Integer)queueAndIndex.get(1);
 				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
 				mediaController.addQueueItem(mediaMetadata.getDescription(), index);
+				result.success(true);
 				break;
 			}
 			//case "adjustVolume"
@@ -313,24 +318,29 @@ public class AudioServicePlugin {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
 				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
 				mediaController.removeQueueItem(mediaMetadata.getDescription());
+				result.success(true);
 				break;
 			}
 			//case "setVolumeTo"
 			case "click":
 				int buttonIndex = (int)call.arguments;
 				backgroundHandler.invokeMethod("onClick", buttonIndex);
+				result.success(true);
 				break;
 			case "prepare":
 				mediaController.getTransportControls().prepare();
+				result.success(true);
 				break;
 			case "prepareFromMediaId":
 				String mediaId = (String)call.arguments;
 				mediaController.getTransportControls().prepareFromMediaId(mediaId, new Bundle());
+				result.success(true);
 				break;
 			//prepareFromSearch
 			//prepareFromUri
 			case "play":
 				mediaController.getTransportControls().play();
+				result.success(true);
 				break;
 			//playFromMediaId
 			//playFromSearch
@@ -338,25 +348,32 @@ public class AudioServicePlugin {
 			case "skipToQueueItem":
 				int id = (Integer)call.arguments;
 				mediaController.getTransportControls().skipToQueueItem(id);
+				result.success(true);
 				break;
 			case "pause":
 				mediaController.getTransportControls().pause();
+				result.success(true);
 				break;
 			case "stop":
 				mediaController.getTransportControls().stop();
+				result.success(true);
 				break;
 			case "seekTo":
 				int pos = (Integer)call.arguments;
 				mediaController.getTransportControls().seekTo(pos);
+				result.success(true);
 				break;
 			case "skipToNext":
 				mediaController.getTransportControls().skipToNext();
+				result.success(true);
 				break;
 			case "skipToPrevious":
 				mediaController.getTransportControls().skipToPrevious();
+				result.success(true);
 				break;
 			default:
 				backgroundHandler.channel.invokeMethod(call.method, call.arguments);
+				result.success(true);
 				break;
 			}
 		}
@@ -370,6 +387,9 @@ public class AudioServicePlugin {
 	private static class BackgroundHandler implements MethodCallHandler {
 		private Registrar registrar;
 		public MethodChannel channel;
+		private AudioTrack silenceAudioTrack;
+		private static final int SILENCE_SAMPLE_RATE = 44100;
+		private byte[] silence;
 
 		public BackgroundHandler(Registrar registrar) {
 			this.registrar = registrar;
@@ -386,11 +406,13 @@ public class AudioServicePlugin {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
 				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
 				AudioService.instance.setMetadata(mediaMetadata);
+				result.success(true);
 				break;
 			case "setQueue":
 				List<Map<?,?>> rawQueue = (List<Map<?,?>>)call.arguments;
 				List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
 				AudioService.instance.setQueue(queue);
+				result.success(true);
 				break;
 			case "setState":
 				List<Object> args = (List<Object>)call.arguments;
@@ -409,10 +431,34 @@ public class AudioServicePlugin {
 					actions.add(AudioService.instance.action(resource, (String)rawControl.get("label"), actionCode));
 				}
 				AudioService.instance.setState(actions, actionBits, playbackState, position, speed, updateTime);
+				result.success(true);
 				break;
 			case "stopped":
 				AudioService.instance.stop();
+				if (silenceAudioTrack != null)
+					silenceAudioTrack.release();
 				backgroundFlutterView = null;
+				result.success(true);
+				break;
+			case "androidForceEnableMediaButtons":
+				// Just play a short amount of silence. This convinces Android
+				// that we are playing "real" audio so that it will route
+				// media buttons to us.
+				// See: https://issuetracker.google.com/issues/65344811
+				if (silenceAudioTrack == null) {
+					silence = new byte[2048];
+					silenceAudioTrack = new AudioTrack(
+							AudioManager.STREAM_MUSIC,
+							SILENCE_SAMPLE_RATE,
+							AudioFormat.CHANNEL_CONFIGURATION_MONO,
+							AudioFormat.ENCODING_PCM_8BIT,
+							silence.length,
+							AudioTrack.MODE_STATIC);
+					silenceAudioTrack.write(silence, 0, silence.length);
+				}
+				silenceAudioTrack.reloadStaticData();
+				silenceAudioTrack.play();
+				result.success(true);
 				break;
 			}
 		}

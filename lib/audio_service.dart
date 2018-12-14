@@ -311,6 +311,12 @@ class AudioService {
 /// be connected, and to also handle playback actions initiated by the UI.
 class AudioServiceBackground {
   static MethodChannel _backgroundChannel;
+  static PlaybackState _state;
+
+  /// The current media playback state.
+  ///
+  /// This is the value most recently set via [setState].
+  static PlaybackState get state => _state;
 
   /// Initialises the isolate in which your background task runs.
   ///
@@ -482,6 +488,7 @@ class AudioServiceBackground {
     await onStart();
     await _backgroundChannel.invokeMethod('stopped');
     _backgroundChannel.setMethodCallHandler(null);
+    _state = null;
   }
 
   /// Sets the current playback state and dictate which controls should be
@@ -494,6 +501,7 @@ class AudioServiceBackground {
       int position = 0,
       double speed = 1.0,
       int updateTime}) async {
+    _state = state;
     List<Map> rawControls = controls
         .map((control) => {
               'androidIcon': control.androidIcon,
@@ -514,5 +522,19 @@ class AudioServiceBackground {
   static Future<void> setMediaItem(MediaItem mediaItem) async {
     await _backgroundChannel.invokeMethod(
         'setMediaItem', _mediaItem2raw(mediaItem));
+  }
+
+  /// In Android, forces media button events to be routed to your active media
+  /// session.
+  /// 
+  /// This is necessary if you want to play TextToSpeech in the background and
+  /// still respond to media button events. You should call it just before
+  /// playing TextToSpeech.
+  ///
+  /// This is not necessary if you are playing normal audio in the background
+  /// such as music because this kind of "normal" audio playback will
+  /// automatically qualify your app to receive media button events.
+  static Future<void> androidForceEnableMediaButtons() async {
+    await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
   }
 }

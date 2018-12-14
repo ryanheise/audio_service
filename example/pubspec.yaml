@@ -18,6 +18,7 @@ dependencies:
 
   path_provider: ^0.4.1
   audioplayer: ^0.5.2
+  #flutter_tts:
   audio_service:
     path: ../
 
