@@ -5,6 +5,7 @@ import android.os.IBinder;
 import android.content.Context;
 import android.media.AudioManager;
 import android.os.PowerManager;
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
 import android.app.Notification;
@@ -44,30 +45,38 @@ import android.support.annotation.RequiresApi;
 // - deep link to a specified route when user clicks on the notification
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
 	private static final int NOTIFICATION_ID = 1124;
+	private static final int REQUEST_CONTENT_INTENT = 1000;
 	private static final String MEDIA_ROOT_ID = "root";
 	public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
 	public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
 
 	private static volatile boolean running;
 	static AudioService instance;
+	private static PendingIntent contentIntent;
 	private static boolean resumeOnClick;
 	private static ServiceListener listener;
 	static String notificationChannelName;
 	static Integer notificationColor;
 	static String notificationAndroidIcon;
+	static boolean androidNotificationClickStartsActivity;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
-	public static synchronized void init(Context context, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, List<MediaSessionCompat.QueueItem> queue, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, boolean androidNotificationClickStartsActivity, List<MediaSessionCompat.QueueItem> queue, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
+
+		Context context = activity.getApplicationContext();
+		Intent intent = new Intent(context, activity.getClass());
+		contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 		AudioService.listener = listener;
 		AudioService.resumeOnClick = resumeOnClick;
 		AudioService.notificationChannelName = notificationChannelName;
 		AudioService.notificationColor = notificationColor;
 		AudioService.notificationAndroidIcon = notificationAndroidIcon;
+		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
 		AudioService.queue = queue;
 		queueIndex = queue.isEmpty() ? -1 : 0;
 	}
@@ -175,10 +184,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setContentTitle(contentTitle)
 				.setContentText(contentText)
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-				//.setContentIntent(controller.getSessionActivity())
 
 				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				;
+		if (androidNotificationClickStartsActivity)
+			builder.setContentIntent(controller.getSessionActivity());
 		if (notificationColor != null)
 			builder.setColor(notificationColor);
 		for (NotificationCompat.Action action : actions) {
@@ -414,6 +424,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 			acquireWakeLock();
 			registerNoisyReceiver();
+			mediaSession.setSessionActivity(contentIntent);
 			startForeground(NOTIFICATION_ID, buildNotification());
 		}
 

@@ -188,6 +188,7 @@ class AudioService {
     String notificationChannelName = "Notifications",
     int notificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
+    bool androidNotificationClickStartsActivity = true,
     bool resumeOnClick = true,
     List<MediaItem> queue = const <MediaItem>[],
   }) async {
@@ -202,6 +203,7 @@ class AudioService {
       'notificationChannelName': notificationChannelName,
       'notificationColor': notificationColor,
       'androidNotificationIcon': androidNotificationIcon,
+      'androidNotificationClickStartsActivity': androidNotificationClickStartsActivity,
       'resumeOnClick': resumeOnClick,
       'queue': _mediaItems2raw(queue),
     });
