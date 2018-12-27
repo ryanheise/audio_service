@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-//import 'package:flutter_tts/flutter_tts.dart';
-
-MediaItem mediaItem =
-    MediaItem(id: '1', album: 'Sample Album', title: 'Sample Title');
+import 'package:flutter_tts/flutter_tts.dart';
 
 MediaControl playControl = MediaControl(
   androidIcon: 'drawable/ic_action_play_arrow',
@@ -85,31 +82,37 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 ? [pauseButton(), stopButton()]
                 : state == PlaybackState.paused
                     ? [playButton(), stopButton()]
-                    : [playButton()],
+                    : [audioPlayerButton(), textToSpeechButton()],
           ),
         ),
       ),
     );
   }
 
+  RaisedButton audioPlayerButton() =>
+      startButton('AudioPlayer', _backgroundAudioPlayerTask);
+
+  RaisedButton textToSpeechButton() =>
+      startButton('TextToSpeech', _backgroundTextToSpeechTask);
+
+  RaisedButton startButton(String label, Function backgroundTask) =>
+      RaisedButton(
+        child: Text(label),
+        onPressed: () {
+          AudioService.start(
+            backgroundTask: backgroundTask,
+            resumeOnClick: true,
+            notificationChannelName: 'Audio Service Demo',
+            notificationColor: 0xFF2196f3,
+            androidNotificationIcon: 'mipmap/ic_launcher',
+          );
+        },
+      );
+
   IconButton playButton() => IconButton(
         icon: Icon(Icons.play_arrow),
         iconSize: 64.0,
-        onPressed: () {
-          if (state == PlaybackState.paused) {
-            AudioService.play();
-          } else {
-            AudioService.start(
-              backgroundTask: _backgroundAudioPlayerTask,
-              //backgroundTask: _backgroundTextToSpeechTask,
-              resumeOnClick: true,
-              notificationChannelName: 'Audio Service Demo',
-              notificationColor: 0xFF2196f3,
-              androidNotificationIcon: 'mipmap/ic_launcher',
-              queue: [mediaItem],
-            );
-          }
-        },
+        onPressed: AudioService.play,
       );
 
   IconButton pauseButton() => IconButton(
@@ -144,6 +147,9 @@ class CustomAudioPlayer {
   bool _playing = true;
 
   Future<void> run() async {
+    MediaItem mediaItem =
+        MediaItem(id: '1', album: 'Sample Album', title: 'Sample Title');
+
     AudioServiceBackground.setMediaItem(mediaItem);
 
     var playerStateSubscription = _audioPlayer.onPlayerStateChanged
@@ -189,85 +195,76 @@ class CustomAudioPlayer {
   }
 }
 
-// The additional example below shows how you could play TextToSpeech in the
-// background. It's commented out since the flutter_tts plugin it depends on
-// does not yet support background execution. See:
-//
-// https://github.com/dlutton/flutter_tts/issues/13
-//
-// In the mean time, you can try cloning that repository and applying the
-// suggested bug fix.
+void _backgroundTextToSpeechTask() async {
+  TextPlayer textPlayer = TextPlayer();
+  AudioServiceBackground.run(
+    onStart: textPlayer.run,
+    onPlay: textPlayer.playPause,
+    onPause: textPlayer.playPause,
+    onStop: textPlayer.stop,
+    onClick: (MediaButton button) => textPlayer.playPause(),
+  );
+}
 
-//void _backgroundTextToSpeechTask() async {
-//	TextPlayer textPlayer = TextPlayer();
-//	AudioServiceBackground.run(
-//		onStart: textPlayer.run,
-//		onPlay: textPlayer.playPause,
-//		onPause: textPlayer.playPause,
-//		onStop: textPlayer.stop,
-//		onClick: (MediaButton button) => textPlayer.playPause(),
-//	);
-//}
-//
-//class TextPlayer {
-//	FlutterTts _tts = FlutterTts();
-//
-//	/// Represents the completion of a period of playing or pausing.
-//	Completer _playPauseCompleter = Completer();
-//
-//	/// This wraps [_playPauseCompleter.future], replacing [_playPauseCompleter]
-//	/// if it has already completed.
-//	Future _playPauseFuture() {
-//		if (_playPauseCompleter.isCompleted) _playPauseCompleter = Completer();
-//		return _playPauseCompleter.future;
-//	}
-//
-//	PlaybackState get _state => AudioServiceBackground.state;
-//
-//	Future<void> run() async {
-//		playPause();
-//		for (var i = 1; i <= 10 && _state != PlaybackState.stopped; i++) {
-//			AudioServiceBackground.setMediaItem(mediaItem(i));
-//			AudioServiceBackground.androidForceEnableMediaButtons();
-//			_tts.speak('$i');
-//			// Wait for the speech or a pause request.
-//			await Future.any(
-//					[Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
-//			// If we were just paused...
-//			if (_playPauseCompleter.isCompleted && _state == PlaybackState.paused) {
-//				// Wait to be unpaused...
-//				await _playPauseFuture();
-//			}
-//		}
-//		if (_state != PlaybackState.stopped) stop();
-//	}
-//
-//	MediaItem mediaItem(int number) =>
-//			MediaItem(id: '$number', album: 'Numbers', title: 'Number $number');
-//
-//	void playPause() {
-//		if (_state == PlaybackState.playing) {
-//			_tts.stop();
-//			AudioServiceBackground.setState(
-//				controls: [playControl, stopControl],
-//				state: PlaybackState.paused,
-//			);
-//		} else {
-//			AudioServiceBackground.setState(
-//				controls: [pauseControl, stopControl],
-//				state: PlaybackState.playing,
-//			);
-//		}
-//		_playPauseCompleter.complete();
-//	}
-//
-//	void stop() {
-//		if (_state == PlaybackState.stopped) return;
-//		_tts.stop();
-//		AudioServiceBackground.setState(
-//			controls: [],
-//			state: PlaybackState.stopped,
-//		);
-//		_playPauseCompleter.complete();
-//	}
-//}
+class TextPlayer {
+  FlutterTts _tts = FlutterTts();
+
+  /// Represents the completion of a period of playing or pausing.
+  Completer _playPauseCompleter = Completer();
+
+  /// This wraps [_playPauseCompleter.future], replacing [_playPauseCompleter]
+  /// if it has already completed.
+  Future _playPauseFuture() {
+    if (_playPauseCompleter.isCompleted) _playPauseCompleter = Completer();
+    return _playPauseCompleter.future;
+  }
+
+  PlaybackState get _state => AudioServiceBackground.state;
+
+  Future<void> run() async {
+    playPause();
+    for (var i = 1; i <= 10 && _state != PlaybackState.stopped; i++) {
+      AudioServiceBackground.setMediaItem(mediaItem(i));
+      AudioServiceBackground.androidForceEnableMediaButtons();
+      _tts.speak('$i');
+      // Wait for the speech or a pause request.
+      await Future.any(
+          [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
+      // If we were just paused...
+      if (_playPauseCompleter.isCompleted && _state == PlaybackState.paused) {
+        // Wait to be unpaused...
+        await _playPauseFuture();
+      }
+    }
+    if (_state != PlaybackState.stopped) stop();
+  }
+
+  MediaItem mediaItem(int number) =>
+      MediaItem(id: '$number', album: 'Numbers', title: 'Number $number');
+
+  void playPause() {
+    if (_state == PlaybackState.playing) {
+      _tts.stop();
+      AudioServiceBackground.setState(
+        controls: [playControl, stopControl],
+        state: PlaybackState.paused,
+      );
+    } else {
+      AudioServiceBackground.setState(
+        controls: [pauseControl, stopControl],
+        state: PlaybackState.playing,
+      );
+    }
+    _playPauseCompleter.complete();
+  }
+
+  void stop() {
+    if (_state == PlaybackState.stopped) return;
+    _tts.stop();
+    AudioServiceBackground.setState(
+      controls: [],
+      state: PlaybackState.stopped,
+    );
+    _playPauseCompleter.complete();
+  }
+}
