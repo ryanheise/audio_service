@@ -14,7 +14,7 @@ Since background execution of Dart code is a relatively new feature of flutter, 
 
 ## Example
 
-Client-side code:
+### Client-side code
 
 ```dart
 AudioService.start(
@@ -24,36 +24,49 @@ AudioService.start(
 );
 ```
 
-Background code:
+### Background code
 
 ```dart
 void myBackgroundTask() {
-  Completer completer = Completer();
-  MyAudioPlayer player = MyAudioPlayer();
-  
   AudioServiceBackground.run(
     onStart: () async {
-      player.play();
-      // Keep the background environment alive
-      // Until we're finished playing...
-      await completer.future;
+      // Your custom dart code to start audio playback.
+      // NOTE: The background audio task will shut down
+      // as soon as this async function completes.
     },
+    onPlay: () {
+      // Your custom dart code to resume audio playback.
+    }
     onStop: () {
-      player.stop();
-      completer.complete();
+      // Your custom dart code to stop audio playback.
     },
     onClick: (MediaButton button) {
-      player.togglePlay();
+      // Your custom dart code to handle a media button click.
     },
   );
 }
+```
 
-class MyAudioPlayer {
-  // your custom dart code
+### Android setup
+
+You will need to create a custom `MainApplication` class as follows:
+
+```java
+public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
+  @Override
+  public void onCreate() {
+    super.onCreate();
+    AudioServicePlugin.setPluginRegistrantCallback(this);
+  }
+
+  @Override
+  public void registerWith(PluginRegistry registry) {
+    GeneratedPluginRegistrant.registerWith(registry);
+  }
 }
 ```
 
-Android manifest file:
+Edit your project's `AndroidManifest.xml` file to reference your `MainApplication` class, declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
 
 ```xml
 <manifest ...>
@@ -80,22 +93,17 @@ Android manifest file:
 </manifest>
 ```
 
-Application class:
+Any icons that you want to appear in the notification should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
 
-```java
-public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
-  @Override
-  public void onCreate() {
-    super.onCreate();
-    AudioServicePlugin.setPluginRegistrantCallback(this);
-  }
-
-  @Override
-  public void registerWith(PluginRegistry registry) {
-    GeneratedPluginRegistrant.registerWith(registry);
-  }
-}
 ```
+drawable-hdpi
+drawable-mdpi
+drawable-xhdpi
+drawable-xxhdpi
+drawable-xxxhdpi
+```
+
+You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these different subdirectories for any standard material design icon.
 
 ## Help/Contribute
 

@@ -219,6 +219,8 @@ public class AudioServicePlugin {
 							}
 							backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
 							if (appBundlePath != null) {
+								if (pluginRegistrantCallback == null)
+									throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
 								pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
 								FlutterRunArguments args = new FlutterRunArguments();
 								args.bundlePath = appBundlePath;
