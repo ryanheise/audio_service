@@ -41,8 +41,6 @@ import android.media.AudioFocusRequest;
 import android.media.AudioAttributes;
 import android.support.annotation.RequiresApi;
 
-// TODO:
-// - deep link to a specified route when user clicks on the notification
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
 	private static final int NOTIFICATION_ID = 1124;
 	private static final int REQUEST_CONTENT_INTENT = 1000;
@@ -63,7 +61,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, boolean androidNotificationClickStartsActivity, List<MediaSessionCompat.QueueItem> queue, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, boolean androidNotificationClickStartsActivity, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -77,8 +75,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.notificationColor = notificationColor;
 		AudioService.notificationAndroidIcon = notificationAndroidIcon;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
-		AudioService.queue = queue;
-		queueIndex = queue.isEmpty() ? -1 : 0;
 	}
 
 	public void stop() {
@@ -274,28 +270,43 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	static MediaMetadataCompat createMediaMetadata(Map<?,?> rawMediaItem) {
-		return createMediaMetadata((String)rawMediaItem.get("id"), (String)rawMediaItem.get("album"), (String)rawMediaItem.get("title"));
+		return createMediaMetadata(
+				(String)rawMediaItem.get("id"),
+				(String)rawMediaItem.get("album"),
+				(String)rawMediaItem.get("title"),
+				(String)rawMediaItem.get("artist"),
+				(String)rawMediaItem.get("genre"),
+				AudioServicePlugin.getLong(rawMediaItem.get("duration")),
+				(String)rawMediaItem.get("albumArtUri"),
+				(String)rawMediaItem.get("displayIconUri")
+				);
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title) {
-		MediaMetadataCompat mediaMetadata = new MediaMetadataCompat.Builder()
-			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-			// TODO: Support the following metadata
-			//.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-			//.putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
-			//		TimeUnit.MILLISECONDS.convert(duration, durationUnit))
-			//.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre)
-			//.putString(
-			//		MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
-			//		getAlbumArtUri(albumArtResName))
-			//.putString(
-			//		MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
-			//		getAlbumArtUri(albumArtResName))
-			.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-			.build();
-		mediaMetadataCache.put(mediaId, mediaMetadata);
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String albumArtUri, String displayIconUri) {
+		MediaMetadataCompat mediaMetadata = mediaMetadataCache.get(mediaId);
+		if (mediaMetadata == null) {
+			MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
+				.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
+				.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
+				.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
+			if (artist != null)
+				builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+			if (genre != null)
+				builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
+			if (duration != null)
+				builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+			if (albumArtUri != null)
+				builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, albumArtUri);
+			if (displayIconUri != null)
+				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayIconUri);
+			mediaMetadata = builder.build();
+			mediaMetadataCache.put(mediaId, mediaMetadata);
+		}
 		return mediaMetadata;
+	}
+
+	static MediaMetadataCompat getMediaMetadata(String mediaId) {
+		return mediaMetadataCache.get(mediaId);
 	}
 
 	@Override

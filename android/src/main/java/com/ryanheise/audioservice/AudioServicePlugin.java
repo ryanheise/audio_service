@@ -142,12 +142,10 @@ public class AudioServicePlugin {
 				String notificationChannelName = (String)arguments.get("notificationChannelName");
 				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
-				List<Map<?,?>> rawQueue = (List<Map<?,?>>)arguments.get("queue");
-				List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, resumeOnClick, notificationChannelName, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, queue, new AudioService.ServiceListener() {
+				AudioService.init(activity, resumeOnClick, notificationChannelName, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, new AudioService.ServiceListener() {
 					@Override
 					public void onAudioFocusGained() {
 						backgroundHandler.invokeMethod("onAudioFocusGained");
@@ -480,6 +478,16 @@ public class AudioServicePlugin {
 			raw.put("id", description.getMediaId());
 			raw.put("album", description.getSubtitle()); // XXX: Will this give me the album?
 			raw.put("title", description.getTitle());
+			// Get the extra data from the cache
+			MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
+			if (mediaMetadata != null) {
+				raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
+				raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
+				if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
+					raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+				raw.put("albumArtUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI).toString());
+				raw.put("displayIconUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI).toString());
+			}
 			rawQueue.add(raw);
 		}
 		return rawQueue;
@@ -495,11 +503,11 @@ public class AudioServicePlugin {
 		return queue;
 	}
 
-	private static long getLong(Object o) {
-		return (o instanceof Integer) ? (Integer)o : ((Long)o).longValue();
+	public static Long getLong(Object o) {
+		return (o == null || o instanceof Long) ? (Long)o : new Long(((Integer)o).intValue());
 	}
 
-	private static int getInt(Object o) {
-		return (o instanceof Integer) ? (Integer)o : (int)((Long)o).longValue();
+	public static Integer getInt(Object o) {
+		return (o == null || o instanceof Integer) ? (Integer)o : new Integer((int)((Long)o).longValue());
 	}
 }

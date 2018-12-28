@@ -48,16 +48,50 @@ enum PlaybackState {
 /// Metadata about an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
+  /// A unique id
   String id;
+
+  /// The album this media item belongs to
   String album;
+
+  /// The title of this media item
   String title;
+
+  /// The artist of this media item
+  String artist;
+
+  /// The genre of this media item
+  String genre;
+
+  /// The duration in milliseconds
+  int duration;
+
+  /// The artwork for the album of this media item as a uri
+  String albumArtUri;
+
+  /// A thumbnail/icon for this media item as a uri
+  String displayIconUri;
+
+  /// Whether this is playable (i.e. not a folder)
   bool playable;
 
-  MediaItem(
-      {@required this.id,
-      @required this.album,
-      @required this.title,
-      this.playable = true});
+  MediaItem({
+    @required this.id,
+    @required this.album,
+    @required this.title,
+    this.artist,
+    this.genre,
+    this.duration,
+    this.albumArtUri,
+    this.displayIconUri,
+    this.playable = true,
+  });
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(dynamic other) => other is MediaItem && other.id == id;
 }
 
 /// A button that controls audio playback.
@@ -77,6 +111,11 @@ List<Map> _mediaItems2raw(List<MediaItem> list) => list
           'id': mediaItem.id,
           'album': mediaItem.album,
           'title': mediaItem.title,
+          'artist': mediaItem.artist,
+          'genre': mediaItem.genre,
+          'duration': mediaItem.duration,
+          'albumArtUri': mediaItem.albumArtUri,
+          'displayIconUri': mediaItem.displayIconUri,
           'playable': mediaItem.playable,
         })
     .toList();
@@ -85,6 +124,11 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'id': mediaItem.id,
       'album': mediaItem.album,
       'title': mediaItem.title,
+      'artist': mediaItem.artist,
+      'genre': mediaItem.genre,
+      'duration': mediaItem.duration,
+      'albumArtUri': mediaItem.albumArtUri,
+      'displayIconUri': mediaItem.displayIconUri,
       'playable': mediaItem.playable,
     };
 
@@ -111,6 +155,8 @@ typedef OnQueueChanged = void Function(List<MediaItem> queue);
 /// although the audio service will continue to run in the background. If your
 /// UI once again becomes visible, you should reconnect to the audio service.
 class AudioService {
+  // TODO: Provide an API to browse media items provided by
+  // [AudioServiceBackground.onLoadChildren].
   static OnPlaybackStateChanged _onPlaybackStateChanged;
   static OnMediaChanged _onMediaChanged;
   static OnQueueChanged _onQueueChanged;
@@ -149,7 +195,15 @@ class AudioService {
             final List<Map> args = call.arguments;
             List<MediaItem> queue = args
                 .map((raw) => MediaItem(
-                    id: raw['id'], title: raw['title'], album: raw['album']))
+                      id: raw['id'],
+                      album: raw['album'],
+                      title: raw['title'],
+                      artist: raw['artist'],
+                      genre: raw['genre'],
+                      duration: raw['duration'],
+                      albumArtUri: raw['albumArtUri'],
+                      displayIconUri: raw['displayIconUri'],
+                    ))
                 .toList();
             _onQueueChanged(queue);
           }
@@ -179,10 +233,7 @@ class AudioService {
   ///
   /// On Android, this will start a `MediaBrowserService` in the foreground
   /// along with a notification. The Android notification icon is specified
-  /// like an XML resource reference and defaults to `"mipmap/ic_launcher"`. If
-  /// your audio player will manage a playlist, you may specify the initial
-  /// playlist with [queue] and request to modify it from the client side via
-  /// [addQueueItem], [addQueueItemAt] and [removeQueueItem].
+  /// like an XML resource reference and defaults to `"mipmap/ic_launcher"`.
   static Future<bool> start({
     @required Function backgroundTask,
     String notificationChannelName = "Notifications",
@@ -190,7 +241,6 @@ class AudioService {
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidNotificationClickStartsActivity = true,
     bool resumeOnClick = true,
-    List<MediaItem> queue = const <MediaItem>[],
   }) async {
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTask);
@@ -203,9 +253,9 @@ class AudioService {
       'notificationChannelName': notificationChannelName,
       'notificationColor': notificationColor,
       'androidNotificationIcon': androidNotificationIcon,
-      'androidNotificationClickStartsActivity': androidNotificationClickStartsActivity,
+      'androidNotificationClickStartsActivity':
+          androidNotificationClickStartsActivity,
       'resumeOnClick': resumeOnClick,
-      'queue': _mediaItems2raw(queue),
     });
   }
 
@@ -345,7 +395,7 @@ class AudioServiceBackground {
   /// button is clicked on the headset.
   static Future<void> run({
     @required Future<void> onStart(),
-    Future<List<MediaItem>> onLoadChildren(),
+    Future<List<MediaItem>> onLoadChildren(int parentMediaId),
     VoidCallback onAudioFocusGained,
     VoidCallback onAudioFocusLost,
     VoidCallback onAudioFocusLostTransient,
@@ -374,12 +424,19 @@ class AudioServiceBackground {
       switch (call.method) {
         case 'onLoadChildren':
           if (onLoadChildren != null) {
-            List<MediaItem> mediaItems = await onLoadChildren();
+            final List args = call.arguments;
+            int parentMediaId = args[0];
+            List<MediaItem> mediaItems = await onLoadChildren(parentMediaId);
             List<Map> rawMediaItems = mediaItems
                 .map((mediaItem) => {
                       'id': mediaItem.id,
                       'album': mediaItem.album,
                       'title': mediaItem.title,
+                      'artist': mediaItem.artist,
+                      'genre': mediaItem.genre,
+                      'duration': mediaItem.duration,
+                      'albumArtUri': mediaItem.albumArtUri,
+                      'displayIconUri': mediaItem.displayIconUri,
                       'playable': mediaItem.playable,
                     })
                 .toList();
@@ -528,7 +585,7 @@ class AudioServiceBackground {
 
   /// In Android, forces media button events to be routed to your active media
   /// session.
-  /// 
+  ///
   /// This is necessary if you want to play TextToSpeech in the background and
   /// still respond to media button events. You should call it just before
   /// playing TextToSpeech.

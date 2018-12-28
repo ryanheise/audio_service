@@ -148,7 +148,7 @@ class CustomAudioPlayer {
 
   Future<void> run() async {
     MediaItem mediaItem =
-        MediaItem(id: '1', album: 'Sample Album', title: 'Sample Title');
+        MediaItem(id: 'audio_1', album: 'Sample Album', title: 'Sample Title');
 
     AudioServiceBackground.setMediaItem(mediaItem);
 
@@ -240,7 +240,7 @@ class TextPlayer {
   }
 
   MediaItem mediaItem(int number) =>
-      MediaItem(id: '$number', album: 'Numbers', title: 'Number $number');
+      MediaItem(id: 'tts_$number', album: 'Numbers', title: 'Number $number');
 
   void playPause() {
     if (_state == PlaybackState.playing) {
