@@ -1,3 +1,7 @@
+## 0.0.5
+
+* Show media art in notification and lock screen.
+
 ## 0.0.4
 
 * Support and example for playing TextToSpeech.
