@@ -39,6 +39,12 @@ import java.util.HashMap;
 import java.util.Map;
 import android.media.AudioFocusRequest;
 import android.media.AudioAttributes;
+import android.net.Uri;
+import java.io.InputStream;
+import java.net.URL;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import java.io.IOException;
 import android.support.annotation.RequiresApi;
 
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -170,10 +176,12 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		MediaControllerCompat controller = mediaSession.getController();
 		String contentTitle = "";
 		String contentText = "";
+		Bitmap artBitmap = null;
 		if (mediaMetadata != null) {
 			MediaDescriptionCompat description = mediaMetadata.getDescription();
 			contentTitle = description.getTitle().toString();
 			contentText = description.getSubtitle().toString();
+			artBitmap = description.getIconBitmap();
 		}
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(AudioService.this, notificationChannelId)
 				.setSmallIcon(iconId)
@@ -190,6 +198,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		for (NotificationCompat.Action action : actions) {
 			builder.addAction(action);
 		}
+		if (artBitmap != null)
+			builder.setLargeIcon(artBitmap);
 		builder.setStyle(new MediaStyle()
 				.setMediaSession(mediaSession.getSessionToken())
 				.setShowActionsInCompactView(actionIndices)
@@ -277,12 +287,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				(String)rawMediaItem.get("artist"),
 				(String)rawMediaItem.get("genre"),
 				AudioServicePlugin.getLong(rawMediaItem.get("duration")),
-				(String)rawMediaItem.get("albumArtUri"),
-				(String)rawMediaItem.get("displayIconUri")
+				(String)rawMediaItem.get("artUri")
 				);
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String albumArtUri, String displayIconUri) {
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri) {
 		MediaMetadataCompat mediaMetadata = mediaMetadataCache.get(mediaId);
 		if (mediaMetadata == null) {
 			MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
@@ -295,10 +304,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
 			if (duration != null)
 				builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
-			if (albumArtUri != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, albumArtUri);
-			if (displayIconUri != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayIconUri);
+			if (artUri != null)
+				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
 			mediaMetadata = builder.build();
 			mediaMetadataCache.put(mediaId, mediaMetadata);
 		}
@@ -335,10 +342,38 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		mediaSession.setQueue(queue);
 	}
 
-	void setMetadata(MediaMetadataCompat mediaMetadata) {
+	synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
 		updateNotification();
+
+		final MediaDescriptionCompat description = mediaMetadata.getDescription();
+		final Uri artUri = description.getIconUri();
+		if (description.getIconBitmap() == null && artUri != null) {
+			new Thread() {
+				@Override public void run() {
+					try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
+						Bitmap bitmap = BitmapFactory.decodeStream(in);
+						updateArtBitmap(mediaMetadata, bitmap);
+					}
+					catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}.start();
+		}
+	}
+
+	synchronized void updateArtBitmap(MediaMetadataCompat mediaMetadata, Bitmap bitmap) {
+		if (mediaMetadata.getDescription().getMediaId().equals(this.mediaMetadata.getDescription().getMediaId())) {
+			String mediaId = mediaMetadata.getDescription().getMediaId();
+			mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap) 
+				.build();
+			mediaMetadataCache.put(mediaId, mediaMetadata);
+			setMetadata(mediaMetadata);
+		}
 	}
 
 	@Override

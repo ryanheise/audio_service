@@ -485,8 +485,7 @@ public class AudioServicePlugin {
 				raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
 				if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
 					raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-				raw.put("albumArtUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI).toString());
-				raw.put("displayIconUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI).toString());
+				raw.put("artUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI).toString());
 			}
 			rawQueue.add(raw);
 		}

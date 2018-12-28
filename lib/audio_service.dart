@@ -66,11 +66,8 @@ class MediaItem {
   /// The duration in milliseconds
   int duration;
 
-  /// The artwork for the album of this media item as a uri
-  String albumArtUri;
-
-  /// A thumbnail/icon for this media item as a uri
-  String displayIconUri;
+  /// The artwork for this media item as a uri
+  String artUri;
 
   /// Whether this is playable (i.e. not a folder)
   bool playable;
@@ -82,8 +79,7 @@ class MediaItem {
     this.artist,
     this.genre,
     this.duration,
-    this.albumArtUri,
-    this.displayIconUri,
+    this.artUri,
     this.playable = true,
   });
 
@@ -114,8 +110,7 @@ List<Map> _mediaItems2raw(List<MediaItem> list) => list
           'artist': mediaItem.artist,
           'genre': mediaItem.genre,
           'duration': mediaItem.duration,
-          'albumArtUri': mediaItem.albumArtUri,
-          'displayIconUri': mediaItem.displayIconUri,
+          'artUri': mediaItem.artUri,
           'playable': mediaItem.playable,
         })
     .toList();
@@ -127,8 +122,7 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'artist': mediaItem.artist,
       'genre': mediaItem.genre,
       'duration': mediaItem.duration,
-      'albumArtUri': mediaItem.albumArtUri,
-      'displayIconUri': mediaItem.displayIconUri,
+      'artUri': mediaItem.artUri,
       'playable': mediaItem.playable,
     };
 
@@ -201,8 +195,7 @@ class AudioService {
                       artist: raw['artist'],
                       genre: raw['genre'],
                       duration: raw['duration'],
-                      albumArtUri: raw['albumArtUri'],
-                      displayIconUri: raw['displayIconUri'],
+                      artUri: raw['artUri'],
                     ))
                 .toList();
             _onQueueChanged(queue);
@@ -435,8 +428,7 @@ class AudioServiceBackground {
                       'artist': mediaItem.artist,
                       'genre': mediaItem.genre,
                       'duration': mediaItem.duration,
-                      'albumArtUri': mediaItem.albumArtUri,
-                      'displayIconUri': mediaItem.displayIconUri,
+                      'artUri': mediaItem.artUri,
                       'playable': mediaItem.playable,
                     })
                 .toList();
