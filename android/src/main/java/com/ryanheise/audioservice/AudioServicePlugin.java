@@ -43,6 +43,9 @@ public class AudioServicePlugin {
 	private static ClientHandler clientHandler;
 	private static BackgroundHandler backgroundHandler;
 	private static FlutterNativeView backgroundFlutterView;
+	private static int nextQueueItemId = 0;
+	private static List<String> queueMediaIds = new ArrayList<String>();
+	private static Map<String,Integer> queueItemIds = new HashMap<String,Integer>();
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
@@ -251,8 +254,9 @@ public class AudioServicePlugin {
 						backgroundHandler.invokeMethod("onRemoveQueueItem", mediaId);
 					}
 					@Override
-					public void onSkipToQueueItem(long id) {
-						backgroundHandler.invokeMethod("onSkipToQueueItem", id);
+					public void onSkipToQueueItem(long queueItemId) {
+						String mediaId = queueMediaIds.get((int)queueItemId);
+						backgroundHandler.invokeMethod("onSkipToQueueItem", mediaId);
 					}
 					@Override
 					public void onSkipToNext() {
@@ -332,11 +336,12 @@ public class AudioServicePlugin {
 				mediaController.getTransportControls().prepare();
 				result.success(true);
 				break;
-			case "prepareFromMediaId":
+			case "prepareFromMediaId": {
 				String mediaId = (String)call.arguments;
 				mediaController.getTransportControls().prepareFromMediaId(mediaId, new Bundle());
 				result.success(true);
 				break;
+			}
 			//prepareFromSearch
 			//prepareFromUri
 			case "play":
@@ -346,11 +351,18 @@ public class AudioServicePlugin {
 			//playFromMediaId
 			//playFromSearch
 			//playFromUri
-			case "skipToQueueItem":
-				int id = (Integer)call.arguments;
-				mediaController.getTransportControls().skipToQueueItem(id);
-				result.success(true);
+			case "skipToQueueItem": {
+				String mediaId = (String)call.arguments;
+				Integer queueItemId = queueItemIds.get(mediaId);
+				if (queueItemId != null) {
+					mediaController.getTransportControls().skipToQueueItem(queueItemId);
+					result.success(true);
+				}
+				else {
+					result.success(false);
+				}
 				break;
+			}
 			case "pause":
 				mediaController.getTransportControls().pause();
 				result.success(true);
@@ -492,12 +504,18 @@ public class AudioServicePlugin {
 		return rawQueue;
 	}
 
+	private static synchronized int generateNextQueueItemId(String mediaId) {
+		queueMediaIds.add(mediaId);
+		queueItemIds.put(mediaId, nextQueueItemId);
+		return nextQueueItemId++;
+	}
+
 	private static List<MediaSessionCompat.QueueItem> raw2queue(List<Map<?,?>> rawQueue) {
 		List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 		for (Map<?,?> rawMediaItem : rawQueue) {
 			MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
 			MediaDescriptionCompat description = mediaMetadata.getDescription();
-			queue.add(new MediaSessionCompat.QueueItem(description, description.hashCode()));
+			queue.add(new MediaSessionCompat.QueueItem(description, generateNextQueueItemId(description.getMediaId())));
 		}
 		return queue;
 	}

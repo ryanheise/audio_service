@@ -298,7 +298,7 @@ class AudioService {
   //static Future<void> playFromUri(Uri uri, Bundle extras) async {}
 
   /// Passes through to `skipToQueueItem` in the background task.
-  static Future<void> skipToQueueItem(int id) async {
+  static Future<void> skipToQueueItem(String mediaId) async {
     await _channel.invokeMethod('skipToQueueItem');
   }
 
@@ -406,7 +406,7 @@ class AudioServiceBackground {
     ValueChanged<String> onRemoveQueueItem,
     VoidCallback onSkipToNext,
     VoidCallback onSkipToPrevious,
-    ValueChanged<int> onSkipToQueueItem,
+    ValueChanged<String> onSkipToQueueItem,
     ValueChanged<int> onSeekTo,
     void onCustomAction(String name, dynamic arguments),
   }) async {
@@ -515,8 +515,8 @@ class AudioServiceBackground {
         case 'onSkipToQueueItem':
           if (onSkipToQueueItem != null) {
             final List args = call.arguments;
-            int id = args[0];
-            onSkipToQueueItem(id);
+            String mediaId = args[0];
+            onSkipToQueueItem(mediaId);
           }
           break;
         case 'onSeekTo':
