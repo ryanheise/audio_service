@@ -1,3 +1,7 @@
+## 0.0.6
+
+* All APIs address media items by String mediaId.
+
 ## 0.0.5
 
 * Show media art in notification and lock screen.
