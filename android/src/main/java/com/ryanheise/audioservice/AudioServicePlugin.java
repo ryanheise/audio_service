@@ -267,6 +267,14 @@ public class AudioServicePlugin {
 						backgroundHandler.invokeMethod("onSkipToPrevious");
 					}
 					@Override
+					public void onFastForward() {
+						backgroundHandler.invokeMethod("onFastForward");
+					}
+					@Override
+					public void onRewind() {
+						backgroundHandler.invokeMethod("onRewind");
+					}
+					@Override
 					public void onSeekTo(long pos) {
 						backgroundHandler.invokeMethod("onSeekTo", pos);
 					}
@@ -318,7 +326,6 @@ public class AudioServicePlugin {
 				result.success(true);
 				break;
 			}
-			//case "adjustVolume"
 			case "removeQueueItem": {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
 				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
@@ -327,6 +334,7 @@ public class AudioServicePlugin {
 				break;
 			}
 			//case "setVolumeTo"
+			//case "adjustVolume"
 			case "click":
 				int buttonIndex = (int)call.arguments;
 				backgroundHandler.invokeMethod("onClick", buttonIndex);
@@ -348,7 +356,12 @@ public class AudioServicePlugin {
 				mediaController.getTransportControls().play();
 				result.success(true);
 				break;
-			//playFromMediaId
+			case "playFromMediaId": {
+				String mediaId = (String)call.arguments;
+				mediaController.getTransportControls().playFromMediaId(mediaId, null);
+				result.success(true);
+				break;
+			}
 			//playFromSearch
 			//playFromUri
 			case "skipToQueueItem": {
@@ -382,6 +395,14 @@ public class AudioServicePlugin {
 				break;
 			case "skipToPrevious":
 				mediaController.getTransportControls().skipToPrevious();
+				result.success(true);
+				break;
+			case "fastForward":
+				mediaController.getTransportControls().fastForward();
+				result.success(true);
+				break;
+			case "rewind":
+				mediaController.getTransportControls().rewind();
 				result.success(true);
 				break;
 			default:

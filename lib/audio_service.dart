@@ -280,13 +280,17 @@ class AudioService {
     await _channel.invokeMethod('play');
   }
 
-  //static Future<void> playFromMediaId(String mediaId, Bundle extras) async {}
+  /// Passes through to 'onPlayFromMediaId' in the background task.
+  static Future<void> playFromMediaId(String mediaId) async {
+    await _channel.invokeMethod('playFromMediaId', mediaId);
+  }
+
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
   //static Future<void> playFromUri(Uri uri, Bundle extras) async {}
 
   /// Passes through to `skipToQueueItem` in the background task.
   static Future<void> skipToQueueItem(String mediaId) async {
-    await _channel.invokeMethod('skipToQueueItem');
+    await _channel.invokeMethod('skipToQueueItem', mediaId);
   }
 
   /// Passes through to `onPause` in the background task.
@@ -304,18 +308,24 @@ class AudioService {
     await _channel.invokeMethod('seekTo', pos);
   }
 
-  //static Future<void> fastForward() async {}
-
-  // Passes through to `onSkipToNext` in the background task.
+  /// Passes through to `onSkipToNext` in the background task.
   static Future<void> skipToNext() async {
     await _channel.invokeMethod('skipToNext');
   }
 
-  //static Future<void> rewind() async {}
-
-  // Passes through to `onSkipToPrevious` in the background task.
+  /// Passes through to `onSkipToPrevious` in the background task.
   static Future<void> skipToPrevious() async {
     await _channel.invokeMethod('skipToPrevious');
+  }
+
+  /// Passes through to `onFastForward` in the background task.
+  static Future<void> fastForward() async {
+    await _channel.invokeMethod('fastForward');
+  }
+
+  /// Passes through to `onRewind` in the background task.
+  static Future<void> rewind() async {
+    await _channel.invokeMethod('rewind');
   }
 
   //static Future<void> setRating(RatingCompat rating) async {}
@@ -393,6 +403,8 @@ class AudioServiceBackground {
     ValueChanged<String> onRemoveQueueItem,
     VoidCallback onSkipToNext,
     VoidCallback onSkipToPrevious,
+    VoidCallback onFastForward,
+    VoidCallback onRewind,
     ValueChanged<String> onSkipToQueueItem,
     ValueChanged<int> onSeekTo,
     void onCustomAction(String name, dynamic arguments),
@@ -498,6 +510,12 @@ class AudioServiceBackground {
           break;
         case 'onSkipToPrevious':
           if (onSkipToPrevious != null) onSkipToPrevious();
+          break;
+        case 'onFastForward':
+          if (onFastForward != null) onFastForward();
+          break;
+        case 'onRewind':
+          if (onRewind != null) onRewind();
           break;
         case 'onSkipToQueueItem':
           if (onSkipToQueueItem != null) {

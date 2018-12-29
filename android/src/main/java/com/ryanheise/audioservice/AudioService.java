@@ -576,6 +576,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 
 		@Override
+		public void onFastForward() {
+			if (listener == null) return;
+			listener.onFastForward();
+		}
+
+		@Override
+		public void onRewind() {
+			if (listener == null) return;
+			listener.onRewind();
+		}
+
+		@Override
 		public void onSkipToQueueItem(long id) {
 			if (listener == null) return;
 			listener.onSkipToQueueItem(id);
@@ -611,8 +623,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onPause();
 		void onSkipToNext();
 		void onSkipToPrevious();
-		//void onFastForward();
-		//void onRewind();
+		void onFastForward();
+		void onRewind();
 		void onStop();
 		void onSeekTo(long pos);
 		//void onSetRating(RatingCompat rating);
