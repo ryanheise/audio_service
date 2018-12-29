@@ -68,7 +68,7 @@ public class AudioServicePlugin {
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
 			@Override
 			public void onMetadataChanged(MediaMetadataCompat metadata) {
-				invokeMethod("onMediaChanged", metadata.getDescription().getMediaId());
+				invokeMethod("onMediaChanged", mediaMetadata2raw(metadata));
 			}
 
 			@Override
@@ -187,7 +187,7 @@ public class AudioServicePlugin {
 								List<Map<?,?>> rawMediaItems = (List<Map<?,?>>)obj;
 								List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
 								for (Map<?,?> rawMediaItem : rawMediaItems) {
-									MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+									MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 									mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
 								}
 								result.sendResult(mediaItems);
@@ -304,7 +304,7 @@ public class AudioServicePlugin {
 				break;
 			case "addQueueItem": {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
-				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 				mediaController.addQueueItem(mediaMetadata.getDescription());
 				result.success(true);
 				break;
@@ -313,7 +313,7 @@ public class AudioServicePlugin {
 				List<?> queueAndIndex = (List<?>)call.arguments;
 				Map<?,?> rawMediaItem = (Map<?,?>)queueAndIndex.get(0);
 				int index = (Integer)queueAndIndex.get(1);
-				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 				mediaController.addQueueItem(mediaMetadata.getDescription(), index);
 				result.success(true);
 				break;
@@ -321,7 +321,7 @@ public class AudioServicePlugin {
 			//case "adjustVolume"
 			case "removeQueueItem": {
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
-				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 				mediaController.removeQueueItem(mediaMetadata.getDescription());
 				result.success(true);
 				break;
@@ -417,7 +417,7 @@ public class AudioServicePlugin {
 			switch (call.method) {
 			case "setMediaItem":
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
-				MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 				AudioService.instance.setMetadata(mediaMetadata);
 				result.success(true);
 				break;
@@ -486,22 +486,39 @@ public class AudioServicePlugin {
 		List<Map<?,?>> rawQueue = new ArrayList<Map<?,?>>();
 		for (MediaSessionCompat.QueueItem queueItem : queue) {
 			MediaDescriptionCompat description = queueItem.getDescription();
-			Map<String,Object> raw = new HashMap<String,Object>();
-			raw.put("id", description.getMediaId());
-			raw.put("album", description.getSubtitle()); // XXX: Will this give me the album?
-			raw.put("title", description.getTitle());
-			// Get the extra data from the cache
 			MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
-			if (mediaMetadata != null) {
-				raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
-				raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
-				if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
-					raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-				raw.put("artUri", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI).toString());
-			}
-			rawQueue.add(raw);
+			rawQueue.add(mediaMetadata2raw(mediaMetadata));
 		}
 		return rawQueue;
+	}
+
+	private static Map<?,?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
+		MediaDescriptionCompat description = mediaMetadata.getDescription();
+		Map<String,Object> raw = new HashMap<String,Object>();
+		raw.put("id", description.getMediaId());
+		raw.put("album", description.getSubtitle()); // XXX: Will this give me the album?
+		raw.put("title", description.getTitle());
+		raw.put("artUri", description.getIconUri());
+		// Get the rest from the mediaMetadata
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_ARTIST))
+			raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_GENRE))
+			raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
+			raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+		return raw;
+	}
+
+	private static MediaMetadataCompat createMediaMetadata(Map<?,?> rawMediaItem) {
+		return AudioService.createMediaMetadata(
+				(String)rawMediaItem.get("id"),
+				(String)rawMediaItem.get("album"),
+				(String)rawMediaItem.get("title"),
+				(String)rawMediaItem.get("artist"),
+				(String)rawMediaItem.get("genre"),
+				AudioServicePlugin.getLong(rawMediaItem.get("duration")),
+				(String)rawMediaItem.get("artUri")
+				);
 	}
 
 	private static synchronized int generateNextQueueItemId(String mediaId) {
@@ -513,7 +530,7 @@ public class AudioServicePlugin {
 	private static List<MediaSessionCompat.QueueItem> raw2queue(List<Map<?,?>> rawQueue) {
 		List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 		for (Map<?,?> rawMediaItem : rawQueue) {
-			MediaMetadataCompat mediaMetadata = AudioService.createMediaMetadata(rawMediaItem);
+			MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
 			MediaDescriptionCompat description = mediaMetadata.getDescription();
 			queue.add(new MediaSessionCompat.QueueItem(description, generateNextQueueItemId(description.getMediaId())));
 		}

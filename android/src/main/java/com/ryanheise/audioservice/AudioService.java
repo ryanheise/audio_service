@@ -279,18 +279,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static MediaMetadataCompat createMediaMetadata(Map<?,?> rawMediaItem) {
-		return createMediaMetadata(
-				(String)rawMediaItem.get("id"),
-				(String)rawMediaItem.get("album"),
-				(String)rawMediaItem.get("title"),
-				(String)rawMediaItem.get("artist"),
-				(String)rawMediaItem.get("genre"),
-				AudioServicePlugin.getLong(rawMediaItem.get("duration")),
-				(String)rawMediaItem.get("artUri")
-				);
-	}
-
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri) {
 		MediaMetadataCompat mediaMetadata = mediaMetadataCache.get(mediaId);
 		if (mediaMetadata == null) {

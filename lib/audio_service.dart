@@ -102,19 +102,6 @@ class MediaControl {
 const MethodChannel _channel =
     const MethodChannel('ryanheise.com/audioService');
 
-List<Map> _mediaItems2raw(List<MediaItem> list) => list
-    .map((mediaItem) => {
-          'id': mediaItem.id,
-          'album': mediaItem.album,
-          'title': mediaItem.title,
-          'artist': mediaItem.artist,
-          'genre': mediaItem.genre,
-          'duration': mediaItem.duration,
-          'artUri': mediaItem.artUri,
-          'playable': mediaItem.playable,
-        })
-    .toList();
-
 Map _mediaItem2raw(MediaItem mediaItem) => {
       'id': mediaItem.id,
       'album': mediaItem.album,
@@ -126,6 +113,16 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'playable': mediaItem.playable,
     };
 
+MediaItem _raw2mediaItem(Map raw) => MediaItem(
+      id: raw['id'],
+      album: raw['album'],
+      title: raw['title'],
+      artist: raw['artist'],
+      genre: raw['genre'],
+      duration: raw['duration'],
+      artUri: raw['artUri'],
+    );
+
 const String _CUSTOM_PREFIX = 'custom_';
 
 /// A callback to handle playback state changes.
@@ -133,7 +130,7 @@ typedef OnPlaybackStateChanged = void Function(
     PlaybackState state, int position, double speed, int updateTime);
 
 /// A callback to handle media item changes.
-typedef OnMediaChanged = void Function(String mediaId);
+typedef OnMediaChanged = void Function(MediaItem mediaItem);
 
 /// A callback to handle queue changes.
 typedef OnQueueChanged = void Function(List<MediaItem> queue);
@@ -181,23 +178,13 @@ class AudioService {
           break;
         case 'onMediaChanged':
           if (_onMediaChanged != null) {
-            _onMediaChanged(call.arguments[0]);
+            _onMediaChanged(_raw2mediaItem(call.arguments[0]));
           }
           break;
         case 'onQueueChanged':
           if (_onQueueChanged != null) {
             final List<Map> args = call.arguments;
-            List<MediaItem> queue = args
-                .map((raw) => MediaItem(
-                      id: raw['id'],
-                      album: raw['album'],
-                      title: raw['title'],
-                      artist: raw['artist'],
-                      genre: raw['genre'],
-                      duration: raw['duration'],
-                      artUri: raw['artUri'],
-                    ))
-                .toList();
+            List<MediaItem> queue = args.map(_raw2mediaItem).toList();
             _onQueueChanged(queue);
           }
           break;
@@ -566,7 +553,8 @@ class AudioServiceBackground {
 
   /// Sets the current queue and notifies all clients.
   static Future<void> setQueue(List<MediaItem> queue) async {
-    await _backgroundChannel.invokeMethod('setQueue', _mediaItems2raw(queue));
+    await _backgroundChannel.invokeMethod(
+        'setQueue', queue.map(_mediaItem2raw).toList());
   }
 
   /// Sets the currently playing media item and notifies all clients.
