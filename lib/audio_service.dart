@@ -133,7 +133,7 @@ typedef OnPlaybackStateChanged = void Function(
     PlaybackState state, int position, double speed, int updateTime);
 
 /// A callback to handle media item changes.
-typedef OnMediaChanged = void Function(int mediaId);
+typedef OnMediaChanged = void Function(String mediaId);
 
 /// A callback to handle queue changes.
 typedef OnQueueChanged = void Function(List<MediaItem> queue);
