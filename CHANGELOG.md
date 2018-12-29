@@ -1,3 +1,8 @@
+## 0.0.7
+
+* onMediaChanged takes MediaItem parameter.
+* Support playFromMediaId, fastForward, rewind.
+
 ## 0.0.6
 
 * All APIs address media items by String mediaId.
