@@ -388,7 +388,7 @@ class AudioServiceBackground {
   /// button is clicked on the headset.
   static Future<void> run({
     @required Future<void> onStart(),
-    Future<List<MediaItem>> onLoadChildren(int parentMediaId),
+    Future<List<MediaItem>> onLoadChildren(String parentMediaId),
     VoidCallback onAudioFocusGained,
     VoidCallback onAudioFocusLost,
     VoidCallback onAudioFocusLostTransient,
@@ -418,7 +418,7 @@ class AudioServiceBackground {
         case 'onLoadChildren':
           if (onLoadChildren != null) {
             final List args = call.arguments;
-            int parentMediaId = args[0];
+            String parentMediaId = args[0];
             List<MediaItem> mediaItems = await onLoadChildren(parentMediaId);
             List<Map> rawMediaItems = mediaItems
                 .map((mediaItem) => {
