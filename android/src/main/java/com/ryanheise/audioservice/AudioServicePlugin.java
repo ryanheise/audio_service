@@ -519,7 +519,8 @@ public class AudioServicePlugin {
 		raw.put("id", description.getMediaId());
 		raw.put("album", description.getSubtitle()); // XXX: Will this give me the album?
 		raw.put("title", description.getTitle());
-		raw.put("artUri", description.getIconUri());
+		if (description.getIconUri() != null)
+			raw.put("artUri", description.getIconUri().toString());
 		// Get the rest from the mediaMetadata
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_ARTIST))
 			raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
