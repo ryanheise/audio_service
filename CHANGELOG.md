@@ -1,3 +1,7 @@
+## 0.0.8
+
+* Bug fix.
+
 ## 0.0.7
 
 * onMediaChanged takes MediaItem parameter.
