@@ -398,9 +398,9 @@ class AudioServiceBackground {
     ValueChanged<String> onPrepareFromMediaId,
     VoidCallback onPlay,
     ValueChanged<String> onPlayFromMediaId,
-    ValueChanged<String> onAddQueueItem,
-    void onAddQueueItemAt(String mediaId, int index),
-    ValueChanged<String> onRemoveQueueItem,
+    ValueChanged<MediaItem> onAddQueueItem,
+    void onAddQueueItemAt(MediaItem mediaItem, int index),
+    ValueChanged<MediaItem> onRemoveQueueItem,
     VoidCallback onSkipToNext,
     VoidCallback onSkipToPrevious,
     VoidCallback onFastForward,
@@ -485,24 +485,20 @@ class AudioServiceBackground {
           break;
         case 'onAddQueueItem':
           if (onAddQueueItem != null) {
-            final List args = call.arguments;
-            String mediaId = args[0];
-            onAddQueueItem(mediaId);
+            onAddQueueItem(_raw2mediaItem(call.arguments[0]));
           }
           break;
         case 'onAddQueueItemAt':
           if (onAddQueueItem != null) {
             final List args = call.arguments;
-            String mediaId = args[0];
+            MediaItem mediaItem = _raw2mediaItem(args[0]);
             int index = args[1];
-            onAddQueueItemAt(mediaId, index);
+            onAddQueueItemAt(mediaItem, index);
           }
           break;
         case 'onRemoveQueueItem':
           if (onRemoveQueueItem != null) {
-            final List args = call.arguments;
-            String mediaId = args[0];
-            onRemoveQueueItem(mediaId);
+            onRemoveQueueItem(_raw2mediaItem(call.arguments[0]));
           }
           break;
         case 'onSkipToNext':
@@ -541,6 +537,8 @@ class AudioServiceBackground {
           break;
       }
     });
+    if (onAddQueueItem != null || onRemoveQueueItem != null || onSkipToQueueItem != null)
+      _backgroundChannel.invokeMethod('enableQueue');
     await onStart();
     await _backgroundChannel.invokeMethod('stopped');
     _backgroundChannel.setMethodCallHandler(null);

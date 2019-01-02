@@ -242,16 +242,16 @@ public class AudioServicePlugin {
 						backgroundHandler.invokeMethod("onStop");
 					}
 					@Override
-					public void onAddQueueItem(String mediaId) {
-						backgroundHandler.invokeMethod("onAddQueueItem", mediaId);
+					public void onAddQueueItem(MediaMetadataCompat metadata) {
+						backgroundHandler.invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata));
 					}
 					@Override
-					public void onAddQueueItemAt(String mediaId, int index) {
-						backgroundHandler.invokeMethod("onAddQueueItem", mediaId, index);
+					public void onAddQueueItemAt(MediaMetadataCompat metadata, int index) {
+						backgroundHandler.invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata), index);
 					}
 					@Override
-					public void onRemoveQueueItem(String mediaId) {
-						backgroundHandler.invokeMethod("onRemoveQueueItem", mediaId);
+					public void onRemoveQueueItem(MediaMetadataCompat metadata) {
+						backgroundHandler.invokeMethod("onRemoveQueueItem", mediaMetadata2raw(metadata));
 					}
 					@Override
 					public void onSkipToQueueItem(long queueItemId) {
@@ -436,6 +436,10 @@ public class AudioServicePlugin {
 			Context context = registrar.activeContext();
 			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
 			switch (call.method) {
+			case "enableQueue":
+				AudioService.instance.enableQueue();
+				result.success(true);
+				break;
 			case "setMediaItem":
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
 				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);

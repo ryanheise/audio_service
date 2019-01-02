@@ -325,6 +325,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, AudioService.class.getName());
 	}
 
+	void enableQueue() {
+		mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
+	}
+
 	void setQueue(List<MediaSessionCompat.QueueItem> queue) {
 		this.queue = queue;
 		mediaSession.setQueue(queue);
@@ -411,19 +415,19 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		@Override
 		public void onAddQueueItem(MediaDescriptionCompat description) {
 			if (listener == null) return;
-			listener.onAddQueueItem(description.getMediaId());
+			listener.onAddQueueItem(getMediaMetadata(description.getMediaId()));
 		}
 
 		@Override
 		public void onAddQueueItem(MediaDescriptionCompat description, int index) {
 			if (listener == null) return;
-			listener.onAddQueueItemAt(description.getMediaId(), index);
+			listener.onAddQueueItemAt(getMediaMetadata(description.getMediaId()), index);
 		}
 
 		@Override
 		public void onRemoveQueueItem(MediaDescriptionCompat description) {
 			if (listener == null) return;
-			listener.onRemoveQueueItem(description.getMediaId());
+			listener.onRemoveQueueItem(getMediaMetadata(description.getMediaId()));
 		}
 
 		@Override
@@ -632,8 +636,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		//void onSetShuffleModeEnabled(boolean enabled);
 		//void onSetShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode);
 		//void onCustomAction(String action, Bundle extras);
-		void onAddQueueItem(String mediaId);
-		void onAddQueueItemAt(String mediaId, int index);
-		void onRemoveQueueItem(String mediaId);
+		void onAddQueueItem(MediaMetadataCompat metadata);
+		void onAddQueueItemAt(MediaMetadataCompat metadata, int index);
+		void onRemoveQueueItem(MediaMetadataCompat metadata);
 	}
 }
