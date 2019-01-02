@@ -1,3 +1,7 @@
+## 0.0.9
+
+* Support queue management.
+
 ## 0.0.8
 
 * Bug fix.
