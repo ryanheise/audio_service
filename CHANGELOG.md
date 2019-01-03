@@ -1,3 +1,8 @@
+## 0.0.10
+
+* Bug fixes with queue management.
+* AudioService.start completes when the background task is ready.
+
 ## 0.0.9
 
 * Support queue management.
