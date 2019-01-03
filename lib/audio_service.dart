@@ -183,7 +183,7 @@ class AudioService {
           break;
         case 'onQueueChanged':
           if (_onQueueChanged != null) {
-            final List<Map> args = call.arguments;
+            final List<Map> args = List<Map>.from(call.arguments[0]);
             List<MediaItem> queue = args.map(_raw2mediaItem).toList();
             _onQueueChanged(queue);
           }
