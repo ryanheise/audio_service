@@ -433,6 +433,8 @@ class AudioServiceBackground {
                 .toList();
             return rawMediaItems;
           }
+          else
+            return [];
           break;
         case 'onAudioFocusGained':
           if (onAudioFocusGained != null) onAudioFocusGained();
@@ -537,8 +539,8 @@ class AudioServiceBackground {
           break;
       }
     });
-    if (onAddQueueItem != null || onRemoveQueueItem != null || onSkipToQueueItem != null)
-      _backgroundChannel.invokeMethod('enableQueue');
+    bool enableQueue = onAddQueueItem != null || onRemoveQueueItem != null || onSkipToQueueItem != null;
+    await _backgroundChannel.invokeMethod('ready', enableQueue);
     await onStart();
     await _backgroundChannel.invokeMethod('stopped');
     _backgroundChannel.setMethodCallHandler(null);

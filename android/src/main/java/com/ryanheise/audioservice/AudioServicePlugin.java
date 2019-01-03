@@ -46,6 +46,7 @@ public class AudioServicePlugin {
 	private static int nextQueueItemId = 0;
 	private static List<String> queueMediaIds = new ArrayList<String>();
 	private static Map<String,Integer> queueItemIds = new HashMap<String,Integer>();
+	private static Result startResult;
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
@@ -57,6 +58,11 @@ public class AudioServicePlugin {
 			clientHandler = new ClientHandler(registrar);
 		else
 			backgroundHandler = new BackgroundHandler(registrar);
+	}
+
+	private static void sendStartResult(boolean result) {
+		startResult.success(result);
+		startResult = null;
 	}
 
 	private static class ClientHandler implements MethodCallHandler {
@@ -134,8 +140,9 @@ public class AudioServicePlugin {
 				result.success(AudioService.isRunning());
 				break;
 			case "start": {
+				startResult = result; // The result will be sent after the background task actually starts.
 				if (AudioService.isRunning()) {
-					result.success(false);
+					sendStartResult(false);
 					break;
 				}
 				Map<?,?> arguments = (Map<?,?>)call.arguments;
@@ -215,20 +222,21 @@ public class AudioServicePlugin {
 					public void onPlay() {
 						if (backgroundFlutterView == null) {
 							FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-							if (cb == null) {
+							if (cb == null || appBundlePath == null) {
+								sendStartResult(false);
 								return;
 							}
 							backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
-							if (appBundlePath != null) {
-								if (pluginRegistrantCallback == null)
-									throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
-								pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
-								FlutterRunArguments args = new FlutterRunArguments();
-								args.bundlePath = appBundlePath;
-								args.entrypoint = cb.callbackName;
-								args.libraryPath = cb.callbackLibraryPath;
-								backgroundFlutterView.runFromBundle(args);
+							if (pluginRegistrantCallback == null) {
+								sendStartResult(false);
+								throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
 							}
+							pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
+							FlutterRunArguments args = new FlutterRunArguments();
+							args.bundlePath = appBundlePath;
+							args.entrypoint = cb.callbackName;
+							args.libraryPath = cb.callbackLibraryPath;
+							backgroundFlutterView.runFromBundle(args);
 						}
 						else
 							backgroundHandler.invokeMethod("onPlay");
@@ -287,7 +295,6 @@ public class AudioServicePlugin {
 						playPending = true;
 				}
 
-				result.success(true);
 				break;
 			}
 			case "connect":
@@ -436,9 +443,12 @@ public class AudioServicePlugin {
 			Context context = registrar.activeContext();
 			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
 			switch (call.method) {
-			case "enableQueue":
-				AudioService.instance.enableQueue();
+			case "ready":
+				boolean enableQueue = (Boolean)call.arguments;
+				if (enableQueue)
+					AudioService.instance.enableQueue();
 				result.success(true);
+				sendStartResult(true);
 				break;
 			case "setMediaItem":
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
