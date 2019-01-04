@@ -58,14 +58,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  void connect() {
-    AudioService.connect(
-      onPlaybackStateChanged: (state, position, speed, updateTime) {
-        setState(() {
-          this.state = state;
-        });
-      },
-    );
+  void connect() async {
+    await AudioService.connect();
+    AudioService.playbackStateStream.listen((PlaybackState playbackState) {
+      setState(() {
+        this.state = playbackState;
+      });
+    });
   }
 
   @override
