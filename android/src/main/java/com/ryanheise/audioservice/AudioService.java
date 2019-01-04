@@ -191,7 +191,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setContentTitle(contentTitle)
 				.setContentText(contentText)
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
+				.setShowWhen(false)
 				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				;
 		if (androidNotificationClickStartsActivity)
