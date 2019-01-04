@@ -253,14 +253,22 @@ class AudioService {
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off.
   ///
+  /// While the background task is running, it will display a system
+  /// notification showing information about the current media item being
+  /// played (see [AudioServiceBackground.setMediaItem]) along with any media
+  /// controls to perform any media actions that you want to support (see
+  /// [AudioServiceBackground.setState]).
+  ///
   /// The background task is specified by [backgroundTask] which will be run
   /// within a background isolate. This function must be a top-level or static
   /// function, and it must initiate execution by calling
-  /// [AudioServiceBackground.run].
+  /// [AudioServiceBackground.run]. Because the background task runs in an
+  /// isolate, no memory is shared between the background isolate and
+  /// your main UI isolate and so all communication between the background
+  /// task and your UI is achieved through message passing.
   ///
-  /// On Android, this will start a `MediaBrowserService` in the foreground
-  /// along with a notification. The Android notification icon is specified
-  /// like an XML resource reference and defaults to `"mipmap/ic_launcher"`.
+  /// The [androidNotificationIcon] is specified like an XML resource reference
+  /// and defaults to `"mipmap/ic_launcher"`.
   static Future<bool> start({
     @required Function backgroundTask,
     String androidNotificationChannelName = "Notifications",
@@ -417,23 +425,20 @@ class AudioServiceBackground {
   /// Each callback function you supply handles an action initiated from a
   /// connected client. In particular:
   ///
-  /// [onStart] (required) is an asynchronous function that is called in
+  /// * [onStart] (required) is an asynchronous function that is called in
   /// response to [AudioService.start]. It is responsible for starting audio
-  /// playback and should not complete until there is no more audio to be
-  /// played. Once this function completes, the background isolate will be
-  /// permanently shut down (although a new one can be started by calling
-  /// [AudioService.start] again).
-  ///
-  /// [onStop] (required) is called in response to [AudioService.stop] (or the
-  /// stop button in the notification or Wear OS or Android Auto). It is
+  /// playback and should return a [Future] that completes when the background
+  /// task has completely finished playing audio and is ready to be permanently
+  /// shut down. After the task has completed, a new task may still be started
+  /// again via [AudioService.start].
+  /// * [onStop] (required) is called in response to [AudioService.stop] (or
+  /// the stop button in the notification or Wear OS or Android Auto). It is
   /// [onStop]'s responsibility to perform whatever code is necessary to cause
   /// [onStart] to complete. This may be done by using a [Completer] or by
   /// setting a flag that will trigger a loop in [onStart] to complete.
-  ///
-  /// [onPause] is called in response to [AudioService.pause], or the pause
+  /// * [onPause] is called in response to [AudioService.pause], or the pause
   /// button in the notification or Wear OS or Android Auto.
-  ///
-  /// [onClick] is called in response to [AudioService.click], or if a media
+  /// * [onClick] is called in response to [AudioService.click], or if a media
   /// button is clicked on the headset.
   static Future<void> run({
     @required Future<void> onStart(),
@@ -605,6 +610,17 @@ class AudioServiceBackground {
   /// visible in the notification, Wear OS and Android Auto.
   ///
   /// All clients will be notified so they can update their display.
+  ///
+  /// The playback [position] should be explicitly updated only when the normal
+  /// continuity of time is disrupted, such as when the user performs a seek,
+  /// or buffering occurs, etc. Thus, the [position] parameter indicates the
+  /// playback position in milliseconds at the time the state was updated while
+  /// the [updateTime] parameter indicates the precise time of that update. It
+  /// is the client's responsibility to adjust this [position] by the
+  /// difference between the current system clock and the recorded
+  /// [updateTime].
+  ///
+  /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
     @required List<MediaControl> controls,
     @required BasicPlaybackState basicState,
