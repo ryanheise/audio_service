@@ -554,6 +554,12 @@ public class AudioServicePlugin {
 			raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
 			raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE))
+			raw.put("displayTitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE))
+			raw.put("displaySubtitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION))
+			raw.put("displayDescription", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION).toString());
 		return raw;
 	}
 
@@ -564,8 +570,11 @@ public class AudioServicePlugin {
 				(String)rawMediaItem.get("title"),
 				(String)rawMediaItem.get("artist"),
 				(String)rawMediaItem.get("genre"),
-				AudioServicePlugin.getLong(rawMediaItem.get("duration")),
-				(String)rawMediaItem.get("artUri")
+				getLong(rawMediaItem.get("duration")),
+				(String)rawMediaItem.get("artUri"),
+				(String)rawMediaItem.get("displayTitle"),
+				(String)rawMediaItem.get("displaySubtitle"),
+				(String)rawMediaItem.get("displayDescription")
 				);
 	}
 

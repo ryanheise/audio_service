@@ -78,28 +78,37 @@ class PlaybackState {
 /// audio items.
 class MediaItem {
   /// A unique id
-  String id;
+  final String id;
 
   /// The album this media item belongs to
-  String album;
+  final String album;
 
   /// The title of this media item
-  String title;
+  final String title;
 
   /// The artist of this media item
-  String artist;
+  final String artist;
 
   /// The genre of this media item
-  String genre;
+  final String genre;
 
   /// The duration in milliseconds
-  int duration;
+  final int duration;
 
   /// The artwork for this media item as a uri
-  String artUri;
+  final String artUri;
 
   /// Whether this is playable (i.e. not a folder)
-  bool playable;
+  final bool playable;
+
+  /// Override the default title for display purposes
+  final String displayTitle;
+
+  /// Override the default subtitle for display purposes
+  final String displaySubtitle;
+
+  /// Override the default description for display purposes
+  final String displayDescription;
 
   MediaItem({
     @required this.id,
@@ -110,6 +119,9 @@ class MediaItem {
     this.duration,
     this.artUri,
     this.playable = true,
+    this.displayTitle,
+    this.displaySubtitle,
+    this.displayDescription,
   });
 
   @override
@@ -140,6 +152,9 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'duration': mediaItem.duration,
       'artUri': mediaItem.artUri,
       'playable': mediaItem.playable,
+      'displayTitle': mediaItem.displayTitle,
+      'displaySubtitle': mediaItem.displaySubtitle,
+      'displayDescription': mediaItem.displayDescription,
     };
 
 MediaItem _raw2mediaItem(Map raw) => MediaItem(
@@ -150,6 +165,9 @@ MediaItem _raw2mediaItem(Map raw) => MediaItem(
       genre: raw['genre'],
       duration: raw['duration'],
       artUri: raw['artUri'],
+      displayTitle: raw['displayTitle'],
+      displaySubtitle: raw['displaySubtitle'],
+      displayDescription: raw['displayDescription'],
     );
 
 const String _CUSTOM_PREFIX = 'custom_';
@@ -486,6 +504,9 @@ class AudioServiceBackground {
                       'duration': mediaItem.duration,
                       'artUri': mediaItem.artUri,
                       'playable': mediaItem.playable,
+                      'displayTitle': mediaItem.displayTitle,
+                      'displaySubtitle': mediaItem.displaySubtitle,
+                      'displayDescription': mediaItem.displayDescription,
                     })
                 .toList();
             return rawMediaItems;
