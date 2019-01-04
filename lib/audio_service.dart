@@ -188,6 +188,18 @@ class AudioService {
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueController.stream;
 
+  /// The current playback state.
+  static PlaybackState get playbackState => _playbackState;
+  static PlaybackState _playbackState;
+
+  /// The current media item.
+  static MediaItem get currentMediaItem => _currentMediaItem;
+  static MediaItem _currentMediaItem;
+
+  /// The current queue.
+  static List<MediaItem> get queue => _queue;
+  static List<MediaItem> _queue;
+
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
   ///
@@ -200,7 +212,7 @@ class AudioService {
         case 'onPlaybackStateChanged':
           final List args = call.arguments;
           int actionBits = args[1];
-          PlaybackState playbackState = PlaybackState(
+          _playbackState = PlaybackState(
             basicState: BasicPlaybackState.values[args[0]],
             actions: MediaAction.values
                 .where((action) => (actionBits & (1 << action.index)) != 0)
@@ -209,15 +221,16 @@ class AudioService {
             speed: args[3],
             updateTime: args[4],
           );
-          _playbackStateController.add(playbackState);
+          _playbackStateController.add(_playbackState);
           break;
         case 'onMediaChanged':
-          _currentMediaItemController.add(_raw2mediaItem(call.arguments[0]));
+          _currentMediaItem = _raw2mediaItem(call.arguments[0]);
+          _currentMediaItemController.add(_currentMediaItem);
           break;
         case 'onQueueChanged':
           final List<Map> args = List<Map>.from(call.arguments[0]);
-          List<MediaItem> queue = args.map(_raw2mediaItem).toList();
-          _queueController.add(queue);
+          _queue = args.map(_raw2mediaItem).toList();
+          _queueController.add(_queue);
           break;
       }
     });
