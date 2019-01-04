@@ -20,7 +20,7 @@ Since background execution of Dart code is a relatively new feature of flutter, 
 AudioService.connect();   // When UI becomes visible
 AudioService.start(       // When user clicks button to start playback
   backgroundTask: myBackgroundTask,
-  notificationChannelName: 'Music Player',
+  androidNotificationChannelName: 'Music Player',
   androidNotificationIcon: "mipmap/ic_launcher",
 );
 AudioService.disconnect(); // When UI is gone

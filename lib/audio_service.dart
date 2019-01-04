@@ -223,7 +223,8 @@ class AudioService {
   /// like an XML resource reference and defaults to `"mipmap/ic_launcher"`.
   static Future<bool> start({
     @required Function backgroundTask,
-    String notificationChannelName = "Notifications",
+    String androidNotificationChannelName = "Notifications",
+    String androidNotificationChannelDescription,
     int notificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidNotificationClickStartsActivity = true,
@@ -237,7 +238,8 @@ class AudioService {
     var callbackHandle = handle.toRawHandle();
     return await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
-      'notificationChannelName': notificationChannelName,
+      'androidNotificationChannelName': androidNotificationChannelName,
+      'androidNotificationChannelDescription': androidNotificationChannelDescription,
       'notificationColor': notificationColor,
       'androidNotificationIcon': androidNotificationIcon,
       'androidNotificationClickStartsActivity':

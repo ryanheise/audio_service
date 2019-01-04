@@ -59,15 +59,16 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static PendingIntent contentIntent;
 	private static boolean resumeOnClick;
 	private static ServiceListener listener;
-	static String notificationChannelName;
+	static String androidNotificationChannelName;
+	static String androidNotificationChannelDescription;
 	static Integer notificationColor;
-	static String notificationAndroidIcon;
+	static String androidNotificationIcon;
 	static boolean androidNotificationClickStartsActivity;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String notificationChannelName, Integer notificationColor, String notificationAndroidIcon, boolean androidNotificationClickStartsActivity, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -77,9 +78,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 		AudioService.listener = listener;
 		AudioService.resumeOnClick = resumeOnClick;
-		AudioService.notificationChannelName = notificationChannelName;
+		AudioService.androidNotificationChannelName = androidNotificationChannelName;
+		AudioService.androidNotificationChannelDescription = androidNotificationChannelDescription;
 		AudioService.notificationColor = notificationColor;
-		AudioService.notificationAndroidIcon = notificationAndroidIcon;
+		AudioService.androidNotificationIcon = androidNotificationIcon;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
 	}
 
@@ -87,9 +89,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		running = false;
 		resumeOnClick = false;
 		listener = null;
-		notificationChannelName = null;
+		androidNotificationChannelName = null;
+		androidNotificationChannelDescription = null;
 		notificationColor = null;
-		notificationAndroidIcon = null;
+		androidNotificationIcon = null;
 		queue.clear();
 		queueIndex = -1;
 		mediaMetadataCache.clear();
@@ -170,7 +173,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private Notification buildNotification() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 			createChannel();
-		int iconId = getResourceId(notificationAndroidIcon);
+		int iconId = getResourceId(androidNotificationIcon);
 		int[] actionIndices = new int[Math.min(3, actions.size())];
 		for (int i = 0; i < actionIndices.length; i++) actionIndices[i] = i;
 		MediaControllerCompat controller = mediaSession.getController();
@@ -250,7 +253,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 		NotificationChannel channel = notificationManager.getNotificationChannel(notificationChannelId);
 		if (channel == null) {
-			channel = new NotificationChannel(notificationChannelId, notificationChannelName, NotificationManager.IMPORTANCE_LOW);
+			channel = new NotificationChannel(notificationChannelId, androidNotificationChannelName, NotificationManager.IMPORTANCE_LOW);
+			if (androidNotificationChannelDescription != null)
+				channel.setDescription(androidNotificationChannelDescription);
 			notificationManager.createNotificationChannel(channel);
 		}
 	}
