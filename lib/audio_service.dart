@@ -30,7 +30,7 @@ enum MediaAction {
 }
 
 /// The different states during audio playback.
-enum PlaybackState {
+enum BasicPlaybackState {
   none,
   stopped,
   paused,
@@ -43,6 +43,35 @@ enum PlaybackState {
   skippingToPrevious,
   skippingToNext,
   skippingToQueueItem,
+}
+
+/// The playback state for the audio service which includes a basic state such
+/// as [BasicPlaybackState.paused], the playback position and the currently
+/// supported actions.
+class PlaybackState {
+  /// The basic state e.g. [BasicPlaybackState.paused]
+  final BasicPlaybackState basicState;
+
+  /// The set of actions currently supported by the audio service e.g.
+  /// [MediaAction.play]
+  final Set<MediaAction> actions;
+
+  /// The playback position in milliseconds at the last update time
+  final int position;
+
+  /// The current playback speed where 1.0 means normal speed
+  final double speed;
+
+  /// The time at which the playback position was last updated
+  final int updateTime;
+
+  PlaybackState({
+    @required this.basicState,
+    @required this.actions,
+    this.position,
+    this.speed,
+    this.updateTime,
+  });
 }
 
 /// Metadata about an audio item that can be played, or a folder containing
@@ -139,17 +168,22 @@ class AudioService {
   // TODO: Provide an API to browse media items provided by
   // [AudioServiceBackground.onLoadChildren].
 
-  static StreamController<PlaybackState> _playbackStateController = StreamController<PlaybackState>.broadcast();
+  static StreamController<PlaybackState> _playbackStateController =
+      StreamController<PlaybackState>.broadcast();
 
   /// A stream that broadcasts the playback state.
-  static Stream<PlaybackState> get playbackStateStream => _playbackStateController.stream;
+  static Stream<PlaybackState> get playbackStateStream =>
+      _playbackStateController.stream;
 
-  static StreamController<MediaItem> _playingMediaItemController = StreamController<MediaItem>.broadcast();
+  static StreamController<MediaItem> _currentMediaItemController =
+      StreamController<MediaItem>.broadcast();
 
-  /// A stream that broadcasts the playing [MediaItem].
-  static Stream<MediaItem> get playingMediaItemStream => _playingMediaItemController.stream;
+  /// A stream that broadcasts the current [MediaItem].
+  static Stream<MediaItem> get currentMediaItemStream =>
+      _currentMediaItemController.stream;
 
-  static StreamController<List<MediaItem>> _queueController = StreamController<List<MediaItem>>.broadcast();
+  static StreamController<List<MediaItem>> _queueController =
+      StreamController<List<MediaItem>>.broadcast();
 
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueController.stream;
@@ -164,10 +198,21 @@ class AudioService {
     _channel.setMethodCallHandler((MethodCall call) {
       switch (call.method) {
         case 'onPlaybackStateChanged':
-          _playbackStateController.add(PlaybackState.values[call.arguments[0]]);
+          final List args = call.arguments;
+          int actionBits = args[1];
+          PlaybackState playbackState = PlaybackState(
+            basicState: BasicPlaybackState.values[args[0]],
+            actions: MediaAction.values
+                .where((action) => (actionBits & (1 << action.index)) != 0)
+                .toSet(),
+            position: args[2],
+            speed: args[3],
+            updateTime: args[4],
+          );
+          _playbackStateController.add(playbackState);
           break;
         case 'onMediaChanged':
-          _playingMediaItemController.add(_raw2mediaItem(call.arguments[0]));
+          _currentMediaItemController.add(_raw2mediaItem(call.arguments[0]));
           break;
         case 'onQueueChanged':
           final List<Map> args = List<Map>.from(call.arguments[0]);
@@ -221,7 +266,8 @@ class AudioService {
     return await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
       'androidNotificationChannelName': androidNotificationChannelName,
-      'androidNotificationChannelDescription': androidNotificationChannelDescription,
+      'androidNotificationChannelDescription':
+          androidNotificationChannelDescription,
       'notificationColor': notificationColor,
       'androidNotificationIcon': androidNotificationIcon,
       'androidNotificationClickStartsActivity':
@@ -343,8 +389,10 @@ class AudioService {
 /// class to initialise the isolate, broadcast state changes to any UI that may
 /// be connected, and to also handle playback actions initiated by the UI.
 class AudioServiceBackground {
+  static final PlaybackState _noneState =
+      PlaybackState(basicState: BasicPlaybackState.none, actions: Set());
   static MethodChannel _backgroundChannel;
-  static PlaybackState _state;
+  static PlaybackState _state = _noneState;
 
   /// The current media playback state.
   ///
@@ -423,9 +471,9 @@ class AudioServiceBackground {
                     })
                 .toList();
             return rawMediaItems;
-          }
-          else
+          } else {
             return [];
+          }
           break;
         case 'onAudioFocusGained':
           if (onAudioFocusGained != null) onAudioFocusGained();
@@ -530,25 +578,34 @@ class AudioServiceBackground {
           break;
       }
     });
-    bool enableQueue = onAddQueueItem != null || onRemoveQueueItem != null || onSkipToQueueItem != null;
+    bool enableQueue = onAddQueueItem != null ||
+        onRemoveQueueItem != null ||
+        onSkipToQueueItem != null;
     await _backgroundChannel.invokeMethod('ready', enableQueue);
     await onStart();
     await _backgroundChannel.invokeMethod('stopped');
     _backgroundChannel.setMethodCallHandler(null);
-    _state = null;
+    _state = _noneState;
   }
 
   /// Sets the current playback state and dictate which controls should be
   /// visible in the notification, Wear OS and Android Auto.
   ///
   /// All clients will be notified so they can update their display.
-  static Future<void> setState(
-      {@required List<MediaControl> controls,
-      @required PlaybackState state,
-      int position = 0,
-      double speed = 1.0,
-      int updateTime}) async {
-    _state = state;
+  static Future<void> setState({
+    @required List<MediaControl> controls,
+    @required BasicPlaybackState basicState,
+    int position = 0,
+    double speed = 1.0,
+    int updateTime,
+  }) async {
+    _state = PlaybackState(
+      basicState: basicState,
+      actions: controls.map((control) => control.action).toSet(),
+      position: position,
+      speed: speed,
+      updateTime: updateTime,
+    );
     List<Map> rawControls = controls
         .map((control) => {
               'androidIcon': control.androidIcon,
@@ -556,8 +613,8 @@ class AudioServiceBackground {
               'action': control.action.index,
             })
         .toList();
-    await _backgroundChannel.invokeMethod(
-        'setState', [rawControls, state.index, position, speed, updateTime]);
+    await _backgroundChannel.invokeMethod('setState',
+        [rawControls, basicState.index, position, speed, updateTime]);
   }
 
   /// Sets the current queue and notifies all clients.

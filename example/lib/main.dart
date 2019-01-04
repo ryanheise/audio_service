@@ -29,7 +29,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  PlaybackState state;
+  PlaybackState _state;
+  StreamSubscription _playbackStateSubscription;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    disconnect();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -51,7 +53,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         connect();
         break;
       case AppLifecycleState.paused:
-        AudioService.disconnect();
+        disconnect();
         break;
       default:
         break;
@@ -60,11 +62,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void connect() async {
     await AudioService.connect();
-    AudioService.playbackStateStream.listen((PlaybackState playbackState) {
-      setState(() {
-        this.state = playbackState;
+    if (_playbackStateSubscription == null) {
+      _playbackStateSubscription = AudioService.playbackStateStream
+          .listen((PlaybackState playbackState) {
+        setState(() {
+          _state = playbackState;
+        });
       });
-    });
+    }
+  }
+
+  void disconnect() {
+    if (_playbackStateSubscription != null) {
+      _playbackStateSubscription.cancel();
+      _playbackStateSubscription = null;
+    }
+    AudioService.disconnect();
   }
 
   @override
@@ -77,9 +90,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         body: new Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: state == PlaybackState.playing
+            children: _state?.basicState == BasicPlaybackState.playing
                 ? [pauseButton(), stopButton()]
-                : state == PlaybackState.paused
+                : _state?.basicState == BasicPlaybackState.paused
                     ? [playButton(), stopButton()]
                     : [audioPlayerButton(), textToSpeechButton()],
           ),
@@ -172,7 +185,7 @@ class CustomAudioPlayer {
     _audioPlayer.play(streamUri);
     AudioServiceBackground.setState(
       controls: [pauseControl, stopControl],
-      state: PlaybackState.playing,
+      basicState: BasicPlaybackState.playing,
     );
   }
 
@@ -180,7 +193,7 @@ class CustomAudioPlayer {
     _audioPlayer.pause();
     AudioServiceBackground.setState(
       controls: [playControl, stopControl],
-      state: PlaybackState.paused,
+      basicState: BasicPlaybackState.paused,
     );
   }
 
@@ -188,7 +201,7 @@ class CustomAudioPlayer {
     _audioPlayer.stop();
     AudioServiceBackground.setState(
       controls: [],
-      state: PlaybackState.stopped,
+      basicState: BasicPlaybackState.stopped,
     );
     _completer.complete();
   }
@@ -222,7 +235,9 @@ class TextPlayer {
 
   Future<void> run() async {
     playPause();
-    for (var i = 1; i <= 10 && _state != PlaybackState.stopped; i++) {
+    for (var i = 1;
+        i <= 10 && _state.basicState != BasicPlaybackState.stopped;
+        i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       _tts.speak('$i');
@@ -230,39 +245,40 @@ class TextPlayer {
       await Future.any(
           [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
       // If we were just paused...
-      if (_playPauseCompleter.isCompleted && _state == PlaybackState.paused) {
+      if (_playPauseCompleter.isCompleted &&
+          _state.basicState == BasicPlaybackState.paused) {
         // Wait to be unpaused...
         await _playPauseFuture();
       }
     }
-    if (_state != PlaybackState.stopped) stop();
+    if (_state.basicState != BasicPlaybackState.stopped) stop();
   }
 
   MediaItem mediaItem(int number) =>
       MediaItem(id: 'tts_$number', album: 'Numbers', title: 'Number $number');
 
   void playPause() {
-    if (_state == PlaybackState.playing) {
+    if (_state.basicState == BasicPlaybackState.playing) {
       _tts.stop();
       AudioServiceBackground.setState(
         controls: [playControl, stopControl],
-        state: PlaybackState.paused,
+        basicState: BasicPlaybackState.paused,
       );
     } else {
       AudioServiceBackground.setState(
         controls: [pauseControl, stopControl],
-        state: PlaybackState.playing,
+        basicState: BasicPlaybackState.playing,
       );
     }
     _playPauseCompleter.complete();
   }
 
   void stop() {
-    if (_state == PlaybackState.stopped) return;
+    if (_state.basicState == BasicPlaybackState.stopped) return;
     _tts.stop();
     AudioServiceBackground.setState(
       controls: [],
-      state: PlaybackState.stopped,
+      basicState: BasicPlaybackState.stopped,
     );
     _playPauseCompleter.complete();
   }

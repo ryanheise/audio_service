@@ -79,7 +79,7 @@ public class AudioServicePlugin {
 
 			@Override
 			public void onPlaybackStateChanged(PlaybackStateCompat state) {
-				invokeMethod("onPlaybackStateChanged", state.getState(), state.getPosition(), state.getPlaybackSpeed(), state.getLastPositionUpdateTime());
+				invokeMethod("onPlaybackStateChanged", state.getState(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), state.getLastPositionUpdateTime());
 			}
 
 			@Override
