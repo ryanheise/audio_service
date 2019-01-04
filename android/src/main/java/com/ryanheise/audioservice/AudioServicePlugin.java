@@ -544,11 +544,10 @@ public class AudioServicePlugin {
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String,Object> raw = new HashMap<String,Object>();
 		raw.put("id", description.getMediaId());
-		raw.put("album", description.getSubtitle()); // XXX: Will this give me the album?
-		raw.put("title", description.getTitle());
+		raw.put("album", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM).toString());
+		raw.put("title", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_TITLE).toString());
 		if (description.getIconUri() != null)
 			raw.put("artUri", description.getIconUri().toString());
-		// Get the rest from the mediaMetadata
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_ARTIST))
 			raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_GENRE))
