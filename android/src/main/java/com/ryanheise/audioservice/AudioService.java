@@ -53,6 +53,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static final String MEDIA_ROOT_ID = "root";
 	public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
 	public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
+	public static final int MAX_COMPACT_ACTIONS = 3;
 
 	private static volatile boolean running;
 	static AudioService instance;
@@ -96,6 +97,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		queue.clear();
 		queueIndex = -1;
 		mediaMetadataCache.clear();
+		actions.clear();
+		compactActionIndices = null;
 
 		mediaSession.setQueue(queue);
 		instance.abandonAudioFocus();
@@ -117,6 +120,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private AudioManager audioManager;
 	private MediaMetadataCompat preparedMedia;
 	private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
+	private int[] compactActionIndices;
 	private MediaMetadataCompat mediaMetadata;
 	private Object audioFocusRequest;
 	private String notificationChannelId;
@@ -159,8 +163,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 	}
 
-	void setState(List<NotificationCompat.Action> actions, int actionBits, int playbackState, long position, float speed, long updateTime) {
+	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, int playbackState, long position, float speed, long updateTime) {
 		this.actions = actions;
+		this.compactActionIndices = compactActionIndices;
 
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 			.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE|actionBits)
@@ -174,8 +179,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 			createChannel();
 		int iconId = getResourceId(androidNotificationIcon);
-		int[] actionIndices = new int[Math.min(3, actions.size())];
-		for (int i = 0; i < actionIndices.length; i++) actionIndices[i] = i;
+		int[] compactActionIndices = this.compactActionIndices;
+		if (compactActionIndices == null) {
+			compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, actions.size())];
+			for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
+		}
 		MediaControllerCompat controller = mediaSession.getController();
 		String contentTitle = "";
 		String contentText = "";
@@ -205,7 +213,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.setLargeIcon(artBitmap);
 		builder.setStyle(new MediaStyle()
 				.setMediaSession(mediaSession.getSessionToken())
-				.setShowActionsInCompactView(actionIndices)
+				.setShowActionsInCompactView(compactActionIndices)
 				.setShowCancelButton(true)
 				.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				);

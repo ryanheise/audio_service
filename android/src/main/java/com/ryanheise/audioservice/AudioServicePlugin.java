@@ -485,13 +485,29 @@ public class AudioServicePlugin {
 
 				List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
 				int actionBits = 0;
+				List<Integer> compactActionIndexList = new ArrayList<Integer>();
+				boolean anyActionIndices = false;
+				int i = 0;
 				for (Map<?,?> rawControl : rawControls) {
 					String resource = (String)rawControl.get("androidIcon");
 					int actionCode = 1 << ((Integer)rawControl.get("action"));
 					actionBits |= actionCode;
 					actions.add(AudioService.instance.action(resource, (String)rawControl.get("label"), actionCode));
+					Boolean androidShowInCompactView = (Boolean)rawControl.get("androidShowInCompactView");
+					if (androidShowInCompactView != null && compactActionIndexList.size() < AudioService.MAX_COMPACT_ACTIONS) {
+						anyActionIndices = true;
+						if (androidShowInCompactView)
+							compactActionIndexList.add(i);
+					}
+					i++;
 				}
-				AudioService.instance.setState(actions, actionBits, playbackState, position, speed, updateTime);
+				int[] compactActionIndices = null;
+				if (anyActionIndices) {
+					compactActionIndices = new int[compactActionIndexList.size()];
+					for (i = 0; i < compactActionIndices.length; i++)
+						compactActionIndices[i] = compactActionIndexList.get(i);
+				}
+				AudioService.instance.setState(actions, actionBits, compactActionIndices, playbackState, position, speed, updateTime);
 				result.success(true);
 				break;
 			case "stopped":

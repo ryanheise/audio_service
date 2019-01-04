@@ -133,11 +133,26 @@ class MediaItem {
 
 /// A button that controls audio playback.
 class MediaControl {
-  String androidIcon;
-  String label;
-  MediaAction action;
+  /// A reference to an Android icon resource for the control (e.g.
+  /// `"drawable/ic_action_pause"`)
+  final String androidIcon;
 
-  MediaControl({this.androidIcon, @required this.label, @required this.action});
+  /// A label for the control
+  final String label;
+
+  /// The action to be executed by this control
+  final MediaAction action;
+
+  /// On Android, whether to show this control in the notification's compact
+  /// view
+  final bool androidShowInCompactView;
+
+  MediaControl({
+    this.androidIcon,
+    @required this.label,
+    @required this.action,
+    this.androidShowInCompactView,
+  });
 }
 
 const MethodChannel _channel =
@@ -661,6 +676,7 @@ class AudioServiceBackground {
               'androidIcon': control.androidIcon,
               'label': control.label,
               'action': control.action.index,
+              'androidShowInCompactView': control.androidShowInCompactView,
             })
         .toList();
     await _backgroundChannel.invokeMethod('setState',
