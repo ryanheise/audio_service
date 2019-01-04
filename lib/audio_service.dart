@@ -152,7 +152,12 @@ class AudioService {
   static OnMediaChanged _onMediaChanged;
   static OnQueueChanged _onQueueChanged;
 
-  /// Connects to the service from your UI to start and control audio playback.
+  /// Connects to the service from your UI so that audio playback can be
+  /// controlled.
+  ///
+  /// This method should be called when your UI becomes visible, and
+  /// [disconnect] should be called when your UI is no longer visible. All
+  /// other methods in this class will work only while connected.
   ///
   /// [onPlaybackStateChanged] will be called whenever the playback state has
   /// changed but will also be called once on startup to report the initial
@@ -194,6 +199,8 @@ class AudioService {
   }
 
   /// Disconnects your UI from the service.
+  ///
+  /// This method should be called when the UI is no longer visible.
   static Future<void> disconnect() async {
     await _channel.invokeMethod("disconnect");
   }

@@ -17,11 +17,13 @@ Since background execution of Dart code is a relatively new feature of flutter, 
 ### Client-side code
 
 ```dart
-AudioService.start(
+AudioService.connect();   // When UI becomes visible
+AudioService.start(       // When user clicks button to start playback
   backgroundTask: myBackgroundTask,
   notificationChannelName: 'Music Player',
   androidNotificationIcon: "mipmap/ic_launcher",
 );
+AudioService.disconnect(); // When UI is gone
 ```
 
 ### Background code
