@@ -125,16 +125,6 @@ MediaItem _raw2mediaItem(Map raw) => MediaItem(
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-/// A callback to handle playback state changes.
-typedef OnPlaybackStateChanged = void Function(
-    PlaybackState state, int position, double speed, int updateTime);
-
-/// A callback to handle media item changes.
-typedef OnMediaChanged = void Function(MediaItem mediaItem);
-
-/// A callback to handle queue changes.
-typedef OnQueueChanged = void Function(List<MediaItem> queue);
-
 /// Client API to start and interact with the audio service.
 ///
 /// This class is used from your UI code to establish a connection with the
@@ -148,9 +138,21 @@ typedef OnQueueChanged = void Function(List<MediaItem> queue);
 class AudioService {
   // TODO: Provide an API to browse media items provided by
   // [AudioServiceBackground.onLoadChildren].
-  static OnPlaybackStateChanged _onPlaybackStateChanged;
-  static OnMediaChanged _onMediaChanged;
-  static OnQueueChanged _onQueueChanged;
+
+  static StreamController<PlaybackState> _playbackStateController = StreamController<PlaybackState>.broadcast();
+
+  /// A stream that broadcasts the playback state.
+  static Stream<PlaybackState> get playbackStateStream => _playbackStateController.stream;
+
+  static StreamController<MediaItem> _playingMediaItemController = StreamController<MediaItem>.broadcast();
+
+  /// A stream that broadcasts the playing [MediaItem].
+  static Stream<MediaItem> get playingMediaItemStream => _playingMediaItemController.stream;
+
+  static StreamController<List<MediaItem>> _queueController = StreamController<List<MediaItem>>.broadcast();
+
+  /// A stream that broadcasts the queue.
+  static Stream<List<MediaItem>> get queueStream => _queueController.stream;
 
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
@@ -158,40 +160,19 @@ class AudioService {
   /// This method should be called when your UI becomes visible, and
   /// [disconnect] should be called when your UI is no longer visible. All
   /// other methods in this class will work only while connected.
-  ///
-  /// [onPlaybackStateChanged] will be called whenever the playback state has
-  /// changed but will also be called once on startup to report the initial
-  /// playback state. [onMediaChanged] will be called whenever the playing
-  /// media has changed, and also once on startup to report the initial media.
-  /// [onQueueChanged] will be called whenever the queue has changed, and also
-  /// once on startup to report the initial queue.
-  static Future<void> connect(
-      {OnPlaybackStateChanged onPlaybackStateChanged,
-      OnMediaChanged onMediaChanged,
-      OnQueueChanged onQueueChanged}) async {
-    _onPlaybackStateChanged = onPlaybackStateChanged;
-    _onMediaChanged = onMediaChanged;
-    _onQueueChanged = onQueueChanged;
+  static Future<void> connect() async {
     _channel.setMethodCallHandler((MethodCall call) {
       switch (call.method) {
         case 'onPlaybackStateChanged':
-          if (_onPlaybackStateChanged != null) {
-            final List args = call.arguments;
-            _onPlaybackStateChanged(
-                PlaybackState.values[args[0]], args[1], args[2], args[3]);
-          }
+          _playbackStateController.add(PlaybackState.values[call.arguments[0]]);
           break;
         case 'onMediaChanged':
-          if (_onMediaChanged != null) {
-            _onMediaChanged(_raw2mediaItem(call.arguments[0]));
-          }
+          _playingMediaItemController.add(_raw2mediaItem(call.arguments[0]));
           break;
         case 'onQueueChanged':
-          if (_onQueueChanged != null) {
-            final List<Map> args = List<Map>.from(call.arguments[0]);
-            List<MediaItem> queue = args.map(_raw2mediaItem).toList();
-            _onQueueChanged(queue);
-          }
+          final List<Map> args = List<Map>.from(call.arguments[0]);
+          List<MediaItem> queue = args.map(_raw2mediaItem).toList();
+          _queueController.add(queue);
           break;
       }
     });
@@ -202,6 +183,7 @@ class AudioService {
   ///
   /// This method should be called when the UI is no longer visible.
   static Future<void> disconnect() async {
+    _channel.setMethodCallHandler(null);
     await _channel.invokeMethod("disconnect");
   }
 
