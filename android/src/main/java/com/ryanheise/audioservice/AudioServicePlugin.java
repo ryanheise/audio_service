@@ -132,7 +132,7 @@ public class AudioServicePlugin {
 		}
 
 		@Override
-		public void onMethodCall(MethodCall call, Result result) {
+		public void onMethodCall(MethodCall call, final Result result) {
 			Context context = registrar.activeContext();
 			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
 			switch (call.method) {
@@ -413,8 +413,20 @@ public class AudioServicePlugin {
 				result.success(true);
 				break;
 			default:
-				backgroundHandler.channel.invokeMethod(call.method, call.arguments);
-				result.success(true);
+				backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
+					@Override
+					public void error(String errorCode, String errorMessage, Object errorDetails) {
+						result.success(null);
+					}
+					@Override
+					public void notImplemented() {
+						result.success(null);
+					}
+					@Override
+					public void success(Object obj) {
+						result.success(obj);
+					}
+				});
 				break;
 			}
 		}
