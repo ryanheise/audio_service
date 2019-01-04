@@ -1,3 +1,11 @@
+## 0.0.11
+
+* Breaking API changes.
+* Connection callbacks replaced by a streams API.
+* AudioService properties for playbackState, currentMediaItem, queue.
+* Option to set Android notification channel description.
+* AudioService.customAction awaits completion of the action.
+
 ## 0.0.10
 
 * Bug fixes with queue management.
