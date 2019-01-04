@@ -1,3 +1,7 @@
+## 0.0.12
+
+* More options to customise the notification content.
+
 ## 0.0.11
 
 * Breaking API changes.
