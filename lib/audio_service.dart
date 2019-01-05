@@ -328,6 +328,7 @@ class AudioService {
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidNotificationClickStartsActivity = true,
     bool resumeOnClick = true,
+    bool shouldPreloadArtwork = false,
   }) async {
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTask);
@@ -345,12 +346,14 @@ class AudioService {
       'androidNotificationClickStartsActivity':
           androidNotificationClickStartsActivity,
       'resumeOnClick': resumeOnClick,
+      'shouldPreloadArtwork': shouldPreloadArtwork,
     });
   }
 
   /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
   /// If unspecified, the root parent will be used.
-  static Future<void> setBrowseMediaParent([String parentMediaId = MEDIA_ROOT_ID]) async {
+  static Future<void> setBrowseMediaParent(
+      [String parentMediaId = MEDIA_ROOT_ID]) async {
     await _channel.invokeMethod('setBrowseMediaParent', parentMediaId);
   }
 
@@ -723,7 +726,8 @@ class AudioServiceBackground {
   /// changed.
   ///
   /// If [parentMediaId] is unspecified, the root parent will be used.
-  static Future<void> notifyChildrenChanged([String parentMediaId = AudioService.MEDIA_ROOT_ID]) async {
+  static Future<void> notifyChildrenChanged(
+      [String parentMediaId = AudioService.MEDIA_ROOT_ID]) async {
     await _backgroundChannel.invokeMethod(
         'notifyChildrenChanged', parentMediaId);
   }

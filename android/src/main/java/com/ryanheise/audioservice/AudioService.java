@@ -37,6 +37,8 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import android.media.AudioFocusRequest;
 import android.media.AudioAttributes;
 import android.net.Uri;
@@ -65,11 +67,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static Integer notificationColor;
 	static String androidNotificationIcon;
 	static boolean androidNotificationClickStartsActivity;
+	static boolean shouldPreloadArtwork;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
+	private static Set<String> artUriBlacklist = new HashSet<>();
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean shouldPreloadArtwork, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -84,6 +88,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.notificationColor = notificationColor;
 		AudioService.androidNotificationIcon = androidNotificationIcon;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
+		AudioService.shouldPreloadArtwork = shouldPreloadArtwork;
 	}
 
 	public void stop() {
@@ -351,6 +356,27 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	void setQueue(List<MediaSessionCompat.QueueItem> queue) {
 		this.queue = queue;
 		mediaSession.setQueue(queue);
+		if (shouldPreloadArtwork)
+			preloadArtwork(queue);
+	}
+
+	void preloadArtwork(final List<MediaSessionCompat.QueueItem> queue) {
+		// XXX: Although this happens in a thread, it seems to cause a block
+		// somewhere in the Flutter engine, temporarily preventing messages from
+		// being passed over platform channels.
+		new Thread() {
+			@Override
+			public void run() {
+				for (MediaSessionCompat.QueueItem queueItem : queue) {
+					final MediaDescriptionCompat description = queueItem.getDescription();
+					synchronized (AudioService.this) {
+						final MediaMetadataCompat mediaMetadata = getMediaMetadata(description.getMediaId());
+						if (needToLoadArt(mediaMetadata))
+							loadArtBitmap(mediaMetadata);
+					}
+				}
+			}
+		}.start();
 	}
 
 	synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
@@ -358,33 +384,44 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		mediaSession.setMetadata(mediaMetadata);
 		updateNotification();
 
-		final MediaDescriptionCompat description = mediaMetadata.getDescription();
-		final Uri artUri = description.getIconUri();
-		if (description.getIconBitmap() == null && artUri != null) {
+		if (needToLoadArt(mediaMetadata)) {
 			new Thread() {
-				@Override public void run() {
-					try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
-						Bitmap bitmap = BitmapFactory.decodeStream(in);
-						updateArtBitmap(mediaMetadata, bitmap);
-					}
-					catch (IOException e) {
-						e.printStackTrace();
-					}
+				@Override
+				public void run() {
+					loadArtBitmap(mediaMetadata);
 				}
 			}.start();
 		}
 	}
 
-	synchronized void updateArtBitmap(MediaMetadataCompat mediaMetadata, Bitmap bitmap) {
-		if (mediaMetadata.getDescription().getMediaId().equals(this.mediaMetadata.getDescription().getMediaId())) {
-			String mediaId = mediaMetadata.getDescription().getMediaId();
-			mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
-				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap) 
-				.build();
-			mediaMetadataCache.put(mediaId, mediaMetadata);
-			setMetadata(mediaMetadata);
+	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
+		if (needToLoadArt(mediaMetadata)) {
+			Uri artUri = mediaMetadata.getDescription().getIconUri();
+			try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
+				Bitmap bitmap = BitmapFactory.decodeStream(in);
+				String mediaId = mediaMetadata.getDescription().getMediaId();
+				mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
+					.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+					.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap) 
+					.build();
+				mediaMetadataCache.put(mediaId, mediaMetadata);
+				// If this the current media item, update the notification
+				if (this.mediaMetadata != null && mediaId.equals(this.mediaMetadata.getDescription().getMediaId())) {
+					setMetadata(mediaMetadata);
+				}
+			}
+			catch (IOException e) {
+				artUriBlacklist.add(artUri.toString());
+				e.printStackTrace();
+			}
 		}
+	}
+
+	boolean needToLoadArt(MediaMetadataCompat mediaMetadata) {
+		final MediaDescriptionCompat description = mediaMetadata.getDescription();
+		Bitmap bitmap = description.getIconBitmap();
+		Uri artUri = description.getIconUri();
+		return bitmap == null && artUri != null && !artUriBlacklist.contains(artUri.toString());
 	}
 
 	@Override
