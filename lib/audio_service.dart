@@ -198,8 +198,17 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// although the audio service will continue to run in the background. If your
 /// UI once again becomes visible, you should reconnect to the audio service.
 class AudioService {
-  // TODO: Provide an API to browse media items provided by
-  // [AudioServiceBackground.onLoadChildren].
+  /// The root media ID for browsing media provided by the background
+  /// task.
+  static const String MEDIA_ROOT_ID = "root";
+
+  static StreamController<List<MediaItem>> _browseMediaChildrenController =
+      StreamController<List<MediaItem>>.broadcast();
+
+  /// A stream that broadcasts the children of the current browse
+  /// media parent.
+  static Stream<List<MediaItem>> get browseMediaChildrenStream =>
+      _browseMediaChildrenController.stream;
 
   static StreamController<PlaybackState> _playbackStateController =
       StreamController<PlaybackState>.broadcast();
@@ -220,6 +229,10 @@ class AudioService {
 
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueController.stream;
+
+  /// The children of the current browse media parent.
+  static List<MediaItem> get browseMediaChildren => _browseMediaChildren;
+  static List<MediaItem> _browseMediaChildren;
 
   /// The current playback state.
   static PlaybackState get playbackState => _playbackState;
@@ -242,6 +255,11 @@ class AudioService {
   static Future<void> connect() async {
     _channel.setMethodCallHandler((MethodCall call) {
       switch (call.method) {
+        case 'onChildrenLoaded':
+          final List<Map> args = List<Map>.from(call.arguments[0]);
+          _browseMediaChildren = args.map(_raw2mediaItem).toList();
+          _browseMediaChildrenController.add(_browseMediaChildren);
+          break;
         case 'onPlaybackStateChanged':
           final List args = call.arguments;
           int actionBits = args[1];
@@ -328,6 +346,12 @@ class AudioService {
           androidNotificationClickStartsActivity,
       'resumeOnClick': resumeOnClick,
     });
+  }
+
+  /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
+  /// If unspecified, the root parent will be used.
+  static Future<void> setBrowseMediaParent([String parentMediaId = MEDIA_ROOT_ID]) async {
+    await _channel.invokeMethod('setBrowseMediaParent', parentMediaId);
   }
 
   /// Passes through to `onAddQueueItem` in the background task.
@@ -693,6 +717,15 @@ class AudioServiceBackground {
   static Future<void> setMediaItem(MediaItem mediaItem) async {
     await _backgroundChannel.invokeMethod(
         'setMediaItem', _mediaItem2raw(mediaItem));
+  }
+
+  /// Notify clients that the child media items of [parentMediaId] have
+  /// changed.
+  ///
+  /// If [parentMediaId] is unspecified, the root parent will be used.
+  static Future<void> notifyChildrenChanged([String parentMediaId = AudioService.MEDIA_ROOT_ID]) async {
+    await _backgroundChannel.invokeMethod(
+        'notifyChildrenChanged', parentMediaId);
   }
 
   /// In Android, forces media button events to be routed to your active media

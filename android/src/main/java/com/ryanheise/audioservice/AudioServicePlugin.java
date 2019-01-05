@@ -47,6 +47,7 @@ public class AudioServicePlugin {
 	private static List<String> queueMediaIds = new ArrayList<String>();
 	private static Map<String,Integer> queueItemIds = new HashMap<String,Integer>();
 	private static Result startResult;
+	private static String subscribedParentMediaId;
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
@@ -71,6 +72,7 @@ public class AudioServicePlugin {
 		private boolean playPending;
 		public MediaBrowserCompat mediaBrowser;
 		public MediaControllerCompat mediaController;
+		private Result connectResult;
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
 			@Override
 			public void onMetadataChanged(MediaMetadataCompat metadata) {
@@ -85,6 +87,13 @@ public class AudioServicePlugin {
 			@Override
 			public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
 				invokeMethod("onQueueChanged", queue2raw(queue));
+			}
+		};
+
+		private final MediaBrowserCompat.SubscriptionCallback subscriptionCallback = new MediaBrowserCompat.SubscriptionCallback() {
+			@Override
+			public void onChildrenLoaded(String parentId, List<MediaBrowserCompat.MediaItem> children) {
+				invokeMethod("onChildrenLoaded", mediaItems2raw(children));
 			}
 		};
 
@@ -110,18 +119,22 @@ public class AudioServicePlugin {
 							playPending = false;
 						}
 					}
+					sendConnectResult(true);
 				}
 				catch (RemoteException e) {
+					sendConnectResult(false);
 					throw new RuntimeException(e);
 				}
 			}
 
 			@Override
 			public void onConnectionSuspended() {
+				// TODO: Handle this
 			}
 
 			@Override
 			public void onConnectionFailed() {
+				sendConnectResult(false);
 			}
 		};
 
@@ -129,6 +142,11 @@ public class AudioServicePlugin {
 			this.registrar = registrar;
 			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE);
 			channel.setMethodCallHandler(this);
+		}
+
+		private void sendConnectResult(boolean result) {
+			connectResult.success(result);
+			connectResult = null;
 		}
 
 		@Override
@@ -299,6 +317,7 @@ public class AudioServicePlugin {
 				break;
 			}
 			case "connect":
+				connectResult = result;
 				if (mediaBrowser == null) {
 					mediaBrowser = new MediaBrowserCompat(context,
 							new ComponentName(context, AudioService.class),
@@ -306,16 +325,41 @@ public class AudioServicePlugin {
 							null);
 					mediaBrowser.connect();
 				}
-
-				result.success(true);
+				else {
+					sendConnectResult(true);
+				}
 				break;
 			case "disconnect":
 				if (mediaController != null) {
 					mediaController.unregisterCallback(controllerCallback);
 					mediaController = null;
 				}
+				if (subscribedParentMediaId != null) {
+					mediaBrowser.unsubscribe(subscribedParentMediaId);
+					subscribedParentMediaId = null;
+				}
 				mediaBrowser.disconnect();
 				mediaBrowser = null;
+				result.success(true);
+				break;
+			case "setBrowseMediaParent":
+				String parentMediaId = (String)call.arguments;
+				// If the ID has changed, unsubscribe from the old one
+				if (subscribedParentMediaId != null && !subscribedParentMediaId.equals(parentMediaId)) {
+					mediaBrowser.unsubscribe(subscribedParentMediaId);
+					subscribedParentMediaId = null;
+				}
+				// Subscribe to the new one.
+				// Don't subscribe if we're still holding onto the old one
+				// Don't subscribe if the new ID is null.
+				if (subscribedParentMediaId == null && parentMediaId != null) {
+					subscribedParentMediaId = parentMediaId;
+					mediaBrowser.subscribe(parentMediaId, subscriptionCallback);
+				}
+				// If the new ID is null, send clients an empty list
+				if (subscribedParentMediaId == null) {
+					subscriptionCallback.onChildrenLoaded(subscribedParentMediaId, new ArrayList<MediaBrowserCompat.MediaItem>());
+				}
 				result.success(true);
 				break;
 			case "addQueueItem": {
@@ -462,6 +506,12 @@ public class AudioServicePlugin {
 					AudioService.instance.enableQueue();
 				result.success(true);
 				sendStartResult(true);
+				// If the client subscribed to browse children before we
+				// started, process the pending request.
+				// TODO: It should be possible to browse children before
+				// starting.
+				if (subscribedParentMediaId != null)
+					AudioService.instance.notifyChildrenChanged(subscribedParentMediaId);
 				break;
 			case "setMediaItem":
 				Map<?,?> rawMediaItem = (Map<?,?>)call.arguments;
@@ -517,6 +567,11 @@ public class AudioServicePlugin {
 				backgroundFlutterView = null;
 				result.success(true);
 				break;
+			case "notifyChildrenChanged":
+				String parentMediaId = (String)call.arguments;
+				AudioService.instance.notifyChildrenChanged(parentMediaId);
+				result.success(true);
+				break;
 			case "androidForceEnableMediaButtons":
 				// Just play a short amount of silence. This convinces Android
 				// that we are playing "real" audio so that it will route
@@ -544,6 +599,16 @@ public class AudioServicePlugin {
 			ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
 			channel.invokeMethod(method, list);
 		}
+	}
+
+	private static List<Map<?,?>> mediaItems2raw(List<MediaBrowserCompat.MediaItem> mediaItems) {
+		List<Map<?,?>> rawMediaItems = new ArrayList<Map<?,?>>();
+		for (MediaBrowserCompat.MediaItem mediaItem : mediaItems) {
+			MediaDescriptionCompat description = mediaItem.getDescription();
+			MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
+			rawMediaItems.add(mediaMetadata2raw(mediaMetadata));
+		}
+		return rawMediaItems;
 	}
 
 	private static List<Map<?,?>> queue2raw(List<MediaSessionCompat.QueueItem> queue) {

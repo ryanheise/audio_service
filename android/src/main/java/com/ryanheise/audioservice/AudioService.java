@@ -394,7 +394,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@Override
 	public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
-		if (listener == null) return;
+		if (listener == null) {
+			result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
+			return;
+		}
 		listener.onLoadChildren(parentMediaId, result);
 	}
 
@@ -624,7 +627,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	public static interface ServiceListener {
-		// Use a null parentMediaId to get the children of root
 		void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result);
 
 		void onAudioFocusGained();
