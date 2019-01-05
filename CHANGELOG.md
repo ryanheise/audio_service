@@ -1,3 +1,8 @@
+## 0.0.13
+
+* Option to preload artwork.
+* Allow client to browse media items.
+
 ## 0.0.12
 
 * More options to customise the notification content.
