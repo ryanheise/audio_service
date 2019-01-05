@@ -231,13 +231,11 @@ class TextPlayer {
     return _playPauseCompleter.future;
   }
 
-  PlaybackState get _state => AudioServiceBackground.state;
+  BasicPlaybackState get _basicState => AudioServiceBackground.state.basicState;
 
   Future<void> run() async {
     playPause();
-    for (var i = 1;
-        i <= 10 && _state.basicState != BasicPlaybackState.stopped;
-        i++) {
+    for (var i = 1; i <= 10 && _basicState != BasicPlaybackState.stopped; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       _tts.speak('$i');
@@ -246,19 +244,19 @@ class TextPlayer {
           [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
       // If we were just paused...
       if (_playPauseCompleter.isCompleted &&
-          _state.basicState == BasicPlaybackState.paused) {
+          _basicState == BasicPlaybackState.paused) {
         // Wait to be unpaused...
         await _playPauseFuture();
       }
     }
-    if (_state.basicState != BasicPlaybackState.stopped) stop();
+    if (_basicState != BasicPlaybackState.stopped) stop();
   }
 
   MediaItem mediaItem(int number) =>
       MediaItem(id: 'tts_$number', album: 'Numbers', title: 'Number $number');
 
   void playPause() {
-    if (_state.basicState == BasicPlaybackState.playing) {
+    if (_basicState == BasicPlaybackState.playing) {
       _tts.stop();
       AudioServiceBackground.setState(
         controls: [playControl, stopControl],
@@ -274,7 +272,7 @@ class TextPlayer {
   }
 
   void stop() {
-    if (_state.basicState == BasicPlaybackState.stopped) return;
+    if (_basicState == BasicPlaybackState.stopped) return;
     _tts.stop();
     AudioServiceBackground.setState(
       controls: [],
