@@ -72,6 +72,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 	private static Set<String> artUriBlacklist = new HashSet<>();
+	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
 
 	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean shouldPreloadArtwork, ServiceListener listener) {
 		if (running)
@@ -93,6 +94,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	public void stop() {
 		running = false;
+		mediaMetadata = null;
 		resumeOnClick = false;
 		listener = null;
 		androidNotificationChannelName = null;
@@ -103,6 +105,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		queueIndex = -1;
 		mediaMetadataCache.clear();
 		actions.clear();
+		artBitmapCache.clear();
 		compactActionIndices = null;
 
 		mediaSession.setQueue(queue);
@@ -298,29 +301,32 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription) {
-		MediaMetadataCompat mediaMetadata = mediaMetadataCache.get(mediaId);
-		if (mediaMetadata == null) {
-			MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
-				.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-				.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-				.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
-			if (artist != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
-			if (genre != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
-			if (duration != null)
-				builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
-			if (artUri != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
-			if (displayTitle != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle);
-			if (displaySubtitle != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
-			if (displayDescription != null)
-				builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
-			mediaMetadata = builder.build();
-			mediaMetadataCache.put(mediaId, mediaMetadata);
+		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
+			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
+			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
+			.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
+		if (artist != null)
+			builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+		if (genre != null)
+			builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
+		if (duration != null)
+			builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+		if (artUri != null) {
+			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
+			Bitmap bitmap = artBitmapCache.get(artUri);
+			if (bitmap != null) {
+				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
+				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
+			}
 		}
+		if (displayTitle != null)
+			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle);
+		if (displaySubtitle != null)
+			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
+		if (displayDescription != null)
+			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
+		MediaMetadataCompat mediaMetadata = builder.build();
+		mediaMetadataCache.put(mediaId, mediaMetadata);
 		return mediaMetadata;
 	}
 
@@ -397,22 +403,29 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
 		if (needToLoadArt(mediaMetadata)) {
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
-			try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
-				Bitmap bitmap = BitmapFactory.decodeStream(in);
-				String mediaId = mediaMetadata.getDescription().getMediaId();
-				mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
-					.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-					.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap) 
-					.build();
-				mediaMetadataCache.put(mediaId, mediaMetadata);
-				// If this the current media item, update the notification
-				if (this.mediaMetadata != null && mediaId.equals(this.mediaMetadata.getDescription().getMediaId())) {
-					setMetadata(mediaMetadata);
+			Bitmap bitmap = artBitmapCache.get(artUri.toString());
+			if (bitmap == null) {
+				try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
+					bitmap = BitmapFactory.decodeStream(in);
+					if (!running)
+						return;
+					artBitmapCache.put(artUri.toString(), bitmap);
+				}
+				catch (IOException e) {
+					artUriBlacklist.add(artUri.toString());
+					e.printStackTrace();
+					return;
 				}
 			}
-			catch (IOException e) {
-				artUriBlacklist.add(artUri.toString());
-				e.printStackTrace();
+			String mediaId = mediaMetadata.getDescription().getMediaId();
+			mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap)
+				.build();
+			mediaMetadataCache.put(mediaId, mediaMetadata);
+			// If this the current media item, update the notification
+			if (this.mediaMetadata != null && mediaId.equals(this.mediaMetadata.getDescription().getMediaId())) {
+				setMetadata(mediaMetadata);
 			}
 		}
 	}
