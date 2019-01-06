@@ -46,7 +46,8 @@ public class AudioServicePlugin {
 	private static int nextQueueItemId = 0;
 	private static List<String> queueMediaIds = new ArrayList<String>();
 	private static Map<String,Integer> queueItemIds = new HashMap<String,Integer>();
-	private static Result startResult;
+	private static volatile Result connectResult;
+	private static volatile Result startResult;
 	private static String subscribedParentMediaId;
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
@@ -61,6 +62,11 @@ public class AudioServicePlugin {
 			backgroundHandler = new BackgroundHandler(registrar);
 	}
 
+	private static void sendConnectResult(boolean result) {
+		connectResult.success(result);
+		connectResult = null;
+	}
+
 	private static void sendStartResult(boolean result) {
 		startResult.success(result);
 		startResult = null;
@@ -72,7 +78,6 @@ public class AudioServicePlugin {
 		private boolean playPending;
 		public MediaBrowserCompat mediaBrowser;
 		public MediaControllerCompat mediaController;
-		private Result connectResult;
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
 			@Override
 			public void onMetadataChanged(MediaMetadataCompat metadata) {
@@ -142,11 +147,6 @@ public class AudioServicePlugin {
 			this.registrar = registrar;
 			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE);
 			channel.setMethodCallHandler(this);
-		}
-
-		private void sendConnectResult(boolean result) {
-			connectResult.success(result);
-			connectResult = null;
 		}
 
 		@Override
@@ -318,8 +318,8 @@ public class AudioServicePlugin {
 				break;
 			}
 			case "connect":
-				connectResult = result;
 				if (mediaBrowser == null) {
+					connectResult = result;
 					mediaBrowser = new MediaBrowserCompat(context,
 							new ComponentName(context, AudioService.class),
 							connectionCallback,
@@ -327,7 +327,7 @@ public class AudioServicePlugin {
 					mediaBrowser.connect();
 				}
 				else {
-					sendConnectResult(true);
+					result.success(true);
 				}
 				break;
 			case "disconnect":
@@ -339,8 +339,10 @@ public class AudioServicePlugin {
 					mediaBrowser.unsubscribe(subscribedParentMediaId);
 					subscribedParentMediaId = null;
 				}
-				mediaBrowser.disconnect();
-				mediaBrowser = null;
+				if (mediaBrowser != null) {
+					mediaBrowser.disconnect();
+					mediaBrowser = null;
+				}
 				result.success(true);
 				break;
 			case "setBrowseMediaParent":
