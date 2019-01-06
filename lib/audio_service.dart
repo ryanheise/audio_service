@@ -143,15 +143,10 @@ class MediaControl {
   /// The action to be executed by this control
   final MediaAction action;
 
-  /// On Android, whether to show this control in the notification's compact
-  /// view
-  final bool androidShowInCompactView;
-
   MediaControl({
     this.androidIcon,
     @required this.label,
     @required this.action,
-    this.androidShowInCompactView,
   });
 }
 
@@ -690,6 +685,7 @@ class AudioServiceBackground {
     int position = 0,
     double speed = 1.0,
     int updateTime,
+    List<int> androidCompactActions,
   }) async {
     _state = PlaybackState(
       basicState: basicState,
@@ -703,11 +699,10 @@ class AudioServiceBackground {
               'androidIcon': control.androidIcon,
               'label': control.label,
               'action': control.action.index,
-              'androidShowInCompactView': control.androidShowInCompactView,
             })
         .toList();
     await _backgroundChannel.invokeMethod('setState',
-        [rawControls, basicState.index, position, speed, updateTime]);
+        [rawControls, basicState.index, position, speed, updateTime, androidCompactActions]);
   }
 
   /// Sets the current queue and notifies all clients.
