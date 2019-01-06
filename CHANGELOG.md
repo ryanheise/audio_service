@@ -1,3 +1,9 @@
+## 0.0.14
+
+* Can update existing media items.
+* Can specify order of Android notification compact actions.
+* Bug fix with connect.
+
 ## 0.0.13
 
 * Option to preload artwork.
