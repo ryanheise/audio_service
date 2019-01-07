@@ -159,8 +159,11 @@ class CustomAudioPlayer {
   bool _playing = true;
 
   Future<void> run() async {
-    MediaItem mediaItem =
-        MediaItem(id: 'audio_1', album: 'Sample Album', title: 'Sample Title');
+    MediaItem mediaItem = MediaItem(
+        id: 'audio_1',
+        album: 'Sample Album',
+        title: 'Sample Title',
+        artist: 'Sample Artist');
 
     AudioServiceBackground.setMediaItem(mediaItem);
 
@@ -252,8 +255,11 @@ class TextPlayer {
     if (_basicState != BasicPlaybackState.stopped) stop();
   }
 
-  MediaItem mediaItem(int number) =>
-      MediaItem(id: 'tts_$number', album: 'Numbers', title: 'Number $number');
+  MediaItem mediaItem(int number) => MediaItem(
+      id: 'tts_$number',
+      album: 'Numbers',
+      title: 'Number $number',
+      artist: 'Sample Artist');
 
   void playPause() {
     if (_basicState == BasicPlaybackState.playing) {

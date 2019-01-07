@@ -195,17 +195,20 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		MediaControllerCompat controller = mediaSession.getController();
 		String contentTitle = "";
 		String contentText = "";
+		CharSequence subText = null;
 		Bitmap artBitmap = null;
 		if (mediaMetadata != null) {
 			MediaDescriptionCompat description = mediaMetadata.getDescription();
 			contentTitle = description.getTitle().toString();
 			contentText = description.getSubtitle().toString();
 			artBitmap = description.getIconBitmap();
+			subText = description.getDescription();
 		}
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(AudioService.this, notificationChannelId)
 				.setSmallIcon(iconId)
 				.setContentTitle(contentTitle)
 				.setContentText(contentText)
+				.setSubText(subText)
 				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 				.setShowWhen(false)
 				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
