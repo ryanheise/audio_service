@@ -1,38 +1,41 @@
 package com.ryanheise.audioservice;
 
+import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.os.Bundle;
+import android.os.RemoteException;
+import android.os.SystemClock;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaBrowserServiceCompat;
+import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.RatingCompat;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import io.flutter.app.FlutterApplication;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import io.flutter.app.FlutterApplication;
-import android.content.Context;
-import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterMain;
-import io.flutter.view.FlutterRunArguments;
-import android.app.Activity;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
-import java.util.Arrays;
-import android.os.RemoteException;
-import android.os.SystemClock;
 import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaBrowserServiceCompat;
-import android.support.v4.media.session.MediaControllerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.MediaDescriptionCompat;
-import android.content.ComponentName;
-import android.os.Bundle;
-import java.util.HashMap;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.media.AudioFormat;
-import android.support.v4.media.session.PlaybackStateCompat;
+import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.flutter.view.FlutterCallbackInformation;
+import io.flutter.view.FlutterMain;
+import io.flutter.view.FlutterNativeView;
+import io.flutter.view.FlutterRunArguments;
 
 /** AudioservicePlugin */
 public class AudioServicePlugin {
@@ -635,6 +638,34 @@ public class AudioServicePlugin {
 			raw.put("displaySubtitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE).toString());
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION))
 			raw.put("displayDescription", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
+			RatingCompat rating = mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING);
+			Map<String, Object> ratingRaw = new HashMap<String, Object>();
+			ratingRaw.put("type", rating.getRatingStyle());
+			if (rating.isRated()) {
+				switch (rating.getRatingStyle()) {
+					case RatingCompat.RATING_3_STARS:
+					case RatingCompat.RATING_4_STARS:
+					case RatingCompat.RATING_5_STARS:
+						ratingRaw.put("value", rating.getStarRating());
+						break;
+					case RatingCompat.RATING_HEART:
+						ratingRaw.put("value", rating.hasHeart());
+						break;
+					case RatingCompat.RATING_PERCENTAGE:
+						ratingRaw.put("value", rating.getPercentRating());
+						break;
+					case RatingCompat.RATING_THUMB_UP_DOWN:
+						ratingRaw.put("value", rating.isThumbUp());
+						break;
+					case RatingCompat.RATING_NONE:
+						ratingRaw.put("value", null);
+				}
+			} else {
+				ratingRaw.put("value", null);
+			}
+			raw.put("rating", ratingRaw);
+		}
 		return raw;
 	}
 
@@ -649,7 +680,8 @@ public class AudioServicePlugin {
 				(String)rawMediaItem.get("artUri"),
 				(String)rawMediaItem.get("displayTitle"),
 				(String)rawMediaItem.get("displaySubtitle"),
-				(String)rawMediaItem.get("displayDescription")
+				(String)rawMediaItem.get("displayDescription"),
+				(Map<String, Object>)rawMediaItem.get("rating")
 				);
 	}
 

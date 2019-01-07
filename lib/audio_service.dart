@@ -74,6 +74,113 @@ class PlaybackState {
   });
 }
 
+/// A rating to attach to a MediaItem.
+class Rating {
+  /// A rating style with 0 to 3 stars.
+  static const int RATING_3_STARS = 3;
+
+  /// A rating style with 0 to 4 stars.
+  static const int RATING_4_STARS = 4;
+
+  /// A rating style with 0 to 5 stars.
+  static const int RATING_5_STARS = 5;
+
+  /// A rating style with a single degree of rating, "heart" vs "no heart".
+  /// Can be used to indicate the content referred to is a favorite (or not).
+  static const int RATING_HEART = 1;
+
+  /// Indicates a rating style is not supported.
+  /// A Rating will never have this type, but can be used by other classes
+  /// to indicate they do not support Rating.
+  static const int RATING_NONE = 0;
+
+  /// A rating style expressed as a percentage.
+  static const int RATING_PERCENTAGE = 6;
+
+  /// A rating style for "thumb up" vs "thumb down".
+  static const int RATING_THUMB_UP_DOWN = 2;
+
+  final int _type;
+  dynamic _value;
+
+  Rating._internal(this._type, this._value);
+
+  /// Create a new heart rating.
+  Rating.newHeartRating(bool hasHeart) : this._internal(RATING_HEART, hasHeart);
+
+  /// Create a new percentage rating.
+  factory Rating.newPercentageRating(double percent) {
+    if (percent < 0 || percent > 100) throw ArgumentError();
+    return Rating._internal(RATING_PERCENTAGE, percent);
+  }
+
+  /// Create a new star rating.
+  factory Rating.newStartRating(int starRatingStyle, int starRating) {
+    if (starRatingStyle != RATING_3_STARS && starRatingStyle != RATING_4_STARS && starRatingStyle != RATING_5_STARS) {
+      throw ArgumentError();
+    }
+    if (starRating > starRatingStyle || starRating < 0) throw ArgumentError();
+    return Rating._internal(starRatingStyle, starRating);
+  }
+
+  /// Create a new thumb rating.
+  Rating.newThumbRating(bool isThumbsUp) : this._internal(RATING_THUMB_UP_DOWN, isThumbsUp);
+
+  /// Create a new unrated rating.
+  factory Rating.newUnratedRating(int ratingStyle) {
+    if (ratingStyle < 0 || ratingStyle > 6) throw ArgumentError();
+    return Rating._internal(ratingStyle, null);
+  }
+
+  /// Return the rating style.
+  int getRatingStyle() => _type;
+
+  /// Returns a rating value greater or equal to 0.0f,
+  /// or a negative value if the rating style is not percentage-based,
+  /// or if it is unrated.
+  double getPercentRating() {
+    if (_type != RATING_PERCENTAGE) return -1;
+    if (_value < 0 || _value > 100) return -1;
+    return _value ?? -1;
+  }
+
+  /// Returns a rating value greater or equal to 0.0f, or a
+  /// negative value if the rating style is not star-based, or if it is unrated.
+  int getStarRating() {
+    if (_type != RATING_3_STARS && _type != RATING_4_STARS && _type != RATING_5_STARS) return -1;
+    return _value ?? -1;
+  }
+
+  /// returns true if the rating is "heart selected", false if
+  /// the rating is "heart unselected", if the rating style is
+  /// not [RATING_HEART] or if it is unrated.
+  bool hasHeart() {
+    if (_type != RATING_HEART) return false;
+    return _value ?? false;
+  }
+
+  /// Returns true if the rating is "thumb up", false if the rating
+  /// is "thumb down", if the rating style is not [RATING_THUMB_UP_DOWN]
+  /// or if it is unrated.
+  bool isThumbUp() {
+    if (_type != RATING_THUMB_UP_DOWN) return false;
+    return _value ?? false;
+  }
+
+  /// Return whether there is a rating value available.
+  bool isRated() => _value != null;
+
+  Map<String, dynamic> _toRaw() {
+    return <String, dynamic>{
+      'type': _type,
+      'value': _value,
+    };
+  }
+
+  // Even though this should take a Map<String, dynamic>, that makes an error.
+  Rating._fromRaw(Map<dynamic, dynamic> raw) : this._internal(raw['type'], raw['value']);
+}
+
 /// Metadata about an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
@@ -110,6 +217,9 @@ class MediaItem {
   /// Override the default description for display purposes
   final String displayDescription;
 
+  /// The rating of the MediaItem.
+  final Rating rating;
+
   MediaItem({
     @required this.id,
     @required this.album,
@@ -122,6 +232,7 @@ class MediaItem {
     this.displayTitle,
     this.displaySubtitle,
     this.displayDescription,
+    this.rating,
   });
 
   @override
@@ -165,6 +276,7 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'displayTitle': mediaItem.displayTitle,
       'displaySubtitle': mediaItem.displaySubtitle,
       'displayDescription': mediaItem.displayDescription,
+      'rating': mediaItem.rating?._toRaw(),
     };
 
 MediaItem _raw2mediaItem(Map raw) => MediaItem(
@@ -178,6 +290,7 @@ MediaItem _raw2mediaItem(Map raw) => MediaItem(
       displayTitle: raw['displayTitle'],
       displaySubtitle: raw['displaySubtitle'],
       displayDescription: raw['displayDescription'],
+      rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
     );
 
 const String _CUSTOM_PREFIX = 'custom_';

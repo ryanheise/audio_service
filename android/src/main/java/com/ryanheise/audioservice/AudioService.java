@@ -1,53 +1,47 @@
 package com.ryanheise.audioservice;
 
-import android.content.Intent;
-import android.os.IBinder;
-import android.content.Context;
-import android.media.AudioManager;
-import android.os.PowerManager;
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.app.Notification;
 import android.app.NotificationChannel;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.media.app.NotificationCompat.MediaStyle;
-import android.support.v4.media.session.MediaControllerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.MediaBrowserServiceCompat;
-import android.support.v4.media.MediaBrowserServiceCompat.BrowserRoot;
-import android.support.v4.media.session.PlaybackStateCompat;
-import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.MediaDescriptionCompat;
-import android.support.v4.media.session.MediaButtonReceiver;
-import android.content.ComponentName;
-import android.R;
-import io.flutter.app.FlutterApplication;
-import android.app.Service;
-import android.os.Build;
-import android.os.SystemClock;
-import android.app.IntentService;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
-import java.util.List;
-import java.util.ArrayList;
-import android.os.Bundle;
-import android.view.KeyEvent;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.HashSet;
-import java.util.Set;
-import android.media.AudioFocusRequest;
-import android.media.AudioAttributes;
-import android.net.Uri;
-import java.io.InputStream;
-import java.net.URL;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import java.io.IOException;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.PowerManager;
 import android.support.annotation.RequiresApi;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaBrowserServiceCompat;
+import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.RatingCompat;
+import android.support.v4.media.app.NotificationCompat.MediaStyle;
+import android.support.v4.media.session.MediaButtonReceiver;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+import android.view.KeyEvent;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
 	private static final int NOTIFICATION_ID = 1124;
@@ -303,7 +297,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription) {
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, Map<String, Object> rating) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
 			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
@@ -328,6 +322,28 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle);
 		if (displayDescription != null)
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
+		if (rating != null) {
+			if (rating.get("value") != null) {
+				switch ((int) rating.get("type")) {
+					case RatingCompat.RATING_3_STARS:
+					case RatingCompat.RATING_4_STARS:
+					case RatingCompat.RATING_5_STARS:
+						builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newStarRating((int) rating.get("type"), (int) rating.get("value")));
+						break;
+					case RatingCompat.RATING_HEART:
+						builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newHeartRating((boolean) rating.get("value")));
+						break;
+                    case RatingCompat.RATING_PERCENTAGE:
+                        builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newPercentageRating((float) rating.get("value")));
+                        break;
+                    case RatingCompat.RATING_THUMB_UP_DOWN:
+                        builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newThumbRating((boolean) rating.get("value")));
+                        break;
+                }
+			} else {
+				builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newUnratedRating((int) rating.get("type")));
+			}
+		}
 		MediaMetadataCompat mediaMetadata = builder.build();
 		mediaMetadataCache.put(mediaId, mediaMetadata);
 		return mediaMetadata;
