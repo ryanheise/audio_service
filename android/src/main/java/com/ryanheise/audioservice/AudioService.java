@@ -323,26 +323,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (displayDescription != null)
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
 		if (rating != null) {
-			if (rating.get("value") != null) {
-				switch ((int) rating.get("type")) {
-					case RatingCompat.RATING_3_STARS:
-					case RatingCompat.RATING_4_STARS:
-					case RatingCompat.RATING_5_STARS:
-						builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newStarRating((int) rating.get("type"), (int) rating.get("value")));
-						break;
-					case RatingCompat.RATING_HEART:
-						builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newHeartRating((boolean) rating.get("value")));
-						break;
-                    case RatingCompat.RATING_PERCENTAGE:
-                        builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newPercentageRating((float) rating.get("value")));
-                        break;
-                    case RatingCompat.RATING_THUMB_UP_DOWN:
-                        builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newThumbRating((boolean) rating.get("value")));
-                        break;
-                }
-			} else {
-				builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, RatingCompat.newUnratedRating((int) rating.get("type")));
-			}
+			builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, AudioServicePlugin.raw2rating(rating));
 		}
 		MediaMetadataCompat mediaMetadata = builder.build();
 		mediaMetadataCache.put(mediaId, mediaMetadata);
@@ -693,6 +674,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			if (listener == null) return;
 			listener.onSeekTo(pos);
 		}
+
+		@Override
+		public void onSetRating(RatingCompat rating) {
+			if (listener == null) return;
+			listener.onSetRating(rating);
+		}
+
+		@Override
+		public void onSetRating(RatingCompat rating, Bundle extras) {
+			if (listener == null) return;
+			listener.onSetRating(rating, extras);
+		}
 	}
 
 	public static interface ServiceListener {
@@ -721,7 +714,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onRewind();
 		void onStop();
 		void onSeekTo(long pos);
-		//void onSetRating(RatingCompat rating);
+		void onSetRating(RatingCompat rating);
+		void onSetRating(RatingCompat rating, Bundle extras);
 		//void onSetRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode)
 		//void onSetShuffleModeEnabled(boolean enabled);
 		//void onSetShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode);

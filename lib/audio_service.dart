@@ -554,8 +554,15 @@ class AudioService {
     await _channel.invokeMethod('rewind');
   }
 
-  //static Future<void> setRating(RatingCompat rating) async {}
-  //static Future<void> setRating(RatingCompat rating, Bundle extras) async {}
+  /// Passes through to `onSetRating` in the background task.
+  /// The extras map must *only* contain primitive types!
+  static Future<void> setRating(Rating rating, [Map<String, dynamic> extras]) async {
+    await _channel.invokeMethod('setRating', {
+      "rating": rating._toRaw(),
+      "extras": extras,
+    });
+  }
+
   //static Future<void> setCaptioningEnabled(boolean enabled) async {}
   //static Future<void> setRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode) async {}
   //static Future<void> setShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode) async {}
@@ -608,6 +615,8 @@ class AudioServiceBackground {
   /// button in the notification or Wear OS or Android Auto.
   /// * [onClick] is called in response to [AudioService.click], or if a media
   /// button is clicked on the headset.
+  /// * [onSetRating] is called in response to [AudioService.setRating], or if the
+  /// rating is set from another client (like Android Auto or WearOS)
   static Future<void> run({
     @required Future<void> onStart(),
     Future<List<MediaItem>> onLoadChildren(String parentMediaId),
@@ -632,6 +641,7 @@ class AudioServiceBackground {
     VoidCallback onRewind,
     ValueChanged<String> onSkipToQueueItem,
     ValueChanged<int> onSeekTo,
+    void Function(Rating, Map<dynamic, dynamic>) onSetRating,
     void onCustomAction(String name, dynamic arguments),
   }) async {
     _backgroundChannel =
@@ -755,6 +765,11 @@ class AudioServiceBackground {
             final List args = call.arguments;
             int pos = args[0];
             onSeekTo(pos);
+          }
+          break;
+        case 'onSetRating':
+          if (onSetRating != null) {
+            onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           }
           break;
         default:

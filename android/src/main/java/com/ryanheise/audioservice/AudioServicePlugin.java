@@ -309,6 +309,14 @@ public class AudioServicePlugin {
 					public void onSeekTo(long pos) {
 						backgroundHandler.invokeMethod("onSeekTo", pos);
 					}
+					@Override
+					public void onSetRating(RatingCompat rating) {
+						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), null);
+					}
+					@Override
+					public void onSetRating(RatingCompat rating, Bundle extras) {
+						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
+					}
 				});
 
 				synchronized (connectionCallback) {
@@ -463,6 +471,15 @@ public class AudioServicePlugin {
 				mediaController.getTransportControls().rewind();
 				result.success(true);
 				break;
+			case "setRating":
+				HashMap<String, Object> arguments = (HashMap<String, Object>) call.arguments;
+				if (call.arguments != null) {
+					Bundle extrasBundle = new Bundle();
+					extrasBundle.putSerializable("extrasMap", (HashMap<String, Object>) arguments.get("extras"));
+					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>) arguments.get("rating")), extrasBundle);
+				} else {
+					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>) arguments.get("rating")));
+				}
 			default:
 				backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
 					@Override
@@ -618,6 +635,55 @@ public class AudioServicePlugin {
 		return rawQueue;
 	}
 
+	static RatingCompat raw2rating(Map<String, Object> raw) {
+		if (raw.get("value") != null) {
+			switch ((int) raw.get("type")) {
+				case RatingCompat.RATING_3_STARS:
+				case RatingCompat.RATING_4_STARS:
+				case RatingCompat.RATING_5_STARS:
+					return RatingCompat.newStarRating((int) raw.get("type"), (int) raw.get("value"));
+				case RatingCompat.RATING_HEART:
+					return RatingCompat.newHeartRating((boolean) raw.get("value"));
+				case RatingCompat.RATING_PERCENTAGE:
+					return RatingCompat.newPercentageRating((float) raw.get("value"));
+				case RatingCompat.RATING_THUMB_UP_DOWN:
+					return RatingCompat.newThumbRating((boolean) raw.get("value"));
+				default:
+					return RatingCompat.newUnratedRating((int) raw.get("type"));
+			}
+		} else {
+			return RatingCompat.newUnratedRating((int) raw.get("type"));
+		}
+	}
+
+	static HashMap<String, Object> rating2raw(RatingCompat rating) {
+		HashMap<String, Object> raw = new HashMap<String, Object>();
+		raw.put("type", rating.getRatingStyle());
+		if (rating.isRated()) {
+			switch (rating.getRatingStyle()) {
+				case RatingCompat.RATING_3_STARS:
+				case RatingCompat.RATING_4_STARS:
+				case RatingCompat.RATING_5_STARS:
+					raw.put("value", rating.getStarRating());
+					break;
+				case RatingCompat.RATING_HEART:
+					raw.put("value", rating.hasHeart());
+					break;
+				case RatingCompat.RATING_PERCENTAGE:
+					raw.put("value", rating.getPercentRating());
+					break;
+				case RatingCompat.RATING_THUMB_UP_DOWN:
+					raw.put("value", rating.isThumbUp());
+					break;
+				case RatingCompat.RATING_NONE:
+					raw.put("value", null);
+			}
+		} else {
+			raw.put("value", null);
+		}
+		return raw;
+	}
+
 	private static Map<?,?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String,Object> raw = new HashMap<String,Object>();
@@ -639,32 +705,7 @@ public class AudioServicePlugin {
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION))
 			raw.put("displayDescription", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION).toString());
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
-			RatingCompat rating = mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING);
-			Map<String, Object> ratingRaw = new HashMap<String, Object>();
-			ratingRaw.put("type", rating.getRatingStyle());
-			if (rating.isRated()) {
-				switch (rating.getRatingStyle()) {
-					case RatingCompat.RATING_3_STARS:
-					case RatingCompat.RATING_4_STARS:
-					case RatingCompat.RATING_5_STARS:
-						ratingRaw.put("value", rating.getStarRating());
-						break;
-					case RatingCompat.RATING_HEART:
-						ratingRaw.put("value", rating.hasHeart());
-						break;
-					case RatingCompat.RATING_PERCENTAGE:
-						ratingRaw.put("value", rating.getPercentRating());
-						break;
-					case RatingCompat.RATING_THUMB_UP_DOWN:
-						ratingRaw.put("value", rating.isThumbUp());
-						break;
-					case RatingCompat.RATING_NONE:
-						ratingRaw.put("value", null);
-				}
-			} else {
-				ratingRaw.put("value", null);
-			}
-			raw.put("rating", ratingRaw);
+			raw.put("rating", rating2raw(mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING)));
 		}
 		return raw;
 	}
