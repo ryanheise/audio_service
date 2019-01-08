@@ -76,28 +76,30 @@ class PlaybackState {
 
 enum RatingStyle {
   /// Indicates a rating style is not supported.
+  ///
   /// A Rating will never have this type, but can be used by other classes
   /// to indicate they do not support Rating.
-  RATING_NONE,
+  none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".
+  ///
   /// Can be used to indicate the content referred to is a favorite (or not).
-  RATING_HEART,
+  heart,
 
   /// A rating style for "thumb up" vs "thumb down".
-  RATING_THUMB_UP_DOWN,
+  thumbUpDown,
 
   /// A rating style with 0 to 3 stars.
-  RATING_3_STARS,
+  range3stars,
 
   /// A rating style with 0 to 4 stars.
-  RATING_4_STARS,
+  range4stars,
 
   /// A rating style with 0 to 5 stars.
-  RATING_5_STARS,
+  range5stars,
 
   /// A rating style expressed as a percentage.
-  RATING_PERCENTAGE,
+  percentage,
 }
 
 /// A rating to attach to a MediaItem.
@@ -108,17 +110,17 @@ class Rating {
   Rating._internal(this._type, this._value);
 
   /// Create a new heart rating.
-  Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.RATING_HEART, hasHeart);
+  Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.heart, hasHeart);
 
   /// Create a new percentage rating.
   factory Rating.newPercentageRating(double percent) {
     if (percent < 0 || percent > 100) throw ArgumentError();
-    return Rating._internal(RatingStyle.RATING_PERCENTAGE, percent);
+    return Rating._internal(RatingStyle.percentage, percent);
   }
 
   /// Create a new star rating.
   factory Rating.newStartRating(RatingStyle starRatingStyle, int starRating) {
-    if (starRatingStyle != RatingStyle.RATING_3_STARS && starRatingStyle != RatingStyle.RATING_4_STARS && starRatingStyle != RatingStyle.RATING_5_STARS) {
+    if (starRatingStyle != RatingStyle.range3stars && starRatingStyle != RatingStyle.range4stars && starRatingStyle != RatingStyle.range5stars) {
       throw ArgumentError();
     }
     if (starRating > starRatingStyle.index || starRating < 0) throw ArgumentError();
@@ -126,7 +128,7 @@ class Rating {
   }
 
   /// Create a new thumb rating.
-  Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.RATING_THUMB_UP_DOWN, isThumbsUp);
+  Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
 
   /// Create a new unrated rating.
   factory Rating.newUnratedRating(RatingStyle ratingStyle) {
@@ -136,35 +138,36 @@ class Rating {
   /// Return the rating style.
   RatingStyle getRatingStyle() => _type;
 
-  /// Returns a rating value greater or equal to 0.0f,
-  /// or a negative value if the rating style is not percentage-based,
-  /// or if it is unrated.
+  /// Returns a percentage rating value greater or equal to 0.0f, or a
+  /// negative value if the rating style is not percentage-based, or
+  /// if it is unrated.
   double getPercentRating() {
-    if (_type != RatingStyle.RATING_PERCENTAGE) return -1;
+    if (_type != RatingStyle.percentage) return -1;
     if (_value < 0 || _value > 100) return -1;
     return _value ?? -1;
   }
 
-  /// Returns a rating value greater or equal to 0.0f, or a
-  /// negative value if the rating style is not star-based, or if it is unrated.
+  /// Returns a rating value greater or equal to 0.0f, or a negative
+  /// value if the rating style is not star-based, or if it is
+  /// unrated.
   int getStarRating() {
-    if (_type != RatingStyle.RATING_3_STARS && _type != RatingStyle.RATING_4_STARS && _type != RatingStyle.RATING_5_STARS) return -1;
+    if (_type != RatingStyle.range3stars && _type != RatingStyle.range4stars && _type != RatingStyle.range5stars) return -1;
     return _value ?? -1;
   }
 
-  /// returns true if the rating is "heart selected", false if
-  /// the rating is "heart unselected", if the rating style is
-  /// not [RATING_HEART] or if it is unrated.
+  /// Returns true if the rating is "heart selected" or false if the
+  /// rating is "heart unselected", if the rating style is not [heart]
+  /// or if it is unrated.
   bool hasHeart() {
-    if (_type != RatingStyle.RATING_HEART) return false;
+    if (_type != RatingStyle.heart) return false;
     return _value ?? false;
   }
 
-  /// Returns true if the rating is "thumb up", false if the rating
-  /// is "thumb down", if the rating style is not [RATING_THUMB_UP_DOWN]
-  /// or if it is unrated.
+  /// Returns true if the rating is "thumb up" or false if the rating
+  /// is "thumb down", if the rating style is not [thumbUpDown] or if
+  /// it is unrated.
   bool isThumbUp() {
-    if (_type != RatingStyle.RATING_THUMB_UP_DOWN) return false;
+    if (_type != RatingStyle.thumbUpDown) return false;
     return _value ?? false;
   }
 
