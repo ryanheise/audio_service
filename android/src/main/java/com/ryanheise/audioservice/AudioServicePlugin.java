@@ -635,28 +635,31 @@ public class AudioServicePlugin {
 		return rawQueue;
 	}
 
-	static RatingCompat raw2rating(Map<String, Object> raw) {
-		if (raw.get("value") != null) {
-			switch ((int) raw.get("type")) {
+	private static RatingCompat raw2rating(Map<String, Object> raw) {
+		if (raw == null) return null;
+		Integer type = (Integer)raw.get("type");
+		Object value = raw.get("value");
+		if (value != null) {
+			switch (type) {
 				case RatingCompat.RATING_3_STARS:
 				case RatingCompat.RATING_4_STARS:
 				case RatingCompat.RATING_5_STARS:
-					return RatingCompat.newStarRating((int) raw.get("type"), (int) raw.get("value"));
+					return RatingCompat.newStarRating(type, (int)value);
 				case RatingCompat.RATING_HEART:
-					return RatingCompat.newHeartRating((boolean) raw.get("value"));
+					return RatingCompat.newHeartRating((boolean)value);
 				case RatingCompat.RATING_PERCENTAGE:
-					return RatingCompat.newPercentageRating((float) raw.get("value"));
+					return RatingCompat.newPercentageRating((float)value);
 				case RatingCompat.RATING_THUMB_UP_DOWN:
-					return RatingCompat.newThumbRating((boolean) raw.get("value"));
+					return RatingCompat.newThumbRating((boolean)value);
 				default:
-					return RatingCompat.newUnratedRating((int) raw.get("type"));
+					return RatingCompat.newUnratedRating(type);
 			}
 		} else {
-			return RatingCompat.newUnratedRating((int) raw.get("type"));
+			return RatingCompat.newUnratedRating(type);
 		}
 	}
 
-	static HashMap<String, Object> rating2raw(RatingCompat rating) {
+	private static HashMap<String, Object> rating2raw(RatingCompat rating) {
 		HashMap<String, Object> raw = new HashMap<String, Object>();
 		raw.put("type", rating.getRatingStyle());
 		if (rating.isRated()) {
@@ -722,7 +725,7 @@ public class AudioServicePlugin {
 				(String)rawMediaItem.get("displayTitle"),
 				(String)rawMediaItem.get("displaySubtitle"),
 				(String)rawMediaItem.get("displayDescription"),
-				(Map<String, Object>)rawMediaItem.get("rating")
+				raw2rating((Map<String, Object>)rawMediaItem.get("rating"))
 				);
 	}
 

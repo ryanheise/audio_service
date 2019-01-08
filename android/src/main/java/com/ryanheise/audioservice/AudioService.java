@@ -297,7 +297,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, Map<String, Object> rating) {
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
 			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
@@ -323,7 +323,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (displayDescription != null)
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
 		if (rating != null) {
-			builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, AudioServicePlugin.raw2rating(rating));
+			builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, rating);
 		}
 		MediaMetadataCompat mediaMetadata = builder.build();
 		mediaMetadataCache.put(mediaId, mediaMetadata);
@@ -523,6 +523,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		private void play(Runnable runner) {
 			int result = requestAudioFocus();
 			if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+				// TODO: Handle this more gracefully
 				throw new RuntimeException("Failed to gain audio focus");
 			}
 
