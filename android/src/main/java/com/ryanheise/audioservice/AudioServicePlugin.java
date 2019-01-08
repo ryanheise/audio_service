@@ -1,38 +1,41 @@
 package com.ryanheise.audioservice;
 
+import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.os.Bundle;
+import android.os.RemoteException;
+import android.os.SystemClock;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaBrowserServiceCompat;
+import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.RatingCompat;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import io.flutter.app.FlutterApplication;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import io.flutter.app.FlutterApplication;
-import android.content.Context;
-import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterMain;
-import io.flutter.view.FlutterRunArguments;
-import android.app.Activity;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
-import java.util.Arrays;
-import android.os.RemoteException;
-import android.os.SystemClock;
 import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaBrowserServiceCompat;
-import android.support.v4.media.session.MediaControllerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.MediaDescriptionCompat;
-import android.content.ComponentName;
-import android.os.Bundle;
-import java.util.HashMap;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.media.AudioFormat;
-import android.support.v4.media.session.PlaybackStateCompat;
+import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.flutter.view.FlutterCallbackInformation;
+import io.flutter.view.FlutterMain;
+import io.flutter.view.FlutterNativeView;
+import io.flutter.view.FlutterRunArguments;
 
 /** AudioservicePlugin */
 public class AudioServicePlugin {
@@ -306,6 +309,14 @@ public class AudioServicePlugin {
 					public void onSeekTo(long pos) {
 						backgroundHandler.invokeMethod("onSeekTo", pos);
 					}
+					@Override
+					public void onSetRating(RatingCompat rating) {
+						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), null);
+					}
+					@Override
+					public void onSetRating(RatingCompat rating, Bundle extras) {
+						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
+					}
 				});
 
 				synchronized (connectionCallback) {
@@ -460,6 +471,15 @@ public class AudioServicePlugin {
 				mediaController.getTransportControls().rewind();
 				result.success(true);
 				break;
+			case "setRating":
+				HashMap<String, Object> arguments = (HashMap<String, Object>) call.arguments;
+				if (call.arguments != null) {
+					Bundle extrasBundle = new Bundle();
+					extrasBundle.putSerializable("extrasMap", (HashMap<String, Object>) arguments.get("extras"));
+					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>) arguments.get("rating")), extrasBundle);
+				} else {
+					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>) arguments.get("rating")));
+				}
 			default:
 				backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
 					@Override
@@ -615,6 +635,55 @@ public class AudioServicePlugin {
 		return rawQueue;
 	}
 
+	static RatingCompat raw2rating(Map<String, Object> raw) {
+		if (raw.get("value") != null) {
+			switch ((int) raw.get("type")) {
+				case RatingCompat.RATING_3_STARS:
+				case RatingCompat.RATING_4_STARS:
+				case RatingCompat.RATING_5_STARS:
+					return RatingCompat.newStarRating((int) raw.get("type"), (int) raw.get("value"));
+				case RatingCompat.RATING_HEART:
+					return RatingCompat.newHeartRating((boolean) raw.get("value"));
+				case RatingCompat.RATING_PERCENTAGE:
+					return RatingCompat.newPercentageRating((float) raw.get("value"));
+				case RatingCompat.RATING_THUMB_UP_DOWN:
+					return RatingCompat.newThumbRating((boolean) raw.get("value"));
+				default:
+					return RatingCompat.newUnratedRating((int) raw.get("type"));
+			}
+		} else {
+			return RatingCompat.newUnratedRating((int) raw.get("type"));
+		}
+	}
+
+	static HashMap<String, Object> rating2raw(RatingCompat rating) {
+		HashMap<String, Object> raw = new HashMap<String, Object>();
+		raw.put("type", rating.getRatingStyle());
+		if (rating.isRated()) {
+			switch (rating.getRatingStyle()) {
+				case RatingCompat.RATING_3_STARS:
+				case RatingCompat.RATING_4_STARS:
+				case RatingCompat.RATING_5_STARS:
+					raw.put("value", rating.getStarRating());
+					break;
+				case RatingCompat.RATING_HEART:
+					raw.put("value", rating.hasHeart());
+					break;
+				case RatingCompat.RATING_PERCENTAGE:
+					raw.put("value", rating.getPercentRating());
+					break;
+				case RatingCompat.RATING_THUMB_UP_DOWN:
+					raw.put("value", rating.isThumbUp());
+					break;
+				case RatingCompat.RATING_NONE:
+					raw.put("value", null);
+			}
+		} else {
+			raw.put("value", null);
+		}
+		return raw;
+	}
+
 	private static Map<?,?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String,Object> raw = new HashMap<String,Object>();
@@ -635,6 +704,9 @@ public class AudioServicePlugin {
 			raw.put("displaySubtitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE).toString());
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION))
 			raw.put("displayDescription", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION).toString());
+		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
+			raw.put("rating", rating2raw(mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING)));
+		}
 		return raw;
 	}
 
@@ -649,7 +721,8 @@ public class AudioServicePlugin {
 				(String)rawMediaItem.get("artUri"),
 				(String)rawMediaItem.get("displayTitle"),
 				(String)rawMediaItem.get("displaySubtitle"),
-				(String)rawMediaItem.get("displayDescription")
+				(String)rawMediaItem.get("displayDescription"),
+				(Map<String, Object>)rawMediaItem.get("rating")
 				);
 	}
 

@@ -74,6 +74,114 @@ class PlaybackState {
   });
 }
 
+enum RatingStyle {
+  /// Indicates a rating style is not supported.
+  /// A Rating will never have this type, but can be used by other classes
+  /// to indicate they do not support Rating.
+  RATING_NONE,
+
+  /// A rating style with a single degree of rating, "heart" vs "no heart".
+  /// Can be used to indicate the content referred to is a favorite (or not).
+  RATING_HEART,
+
+  /// A rating style for "thumb up" vs "thumb down".
+  RATING_THUMB_UP_DOWN,
+
+  /// A rating style with 0 to 3 stars.
+  RATING_3_STARS,
+
+  /// A rating style with 0 to 4 stars.
+  RATING_4_STARS,
+
+  /// A rating style with 0 to 5 stars.
+  RATING_5_STARS,
+
+  /// A rating style expressed as a percentage.
+  RATING_PERCENTAGE,
+}
+
+/// A rating to attach to a MediaItem.
+class Rating {
+  final RatingStyle _type;
+  dynamic _value;
+
+  Rating._internal(this._type, this._value);
+
+  /// Create a new heart rating.
+  Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.RATING_HEART, hasHeart);
+
+  /// Create a new percentage rating.
+  factory Rating.newPercentageRating(double percent) {
+    if (percent < 0 || percent > 100) throw ArgumentError();
+    return Rating._internal(RatingStyle.RATING_PERCENTAGE, percent);
+  }
+
+  /// Create a new star rating.
+  factory Rating.newStartRating(RatingStyle starRatingStyle, int starRating) {
+    if (starRatingStyle != RatingStyle.RATING_3_STARS && starRatingStyle != RatingStyle.RATING_4_STARS && starRatingStyle != RatingStyle.RATING_5_STARS) {
+      throw ArgumentError();
+    }
+    if (starRating > starRatingStyle.index || starRating < 0) throw ArgumentError();
+    return Rating._internal(starRatingStyle, starRating);
+  }
+
+  /// Create a new thumb rating.
+  Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.RATING_THUMB_UP_DOWN, isThumbsUp);
+
+  /// Create a new unrated rating.
+  factory Rating.newUnratedRating(RatingStyle ratingStyle) {
+    return Rating._internal(ratingStyle, null);
+  }
+
+  /// Return the rating style.
+  RatingStyle getRatingStyle() => _type;
+
+  /// Returns a rating value greater or equal to 0.0f,
+  /// or a negative value if the rating style is not percentage-based,
+  /// or if it is unrated.
+  double getPercentRating() {
+    if (_type != RatingStyle.RATING_PERCENTAGE) return -1;
+    if (_value < 0 || _value > 100) return -1;
+    return _value ?? -1;
+  }
+
+  /// Returns a rating value greater or equal to 0.0f, or a
+  /// negative value if the rating style is not star-based, or if it is unrated.
+  int getStarRating() {
+    if (_type != RatingStyle.RATING_3_STARS && _type != RatingStyle.RATING_4_STARS && _type != RatingStyle.RATING_5_STARS) return -1;
+    return _value ?? -1;
+  }
+
+  /// returns true if the rating is "heart selected", false if
+  /// the rating is "heart unselected", if the rating style is
+  /// not [RATING_HEART] or if it is unrated.
+  bool hasHeart() {
+    if (_type != RatingStyle.RATING_HEART) return false;
+    return _value ?? false;
+  }
+
+  /// Returns true if the rating is "thumb up", false if the rating
+  /// is "thumb down", if the rating style is not [RATING_THUMB_UP_DOWN]
+  /// or if it is unrated.
+  bool isThumbUp() {
+    if (_type != RatingStyle.RATING_THUMB_UP_DOWN) return false;
+    return _value ?? false;
+  }
+
+  /// Return whether there is a rating value available.
+  bool isRated() => _value != null;
+
+  Map<String, dynamic> _toRaw() {
+    return <String, dynamic>{
+      'type': _type.index,
+      'value': _value,
+    };
+  }
+
+  // Even though this should take a Map<String, dynamic>, that makes an error.
+  Rating._fromRaw(Map<dynamic, dynamic> raw) : this._internal(RatingStyle.values[raw['type']], raw['value']);
+}
+
 /// Metadata about an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
@@ -110,6 +218,9 @@ class MediaItem {
   /// Override the default description for display purposes
   final String displayDescription;
 
+  /// The rating of the MediaItem.
+  final Rating rating;
+
   MediaItem({
     @required this.id,
     @required this.album,
@@ -122,6 +233,7 @@ class MediaItem {
     this.displayTitle,
     this.displaySubtitle,
     this.displayDescription,
+    this.rating,
   });
 
   @override
@@ -165,6 +277,7 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'displayTitle': mediaItem.displayTitle,
       'displaySubtitle': mediaItem.displaySubtitle,
       'displayDescription': mediaItem.displayDescription,
+      'rating': mediaItem.rating?._toRaw(),
     };
 
 MediaItem _raw2mediaItem(Map raw) => MediaItem(
@@ -178,6 +291,7 @@ MediaItem _raw2mediaItem(Map raw) => MediaItem(
       displayTitle: raw['displayTitle'],
       displaySubtitle: raw['displaySubtitle'],
       displayDescription: raw['displayDescription'],
+      rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
     );
 
 const String _CUSTOM_PREFIX = 'custom_';
@@ -441,8 +555,15 @@ class AudioService {
     await _channel.invokeMethod('rewind');
   }
 
-  //static Future<void> setRating(RatingCompat rating) async {}
-  //static Future<void> setRating(RatingCompat rating, Bundle extras) async {}
+  /// Passes through to `onSetRating` in the background task.
+  /// The extras map must *only* contain primitive types!
+  static Future<void> setRating(Rating rating, [Map<String, dynamic> extras]) async {
+    await _channel.invokeMethod('setRating', {
+      "rating": rating._toRaw(),
+      "extras": extras,
+    });
+  }
+
   //static Future<void> setCaptioningEnabled(boolean enabled) async {}
   //static Future<void> setRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode) async {}
   //static Future<void> setShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode) async {}
@@ -495,6 +616,8 @@ class AudioServiceBackground {
   /// button in the notification or Wear OS or Android Auto.
   /// * [onClick] is called in response to [AudioService.click], or if a media
   /// button is clicked on the headset.
+  /// * [onSetRating] is called in response to [AudioService.setRating], or if the
+  /// rating is set from another client (like Android Auto or WearOS)
   static Future<void> run({
     @required Future<void> onStart(),
     Future<List<MediaItem>> onLoadChildren(String parentMediaId),
@@ -519,6 +642,7 @@ class AudioServiceBackground {
     VoidCallback onRewind,
     ValueChanged<String> onSkipToQueueItem,
     ValueChanged<int> onSeekTo,
+    void Function(Rating, Map<dynamic, dynamic>) onSetRating,
     void onCustomAction(String name, dynamic arguments),
   }) async {
     _backgroundChannel =
@@ -642,6 +766,11 @@ class AudioServiceBackground {
             final List args = call.arguments;
             int pos = args[0];
             onSeekTo(pos);
+          }
+          break;
+        case 'onSetRating':
+          if (onSetRating != null) {
+            onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           }
           break;
         default:
