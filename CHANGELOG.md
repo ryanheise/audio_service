@@ -1,3 +1,8 @@
+## 0.0.15
+
+* Option to set subText in notification.
+* Support media item ratings
+
 ## 0.0.14
 
 * Can update existing media items.
