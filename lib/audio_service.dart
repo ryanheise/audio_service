@@ -131,9 +131,7 @@ class Rating {
   Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
 
   /// Create a new unrated rating.
-  factory Rating.newUnratedRating(RatingStyle ratingStyle) {
-    return Rating._internal(ratingStyle, null);
-  }
+  Rating.newUnratedRating(RatingStyle ratingStyle) : this._internal(ratingStyle, null);
 
   /// Return the rating style.
   RatingStyle getRatingStyle() => _type;
