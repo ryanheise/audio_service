@@ -156,7 +156,6 @@ class CustomAudioPlayer {
       'http://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3';
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
-  bool _playing = true;
 
   Future<void> run() async {
     MediaItem mediaItem = MediaItem(
@@ -178,7 +177,7 @@ class CustomAudioPlayer {
   }
 
   void playPause() {
-    if (_playing)
+    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing)
       pause();
     else
       play();
