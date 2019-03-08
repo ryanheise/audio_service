@@ -437,6 +437,7 @@ class AudioService {
     int notificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidNotificationClickStartsActivity = true,
+    bool androidNotificationOngoing = false,
     bool resumeOnClick = true,
     bool shouldPreloadArtwork = false,
   }) async {
@@ -455,6 +456,8 @@ class AudioService {
       'androidNotificationIcon': androidNotificationIcon,
       'androidNotificationClickStartsActivity':
           androidNotificationClickStartsActivity,
+      'androidNotificationOngoing':
+          androidNotificationOngoing,
       'resumeOnClick': resumeOnClick,
       'shouldPreloadArtwork': shouldPreloadArtwork,
     });

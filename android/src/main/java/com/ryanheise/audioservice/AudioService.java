@@ -49,7 +49,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static final String MEDIA_ROOT_ID = "root";
 	// See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
 	// We hijack KEYCODE_MUTE and KEYCODE_MEDIA_RECORD since the media session subsystem
-	// consideres these keycodes relevant to media playback and will pass them on to us.
+	// considers these keycodes relevant to media playback and will pass them on to us.
 	public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
 	public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
 	public static final int MAX_COMPACT_ACTIONS = 3;
@@ -64,6 +64,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static Integer notificationColor;
 	static String androidNotificationIcon;
 	static boolean androidNotificationClickStartsActivity;
+	static boolean androidNotificationOngoing;
 	static boolean shouldPreloadArtwork;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
@@ -71,7 +72,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean shouldPreloadArtwork, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -86,6 +87,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.notificationColor = notificationColor;
 		AudioService.androidNotificationIcon = androidNotificationIcon;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
+		AudioService.androidNotificationOngoing = androidNotificationOngoing;
 		AudioService.shouldPreloadArtwork = shouldPreloadArtwork;
 	}
 
@@ -225,6 +227,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setShowCancelButton(true)
 				.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				);
+		if (androidNotificationOngoing)
+			builder.setOngoing(true);
 		Notification notification = builder.build();
 		return notification;
 	}
