@@ -1,3 +1,8 @@
+## 0.1.0
+
+* onClick is now always called for media button clicks.
+* Option to set notifications as ongoing.
+
 ## 0.0.15
 
 * Option to set subText in notification.
