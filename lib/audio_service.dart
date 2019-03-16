@@ -65,7 +65,7 @@ class PlaybackState {
   /// The time at which the playback position was last updated
   final int updateTime;
 
-  PlaybackState({
+  const PlaybackState({
     @required this.basicState,
     @required this.actions,
     this.position,
@@ -222,7 +222,7 @@ class MediaItem {
   /// The rating of the MediaItem.
   final Rating rating;
 
-  MediaItem({
+  const MediaItem({
     @required this.id,
     @required this.album,
     @required this.title,
@@ -256,7 +256,7 @@ class MediaControl {
   /// The action to be executed by this control
   final MediaAction action;
 
-  MediaControl({
+  const MediaControl({
     this.androidIcon,
     @required this.label,
     @required this.action,
