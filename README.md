@@ -76,6 +76,7 @@ Edit your project's `AndroidManifest.xml` file to reference your `MainApplicatio
 ```xml
 <manifest ...>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   
   <application
     android:name=".MainApplication"
