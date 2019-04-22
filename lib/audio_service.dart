@@ -183,20 +183,6 @@ class Rating {
   Rating._fromRaw(Map<dynamic, dynamic> raw) : this._internal(RatingStyle.values[raw['type']], raw['value']);
 }
 
-StreamController<List<MediaItem>> _browseMediaChildrenController =
-      StreamController<List<MediaItem>>.broadcast();
-StreamController<PlaybackState> _playbackStateController =
-      StreamController<PlaybackState>.broadcast();
-StreamController<MediaItem> _currentMediaItemController =
-      StreamController<MediaItem>.broadcast();
-StreamController<List<MediaItem>> _queueController =
-      StreamController<List<MediaItem>>.broadcast();
-
-List<MediaItem> _browseMediaChildren;
-PlaybackState _playbackState;
-MediaItem _currentMediaItem;
-List<MediaItem> _queue;
-
 /// Metadata about an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
@@ -326,33 +312,49 @@ class AudioService {
   /// task.
   static const String MEDIA_ROOT_ID = "root";
 
+  static StreamController<List<MediaItem>> _browseMediaChildrenController =
+      StreamController<List<MediaItem>>.broadcast();
+
   /// A stream that broadcasts the children of the current browse
   /// media parent.
   static Stream<List<MediaItem>> get browseMediaChildrenStream =>
       _browseMediaChildrenController.stream;
 
+  static StreamController<PlaybackState> _playbackStateController =
+      StreamController<PlaybackState>.broadcast();
+
   /// A stream that broadcasts the playback state.
   static Stream<PlaybackState> get playbackStateStream =>
       _playbackStateController.stream;
 
+  static StreamController<MediaItem> _currentMediaItemController =
+      StreamController<MediaItem>.broadcast();
+
   /// A stream that broadcasts the current [MediaItem].
   static Stream<MediaItem> get currentMediaItemStream =>
       _currentMediaItemController.stream;
+
+  static StreamController<List<MediaItem>> _queueController =
+      StreamController<List<MediaItem>>.broadcast();
 
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueController.stream;
 
   /// The children of the current browse media parent.
   static List<MediaItem> get browseMediaChildren => _browseMediaChildren;
+  static List<MediaItem> _browseMediaChildren;
 
   /// The current playback state.
   static PlaybackState get playbackState => _playbackState;
+  static PlaybackState _playbackState;
 
   /// The current media item.
   static MediaItem get currentMediaItem => _currentMediaItem;
+  static MediaItem _currentMediaItem;
 
   /// The current queue.
   static List<MediaItem> get queue => _queue;
+  static List<MediaItem> _queue;
 
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
@@ -390,6 +392,16 @@ class AudioService {
           final List<Map> args = List<Map>.from(call.arguments[0]);
           _queue = args.map(_raw2mediaItem).toList();
           _queueController.add(_queue);
+          break;
+        case 'onStopped':
+          _browseMediaChildren = null;
+          _browseMediaChildrenController.add(null);
+          _playbackState = null;
+          _playbackStateController.add(null);
+          _currentMediaItem = null;
+          _currentMediaItemController.add(null);
+          _queue = null;
+          _queueController.add(null);
           break;
       }
     });
@@ -791,16 +803,6 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('ready', enableQueue);
     await onStart();
     await _backgroundChannel.invokeMethod('stopped');
-
-    _browseMediaChildren = null;
-    _browseMediaChildrenController.add(null);
-    _playbackState = null;
-    _playbackStateController.add(null);
-    _currentMediaItem = null;
-    _currentMediaItemController.add(null);
-    _queue = null;
-    _queueController.add(null);
-
     _backgroundChannel.setMethodCallHandler(null);
     _state = _noneState;
   }

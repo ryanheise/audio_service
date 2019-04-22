@@ -580,6 +580,7 @@ public class AudioServicePlugin {
 				if (silenceAudioTrack != null)
 					silenceAudioTrack.release();
 				backgroundFlutterView = null;
+				invokeMethod("onStopped");
 				result.success(true);
 				break;
 			case "notifyChildrenChanged":
