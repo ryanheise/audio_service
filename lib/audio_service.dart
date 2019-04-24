@@ -105,12 +105,12 @@ enum RatingStyle {
 /// A rating to attach to a MediaItem.
 class Rating {
   final RatingStyle _type;
-  dynamic _value;
+  final dynamic _value;
 
-  Rating._internal(this._type, this._value);
+  const Rating._internal(this._type, this._value);
 
   /// Create a new heart rating.
-  Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.heart, hasHeart);
+  const Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.heart, hasHeart);
 
   /// Create a new percentage rating.
   factory Rating.newPercentageRating(double percent) {
@@ -128,10 +128,10 @@ class Rating {
   }
 
   /// Create a new thumb rating.
-  Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
+  const Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
 
   /// Create a new unrated rating.
-  Rating.newUnratedRating(RatingStyle ratingStyle) : this._internal(ratingStyle, null);
+  const Rating.newUnratedRating(RatingStyle ratingStyle) : this._internal(ratingStyle, null);
 
   /// Return the rating style.
   RatingStyle getRatingStyle() => _type;
