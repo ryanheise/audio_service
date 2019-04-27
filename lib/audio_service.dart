@@ -393,6 +393,16 @@ class AudioService {
           _queue = args.map(_raw2mediaItem).toList();
           _queueController.add(_queue);
           break;
+        case 'onStopped':
+          _browseMediaChildren = null;
+          _browseMediaChildrenController.add(null);
+          _playbackState = null;
+          _playbackStateController.add(null);
+          _currentMediaItem = null;
+          _currentMediaItemController.add(null);
+          _queue = null;
+          _queueController.add(null);
+          break;
       }
     });
     await _channel.invokeMethod("connect");
