@@ -1,3 +1,8 @@
+## 0.1.1
+
+* Bump targetSdkVersion to 28
+* Clear client-side metadata and state on stop.
+
 ## 0.1.0
 
 * onClick is now always called for media button clicks.
