@@ -90,7 +90,7 @@ Edit your project's `AndroidManifest.xml` file to reference your `MainApplicatio
       </intent-filter>
     </service>
 
-    <receiver android:name="android.support.v4.media.session.MediaButtonReceiver" >
+    <receiver android:name="androidx.media.session.MediaButtonReceiver" >
       <intent-filter>
         <action android:name="android.intent.action.MEDIA_BUTTON" />
       </intent-filter>

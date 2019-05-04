@@ -19,15 +19,15 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.support.annotation.RequiresApi;
-import android.support.v4.app.NotificationCompat;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaBrowserServiceCompat;
+import androidx.media.MediaBrowserServiceCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.RatingCompat;
-import android.support.v4.media.app.NotificationCompat.MediaStyle;
-import android.support.v4.media.session.MediaButtonReceiver;
+import androidx.media.app.NotificationCompat.MediaStyle;
+import androidx.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -146,7 +146,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	PendingIntent buildMediaButtonPendingIntent(long action) {
-		ComponentName component = new ComponentName(getPackageName(), "android.support.v4.media.session.MediaButtonReceiver");
+		ComponentName component = new ComponentName(getPackageName(), "androidx.media.session.MediaButtonReceiver");
 		return buildMediaButtonPendingIntent(component, action);
 	}
 
