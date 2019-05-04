@@ -3,30 +3,36 @@
 Play audio in the background.
 
 * Continues playing while the screen is off or the app is in the background
-* Control playback from your flutter UI, headset, Wear OS or Android Auto
+* Control playback from your Flutter UI, headset, Wear OS or Android Auto
 * Drive audio playback from Dart code
 
-This plugin provides a complete framework for playing audio in the background. You implement callbacks in Dart to play/pause/seek/etc audio, which means that you will need to use *other* Dart plugins in conjunction with this one to actually play the audio. This gives you the flexibility to play any kind of audio in the background. For example, if you want to play music in the background, you may use the [audioplayer](https://pub.dartlang.org/packages/audioplayer) plugin in conjunction with this one. If you would rather play text-to-speech in the background, you may use the [flutter_tts](https://pub.dartlang.org/packages/flutter_tts) plugin in conjunction with this one.
+This plugin provides a complete framework for playing any audio in the background. You implement callbacks in Dart to play/pause/seek/etc audio in the background giving you the flexibility to use any Dart plugin and any custom Dart logic to output the audio. For example, if you wish to play music in the background, you may use the [audioplayer](https://pub.dartlang.org/packages/audioplayer) plugin in conjunction with audio_service. If you would rather play text-to-speech in the background, you may use the [flutter_tts](https://pub.dartlang.org/packages/flutter_tts) plugin in conjunction with audio_service.
 
-[audio_service](https://pub.dartlang.org/packages/audio_service) itself manages all of the platform-specific code for setting up the environment for background audio, and interfacing with various peripherals used to control audio playback. For Android, this means acquiring a wake lock so that audio will play with the screen turned off, acquiring audio focus so that you can control your app from a headset, creating a media session and media browser service so that your app can be controlled by wearable devices and Android Auto. The iOS side is currently not implemented and so contributors are welcome (please see the Help section at the bottom of this page).
+[audio_service](https://pub.dartlang.org/packages/audio_service) itself manages all of the platform-specific code for setting up the environment for background audio, and interfacing with various peripherals used to control audio playback. For Android, this means acquiring a wake lock so that audio will play with the screen turned off, acquiring audio focus so that your app can gracefully handle phone call interruptions, creating a media session and media browser service so that your app can be controlled by wearable devices and Android Auto. The iOS side is currently not implemented and contributors are welcome (please see the Help section at the bottom of this page).
 
-Since background execution of Dart code is a relatively new feature of flutter, not all plugins are yet compatible with audio_service (I am contacting some of these authors to make their packages compatible.)
+Since background execution of Dart code is a relatively new feature of Flutter, not all plugins are yet compatible with audio_service (I am contacting some of these authors to make their packages compatible.)
 
 ## Example
 
 ### Client-side code
 
+This code runs in the main UI isolate.
+
 ```dart
-AudioService.connect();   // When UI becomes visible
-AudioService.start(       // When user clicks button to start playback
+AudioService.connect();    // When UI becomes visible
+AudioService.start(        // When user clicks button to start playback
   backgroundTask: myBackgroundTask,
   androidNotificationChannelName: 'Music Player',
   androidNotificationIcon: "mipmap/ic_launcher",
 );
+AudioService.pause();      // When user clicks button to pause playback
+AudioService.play();       // When user clicks button to resume playback
 AudioService.disconnect(); // When UI is gone
 ```
 
 ### Background code
+
+This code runs in a background isolate.
 
 ```dart
 void myBackgroundTask() {
@@ -52,7 +58,7 @@ void myBackgroundTask() {
 }
 ```
 
-### Android setup
+## Android setup
 
 You will need to create a custom `MainApplication` class as follows:
 
@@ -113,9 +119,9 @@ You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStud
 
 ## Help/Contribute
 
-* If you know how to implement any of these features in iOS, pull requests are welcome! As a guideline, prefer to keep the same dart API for both Android and iOS where possible. In cases where there are unavoidable differences between Android and iOS, name the feature with an `android` or `ios` prefix. 
+* If you would like to contribute to the iOS side, please see https://github.com/ryanheise/audio_service/issues/10 for a description of the work to be done, and read or contribute to the ongoing discussion on how we could make this work.
 
-* If you find another flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
+* If you find another Flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
 
 ### Sample bug report
 

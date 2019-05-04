@@ -1,6 +1,6 @@
 # audio_service_example
 
-Demonstrates how to use the audio_service plugin.
+[https://github.com/ryanheise/audio_service/blob/master/example/lib/main.dart](This example) demonstrates how to play an audio file or text-to-speech in the background.
 
 ## Getting Started
 
