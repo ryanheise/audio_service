@@ -90,11 +90,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         body: new Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: _state?.basicState == BasicPlaybackState.playing
-                ? [pauseButton(), stopButton()]
-                : _state?.basicState == BasicPlaybackState.paused
-                    ? [playButton(), stopButton()]
-                    : [audioPlayerButton(), textToSpeechButton()],
+            children: [
+              if (_state?.basicState == BasicPlaybackState.playing)
+                ...[ pauseButton(), stopButton() ]
+              else if (_state?.basicState == BasicPlaybackState.paused)
+                ...[ playButton(), stopButton() ]
+              else
+                ...[ audioPlayerButton(), textToSpeechButton() ],
+            ],
           ),
         ),
       ),

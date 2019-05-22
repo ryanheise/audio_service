@@ -9,9 +9,6 @@ description: Demonstrates how to use the audio_service plugin.
 # Read more about versioning at semver.org.
 version: 1.0.0+1
 
-environment:
-  sdk: ">=2.1.0 <3.0.0"
-
 dependencies:
   flutter:
     sdk: flutter
