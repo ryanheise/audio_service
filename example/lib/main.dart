@@ -61,7 +61,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void connect() async {
-    await AudioService.connect();
     if (_playbackStateSubscription == null) {
       _playbackStateSubscription = AudioService.playbackStateStream
           .listen((PlaybackState playbackState) {
@@ -70,14 +69,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         });
       });
     }
+    await AudioService.connect();
   }
 
   void disconnect() {
+    AudioService.disconnect();
     if (_playbackStateSubscription != null) {
       _playbackStateSubscription.cancel();
       _playbackStateSubscription = null;
     }
-    AudioService.disconnect();
   }
 
   @override
