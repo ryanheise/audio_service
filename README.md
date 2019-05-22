@@ -105,7 +105,7 @@ Edit your project's `AndroidManifest.xml` file to reference your `MainApplicatio
 </manifest>
 ```
 
-Any icons that you want to appear in the notification should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
+Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
 
 ```
 drawable-hdpi

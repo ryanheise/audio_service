@@ -244,7 +244,15 @@ class MediaItem {
   bool operator ==(dynamic other) => other is MediaItem && other.id == id;
 }
 
-/// A button that controls audio playback.
+/// A media action that can be controlled by a client.
+///
+/// The set of media controls available at any moment depends on the current
+/// playback state as set by [AudioServiceBackground.setState]. For example, a
+/// "pause" control should be available in the [BasicPlaybackState.playing]
+/// state but not in the [BasicPlaybackState.paused] state.
+///
+/// A button for each media control will be shown in your app's notification,
+/// Wear OS and Android Auto devices.
 class MediaControl {
   /// A reference to an Android icon resource for the control (e.g.
   /// `"drawable/ic_action_pause"`)
@@ -807,8 +815,9 @@ class AudioServiceBackground {
     _state = _noneState;
   }
 
-  /// Sets the current playback state and dictate which controls should be
-  /// visible in the notification, Wear OS and Android Auto.
+  /// Sets the current playback state and dictates which media actions can be
+  /// controlled by clients and which media controls should be visible in the
+  /// notification, Wear OS and Android Auto.
   ///
   /// All clients will be notified so they can update their display.
   ///
