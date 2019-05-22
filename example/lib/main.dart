@@ -29,9 +29,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  PlaybackState _state;
-  StreamSubscription _playbackStateSubscription;
-
   @override
   void initState() {
     super.initState();
@@ -61,23 +58,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void connect() async {
-    if (_playbackStateSubscription == null) {
-      _playbackStateSubscription = AudioService.playbackStateStream
-          .listen((PlaybackState playbackState) {
-        setState(() {
-          _state = playbackState;
-        });
-      });
-    }
     await AudioService.connect();
   }
 
   void disconnect() {
     AudioService.disconnect();
-    if (_playbackStateSubscription != null) {
-      _playbackStateSubscription.cancel();
-      _playbackStateSubscription = null;
-    }
   }
 
   @override
@@ -88,16 +73,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           title: const Text('Audio Service Demo'),
         ),
         body: new Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_state?.basicState == BasicPlaybackState.playing)
-                ...[ pauseButton(), stopButton() ]
-              else if (_state?.basicState == BasicPlaybackState.paused)
-                ...[ playButton(), stopButton() ]
-              else
-                ...[ audioPlayerButton(), textToSpeechButton() ],
-            ],
+          child: StreamBuilder(
+            stream: AudioService.playbackStateStream,
+            builder: (context, snapshot) {
+              PlaybackState state = snapshot.data;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (state?.basicState == BasicPlaybackState.playing)
+                    ...[ pauseButton(), stopButton() ]
+                  else if (state?.basicState == BasicPlaybackState.paused)
+                    ...[ playButton(), stopButton() ]
+                  else
+                    ...[ audioPlayerButton(), textToSpeechButton() ],
+                ],
+              );
+            }
           ),
         ),
       ),

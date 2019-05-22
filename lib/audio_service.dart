@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// The different buttons on a headset.
 enum MediaButton {
@@ -320,33 +321,29 @@ class AudioService {
   /// task.
   static const String MEDIA_ROOT_ID = "root";
 
-  static StreamController<List<MediaItem>> _browseMediaChildrenController =
-      StreamController<List<MediaItem>>.broadcast();
+  static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
 
   /// A stream that broadcasts the children of the current browse
   /// media parent.
   static Stream<List<MediaItem>> get browseMediaChildrenStream =>
-      _browseMediaChildrenController.stream;
+      _browseMediaChildrenSubject.stream;
 
-  static StreamController<PlaybackState> _playbackStateController =
-      StreamController<PlaybackState>.broadcast();
+  static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
 
   /// A stream that broadcasts the playback state.
   static Stream<PlaybackState> get playbackStateStream =>
-      _playbackStateController.stream;
+      _playbackStateSubject.stream;
 
-  static StreamController<MediaItem> _currentMediaItemController =
-      StreamController<MediaItem>.broadcast();
+  static final _currentMediaItemSubject = BehaviorSubject<MediaItem>();
 
   /// A stream that broadcasts the current [MediaItem].
   static Stream<MediaItem> get currentMediaItemStream =>
-      _currentMediaItemController.stream;
+      _currentMediaItemSubject.stream;
 
-  static StreamController<List<MediaItem>> _queueController =
-      StreamController<List<MediaItem>>.broadcast();
+  static final _queueSubject = BehaviorSubject<List<MediaItem>>();
 
   /// A stream that broadcasts the queue.
-  static Stream<List<MediaItem>> get queueStream => _queueController.stream;
+  static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
 
   /// The children of the current browse media parent.
   static List<MediaItem> get browseMediaChildren => _browseMediaChildren;
@@ -376,7 +373,7 @@ class AudioService {
         case 'onChildrenLoaded':
           final List<Map> args = List<Map>.from(call.arguments[0]);
           _browseMediaChildren = args.map(_raw2mediaItem).toList();
-          _browseMediaChildrenController.add(_browseMediaChildren);
+          _browseMediaChildrenSubject.add(_browseMediaChildren);
           break;
         case 'onPlaybackStateChanged':
           final List args = call.arguments;
@@ -390,26 +387,26 @@ class AudioService {
             speed: args[3],
             updateTime: args[4],
           );
-          _playbackStateController.add(_playbackState);
+          _playbackStateSubject.add(_playbackState);
           break;
         case 'onMediaChanged':
           _currentMediaItem = _raw2mediaItem(call.arguments[0]);
-          _currentMediaItemController.add(_currentMediaItem);
+          _currentMediaItemSubject.add(_currentMediaItem);
           break;
         case 'onQueueChanged':
           final List<Map> args = List<Map>.from(call.arguments[0]);
           _queue = args.map(_raw2mediaItem).toList();
-          _queueController.add(_queue);
+          _queueSubject.add(_queue);
           break;
         case 'onStopped':
           _browseMediaChildren = null;
-          _browseMediaChildrenController.add(null);
+          _browseMediaChildrenSubject.add(null);
           _playbackState = null;
-          _playbackStateController.add(null);
+          _playbackStateSubject.add(null);
           _currentMediaItem = null;
-          _currentMediaItemController.add(null);
+          _currentMediaItemSubject.add(null);
           _queue = null;
-          _queueController.add(null);
+          _queueSubject.add(null);
           break;
       }
     });
