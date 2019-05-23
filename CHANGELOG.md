@@ -1,3 +1,7 @@
+## 0.2.1
+
+* Streams use RxDart BehaviorSubject.
+
 ## 0.2.0
 
 * Migrate to AndroidX.
