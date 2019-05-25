@@ -63,6 +63,16 @@ void myBackgroundTask() {
 You will need to create a custom `MainApplication` class as follows:
 
 ```java
+//TODO: Change the package name to your app's package name
+package com.example.somepackage;
+
+import android.os.Bundle;
+import io.flutter.app.FlutterActivity;
+import io.flutter.plugin.common.PluginRegistry;
+import io.flutter.plugins.GeneratedPluginRegistrant;
+import io.flutter.app.FlutterApplication;
+import com.ryanheise.audioservice.AudioServicePlugin;
+
 public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
   @Override
   public void onCreate() {
