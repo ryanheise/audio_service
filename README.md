@@ -44,7 +44,7 @@ void myBackgroundTask() {
     },
     onPlay: () {
       // Your custom dart code to resume audio playback.
-    }
+    },
     onPause: () {
       // Your custom dart code to pause audio playback.
     },
