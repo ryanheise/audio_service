@@ -10,6 +10,9 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+**Minimal reproduction project**
+If the example project doesn't itself exhibit the bug, please fork this project and modify the example to reproduce the bug. Provide the link to your repository here.
+
 **To Reproduce**
 Steps to reproduce the behavior:
 1. Go to '...'
