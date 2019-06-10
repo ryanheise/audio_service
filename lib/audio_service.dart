@@ -73,6 +73,15 @@ class PlaybackState {
     this.speed,
     this.updateTime,
   });
+
+  /// The current playback position in milliseconds
+  int get currentPosition {
+    if (basicState == BasicPlaybackState.playing) {
+      return position + DateTime.now().millisecondsSinceEpoch - updateTime;
+    } else {
+      return position;
+    }
+  }
 }
 
 enum RatingStyle {
@@ -822,10 +831,7 @@ class AudioServiceBackground {
   /// continuity of time is disrupted, such as when the user performs a seek,
   /// or buffering occurs, etc. Thus, the [position] parameter indicates the
   /// playback position in milliseconds at the time the state was updated while
-  /// the [updateTime] parameter indicates the precise time of that update. It
-  /// is the client's responsibility to adjust this [position] by the
-  /// difference between the current system clock and the recorded
-  /// [updateTime].
+  /// the [updateTime] parameter indicates the precise time of that update.
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({

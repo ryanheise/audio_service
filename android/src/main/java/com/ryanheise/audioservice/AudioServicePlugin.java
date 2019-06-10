@@ -52,6 +52,11 @@ public class AudioServicePlugin {
 	private static volatile Result connectResult;
 	private static volatile Result startResult;
 	private static String subscribedParentMediaId;
+	private static long bootTime;
+
+	static {
+		bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
+	}
 
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
@@ -89,7 +94,11 @@ public class AudioServicePlugin {
 
 			@Override
 			public void onPlaybackStateChanged(PlaybackStateCompat state) {
-				invokeMethod("onPlaybackStateChanged", state.getState(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), state.getLastPositionUpdateTime());
+				// On the native side, we represent the update time relative to the boot time.
+				// On the flutter side, we represent the update time relative to the epoch.
+				long updateTimeSinceBoot = state.getLastPositionUpdateTime();
+				long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
+				invokeMethod("onPlaybackStateChanged", state.getState(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), updateTimeSinceEpoch);
 			}
 
 			@Override
@@ -555,8 +564,12 @@ public class AudioServicePlugin {
 				int playbackState = (Integer)args.get(1);
 				long position = getLong(args.get(2));
 				float speed = (float)((double)((Double)args.get(3)));
-				long updateTime = args.get(4) == null ? SystemClock.elapsedRealtime() : getLong(args.get(4));
+				long updateTimeSinceEpoch = args.get(4) == null ? System.currentTimeMillis() : getLong(args.get(4));
 				List<Object> compactActionIndexList = (List<Object>)args.get(5);
+
+				// On the flutter side, we represent the update time relative to the epoch.
+				// On the native side, we must represent the update time relative to the boot time.
+				long updateTimeSinceBoot = updateTimeSinceEpoch - bootTime;
 
 				List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
 				int actionBits = 0;
@@ -572,7 +585,7 @@ public class AudioServicePlugin {
 					for (int i = 0; i < compactActionIndices.length; i++)
 						compactActionIndices[i] = (Integer)compactActionIndexList.get(i);
 				}
-				AudioService.instance.setState(actions, actionBits, compactActionIndices, playbackState, position, speed, updateTime);
+				AudioService.instance.setState(actions, actionBits, compactActionIndices, playbackState, position, speed, updateTimeSinceBoot);
 				result.success(true);
 				break;
 			case "stopped":

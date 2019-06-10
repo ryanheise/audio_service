@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:rxdart/rxdart.dart';
 
 MediaControl playControl = MediaControl(
   androidIcon: 'drawable/ic_action_play_arrow',
@@ -80,15 +81,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (state?.basicState == BasicPlaybackState.playing)
-                    ...[ pauseButton(), stopButton() ]
-                  else if (state?.basicState == BasicPlaybackState.paused)
-                    ...[ playButton(), stopButton() ]
-                  else
-                    ...[ audioPlayerButton(), textToSpeechButton() ],
+                  if (state?.basicState == BasicPlaybackState.connecting) ...[
+                    stopButton(),
+                    Text("Connecting..."),
+                  ] else
+                    if (state?.basicState == BasicPlaybackState.playing) ...[
+                      pauseButton(),
+                      stopButton(),
+                      positionIndicator(state),
+                    ] else
+                      if (state?.basicState == BasicPlaybackState.paused) ...[
+                        playButton(),
+                        stopButton(),
+                        positionIndicator(state),
+                      ] else ...[
+                        audioPlayerButton(),
+                        textToSpeechButton(),
+                      ],
                 ],
               );
-            }
+            },
           ),
         ),
       ),
@@ -132,6 +144,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         iconSize: 64.0,
         onPressed: AudioService.stop,
       );
+
+  Widget positionIndicator(PlaybackState state) => StreamBuilder(
+        stream: Observable.periodic(Duration(milliseconds: 200)),
+        builder: (context, snapshdot) =>
+            Text("${(state.currentPosition / 1000).toStringAsFixed(3)}"),
+      );
 }
 
 void _backgroundAudioPlayerTask() async {
@@ -150,6 +168,7 @@ class CustomAudioPlayer {
       'http://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3';
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
+  int _position;
 
   Future<void> run() async {
     MediaItem mediaItem = MediaItem(
@@ -165,9 +184,29 @@ class CustomAudioPlayer {
         .listen((state) {
       stop();
     });
+    var audioPositionSubscription =
+        _audioPlayer.onAudioPositionChanged.listen((when) {
+      final connected = _position == null;
+      _position = when.inMilliseconds;
+      if (connected) {
+        // After a delay, we finally start receiving audio positions
+        // from the AudioPlayer plugin, so we can set the state to
+        // playing.
+        _setPlayingState();
+      }
+    });
     play();
     await _completer.future;
     playerStateSubscription.cancel();
+    audioPositionSubscription.cancel();
+  }
+
+  void _setPlayingState() {
+    AudioServiceBackground.setState(
+      controls: [pauseControl, stopControl],
+      basicState: BasicPlaybackState.playing,
+      position: _position,
+    );
   }
 
   void playPause() {
@@ -179,10 +218,17 @@ class CustomAudioPlayer {
 
   void play() {
     _audioPlayer.play(streamUri);
-    AudioServiceBackground.setState(
-      controls: [pauseControl, stopControl],
-      basicState: BasicPlaybackState.playing,
-    );
+    if (_position == null) {
+      // There may be a delay while the AudioPlayer plugin connects.
+      AudioServiceBackground.setState(
+        controls: [stopControl],
+        basicState: BasicPlaybackState.connecting,
+        position: 0,
+      );
+    } else {
+      // We've already connected, so no delay.
+      _setPlayingState();
+    }
   }
 
   void pause() {
@@ -190,6 +236,7 @@ class CustomAudioPlayer {
     AudioServiceBackground.setState(
       controls: [playControl, stopControl],
       basicState: BasicPlaybackState.paused,
+      position: _position,
     );
   }
 
