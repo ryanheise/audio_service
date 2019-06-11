@@ -32,6 +32,8 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.KeyEvent;
+import android.util.Log;
+import android.graphics.BitmapFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -304,6 +306,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
+	static Bitmap createBitmap(String artUri) {
+		Bitmap bitmap = BitmapFactory.decodeFile(artUri);
+			if(bitmap == null)
+				bitmap = artBitmapCache.get(artUri);
+		return bitmap;	   
+	}
+
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
@@ -316,8 +325,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (duration != null)
 			builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
 		if (artUri != null) {
-			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
-			Bitmap bitmap = artBitmapCache.get(artUri);
+			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);			
+			Bitmap bitmap = createBitmap(artUri);
 			if (bitmap != null) {
 				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
 				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
@@ -411,6 +420,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (needToLoadArt(mediaMetadata)) {
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
 			Bitmap bitmap = artBitmapCache.get(artUri.toString());
+			Log.e("image: ",artUri.toString());
 			if (bitmap == null) {
 				try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
 					bitmap = BitmapFactory.decodeStream(in);

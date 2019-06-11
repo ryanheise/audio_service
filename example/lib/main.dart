@@ -172,10 +172,18 @@ class CustomAudioPlayer {
 
   Future<void> run() async {
     MediaItem mediaItem = MediaItem(
-        id: 'audio_1',
-        album: 'Sample Album',
-        title: 'Sample Title',
-        artist: 'Sample Artist');
+      id: 'audio_1',
+      album: 'Sample Album',
+      title: 'Sample Title',
+      artist: 'Sample Artist',
+
+      /// [Added support for both forms of artUri i.e phone storage and network storage]
+      /// [NOTE:- Replace phone storage artUri with your own.]
+
+      //artUri:  '/storage/emulated/0/Android/data/com.android.providers.media/albumthumbs/1550234543481',
+
+      //artUri:'https://upload.wikimedia.org/wikipedia/en/thumb/3/39/The_Weeknd_-_Starboy.png/220px-The_Weeknd_-_Starboy.png',
+    );
 
     AudioServiceBackground.setMediaItem(mediaItem);
 
