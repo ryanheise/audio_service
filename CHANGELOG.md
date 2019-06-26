@@ -1,3 +1,7 @@
+## 0.3.0
+
+* Breaking change: updateTime now measured since epoch instead of boot time.
+
 ## 0.2.1
 
 * Streams use RxDart BehaviorSubject.
