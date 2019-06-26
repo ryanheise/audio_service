@@ -32,7 +32,6 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.KeyEvent;
-import android.graphics.BitmapFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -305,13 +304,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static Bitmap createBitmap(String artUri) {
-		Bitmap bitmap = BitmapFactory.decodeFile(artUri);
-			if (bitmap == null)
-				bitmap = artBitmapCache.get(artUri);
-		return bitmap;
-	}
-
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
@@ -418,7 +410,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
 		if (needToLoadArt(mediaMetadata)) {
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
-			Bitmap bitmap = createBitmap(artUri.toString());
+			Bitmap bitmap = artBitmapCache.get(artUri.toString());
+			if (bitmap == null)
+				bitmap = BitmapFactory.decodeFile(artUri.toString());
 			if (bitmap == null) {
 				try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
 					bitmap = BitmapFactory.decodeStream(in);
