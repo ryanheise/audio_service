@@ -177,8 +177,8 @@ class CustomAudioPlayer {
       title: 'Sample Title',
       artist: 'Sample Artist',
 
-      /// [Added support for both forms of artUri i.e phone storage and network storage]
-      /// [NOTE:- Replace phone storage artUri with your own.]
+      // Added support for both forms of artUri i.e phone storage and network storage.
+      // NOTE:- Replace phone storage artUri with your own.
 
       //artUri:  '/storage/emulated/0/Android/data/com.android.providers.media/albumthumbs/1550234543481',
 

@@ -307,7 +307,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	static Bitmap createBitmap(String artUri) {
 		Bitmap bitmap = BitmapFactory.decodeFile(artUri);
-			if(bitmap == null)
+			if (bitmap == null)
 				bitmap = artBitmapCache.get(artUri);
 		return bitmap;
 	}
@@ -325,7 +325,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
 		if (artUri != null) {
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
-			Bitmap bitmap = createBitmap(artUri);
+			Bitmap bitmap = artBitmapCache.get(artUri);
 			if (bitmap != null) {
 				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
 				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
@@ -418,7 +418,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
 		if (needToLoadArt(mediaMetadata)) {
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
-			Bitmap bitmap = artBitmapCache.get(artUri.toString());
+			Bitmap bitmap = createBitmap(artUri.toString());
 			if (bitmap == null) {
 				try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
 					bitmap = BitmapFactory.decodeStream(in);
