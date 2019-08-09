@@ -69,38 +69,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return new MaterialApp(
-      home: new Scaffold(
-        appBar: new AppBar(
-          title: const Text('Audio Service Demo'),
-        ),
-        body: new Center(
-          child: StreamBuilder(
-            stream: AudioService.playbackStateStream,
-            builder: (context, snapshot) {
-              PlaybackState state = snapshot.data;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (state?.basicState == BasicPlaybackState.connecting) ...[
-                    stopButton(),
-                    Text("Connecting..."),
-                  ] else
-                    if (state?.basicState == BasicPlaybackState.playing) ...[
+      home: WillPopScope(
+        onWillPop: () {
+          disconnect();
+          return Future.value(true);
+        },
+        child: new Scaffold(
+          appBar: new AppBar(
+            title: const Text('Audio Service Demo'),
+          ),
+          body: new Center(
+            child: StreamBuilder(
+              stream: AudioService.playbackStateStream,
+              builder: (context, snapshot) {
+                PlaybackState state = snapshot.data;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (state?.basicState == BasicPlaybackState.connecting) ...[
+                      stopButton(),
+                      Text("Connecting..."),
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.playing) ...[
                       pauseButton(),
                       stopButton(),
                       positionIndicator(state),
-                    ] else
-                      if (state?.basicState == BasicPlaybackState.paused) ...[
-                        playButton(),
-                        stopButton(),
-                        positionIndicator(state),
-                      ] else ...[
-                        audioPlayerButton(),
-                        textToSpeechButton(),
-                      ],
-                ],
-              );
-            },
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.paused) ...[
+                      playButton(),
+                      stopButton(),
+                      positionIndicator(state),
+                    ] else ...[
+                      audioPlayerButton(),
+                      textToSpeechButton(),
+                    ],
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
