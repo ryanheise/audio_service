@@ -1,3 +1,7 @@
+## 0.3.1
+
+* Update example to disconnect when pressing back button.
+
 ## 0.3.0
 
 * Breaking change: updateTime now measured since epoch instead of boot time.
