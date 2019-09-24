@@ -185,10 +185,11 @@ public class AudioServicePlugin {
 				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
 				boolean shouldPreloadArtwork = (Boolean)arguments.get("shouldPreloadArtwork");
+				boolean enableQueue = (Boolean)arguments.get("enableQueue");
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, new AudioService.ServiceListener() {
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, enableQueue, new AudioService.ServiceListener() {
 					@Override
 					public void onAudioFocusGained() {
 						backgroundHandler.invokeMethod("onAudioFocusGained");
@@ -534,9 +535,6 @@ public class AudioServicePlugin {
 			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
 			switch (call.method) {
 			case "ready":
-				boolean enableQueue = (Boolean)call.arguments;
-				if (enableQueue)
-					AudioService.instance.enableQueue();
 				result.success(true);
 				sendStartResult(true);
 				// If the client subscribed to browse children before we

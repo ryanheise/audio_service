@@ -21,7 +21,7 @@ This code runs in the main UI isolate.
 ```dart
 AudioService.connect();    // When UI becomes visible
 AudioService.start(        // When user clicks button to start playback
-  backgroundTask: myBackgroundTask,
+  backgroundTaskEntrypoint: myBackgroundTaskEntrypoint,
   androidNotificationChannelName: 'Music Player',
   androidNotificationIcon: "mipmap/ic_launcher",
 );
@@ -35,26 +35,33 @@ AudioService.disconnect(); // When UI is gone
 This code runs in a background isolate.
 
 ```dart
-void myBackgroundTask() {
-  AudioServiceBackground.run(
-    onStart: () async {
-      // Your custom dart code to start audio playback.
-      // NOTE: The background audio task will shut down
-      // as soon as this async function completes.
-    },
-    onPlay: () {
-      // Your custom dart code to resume audio playback.
-    },
-    onPause: () {
-      // Your custom dart code to pause audio playback.
-    },
-    onStop: () {
-      // Your custom dart code to stop audio playback.
-    },
-    onClick: (MediaButton button) {
-      // Your custom dart code to handle a media button click.
-    },
-  );
+void myBackgroundTaskEntrypoint() {
+  AudioServiceBackground.run(() => MyBackgroundTask());
+}
+
+class MyBackgroundTask extends BackgroundAudioTask {
+  @override
+  Future<void> onStart() async {
+    // Your custom dart code to start audio playback.
+    // NOTE: The background audio task will shut down
+    // as soon as this async function completes.
+  }
+  @override
+  void onStop() {
+    // Your custom dart code to stop audio playback.
+  }
+  @override
+  void onPlay() {
+    // Your custom dart code to resume audio playback.
+  }
+  @override
+  void onPause() {
+    // Your custom dart code to pause audio playback.
+  }
+  @override
+  void onClick(MediaButton button) {
+    // Your custom dart code to handle a media button click.
+  }
 }
 ```
 

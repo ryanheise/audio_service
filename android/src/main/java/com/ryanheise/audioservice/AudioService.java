@@ -66,13 +66,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static boolean androidNotificationClickStartsActivity;
 	static boolean androidNotificationOngoing;
 	static boolean shouldPreloadArtwork;
+	static boolean enableQueue;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, ServiceListener listener) {
+	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean enableQueue, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -89,6 +90,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
 		AudioService.androidNotificationOngoing = androidNotificationOngoing;
 		AudioService.shouldPreloadArtwork = shouldPreloadArtwork;
+		AudioService.enableQueue = enableQueue;
 	}
 
 	public void stop() {
@@ -350,7 +352,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		mediaSession = new MediaSessionCompat(this, "media-session");
 		mediaSession.setMediaButtonReceiver(null); // TODO: Make this configurable
-		mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+		if (enableQueue)
+			mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
+		else
+			mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 				.setActions(PlaybackStateCompat.ACTION_PLAY);
 		mediaSession.setPlaybackState(stateBuilder.build());
@@ -360,10 +365,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
 		wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, AudioService.class.getName());
-	}
-
-	void enableQueue() {
-		mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
 	}
 
 	void setQueue(List<MediaSessionCompat.QueueItem> queue) {

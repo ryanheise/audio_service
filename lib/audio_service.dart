@@ -444,18 +444,18 @@ class AudioService {
   /// controls to perform any media actions that you want to support (see
   /// [AudioServiceBackground.setState]).
   ///
-  /// The background task is specified by [backgroundTask] which will be run
-  /// within a background isolate. This function must be a top-level or static
-  /// function, and it must initiate execution by calling
+  /// The background task is specified by [backgroundTaskEntrypoint] which will
+  /// be run within a background isolate. This function must be a top-level or
+  /// static function, and it must initiate execution by calling
   /// [AudioServiceBackground.run]. Because the background task runs in an
-  /// isolate, no memory is shared between the background isolate and
-  /// your main UI isolate and so all communication between the background
-  /// task and your UI is achieved through message passing.
+  /// isolate, no memory is shared between the background isolate and your main
+  /// UI isolate and so all communication between the background task and your
+  /// UI is achieved through message passing.
   ///
   /// The [androidNotificationIcon] is specified like an XML resource reference
   /// and defaults to `"mipmap/ic_launcher"`.
   static Future<bool> start({
-    @required Function backgroundTask,
+    @required Function backgroundTaskEntrypoint,
     String androidNotificationChannelName = "Notifications",
     String androidNotificationChannelDescription,
     int notificationColor,
@@ -464,9 +464,10 @@ class AudioService {
     bool androidNotificationOngoing = false,
     bool resumeOnClick = true,
     bool shouldPreloadArtwork = false,
+    bool enableQueue = false,
   }) async {
     final ui.CallbackHandle handle =
-        ui.PluginUtilities.getCallbackHandle(backgroundTask);
+        ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
     if (handle == null) {
       return false;
     }
@@ -484,6 +485,7 @@ class AudioService {
           androidNotificationOngoing,
       'resumeOnClick': resumeOnClick,
       'shouldPreloadArtwork': shouldPreloadArtwork,
+      'enableQueue': enableQueue,
     });
   }
 
@@ -608,11 +610,12 @@ class AudioService {
 
 /// Background API to be used by your background audio task.
 ///
-/// The background task that you passed to [AudioService.start] is executed in
-/// an isolate that will run independently of the view. Aside from its primary
-/// job of playing audio, your background task should also use methods of this
-/// class to initialise the isolate, broadcast state changes to any UI that may
-/// be connected, and to also handle playback actions initiated by the UI.
+/// The entry point of your background task that you passed to
+/// [AudioService.start] is executed in an isolate that will run independently
+/// of the view. Aside from its primary job of playing audio, your background
+/// task should also use methods of this class to initialise the isolate,
+/// broadcast state changes to any UI that may be connected, and to also handle
+/// playback actions initiated by the UI.
 class AudioServiceBackground {
   static final PlaybackState _noneState =
       PlaybackState(basicState: BasicPlaybackState.none, actions: Set());
@@ -624,198 +627,129 @@ class AudioServiceBackground {
   /// This is the value most recently set via [setState].
   static PlaybackState get state => _state;
 
-  /// Initialises the isolate in which your background task runs.
+  /// Runs the background audio task within the background isolate.
   ///
-  /// Each callback function you supply handles an action initiated from a
-  /// connected client. In particular:
-  ///
-  /// * [onStart] (required) is an asynchronous function that is called in
-  /// response to [AudioService.start]. It is responsible for starting audio
-  /// playback and should return a [Future] that completes when the background
-  /// task has completely finished playing audio and is ready to be permanently
-  /// shut down. After the task has completed, a new task may still be started
-  /// again via [AudioService.start].
-  /// * [onStop] (required) is called in response to [AudioService.stop] (or
-  /// the stop button in the notification or Wear OS or Android Auto). It is
-  /// [onStop]'s responsibility to perform whatever code is necessary to cause
-  /// [onStart] to complete. This may be done by using a [Completer] or by
-  /// setting a flag that will trigger a loop in [onStart] to complete.
-  /// * [onPause] is called in response to [AudioService.pause], or the pause
-  /// button in the notification or Wear OS or Android Auto.
-  /// * [onClick] is called in response to [AudioService.click], or if a media
-  /// button is clicked on the headset.
-  /// * [onSetRating] is called in response to [AudioService.setRating], or if the
-  /// rating is set from another client (like Android Auto or WearOS)
-  static Future<void> run({
-    @required Future<void> onStart(),
-    Future<List<MediaItem>> onLoadChildren(String parentMediaId),
-    VoidCallback onAudioFocusGained,
-    VoidCallback onAudioFocusLost,
-    VoidCallback onAudioFocusLostTransient,
-    VoidCallback onAudioFocusLostTransientCanDuck,
-    VoidCallback onAudioBecomingNoisy,
-    void onClick(MediaButton button),
-    @required VoidCallback onStop,
-    VoidCallback onPause,
-    VoidCallback onPrepare,
-    ValueChanged<String> onPrepareFromMediaId,
-    VoidCallback onPlay,
-    ValueChanged<String> onPlayFromMediaId,
-    ValueChanged<MediaItem> onAddQueueItem,
-    void onAddQueueItemAt(MediaItem mediaItem, int index),
-    ValueChanged<MediaItem> onRemoveQueueItem,
-    VoidCallback onSkipToNext,
-    VoidCallback onSkipToPrevious,
-    VoidCallback onFastForward,
-    VoidCallback onRewind,
-    ValueChanged<String> onSkipToQueueItem,
-    ValueChanged<int> onSeekTo,
-    void Function(Rating, Map<dynamic, dynamic>) onSetRating,
-    void onCustomAction(String name, dynamic arguments),
-  }) async {
+  /// This must be the first method called by the entrypoint of your background
+  /// task that you passed into [AudioService.start]. The [BackgroundAudioTask]
+  /// parameter defines callbacks to handle the initialization and distruction
+  /// of the task, as well as any requests by the client to play, pause and
+  /// otherwise control audio playback.
+  static Future<void> run(BackgroundAudioTask taskBuilder()) async {
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
+    final task = taskBuilder();
     _backgroundChannel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'onLoadChildren':
-          if (onLoadChildren != null) {
-            final List args = call.arguments;
-            String parentMediaId = args[0];
-            List<MediaItem> mediaItems = await onLoadChildren(parentMediaId);
-            List<Map> rawMediaItems = mediaItems
-                .map((mediaItem) => {
-                      'id': mediaItem.id,
-                      'album': mediaItem.album,
-                      'title': mediaItem.title,
-                      'artist': mediaItem.artist,
-                      'genre': mediaItem.genre,
-                      'duration': mediaItem.duration,
-                      'artUri': mediaItem.artUri,
-                      'playable': mediaItem.playable,
-                      'displayTitle': mediaItem.displayTitle,
-                      'displaySubtitle': mediaItem.displaySubtitle,
-                      'displayDescription': mediaItem.displayDescription,
-                    })
-                .toList();
-            return rawMediaItems;
-          } else {
-            return [];
-          }
-          break;
+          final List args = call.arguments;
+          String parentMediaId = args[0];
+          List<MediaItem> mediaItems = await task.onLoadChildren(parentMediaId);
+          List<Map> rawMediaItems = mediaItems
+              .map((mediaItem) => {
+                'id': mediaItem.id,
+                'album': mediaItem.album,
+                'title': mediaItem.title,
+                'artist': mediaItem.artist,
+                'genre': mediaItem.genre,
+                'duration': mediaItem.duration,
+                'artUri': mediaItem.artUri,
+                'playable': mediaItem.playable,
+                'displayTitle': mediaItem.displayTitle,
+                'displaySubtitle': mediaItem.displaySubtitle,
+                'displayDescription': mediaItem.displayDescription,
+              })
+          .toList();
+          return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
-          if (onAudioFocusGained != null) onAudioFocusGained();
+          task.onAudioFocusGained();
           break;
         case 'onAudioFocusLost':
-          if (onAudioFocusLost != null) onAudioFocusLost();
+          task.onAudioFocusLost();
           break;
         case 'onAudioFocusLostTransient':
-          if (onAudioFocusLostTransient != null) onAudioFocusLostTransient();
+          task.onAudioFocusLostTransient();
           break;
         case 'onAudioFocusLostTransientCanDuck':
-          if (onAudioFocusLostTransientCanDuck != null)
-            onAudioFocusLostTransientCanDuck();
+          task.onAudioFocusLostTransientCanDuck();
           break;
         case 'onAudioBecomingNoisy':
-          if (onAudioBecomingNoisy != null) onAudioBecomingNoisy();
+          task.onAudioBecomingNoisy();
           break;
         case 'onClick':
-          if (onClick != null) {
-            final List args = call.arguments;
-            MediaButton button = MediaButton.values[args[0]];
-            onClick(button);
-          }
+          final List args = call.arguments;
+          MediaButton button = MediaButton.values[args[0]];
+          task.onClick(button);
           break;
         case 'onStop':
-          onStop();
+          task.onStop();
           break;
         case 'onPause':
-          if (onPause != null) onPause();
+          task.onPause();
           break;
         case 'onPrepare':
-          if (onPrepare != null) onPrepare();
+          task.onPrepare();
           break;
         case 'onPrepareFromMediaId':
-          if (onPrepareFromMediaId != null) {
-            final List args = call.arguments;
-            String mediaId = args[0];
-            onPrepareFromMediaId(mediaId);
-          }
+          final List args = call.arguments;
+          String mediaId = args[0];
+          task.onPrepareFromMediaId(mediaId);
           break;
         case 'onPlay':
-          if (onPlay != null) onPlay();
+          task.onPlay();
           break;
         case 'onPlayFromMediaId':
-          if (onPlayFromMediaId != null) {
-            final List args = call.arguments;
-            String mediaId = args[0];
-            onPlayFromMediaId(mediaId);
-          }
+          final List args = call.arguments;
+          String mediaId = args[0];
+          task.onPlayFromMediaId(mediaId);
           break;
         case 'onAddQueueItem':
-          if (onAddQueueItem != null) {
-            onAddQueueItem(_raw2mediaItem(call.arguments[0]));
-          }
+          task.onAddQueueItem(_raw2mediaItem(call.arguments[0]));
           break;
         case 'onAddQueueItemAt':
-          if (onAddQueueItem != null) {
-            final List args = call.arguments;
-            MediaItem mediaItem = _raw2mediaItem(args[0]);
-            int index = args[1];
-            onAddQueueItemAt(mediaItem, index);
-          }
+          final List args = call.arguments;
+          MediaItem mediaItem = _raw2mediaItem(args[0]);
+          int index = args[1];
+          task.onAddQueueItemAt(mediaItem, index);
           break;
         case 'onRemoveQueueItem':
-          if (onRemoveQueueItem != null) {
-            onRemoveQueueItem(_raw2mediaItem(call.arguments[0]));
-          }
+          task.onRemoveQueueItem(_raw2mediaItem(call.arguments[0]));
           break;
         case 'onSkipToNext':
-          if (onSkipToNext != null) onSkipToNext();
+          task.onSkipToNext();
           break;
         case 'onSkipToPrevious':
-          if (onSkipToPrevious != null) onSkipToPrevious();
+          task.onSkipToPrevious();
           break;
         case 'onFastForward':
-          if (onFastForward != null) onFastForward();
+          task.onFastForward();
           break;
         case 'onRewind':
-          if (onRewind != null) onRewind();
+          task.onRewind();
           break;
         case 'onSkipToQueueItem':
-          if (onSkipToQueueItem != null) {
-            final List args = call.arguments;
-            String mediaId = args[0];
-            onSkipToQueueItem(mediaId);
-          }
+          final List args = call.arguments;
+          String mediaId = args[0];
+          task.onSkipToQueueItem(mediaId);
           break;
         case 'onSeekTo':
-          if (onSeekTo != null) {
-            final List args = call.arguments;
-            int pos = args[0];
-            onSeekTo(pos);
-          }
+          final List args = call.arguments;
+          int pos = args[0];
+          task.onSeekTo(pos);
           break;
         case 'onSetRating':
-          if (onSetRating != null) {
-            onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-          }
+          task.onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           break;
         default:
-          if (onCustomAction != null) {
-            if (call.method.startsWith(_CUSTOM_PREFIX)) {
-              onCustomAction(
-                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
-            }
+          if (call.method.startsWith(_CUSTOM_PREFIX)) {
+            task.onCustomAction(
+                call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
           }
           break;
       }
     });
-    bool enableQueue = onAddQueueItem != null ||
-        onRemoveQueueItem != null ||
-        onSkipToQueueItem != null;
-    await _backgroundChannel.invokeMethod('ready', enableQueue);
-    await onStart();
+    await _backgroundChannel.invokeMethod('ready');
+    await task.onStart();
     await _backgroundChannel.invokeMethod('stopped');
     _backgroundChannel.setMethodCallHandler(null);
     _state = _noneState;
@@ -895,4 +829,114 @@ class AudioServiceBackground {
   static Future<void> androidForceEnableMediaButtons() async {
     await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
   }
+}
+
+/// Describes an audio task that can run in the background and react to audio
+/// events.
+///
+/// You should subclass [BackgroundAudioTask] and override the callbacks for
+/// each type of event that your background task wishes to react to.
+abstract class BackgroundAudioTask {
+  /// Called once when this audio task is first started and ready to play
+  /// audio, in response to [AudioService.start]. When the returned future
+  /// completes, this task will be immediately terminated.
+  Future<void> onStart();
+
+  /// Called in response to [AudioService.stop] to request that this task be
+  /// terminated. The implementation should cause any audio playback to stop,
+  /// resources to be released, and the future returned by [onStart] to
+  /// complete.
+  void onStop();
+
+  /// Called when a media browser client, such as Android Auto, wants to query
+  /// the available media items to display to the user.
+  Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
+
+  /// Called on Android when your app gains the audio focus.
+  void onAudioFocusGained() {}
+
+  /// Called on Android when your app loses audio focus for an unknown
+  /// duration.
+  void onAudioFocusLost() {}
+
+  /// Called on Android when your app loses audio focus temporarily and should
+  /// pause audio output for that duration.
+  void onAudioFocusLostTransient() {}
+
+  /// Called on Android when your app loses audio focus temporarily and may
+  /// lower the audio output volume for that duration.
+  void onAudioFocusLostTransientCanDuck() {}
+
+  /// Called on Android when your audio output is about to become noisy due
+  /// to the user unplugging the headphones.
+  void onAudioBecomingNoisy() {}
+
+  /// Called when the media button on the headset is pressed, or in response to
+  /// a call from [AudioService.click].
+  void onClick(MediaButton button) {}
+
+  /// Called when a client has requested to pause audio playback, such as via a
+  /// call to [AudioService.pause].
+  void onPause() {}
+
+  /// Called when a client has requested to prepare audio for playback, such as
+  /// via a call to [AudioService.prepare].
+  void onPrepare() {}
+
+  /// Called when a client has requested to prepare a specific media item for
+  /// audio playback, such as via a call to [AudioService.prepareFromMediaId].
+  void onPrepareFromMediaId(String mediaId) {}
+
+  /// Called when a client has requested to resume audio playback, such as via
+  /// a call to [AudioService.play].
+  void onPlay() {}
+
+  /// Called when a client has requested to play a specific media item, such as
+  /// via a call to [AudioService.playFromMediaId].
+  void onPlayFromMediaId(String mediaId) {}
+
+  /// Called when a client has requested to add a media item to the queue, such
+  /// as via a call to [AudioService.addQueueItem].
+  void onAddQueueItem(MediaItem mediaItem) {}
+
+  /// Called when a client has requested to add a media item to the queue at a
+  /// specified position, such as via a request to
+  /// [AudioService.addQueueItemAt].
+  void onAddQueueItemAt(MediaItem mediaItem, int index) {}
+
+  /// Called when a client has requested to remove a media item from the queue,
+  /// such as via a request to [AudioService.removeQueueItem].
+  void onRemoveQueueItem(MediaItem mediaItem) {}
+
+  /// Called when a client has requested to skip to the next item in the queue,
+  /// such as via a request to [AudioService.skipToNext].
+  void onSkipToNext() {}
+
+  /// Called when a client has requested to skip to the previous item in the
+  /// queue, such as via a request to [AudioService.skipToPrevious].
+  void onSkipToPrevious() {}
+
+  /// Called when the client has requested to fast forward, such as via a
+  /// request to [AudioService.fastForward].
+  void onFastForward() {}
+
+  /// Called when the client has requested to rewind, such as via a request to
+  /// [AudioService.rewind].
+  void onRewind() {}
+
+  /// Called when the client has requested to skip to a specific item in the
+  /// queue, such as via a call to [AudioService.skipToQueueItem].
+  void onSkipToQueueItem(String mediaId) {}
+
+  /// Called when the client has requested to seek to a position, such as via a
+  /// call to [AudioService.seekTo].
+  void onSeekTo(int position) {}
+
+  /// Called when the client has requested to rate the current media item, such as
+  /// via a call to [AudioService.setRating].
+  void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
+
+  /// Called when a custom action has been sent by the client via
+  /// [AudioService.customAction].
+  void onCustomAction(String name, dynamic arguments) {}
 }
