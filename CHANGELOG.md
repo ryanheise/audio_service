@@ -1,3 +1,7 @@
+## 0.4.0
+
+* Breaking change: AudioServiceBackground.run takes a single parameter.
+
 ## 0.3.1
 
 * Update example to disconnect when pressing back button.
