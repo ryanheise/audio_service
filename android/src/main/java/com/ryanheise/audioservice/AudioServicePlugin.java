@@ -185,11 +185,11 @@ public class AudioServicePlugin {
 				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
 				boolean shouldPreloadArtwork = (Boolean)arguments.get("shouldPreloadArtwork");
-				boolean enableQueue = (Boolean)arguments.get("enableQueue");
+				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, enableQueue, new AudioService.ServiceListener() {
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, new AudioService.ServiceListener() {
 					@Override
 					public void onAudioFocusGained() {
 						backgroundHandler.invokeMethod("onAudioFocusGained");
@@ -265,6 +265,8 @@ public class AudioServicePlugin {
 								sendStartResult(false);
 								throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
 							}
+							if (enableQueue)
+								AudioService.instance.enableQueue();
 							pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
 							FlutterRunArguments args = new FlutterRunArguments();
 							args.bundlePath = appBundlePath;
