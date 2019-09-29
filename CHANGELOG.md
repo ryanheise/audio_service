@@ -1,3 +1,7 @@
+## 0.4.1
+
+* Fix queue support bug
+
 ## 0.4.0
 
 * Breaking change: AudioServiceBackground.run takes a single parameter.
