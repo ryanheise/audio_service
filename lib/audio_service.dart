@@ -464,6 +464,7 @@ class AudioService {
     bool androidNotificationOngoing = false,
     bool resumeOnClick = true,
     bool shouldPreloadArtwork = false,
+    bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
   }) async {
     final ui.CallbackHandle handle =
@@ -485,6 +486,7 @@ class AudioService {
           androidNotificationOngoing,
       'resumeOnClick': resumeOnClick,
       'shouldPreloadArtwork': shouldPreloadArtwork,
+      'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
     });
   }

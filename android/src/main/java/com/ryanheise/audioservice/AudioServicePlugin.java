@@ -186,10 +186,11 @@ public class AudioServicePlugin {
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
 				boolean shouldPreloadArtwork = (Boolean)arguments.get("shouldPreloadArtwork");
 				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
+				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, new AudioService.ServiceListener() {
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, new AudioService.ServiceListener() {
 					@Override
 					public void onAudioFocusGained() {
 						backgroundHandler.invokeMethod("onAudioFocusGained");
