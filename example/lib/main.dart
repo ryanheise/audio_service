@@ -243,6 +243,11 @@ class CustomAudioPlayer extends BackgroundAudioTask {
   }
 
   @override
+  void onClick(MediaButton button) {
+    playPause();
+  }
+
+  @override
   void onStop() {
     _audioPlayer.stop();
     AudioServiceBackground.setState(
@@ -312,6 +317,11 @@ class TextPlayer extends BackgroundAudioTask {
       );
     }
     _playPauseCompleter.complete();
+  }
+
+  @override
+  void onClick(MediaButton button) {
+    playPause();
   }
 
   @override
