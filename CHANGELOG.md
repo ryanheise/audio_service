@@ -1,3 +1,7 @@
+## 0.4.2
+
+* Option to call stopForeground on pause.
+
 ## 0.4.1
 
 * Fix queue support bug
