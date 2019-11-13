@@ -14,6 +14,7 @@ static FlutterMethodChannel *channel = nil;
 static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
+static MPRemoteCommandCenter *commandCenter = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -59,14 +60,19 @@ static FlutterResult startResult = nil;
     // The result will be sent after the background task actually starts.
     // See the "ready" case below.
     startResult = result;
-    // TODO: (important)
-    // - initialise AVAudioSession
-    // - set callbacks on MPRemoteCommandCenter
-    //   - togglePlayPauseCommand/playCommand/pauseCommand
-    //   - stopCommand
-    //   - nextTrackCommand
-    //   - previousTrackCommand
-    //   - changePlaybackPositionCommand
+    // Initialise AVAudioSession
+    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
+    [[AVAudioSession sharedInstance] setActive: YES error: nil];
+    // Set callbacks on MPRemoteCommandCenter
+    commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    [commandCenter.playCommand addTarget:self action:@selector(play)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(pause)];
+    [commandCenter.stopCommand addTarget:self action:@selector(stop)];
+    [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
+    [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
+    [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition)];
+    // TODO - support toggling play/pause on the Flutter side?
+    commandCenter.togglePlayPauseCommand.isEnabled = false;
   } else if ([@"ready" isEqualToString:call.method]) {
     result(@YES);
     startResult(@YES);
@@ -167,6 +173,24 @@ static FlutterResult startResult = nil;
     // Can I just pass on the result as the last argument?
     [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
   }
+}
+- (void) play {
+  [channel invokeMethod:@"onPlay" arguments:nil];
+}
+- (void) pause {
+  [channel invokeMethod:@"onPause" arguments:nil];
+}
+- (void) stop {
+  [channel invokeMethod:@"onStop" arguments:nil];
+}
+- (void) nextTrack {
+  [channel invokeMethod:@"onSkipToNext" arguments:nil];
+}
+- (void) previousTrack {
+  [channel invokeMethod:@"onSkipToPrevious" arguments:nil];
+}
+- (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent) event {
+  [channel invokeMethod:@"onSeekTo" arguments: @[event.positionTime]];
 }
 
 @end
