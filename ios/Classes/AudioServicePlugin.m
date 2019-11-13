@@ -65,8 +65,9 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [[AVAudioSession sharedInstance] setActive: YES error: nil];
     // Set callbacks on MPRemoteCommandCenter
     commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-    [commandCenter.playCommand addTarget:self action:@selector(play)];
-    [commandCenter.pauseCommand addTarget:self action:@selector(pause)];
+    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.playCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(togglePlayPause)];
     [commandCenter.stopCommand addTarget:self action:@selector(stop)];
     [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
     [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
@@ -90,8 +91,6 @@ static MPRemoteCommandCenter *commandCenter = nil;
     commandCenter.likeCommand.isEnabled = false;
     commandCenter.dislikeCommand.isEnabled = false;
     commandCenter.bookmarkCommand.isEnabled = false;
-    // TODO: support toggling play/pause on the Flutter side?
-    commandCenter.togglePlayPauseCommand.isEnabled = false;
   } else if ([@"ready" isEqualToString:call.method]) {
     result(@YES);
     startResult(@YES);
@@ -193,11 +192,8 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
   }
 }
-- (void) play {
-  [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
-}
-- (void) pause {
-  [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+- (void) togglePlayPause {
+  [backgroundChannel invokeMethod:@"onTogglePlayPause" arguments:nil];
 }
 - (void) stop {
   [backgroundChannel invokeMethod:@"onStop" arguments:nil];
