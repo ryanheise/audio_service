@@ -14,6 +14,7 @@ static FlutterMethodChannel *channel = nil;
 static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
+static MPRemoteCommandCenter *commandCenter = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -59,14 +60,37 @@ static FlutterResult startResult = nil;
     // The result will be sent after the background task actually starts.
     // See the "ready" case below.
     startResult = result;
-    // TODO: (important)
-    // - initialise AVAudioSession
-    // - set callbacks on MPRemoteCommandCenter
-    //   - togglePlayPauseCommand/playCommand/pauseCommand
-    //   - stopCommand
-    //   - nextTrackCommand
-    //   - previousTrackCommand
-    //   - changePlaybackPositionCommand
+    // Initialise AVAudioSession
+    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
+    [[AVAudioSession sharedInstance] setActive: YES error: nil];
+    // Set callbacks on MPRemoteCommandCenter
+    commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.playCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.stopCommand addTarget:self action:@selector(stop)];
+    [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
+    [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
+    [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition)];
+    // TODO: enable more commands
+    // Skipping
+    commandCenter.skipForwardCommand.isEnabled = false;
+    commandCenter.skipBackwardCommand.isEnabled = false;
+    // Seeking
+    commandCenter.seekForwardCommand.isEnabled = false;
+    commandCenter.seekBackwardCommand.isEnabled = false;
+    // Language options
+    commandCenter.enableLanguageOptionCommand.isEnabled = false;
+    commandCenter.disableLanguageOptionCommand.isEnabled = false;
+    // Repeat/Shuffle
+    commandCenter.changeRepeatModeCommand.isEnabled = false;
+    commandCenter.changeShuffleModeCommand.isEnabled = false;
+    // Rating
+    commandCenter.ratingCommand.isEnabled = false;
+    // Feedback
+    commandCenter.likeCommand.isEnabled = false;
+    commandCenter.dislikeCommand.isEnabled = false;
+    commandCenter.bookmarkCommand.isEnabled = false;
   } else if ([@"ready" isEqualToString:call.method]) {
     result(@YES);
     startResult(@YES);
@@ -86,31 +110,31 @@ static FlutterResult startResult = nil;
   } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"addQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onAddQueueItem
+    [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-    // TODO: pass through to onAddQueueItemAt
+    [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
     result(@YES);
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onRemoveQueueItem
+    [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"click" isEqualToString:call.method]) {
-    // TODO: pass through to onClick
+    [backgroundChannel invokeMethod:@"onClick" arguments:call.arguments];
     result(@YES);
   } else if ([@"prepare" isEqualToString:call.method]) {
-    // TODO: pass through to onPrepare
+    [backgroundChannel invokeMethod:@"onPrepare" arguments:nil];
     result(@YES);
   } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-    // TODO: pass through to onPrepareFromMediaId
+    [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-    // TODO: pass through to onPlayFromMediaId
+    [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToQueueItem
+    [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPause" arguments:nil];
@@ -119,22 +143,22 @@ static FlutterResult startResult = nil;
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
     result(@YES);
   } else if ([@"seekTo" isEqualToString:call.method]) {
-    // TODO: pass through to onSeekTo
+    [backgroundChannel invokeMethod:@"onSeekTo" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToNext" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToNext
+    [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
     result(@YES);
   } else if ([@"skipToPrevious" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToPrevious
+    [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
     result(@YES);
   } else if ([@"fastForward" isEqualToString:call.method]) {
-    // TODO: pass through to onFastForward
+    [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
     result(@YES);
   } else if ([@"rewind" isEqualToString:call.method]) {
-    // TODO: pass through to onRewind
+    [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
     result(@YES);
   } else if ([@"setRating" isEqualToString:call.method]) {
-    // TODO: pass through to onRating
+    [backgroundChannel invokeMethod:@"onSetRating" arguments:call.arguments];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
@@ -167,6 +191,21 @@ static FlutterResult startResult = nil;
     // Can I just pass on the result as the last argument?
     [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
   }
+}
+- (void) togglePlayPause {
+  [backgroundChannel invokeMethod:@"onTogglePlayPause" arguments:nil];
+}
+- (void) stop {
+  [backgroundChannel invokeMethod:@"onStop" arguments:nil];
+}
+- (void) nextTrack {
+  [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
+}
+- (void) previousTrack {
+  [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
+}
+- (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent) event {
+  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[event.positionTime]];
 }
 
 @end
