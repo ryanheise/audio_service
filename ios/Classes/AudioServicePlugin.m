@@ -92,11 +92,10 @@ static MPRemoteCommandCenter *commandCenter = nil;
   } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"addQueueItem" isEqualToString:call.method]) {
-    [channel invokeMethod:@"addQueueItem" arguments:call.arguments];
+    [channel invokeMethod:@"onAddQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-      [channel invokeMethod:@"addQueueItemAt" arguments:call.arguments];
-
+    [channel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
     result(@YES);
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
     [channel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
