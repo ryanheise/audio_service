@@ -92,31 +92,31 @@ static MPRemoteCommandCenter *commandCenter = nil;
   } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"addQueueItem" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onAddQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
     result(@YES);
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"click" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onClick" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onClick" arguments:call.arguments];
     result(@YES);
   } else if ([@"prepare" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onPrepare" arguments:nil];
+    [backgroundChannel invokeMethod:@"onPrepare" arguments:nil];
     result(@YES);
   } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPause" arguments:nil];
@@ -125,22 +125,22 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
     result(@YES);
   } else if ([@"seekTo" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onSeekTo" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSeekTo" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToNext" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onSkipToNext" arguments:nil];
+    [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
     result(@YES);
   } else if ([@"skipToPrevious" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onSkipToPrevious" arguments:nil];
+    [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
     result(@YES);
   } else if ([@"fastForward" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onFastForward" arguments:nil];
+    [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
     result(@YES);
   } else if ([@"rewind" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onRewind" arguments:nil];
+    [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
     result(@YES);
   } else if ([@"setRating" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onSetRating" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSetRating" arguments:call.arguments];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
@@ -175,22 +175,22 @@ static MPRemoteCommandCenter *commandCenter = nil;
   }
 }
 - (void) play {
-  [channel invokeMethod:@"onPlay" arguments:nil];
+  [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
 }
 - (void) pause {
-  [channel invokeMethod:@"onPause" arguments:nil];
+  [backgroundChannel invokeMethod:@"onPause" arguments:nil];
 }
 - (void) stop {
-  [channel invokeMethod:@"onStop" arguments:nil];
+  [backgroundChannel invokeMethod:@"onStop" arguments:nil];
 }
 - (void) nextTrack {
-  [channel invokeMethod:@"onSkipToNext" arguments:nil];
+  [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
 }
 - (void) previousTrack {
-  [channel invokeMethod:@"onSkipToPrevious" arguments:nil];
+  [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
 }
 - (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent) event {
-  [channel invokeMethod:@"onSeekTo" arguments: @[event.positionTime]];
+  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[event.positionTime]];
 }
 
 @end
