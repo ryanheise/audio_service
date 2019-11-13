@@ -92,31 +92,32 @@ static MPRemoteCommandCenter *commandCenter = nil;
   } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"addQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onAddQueueItem
+    [channel invokeMethod:@"addQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-    // TODO: pass through to onAddQueueItemAt
+      [channel invokeMethod:@"addQueueItemAt" arguments:call.arguments];
+
     result(@YES);
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onRemoveQueueItem
+    [channel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"click" isEqualToString:call.method]) {
-    // TODO: pass through to onClick
+    [channel invokeMethod:@"onClick" arguments:call.arguments];
     result(@YES);
   } else if ([@"prepare" isEqualToString:call.method]) {
-    // TODO: pass through to onPrepare
+    [channel invokeMethod:@"onPrepare" arguments:nil];
     result(@YES);
   } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-    // TODO: pass through to onPrepareFromMediaId
+    [channel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-    // TODO: pass through to onPlayFromMediaId
+    [channel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToQueueItem
+    [channel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPause" arguments:nil];
@@ -125,22 +126,22 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
     result(@YES);
   } else if ([@"seekTo" isEqualToString:call.method]) {
-    // TODO: pass through to onSeekTo
+    [channel invokeMethod:@"onSeekTo" arguments:call.arguments];
     result(@YES);
   } else if ([@"skipToNext" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToNext
+    [channel invokeMethod:@"onSkipToNext" arguments:nil];
     result(@YES);
   } else if ([@"skipToPrevious" isEqualToString:call.method]) {
-    // TODO: pass through to onSkipToPrevious
+    [channel invokeMethod:@"onSkipToPrevious" arguments:nil];
     result(@YES);
   } else if ([@"fastForward" isEqualToString:call.method]) {
-    // TODO: pass through to onFastForward
+    [channel invokeMethod:@"onFastForward" arguments:nil];
     result(@YES);
   } else if ([@"rewind" isEqualToString:call.method]) {
-    // TODO: pass through to onRewind
+    [channel invokeMethod:@"onRewind" arguments:nil];
     result(@YES);
   } else if ([@"setRating" isEqualToString:call.method]) {
-    // TODO: pass through to onRating
+    [channel invokeMethod:@"onSetRating" arguments:call.arguments];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
