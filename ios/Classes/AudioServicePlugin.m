@@ -71,7 +71,26 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
     [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
     [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition)];
-    // TODO - support toggling play/pause on the Flutter side?
+    // TODO: enable more commands
+    // Skipping
+    commandCenter.skipForwardCommand.isEnabled = false;
+    commandCenter.skipBackwardCommand.isEnabled = false;
+    // Seeking
+    commandCenter.seekForwardCommand.isEnabled = false;
+    commandCenter.seekBackwardCommand.isEnabled = false;
+    // Language options
+    commandCenter.enableLanguageOptionCommand.isEnabled = false;
+    commandCenter.disableLanguageOptionCommand.isEnabled = false;
+    // Repeat/Shuffle
+    commandCenter.changeRepeatModeCommand.isEnabled = false;
+    commandCenter.changeShuffleModeCommand.isEnabled = false;
+    // Rating
+    commandCenter.ratingCommand.isEnabled = false;
+    // Feedback
+    commandCenter.likeCommand.isEnabled = false;
+    commandCenter.dislikeCommand.isEnabled = false;
+    commandCenter.bookmarkCommand.isEnabled = false;
+    // TODO: support toggling play/pause on the Flutter side?
     commandCenter.togglePlayPauseCommand.isEnabled = false;
   } else if ([@"ready" isEqualToString:call.method]) {
     result(@YES);
