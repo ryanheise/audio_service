@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// The different buttons on a headset.
@@ -473,6 +476,19 @@ class AudioService {
       return false;
     }
     var callbackHandle = handle.toRawHandle();
+    if (Platform.isIOS) {
+      // NOTE: to maintain compatibility between the Android and iOS
+      // implementations, we ensure that the iOS background task also runs in
+      // an isolate. Currently, the standard Isolate API does not allow
+      // isolates to invoke methods on method channels. That may be fixed in
+      // the future, but until then, we use the flutter_isolate plugin which
+      // creates a FlutterNativeView for us, similar to what the Android
+      // implementation does.
+      // TODO: remove dependency on flutter_isolate by either using the
+      // FlutterNativeView API directly or by waiting until Flutter allows
+      // regular isolates to use method channels.
+      await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
+    }
     return await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
       'androidNotificationChannelName': androidNotificationChannelName,
@@ -941,4 +957,10 @@ abstract class BackgroundAudioTask {
   /// Called when a custom action has been sent by the client via
   /// [AudioService.customAction].
   void onCustomAction(String name, dynamic arguments) {}
+}
+
+_iosIsolateEntrypoint(int rawHandle) async {
+  ui.CallbackHandle handle = ui.CallbackHandle.fromRawHandle(rawHandle);
+  Function backgroundTask = ui.PluginUtilities.getCallbackFromHandle(handle);
+  backgroundTask();
 }
