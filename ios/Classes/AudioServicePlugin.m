@@ -68,6 +68,15 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [[AVAudioSession sharedInstance] setActive: YES error: nil];
     // Set callbacks on MPRemoteCommandCenter
     commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    [commandCenter.togglePlayPauseCommand setEnabled:YES];
+    [commandCenter.playCommand setEnabled:YES];
+    [commandCenter.pauseCommand setEnabled:YES];
+    [commandCenter.stopCommand setEnabled:YES];
+    [commandCenter.nextTrackCommand setEnabled:YES];
+    [commandCenter.previousTrackCommand setEnabled:YES];
+    //Temporarily disabled. See error comment below.
+    //[commandCenter.changePlaybackRateCommand setEnabled:YES];
+    [commandCenter.changePlaybackRateCommand setEnabled:NO];
     [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
     [commandCenter.playCommand addTarget:self action:@selector(togglePlayPause)];
     [commandCenter.pauseCommand addTarget:self action:@selector(togglePlayPause)];
@@ -208,13 +217,21 @@ static MPRemoteCommandCenter *commandCenter = nil;
       // update time since epoch (TODO!)
       @(0)
     ]];
+    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
     // TODO: pass through to onSetQueue
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
-    // TODO:
-    // - Update MPNowPlayingInfoCenter (nowPlayingInfo)
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = call.arguments[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = call.arguments[@"album"];
+    nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = call.arguments[@"duration"];
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
+    // TODO: nowPlayingInfo[MPMediaItemPropertyArtwork] = ...;
+
+    // TODO: Investigate why nowPlayingInfo isn't showing in Control Center.
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
     [channel invokeMethod:@"onMediaChanged" arguments:call.arguments];
     result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
