@@ -18,6 +18,7 @@ static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
+static NSMutableDictionary *mediaItem = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -140,6 +141,17 @@ static MPRemoteCommandCenter *commandCenter = nil;
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
+    if (mediaItem != nil) {
+      // TODO: Make reusable method to update nowPlayingInfo
+      NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+      nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+      nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+      if (mediaItem[@"duration"] != [NSNull null]) {
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+      }
+      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
+      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    }
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
@@ -149,6 +161,17 @@ static MPRemoteCommandCenter *commandCenter = nil;
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+    if (mediaItem != nil) {
+      // TODO: Make reusable method to update nowPlayingInfo
+      NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+      nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+      nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+      if (mediaItem[@"duration"] != [NSNull null]) {
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+      }
+      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
+      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    }
     result(@YES);
   } else if ([@"stop" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
@@ -190,10 +213,14 @@ static MPRemoteCommandCenter *commandCenter = nil;
     // TODO: pass through to onSetQueue
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
+    mediaItem = call.arguments;
+    // TODO: Make reusable method to update nowPlayingInfo
     NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
-    nowPlayingInfo[MPMediaItemPropertyTitle] = call.arguments[@"title"];
-    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = call.arguments[@"album"];
-    nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = call.arguments[@"duration"];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
     // TODO: nowPlayingInfo[MPMediaItemPropertyArtwork] = ...;
 
