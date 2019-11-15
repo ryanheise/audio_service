@@ -77,8 +77,8 @@ static NSMutableDictionary *mediaItem = nil;
     [commandCenter.previousTrackCommand setEnabled:YES];
     [commandCenter.changePlaybackRateCommand setEnabled:YES];
     [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
-    [commandCenter.playCommand addTarget:self action:@selector(togglePlayPause)];
-    [commandCenter.pauseCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.playCommand addTarget:self action:@selector(play)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(pause)];
     [commandCenter.stopCommand addTarget:self action:@selector(stop)];
     [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
     [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
@@ -140,18 +140,7 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
-    if (mediaItem != nil) {
-      // TODO: Make reusable method to update nowPlayingInfo
-      NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
-      nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
-      nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
-      if (mediaItem[@"duration"] != [NSNull null]) {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
-      }
-      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
-      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
-    }
+    [self play];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
@@ -160,18 +149,7 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPause" arguments:nil];
-    if (mediaItem != nil) {
-      // TODO: Make reusable method to update nowPlayingInfo
-      NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
-      nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
-      nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
-      if (mediaItem[@"duration"] != [NSNull null]) {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
-      }
-      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
-      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
-    }
+    [self pause];
     result(@YES);
   } else if ([@"stop" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
@@ -214,6 +192,7 @@ static NSMutableDictionary *mediaItem = nil;
       [NSNumber numberWithLongLong: msSinceEpoch]
     ]];
     // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
+    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate]
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
     // TODO: pass through to onSetQueue
@@ -244,19 +223,61 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
   }
 }
-- (void) togglePlayPause {
-  [backgroundChannel invokeMethod:@"onTogglePlayPause" arguments:nil];
+
+- (void) play {
+  NSLog(@"play");
+  [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
+  if (mediaItem != nil) {
+    // TODO: Make reusable method to update nowPlayingInfo
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+  }
 }
+
+- (void) pause {
+  NSLog(@"pause");
+  [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+  if (mediaItem != nil) {
+    // TODO: Make reusable method to update nowPlayingInfo
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+  }
+}
+
+- (void) togglePlayPause {
+  NSLog(@"togglePlayPause");
+  [backgroundChannel invokeMethod:@"onClick" arguments:@[@(0)]];
+}
+
 - (void) stop {
+  NSLog(@"stop");
   [backgroundChannel invokeMethod:@"onStop" arguments:nil];
 }
+
 - (void) nextTrack {
+  NSLog(@"nextTrack");
   [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
 }
+
 - (void) previousTrack {
+  NSLog(@"previousTrack");
   [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
 }
+
 - (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
+  NSLog(@"changePlaybackPosition");
   [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@(event.positionTime)]];
 }
 
