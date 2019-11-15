@@ -195,6 +195,12 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:@"onSetRating" arguments:call.arguments];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
+    long long msSinceEpoch;
+    if (call.arguments[4] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[4] longLongValue];
+    } else {
+      msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
+    }
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       call.arguments[1],
@@ -204,8 +210,8 @@ static NSMutableDictionary *mediaItem = nil;
       call.arguments[2],
       // playback speed
       call.arguments[3],
-      // update time since epoch (TODO!)
-      @(0)
+      // update time since epoch
+      [NSNumber numberWithLongLong: msSinceEpoch]
     ]];
     // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
     result(@(YES));
