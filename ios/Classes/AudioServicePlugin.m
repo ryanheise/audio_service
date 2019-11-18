@@ -110,8 +110,21 @@ static NSMutableDictionary *mediaItem = nil;
   } else if ([@"stopped" isEqualToString:call.method]) {
     _running = NO;
     [channel invokeMethod:@"onStopped" arguments:nil];
-    // TODO: (maybe)
-    // Do we need to stop the AVAudioSession?
+    [[AVAudioSession sharedInstance] setActive: NO error: nil];
+    [commandCenter.togglePlayPauseCommand setEnabled:NO];
+    [commandCenter.playCommand setEnabled:NO];
+    [commandCenter.pauseCommand setEnabled:NO];
+    [commandCenter.stopCommand setEnabled:NO];
+    [commandCenter.nextTrackCommand setEnabled:NO];
+    [commandCenter.previousTrackCommand setEnabled:NO];
+    [commandCenter.changePlaybackRateCommand setEnabled:NO];
+    [commandCenter.togglePlayPauseCommand removeTarget:nil];
+    [commandCenter.playCommand removeTarget:nil];
+    [commandCenter.pauseCommand removeTarget:nil];
+    [commandCenter.stopCommand removeTarget:nil];
+    [commandCenter.nextTrackCommand removeTarget:nil];
+    [commandCenter.previousTrackCommand removeTarget:nil];
+    [commandCenter.changePlaybackPositionCommand removeTarget:nil];
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
