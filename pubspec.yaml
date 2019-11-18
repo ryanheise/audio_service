@@ -9,7 +9,7 @@ environment:
 
 dependencies:
   rxdart: ^0.22.0
-  flutter_isolate: ^1.0.0+6
+  flutter_isolate: ^1.0.0+10
   flutter:
     sdk: flutter
 
