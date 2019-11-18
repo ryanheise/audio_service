@@ -703,6 +703,7 @@ class AudioServiceBackground {
           task.onStop();
           break;
         case 'onPause':
+          print("received onPause over method channel");
           task.onPause();
           break;
         case 'onPrepare':
