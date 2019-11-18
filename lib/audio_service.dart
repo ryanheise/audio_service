@@ -703,6 +703,7 @@ class AudioServiceBackground {
           task.onStop();
           break;
         case 'onPause':
+          print("received onPause over method channel");
           task.onPause();
           break;
         case 'onPrepare':
@@ -757,9 +758,6 @@ class AudioServiceBackground {
           break;
         case 'onSetRating':
           task.onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-          break;
-        case 'onTogglePlayPause':
-          task.onTogglePlayPause();
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
@@ -956,9 +954,6 @@ abstract class BackgroundAudioTask {
   /// Called when the client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
   void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
-
-  /// Called when the client has requested to toggle the current play state
-  void onTogglePlayPause() {}
 
   /// Called when a custom action has been sent by the client via
   /// [AudioService.customAction].

@@ -18,6 +18,7 @@ static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
+static NSMutableDictionary *mediaItem = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -68,44 +69,20 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [[AVAudioSession sharedInstance] setActive: YES error: nil];
     // Set callbacks on MPRemoteCommandCenter
     commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    [commandCenter.togglePlayPauseCommand setEnabled:YES];
+    [commandCenter.playCommand setEnabled:YES];
+    [commandCenter.pauseCommand setEnabled:YES];
+    [commandCenter.stopCommand setEnabled:YES];
+    [commandCenter.nextTrackCommand setEnabled:YES];
+    [commandCenter.previousTrackCommand setEnabled:YES];
+    [commandCenter.changePlaybackRateCommand setEnabled:YES];
     [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
-    [commandCenter.playCommand addTarget:self action:@selector(togglePlayPause)];
-    [commandCenter.pauseCommand addTarget:self action:@selector(togglePlayPause)];
+    [commandCenter.playCommand addTarget:self action:@selector(play)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(pause)];
     [commandCenter.stopCommand addTarget:self action:@selector(stop)];
     [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
     [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
-    // The following line of code causes a runtime error:
-    //
-    // *** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: '+[NSInvocation _invocationWithMethodSignature:frame:]: method signature argument cannot be nil'
-    // 	*** First throw call stack:
-    // 	(
-    // 		0   CoreFoundation                      0x00000001045b634b __exceptionPreprocess + 171
-    // 		1   libobjc.A.dylib                     0x0000000103caf21e objc_exception_throw + 48
-    // 		2   CoreFoundation                      0x000000010453bd9d +[NSInvocation _invocationWithMethodSignature:frame:] + 333
-    // 		3   MediaPlayer                         0x0000000104cde1de -[MPRemoteCommand _addTarget:action:retainTarget:] + 488
-    // 		4   Runner                              0x00000001016743a0 -[AudioServicePlugin handleMethodCall:result:] + 1520
-    // 		5   Flutter                             0x000000010178a4fd __45-[FlutterMethodChannel setMethodCallHandler:]_block_invoke + 104
-    // 		6   Flutter                             0x0000000101723ec0 _ZNK7flutter21PlatformMessageRouter21HandlePlatformMessageEN3fml6RefPtrINS_15PlatformMessageEEE + 166
-    // 		7   Flutter                             0x0000000101727780 _ZN7flutter15PlatformViewIOS21HandlePlatformMessageEN3fml6RefPtrINS_15PlatformMessageEEE + 38
-    // 		8   Flutter                             0x0000000101784db3 _ZNSt3__110__function6__funcIZN7flutter5Shell29OnEngineHandlePlatformMessageEN3fml6RefPtrINS2_15PlatformMessageEEEE4$_31NS_9allocatorIS8_EEFvvEEclEv + 57
-    // 		9   Flutter                             0x00000001017363f1 _ZN3fml15MessageLoopImpl10FlushTasksENS_9FlushTypeE + 123
-    // 		10  Flutter                             0x000000010173b742 _ZN3fml17MessageLoopDarwin11OnTimerFireEP16__CFRunLoopTimerPS0_ + 26
-    // 		11  CoreFoundation                      0x0000000104548964 __CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__ + 20
-    // 		12  CoreFoundation                      0x00000001045485f3 __CFRunLoopDoTimer + 1075
-    // 		13  CoreFoundation                      0x000000010454817a __CFRunLoopDoTimers + 250
-    // 		14  CoreFoundation                      0x000000010453ff01 __CFRunLoopRun + 2065
-    // 		15  CoreFoundation                      0x000000010453f494 CFRunLoopRunSpecific + 420
-    // 		16  GraphicsServices                    0x0000000108a8fa6f GSEventRunModal + 161
-    // 		17  UIKit                               0x000000010509a964 UIApplicationMain + 159
-    // 		18  Runner                              0x00000001016736c0 main + 112
-    // 		19  libdyld.dylib                       0x000000010870668d start + 1
-    // 		20  ???                                 0x0000000000000005 0x0 + 5
-    // 	
-    // 	)
-    //
-    //
-    //
-    //[commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition)];
+    [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
 
     // TODO: enable more commands
     // Skipping
@@ -133,8 +110,21 @@ static MPRemoteCommandCenter *commandCenter = nil;
   } else if ([@"stopped" isEqualToString:call.method]) {
     _running = NO;
     [channel invokeMethod:@"onStopped" arguments:nil];
-    // TODO: (maybe)
-    // Do we need to stop the AVAudioSession?
+    [[AVAudioSession sharedInstance] setActive: NO error: nil];
+    [commandCenter.togglePlayPauseCommand setEnabled:NO];
+    [commandCenter.playCommand setEnabled:NO];
+    [commandCenter.pauseCommand setEnabled:NO];
+    [commandCenter.stopCommand setEnabled:NO];
+    [commandCenter.nextTrackCommand setEnabled:NO];
+    [commandCenter.previousTrackCommand setEnabled:NO];
+    [commandCenter.changePlaybackRateCommand setEnabled:NO];
+    [commandCenter.togglePlayPauseCommand removeTarget:nil];
+    [commandCenter.playCommand removeTarget:nil];
+    [commandCenter.pauseCommand removeTarget:nil];
+    [commandCenter.stopCommand removeTarget:nil];
+    [commandCenter.nextTrackCommand removeTarget:nil];
+    [commandCenter.previousTrackCommand removeTarget:nil];
+    [commandCenter.changePlaybackPositionCommand removeTarget:nil];
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
@@ -163,7 +153,7 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
+    [self play];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
@@ -172,7 +162,7 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+    [self pause];
     result(@YES);
   } else if ([@"stop" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
@@ -196,6 +186,12 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:@"onSetRating" arguments:call.arguments];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
+    long long msSinceEpoch;
+    if (call.arguments[4] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[4] longLongValue];
+    } else {
+      msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
+    }
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       call.arguments[1],
@@ -205,16 +201,29 @@ static MPRemoteCommandCenter *commandCenter = nil;
       call.arguments[2],
       // playback speed
       call.arguments[3],
-      // update time since epoch (TODO!)
-      @(0)
+      // update time since epoch
+      [NSNumber numberWithLongLong: msSinceEpoch]
     ]];
+    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
+    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate]
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
     // TODO: pass through to onSetQueue
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
-    // TODO:
-    // - Update MPNowPlayingInfoCenter (nowPlayingInfo)
+    mediaItem = call.arguments;
+    // TODO: Make reusable method to update nowPlayingInfo
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
+    // TODO: nowPlayingInfo[MPMediaItemPropertyArtwork] = ...;
+
+    // TODO: Investigate why nowPlayingInfo isn't showing in Control Center.
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
     [channel invokeMethod:@"onMediaChanged" arguments:call.arguments];
     result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
@@ -227,19 +236,61 @@ static MPRemoteCommandCenter *commandCenter = nil;
     [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
   }
 }
-- (void) togglePlayPause {
-  [backgroundChannel invokeMethod:@"onTogglePlayPause" arguments:nil];
+
+- (void) play {
+  NSLog(@"play");
+  [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
+  if (mediaItem != nil) {
+    // TODO: Make reusable method to update nowPlayingInfo
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+  }
 }
+
+- (void) pause {
+  NSLog(@"pause");
+  [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+  if (mediaItem != nil) {
+    // TODO: Make reusable method to update nowPlayingInfo
+    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
+    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    if (mediaItem[@"duration"] != [NSNull null]) {
+      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+  }
+}
+
+- (void) togglePlayPause {
+  NSLog(@"togglePlayPause");
+  [backgroundChannel invokeMethod:@"onClick" arguments:@[@(0)]];
+}
+
 - (void) stop {
+  NSLog(@"stop");
   [backgroundChannel invokeMethod:@"onStop" arguments:nil];
 }
+
 - (void) nextTrack {
+  NSLog(@"nextTrack");
   [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
 }
+
 - (void) previousTrack {
+  NSLog(@"previousTrack");
   [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
 }
+
 - (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
+  NSLog(@"changePlaybackPosition");
   [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@(event.positionTime)]];
 }
 
