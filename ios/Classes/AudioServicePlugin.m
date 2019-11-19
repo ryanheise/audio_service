@@ -76,12 +76,12 @@ static NSMutableDictionary *mediaItem = nil;
     [commandCenter.nextTrackCommand setEnabled:YES];
     [commandCenter.previousTrackCommand setEnabled:YES];
     [commandCenter.changePlaybackRateCommand setEnabled:YES];
-    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause)];
-    [commandCenter.playCommand addTarget:self action:@selector(play)];
-    [commandCenter.pauseCommand addTarget:self action:@selector(pause)];
-    [commandCenter.stopCommand addTarget:self action:@selector(stop)];
-    [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack)];
-    [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack)];
+    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause:)];
+    [commandCenter.playCommand addTarget:self action:@selector(play:)];
+    [commandCenter.pauseCommand addTarget:self action:@selector(pause:)];
+    [commandCenter.stopCommand addTarget:self action:@selector(stop:)];
+    [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack:)];
+    [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack:)];
     [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
 
     // TODO: enable more commands
@@ -153,7 +153,7 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
-    [self play];
+    [self play: nil];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
@@ -162,7 +162,7 @@ static NSMutableDictionary *mediaItem = nil;
     [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
-    [self pause];
+    [self pause: nil];
     result(@YES);
   } else if ([@"stop" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
@@ -237,7 +237,7 @@ static NSMutableDictionary *mediaItem = nil;
   }
 }
 
-- (void) play {
+- (MPRemoteCommandHandlerStatus) play: (MPRemoteCommandEvent *) event {
   NSLog(@"play");
   [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
   if (mediaItem != nil) {
@@ -251,9 +251,10 @@ static NSMutableDictionary *mediaItem = nil;
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
   }
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) pause {
+- (MPRemoteCommandHandlerStatus) pause: (MPRemoteCommandEvent *) event {
   NSLog(@"pause");
   [backgroundChannel invokeMethod:@"onPause" arguments:nil];
   if (mediaItem != nil) {
@@ -267,31 +268,37 @@ static NSMutableDictionary *mediaItem = nil;
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
   }
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) togglePlayPause {
+- (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
   NSLog(@"togglePlayPause");
   [backgroundChannel invokeMethod:@"onClick" arguments:@[@(0)]];
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) stop {
+- (MPRemoteCommandHandlerStatus) stop: (MPRemoteCommandEvent *) event {
   NSLog(@"stop");
   [backgroundChannel invokeMethod:@"onStop" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) nextTrack {
+- (MPRemoteCommandHandlerStatus) nextTrack: (MPRemoteCommandEvent *) event {
   NSLog(@"nextTrack");
   [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) previousTrack {
+- (MPRemoteCommandHandlerStatus) previousTrack: (MPRemoteCommandEvent *) event {
   NSLog(@"previousTrack");
   [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
-- (void) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
+- (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
   NSLog(@"changePlaybackPosition");
   [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@(event.positionTime)]];
+  return MPRemoteCommandHandlerStatusSuccess;
 }
 
 @end
