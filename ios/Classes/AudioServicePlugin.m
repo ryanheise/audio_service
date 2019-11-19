@@ -82,7 +82,9 @@ static NSMutableDictionary *mediaItem = nil;
     [commandCenter.stopCommand addTarget:self action:@selector(stop:)];
     [commandCenter.nextTrackCommand addTarget:self action:@selector(nextTrack:)];
     [commandCenter.previousTrackCommand addTarget:self action:@selector(previousTrack:)];
-    [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
+    if (@available(iOS 9.1, *)) {
+      [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
+    }
 
     // TODO: enable more commands
     // Skipping
@@ -92,8 +94,10 @@ static NSMutableDictionary *mediaItem = nil;
     [commandCenter.seekForwardCommand setEnabled:NO];
     [commandCenter.seekBackwardCommand setEnabled:NO];
     // Language options
-    [commandCenter.enableLanguageOptionCommand setEnabled:NO];
-    [commandCenter.disableLanguageOptionCommand setEnabled:NO];
+    if (@available(iOS 9.0, *)) {
+      [commandCenter.enableLanguageOptionCommand setEnabled:NO];
+      [commandCenter.disableLanguageOptionCommand setEnabled:NO];
+    }
     // Repeat/Shuffle
     [commandCenter.changeRepeatModeCommand setEnabled:NO];
     [commandCenter.changeShuffleModeCommand setEnabled:NO];
@@ -124,7 +128,9 @@ static NSMutableDictionary *mediaItem = nil;
     [commandCenter.stopCommand removeTarget:nil];
     [commandCenter.nextTrackCommand removeTarget:nil];
     [commandCenter.previousTrackCommand removeTarget:nil];
-    [commandCenter.changePlaybackPositionCommand removeTarget:nil];
+    if (@available(iOS 9.1, *)) {
+      [commandCenter.changePlaybackPositionCommand removeTarget:nil];
+    }
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
