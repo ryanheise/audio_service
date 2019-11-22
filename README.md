@@ -3,20 +3,42 @@
 Play audio in the background.
 
 * Continues playing while the screen is off or the app is in the background
-* Control playback from your Flutter UI, headset, Wear OS or Android Auto
+* Control playback from your Flutter UI, notifications, lock screen, headset, Wear OS or Android Auto
 * Drive audio playback from Dart code
 
-This plugin provides a complete framework for playing any audio in the background. You implement callbacks in Dart to play/pause/seek/etc audio in the background giving you the flexibility to use any Dart plugin and any custom Dart logic to output the audio. For example, if you wish to play music in the background, you may use the [audioplayer](https://pub.dartlang.org/packages/audioplayer) plugin in conjunction with audio_service. If you would rather play text-to-speech in the background, you may use the [flutter_tts](https://pub.dartlang.org/packages/flutter_tts) plugin in conjunction with audio_service.
+This plugin wraps around your existing Dart audio code to allow it to run in the background, and also respond to media button clicks on the lock screen, notifications, control center, headphone buttons and other supported remote control devices. This is necessary for a whole range of media applications such as music and podcast players, text-to-speech readers, navigators, etc.
 
-[audio_service](https://pub.dartlang.org/packages/audio_service) itself manages all of the platform-specific code for setting up the environment for background audio, and interfacing with various peripherals used to control audio playback. For Android, this means acquiring a wake lock so that audio will play with the screen turned off, acquiring audio focus so that your app can gracefully handle phone call interruptions, creating a media session and media browser service so that your app can be controlled by wearable devices and Android Auto. The iOS side is currently not implemented and contributors are welcome (please see the Help section at the bottom of this page).
+This plugin is audio agnostic. It is designed to allow you to use your favourite audio plugins, such as [audioplayer](https://pub.dartlang.org/packages/audioplayer), [audioplayers](https://pub.dev/packages/audioplayers), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others. It simply wraps a special isolate around your existing audio code so that it can run in the background and enable remote control interfaces.
 
-Since background execution of Dart code is a relatively new feature of Flutter, not all plugins are yet compatible with audio_service (I am contacting some of these authors to make their packages compatible.)
+Note that because your app's UI and your background audio task will run in separate isolates, they do not share memory. They communicate through the message passing APIs provided by audio_service.
+
+**NEW**: This release includes a partially working "alpha" iOS implementation. If you'd like to help with any missing features, join us on [GitHub issue #10](https://github.com/ryanheise/audio_service/issues/10).
+
+| Feature                        | Android    | iOS        |
+| -------                        | :-------:  | :-----:    |
+| start/stop                     | ✅         | ✅         |
+| play/pause                     | ✅         | ✅         |
+| headset click                  | ✅         | ✅         |
+| seek                           | ✅         | ✅         |
+| skip next/prev                 | ✅         | ✅         |
+| FF/rewind                      | ✅         | ✅         |
+| rate                           | ✅         | ✅         |
+| queue management               | ✅         | ✅         |
+| custom actions                 | ✅         | (untested) |
+| notifications/control center   | ✅         | ✅         |
+| lock screen controls           | ✅         | ✅         |
+| album art                      | ✅         |            |
+| runs in background             | ✅         | ✅         |
+| Handle phonecall interruptions | ✅         |            |
+| Android Auto                   | (untested) |            |
 
 ## Example
 
-### Client-side code
+audio_service provides two sets of APIs: one for your main UI isolate (`AudioService`), and one for your background audio isolate (`AudioServiceBackground`).
 
-This code runs in the main UI isolate.
+### UI code
+
+This code runs in the main UI isolate:
 
 ```dart
 AudioService.connect();    // When UI becomes visible
@@ -30,9 +52,11 @@ AudioService.play();       // When user clicks button to resume playback
 AudioService.disconnect(); // When UI is gone
 ```
 
+The full example on GitHub should be consulted for tips on how to hook `connect` and `disconnect` into your widget's lifecycle.
+
 ### Background code
 
-This code runs in a background isolate.
+This code runs in a background isolate, and is the code that is guaranteed to continue running even if your UI is gone:
 
 ```dart
 void myBackgroundTaskEntrypoint() {
@@ -65,11 +89,23 @@ class MyBackgroundTask extends BackgroundAudioTask {
 }
 ```
 
+The full example on GitHub demonstrates how to fill in these callbacks to do audio playback and also text-to-speech.
+
 ## Android setup
 
-You will need to create a custom `MainApplication` class as follows:
+1. You will need to create a custom `MainApplication` class as follows:
 
 ```java
+// Insert your package name here instead of com.example.yourpackagename.
+// You can find your package name at the top of your AndroidManifest file
+// after package="...
+package com.example.yourpackagename;
+
+import io.flutter.plugin.common.PluginRegistry;
+import io.flutter.app.FlutterApplication;
+import io.flutter.plugins.GeneratedPluginRegistrant;
+import com.ryanheise.audioservice.AudioServicePlugin;
+
 public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
   @Override
   public void onCreate() {
@@ -84,7 +120,7 @@ public class MainApplication extends FlutterApplication implements PluginRegistr
 }
 ```
 
-Edit your project's `AndroidManifest.xml` file to reference your `MainApplication` class, declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
+2. Edit your project's `AndroidManifest.xml` file to reference your `MainApplication` class, declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
 
 ```xml
 <manifest ...>
@@ -112,7 +148,7 @@ Edit your project's `AndroidManifest.xml` file to reference your `MainApplicatio
 </manifest>
 ```
 
-Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
+3. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
 
 ```
 drawable-hdpi
@@ -124,13 +160,24 @@ drawable-xxxhdpi
 
 You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these different subdirectories for any standard material design icon.
 
-## Help/Contribute
+*NOTE: Most Flutter plugins today were written before Flutter added support for running Dart code in a headless environment (without an Android Activity present). As such, a number of plugins assume there is an activity and run into a `NullPointerException`. Fortunately, it is very easy for plugin authors to update their plugins remove this assumption. If you encounter such a plugin, see the bottom of this README file for a sample bug report you can send to the relevant plugin author.*
 
-* If you would like to contribute to the iOS side, please see https://github.com/ryanheise/audio_service/issues/10 for a description of the work to be done, and read or contribute to the ongoing discussion on how we could make this work.
+## iOS setup
 
-* If you find another Flutter plugin (audio or otherwise) that crashes when running in the background environment, another way you can help is to file a bug report with that project, letting them know of the simple fix to make it work (see below).
+Insert this in your `Info.plist` file:
+
+```
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+```
+
+The example project may be consulted for context.
 
 ### Sample bug report
+
+If you encounter a Flutter plugin that gives a `NullPointerException` on Android, it is likely that the plugin has assumed the existence of an activity when there is none. If that is the case, you can submit a bug report to the author of that plugin and suggest the simple fix that should get it to work.
 
 Here is a sample bug report.
 
