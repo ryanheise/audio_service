@@ -1,3 +1,7 @@
+## 0.5.0
+
+* Partial iOS support.
+
 ## 0.4.2
 
 * Option to call stopForeground on pause.
