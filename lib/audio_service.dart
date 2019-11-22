@@ -380,7 +380,7 @@ class AudioService {
   /// [disconnect] should be called when your UI is no longer visible. All
   /// other methods in this class will work only while connected.
   static Future<void> connect() async {
-    _channel.setMethodCallHandler((MethodCall call) {
+    _channel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'onChildrenLoaded':
           final List<Map> args = List<Map>.from(call.arguments[0]);
@@ -703,7 +703,6 @@ class AudioServiceBackground {
           task.onStop();
           break;
         case 'onPause':
-          print("received onPause over method channel");
           task.onPause();
           break;
         case 'onPrepare':
