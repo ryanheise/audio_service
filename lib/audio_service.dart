@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
