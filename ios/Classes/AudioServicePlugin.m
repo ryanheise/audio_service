@@ -19,6 +19,7 @@ static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
 static NSMutableDictionary *mediaItem = nil;
+static NSNumber *state = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -53,6 +54,24 @@ static NSMutableDictionary *mediaItem = nil;
   //   for the client instance and the background instance so that methods
   //   can't be called on the wrong instance.
   if ([@"connect" isEqualToString:call.method]) {
+    long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
+    // Notify client of state on subscribing.
+    if (state == nil) {
+      state = [NSNumber numberWithInt: 0];
+    }
+    [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
+      // state
+      state,
+      // actions (TODO)
+      @(0),
+      // position (TODO)
+      @(0),
+      // playback speed (TODO)
+      [NSNumber numberWithDouble: 1.0],
+      // update time since epoch (TODO)
+      [NSNumber numberWithLongLong: msSinceEpoch]
+    ]];
+
     result(nil);
   } else if ([@"disconnect" isEqualToString:call.method]) {
     result(nil);
@@ -198,9 +217,10 @@ static NSMutableDictionary *mediaItem = nil;
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
+    state = call.arguments[1];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
-      call.arguments[1],
+      state,
       // actions (TODO)
       @(0),
       // position
