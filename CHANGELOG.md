@@ -1,3 +1,7 @@
+## 0.5.1
+
+* Playback state broadcast on connect (iOS).
+
 ## 0.5.0
 
 * Partial iOS support.
