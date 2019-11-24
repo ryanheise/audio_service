@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -30,6 +32,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  final BehaviorSubject<double> _dragPositionSubject =
+      BehaviorSubject.seeded(null);
+
   @override
   void initState() {
     super.initState();
@@ -79,31 +84,73 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             title: const Text('Audio Service Demo'),
           ),
           body: new Center(
-            child: StreamBuilder(
-              stream: AudioService.playbackStateStream,
+            child: StreamBuilder<List<MediaItem>>(
+              stream: AudioService.queueStream,
               builder: (context, snapshot) {
-                PlaybackState state = snapshot.data;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (state?.basicState == BasicPlaybackState.connecting) ...[
-                      stopButton(),
-                      Text("Connecting..."),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.playing) ...[
-                      pauseButton(),
-                      stopButton(),
-                      positionIndicator(state),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.paused) ...[
-                      playButton(),
-                      stopButton(),
-                      positionIndicator(state),
-                    ] else ...[
-                      audioPlayerButton(),
-                      textToSpeechButton(),
-                    ],
-                  ],
+                final queue = snapshot.data;
+                return StreamBuilder<MediaItem>(
+                  stream: AudioService.currentMediaItemStream,
+                  builder: (context, snapshot) {
+                    final mediaItem = snapshot.data;
+                    return StreamBuilder<PlaybackState>(
+                      stream: AudioService.playbackStateStream,
+                      builder: (context, snapshot) {
+                        final state = snapshot.data;
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (queue != null && queue.isNotEmpty)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.skip_previous),
+                                    iconSize: 64.0,
+                                    onPressed: mediaItem == queue.first
+                                        ? null
+                                        : AudioService.skipToPrevious,
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.skip_next),
+                                    iconSize: 64.0,
+                                    onPressed: mediaItem == queue.last
+                                        ? null
+                                        : AudioService.skipToNext,
+                                  ),
+                                ],
+                              ),
+                            if (mediaItem?.title != null) Text(mediaItem.title),
+                            if (state?.basicState ==
+                                BasicPlaybackState.connecting) ...[
+                              stopButton(),
+                              Text("Connecting..."),
+                            ] else if (state?.basicState ==
+                                BasicPlaybackState.skippingToNext) ...[
+                              stopButton(),
+                              Text("Skipping..."),
+                            ] else if (state?.basicState ==
+                                BasicPlaybackState.skippingToPrevious) ...[
+                              stopButton(),
+                              Text("Skipping..."),
+                            ] else if (state?.basicState ==
+                                BasicPlaybackState.playing) ...[
+                              pauseButton(),
+                              stopButton(),
+                              positionIndicator(mediaItem, state),
+                            ] else if (state?.basicState ==
+                                BasicPlaybackState.paused) ...[
+                              playButton(),
+                              stopButton(),
+                              positionIndicator(mediaItem, state),
+                            ] else ...[
+                              audioPlayerButton(),
+                              textToSpeechButton(),
+                            ],
+                          ],
+                        );
+                      },
+                    );
+                  },
                 );
               },
             ),
@@ -119,8 +166,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   RaisedButton textToSpeechButton() =>
       startButton('TextToSpeech', _textToSpeechTaskEntrypoint);
 
-  RaisedButton startButton(String label, Function entrypoint) =>
-      RaisedButton(
+  RaisedButton startButton(String label, Function entrypoint) => RaisedButton(
         child: Text(label),
         onPressed: () {
           AudioService.start(
@@ -151,62 +197,112 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         onPressed: AudioService.stop,
       );
 
-  Widget positionIndicator(PlaybackState state) => StreamBuilder(
-        stream: Observable.periodic(Duration(milliseconds: 200)),
-        builder: (context, snapshdot) =>
+  Widget positionIndicator(MediaItem mediaItem, PlaybackState state) {
+    return StreamBuilder(
+      stream: Observable.combineLatest2<double, double, double>(
+          _dragPositionSubject.stream,
+          Observable.periodic(Duration(milliseconds: 200),
+              (_) => state.currentPosition.toDouble()),
+          (dragPosition, statePosition) => dragPosition ?? statePosition),
+      builder: (context, snapshot) {
+        var position = snapshot.data ?? 0.0;
+        double duration = mediaItem?.duration?.toDouble();
+        return Column(
+          children: [
+            if (duration != null)
+              Slider(
+                min: 0.0,
+                max: duration,
+                value: max(0.0, min(position, duration)),
+                onChanged: (value) {
+                  _dragPositionSubject.add(value);
+                },
+                onChangeEnd: (value) {
+                  AudioService.seekTo(value.toInt());
+                  _dragPositionSubject.add(null);
+                },
+              ),
             Text("${(state.currentPosition / 1000).toStringAsFixed(3)}"),
-      );
+          ],
+        );
+      },
+    );
+  }
 }
 
 void _audioPlayerTaskEntrypoint() async {
-  AudioServiceBackground.run(() => CustomAudioPlayer());
+  AudioServiceBackground.run(() => AudioPlayerTask());
 }
 
-class CustomAudioPlayer extends BackgroundAudioTask {
-  static const streamUri =
-      'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3';
+class AudioPlayerTask extends BackgroundAudioTask {
+  final _queue = <MediaItem>[
+    MediaItem(
+      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+      album: "Science Friday",
+      title: "A Salute To Head-Scratching Science",
+      artist: "Science Friday and WNYC Studios",
+      duration: 5739820,
+      artUri:
+          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+    ),
+    MediaItem(
+      id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
+      album: "Science Friday",
+      title: "From Cat Rheology To Operatic Incompetence",
+      artist: "Science Friday and WNYC Studios",
+      duration: 2856950,
+      artUri:
+          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+    ),
+  ];
+  int _queueIndex = 0;
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
   int _position;
 
+  bool get hasNext => _queueIndex + 1 < _queue.length;
+
+  bool get hasPrevious => _queueIndex > 0;
+
+  MediaItem get mediaItem => _queue[_queueIndex];
+
   @override
   Future<void> onStart() async {
-    MediaItem mediaItem = MediaItem(
-        id: 'audio_1',
-        album: 'Sample Album',
-        title: 'Sample Title',
-        artist: 'Sample Artist');
-
-    AudioServiceBackground.setMediaItem(mediaItem);
-
     var playerStateSubscription = _audioPlayer.onPlayerStateChanged
         .where((state) => state == AudioPlayerState.COMPLETED)
         .listen((state) {
-      onStop();
+      _handlePlaybackCompleted();
     });
     var audioPositionSubscription =
         _audioPlayer.onAudioPositionChanged.listen((when) {
-      final connected = _position == null;
+      final wasConnecting = _position == null;
       _position = when.inMilliseconds;
-      if (connected) {
-        // After a delay, we finally start receiving audio positions
-        // from the AudioPlayer plugin, so we can set the state to
-        // playing.
-        _setPlayingState();
+      if (wasConnecting) {
+        // After a delay, we finally start receiving audio positions from the
+        // AudioPlayer plugin, so we can broadcast the playing state.
+        _setPlayState();
       }
     });
+
+    AudioServiceBackground.setQueue(_queue);
+    AudioServiceBackground.setMediaItem(mediaItem);
+    _setState(state: BasicPlaybackState.connecting, position: 0);
     onPlay();
     await _completer.future;
     playerStateSubscription.cancel();
     audioPositionSubscription.cancel();
   }
 
-  void _setPlayingState() {
-    AudioServiceBackground.setState(
-      controls: [pauseControl, stopControl],
-      basicState: BasicPlaybackState.playing,
-      position: _position,
-    );
+  void _setPlayState() {
+    _setState(state: BasicPlaybackState.playing, position: _position);
+  }
+
+  void _handlePlaybackCompleted() {
+    if (hasNext) {
+      onSkipToNext();
+    } else {
+      onStop();
+    }
   }
 
   void playPause() {
@@ -217,29 +313,51 @@ class CustomAudioPlayer extends BackgroundAudioTask {
   }
 
   @override
+  void onSkipToNext() {
+    if (!hasNext) return;
+    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing) {
+      _audioPlayer.stop();
+    }
+    _queueIndex++;
+    _position = null;
+    _setState(state: BasicPlaybackState.skippingToNext, position: 0);
+    AudioServiceBackground.setMediaItem(mediaItem);
+    onPlay();
+  }
+
+  @override
+  void onSkipToPrevious() {
+    if (!hasPrevious) return;
+    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing) {
+      _audioPlayer.stop();
+    _queueIndex--;
+    _position = null;
+    }
+    _setState(state: BasicPlaybackState.skippingToPrevious, position: 0);
+    AudioServiceBackground.setMediaItem(mediaItem);
+    onPlay();
+  }
+
+  @override
   void onPlay() {
-    _audioPlayer.play(streamUri);
-    if (_position == null) {
-      // There may be a delay while the AudioPlayer plugin connects.
-      AudioServiceBackground.setState(
-        controls: [stopControl],
-        basicState: BasicPlaybackState.connecting,
-        position: 0,
-      );
-    } else {
-      // We've already connected, so no delay.
-      _setPlayingState();
+    _audioPlayer.play(mediaItem.id);
+    if (_position != null) {
+      _setPlayState();
+      // Otherwise we are still loading the audio.
     }
   }
 
   @override
   void onPause() {
     _audioPlayer.pause();
-    AudioServiceBackground.setState(
-      controls: [playControl, stopControl],
-      basicState: BasicPlaybackState.paused,
-      position: _position,
-    );
+    _setState(state: BasicPlaybackState.paused, position: _position);
+  }
+
+  @override
+  void onSeekTo(int position) {
+    _audioPlayer.seek(position / 1000.0);
+    final state = AudioServiceBackground.state.basicState;
+    _setState(state: state, position: position);
   }
 
   @override
@@ -250,19 +368,35 @@ class CustomAudioPlayer extends BackgroundAudioTask {
   @override
   void onStop() {
     _audioPlayer.stop();
-    AudioServiceBackground.setState(
-      controls: [],
-      basicState: BasicPlaybackState.stopped,
-    );
+    _setState(state: BasicPlaybackState.stopped);
     _completer.complete();
+  }
+
+  void _setState({@required BasicPlaybackState state, int position = 0}) {
+    AudioServiceBackground.setState(
+      controls: getControls(state),
+      basicState: state,
+      position: position,
+    );
+  }
+
+  List<MediaControl> getControls(BasicPlaybackState state) {
+    switch (state) {
+      case BasicPlaybackState.playing:
+        return [pauseControl, stopControl];
+      case BasicPlaybackState.paused:
+        return [playControl, stopControl];
+      default:
+        return [stopControl];
+    }
   }
 }
 
 void _textToSpeechTaskEntrypoint() async {
-  AudioServiceBackground.run(() => TextPlayer());
+  AudioServiceBackground.run(() => TextPlayerTask());
 }
 
-class TextPlayer extends BackgroundAudioTask {
+class TextPlayerTask extends BackgroundAudioTask {
   FlutterTts _tts = FlutterTts();
 
   /// Represents the completion of a period of playing or pausing.

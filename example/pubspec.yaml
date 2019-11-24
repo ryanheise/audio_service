@@ -16,7 +16,7 @@ dependencies:
   path_provider: ^1.4.0
   audioplayer: ^0.5.2
   flutter_tts: ^0.7.0
-  rxdart: ^0.22.0
+  rxdart: ^0.22.6
   audio_service:
     path: ../
 
