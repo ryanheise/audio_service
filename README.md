@@ -23,11 +23,11 @@ Note that because your app's UI and your background audio task will run in separ
 | skip next/prev                 | ✅         | ✅         |
 | FF/rewind                      | ✅         | ✅         |
 | rate                           | ✅         | ✅         |
-| queue management               | ✅         | ✅         |
 | custom actions                 | ✅         | (untested) |
 | notifications/control center   | ✅         | ✅         |
 | lock screen controls           | ✅         | ✅         |
 | album art                      | ✅         |            |
+| queue management               | ✅         |            |
 | runs in background             | ✅         | ✅         |
 | Handle phonecall interruptions | ✅         |            |
 | Android Auto                   | (untested) |            |

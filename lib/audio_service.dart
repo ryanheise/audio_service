@@ -122,7 +122,8 @@ class Rating {
   const Rating._internal(this._type, this._value);
 
   /// Create a new heart rating.
-  const Rating.newHeartRating(bool hasHeart) : this._internal(RatingStyle.heart, hasHeart);
+  const Rating.newHeartRating(bool hasHeart)
+      : this._internal(RatingStyle.heart, hasHeart);
 
   /// Create a new percentage rating.
   factory Rating.newPercentageRating(double percent) {
@@ -132,18 +133,23 @@ class Rating {
 
   /// Create a new star rating.
   factory Rating.newStartRating(RatingStyle starRatingStyle, int starRating) {
-    if (starRatingStyle != RatingStyle.range3stars && starRatingStyle != RatingStyle.range4stars && starRatingStyle != RatingStyle.range5stars) {
+    if (starRatingStyle != RatingStyle.range3stars &&
+        starRatingStyle != RatingStyle.range4stars &&
+        starRatingStyle != RatingStyle.range5stars) {
       throw ArgumentError();
     }
-    if (starRating > starRatingStyle.index || starRating < 0) throw ArgumentError();
+    if (starRating > starRatingStyle.index || starRating < 0)
+      throw ArgumentError();
     return Rating._internal(starRatingStyle, starRating);
   }
 
   /// Create a new thumb rating.
-  const Rating.newThumbRating(bool isThumbsUp) : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
+  const Rating.newThumbRating(bool isThumbsUp)
+      : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
 
   /// Create a new unrated rating.
-  const Rating.newUnratedRating(RatingStyle ratingStyle) : this._internal(ratingStyle, null);
+  const Rating.newUnratedRating(RatingStyle ratingStyle)
+      : this._internal(ratingStyle, null);
 
   /// Return the rating style.
   RatingStyle getRatingStyle() => _type;
@@ -161,7 +167,9 @@ class Rating {
   /// value if the rating style is not star-based, or if it is
   /// unrated.
   int getStarRating() {
-    if (_type != RatingStyle.range3stars && _type != RatingStyle.range4stars && _type != RatingStyle.range5stars) return -1;
+    if (_type != RatingStyle.range3stars &&
+        _type != RatingStyle.range4stars &&
+        _type != RatingStyle.range5stars) return -1;
     return _value ?? -1;
   }
 
@@ -192,7 +200,8 @@ class Rating {
   }
 
   // Even though this should take a Map<String, dynamic>, that makes an error.
-  Rating._fromRaw(Map<dynamic, dynamic> raw) : this._internal(RatingStyle.values[raw['type']], raw['value']);
+  Rating._fromRaw(Map<dynamic, dynamic> raw)
+      : this._internal(RatingStyle.values[raw['type']], raw['value']);
 }
 
 /// Metadata about an audio item that can be played, or a folder containing
@@ -497,8 +506,7 @@ class AudioService {
       'androidNotificationIcon': androidNotificationIcon,
       'androidNotificationClickStartsActivity':
           androidNotificationClickStartsActivity,
-      'androidNotificationOngoing':
-          androidNotificationOngoing,
+      'androidNotificationOngoing': androidNotificationOngoing,
       'resumeOnClick': resumeOnClick,
       'shouldPreloadArtwork': shouldPreloadArtwork,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
@@ -604,7 +612,8 @@ class AudioService {
 
   /// Passes through to `onSetRating` in the background task.
   /// The extras map must *only* contain primitive types!
-  static Future<void> setRating(Rating rating, [Map<String, dynamic> extras]) async {
+  static Future<void> setRating(Rating rating,
+      [Map<String, dynamic> extras]) async {
     await _channel.invokeMethod('setRating', {
       "rating": rating._toRaw(),
       "extras": extras,
@@ -664,19 +673,19 @@ class AudioServiceBackground {
           List<MediaItem> mediaItems = await task.onLoadChildren(parentMediaId);
           List<Map> rawMediaItems = mediaItems
               .map((mediaItem) => {
-                'id': mediaItem.id,
-                'album': mediaItem.album,
-                'title': mediaItem.title,
-                'artist': mediaItem.artist,
-                'genre': mediaItem.genre,
-                'duration': mediaItem.duration,
-                'artUri': mediaItem.artUri,
-                'playable': mediaItem.playable,
-                'displayTitle': mediaItem.displayTitle,
-                'displaySubtitle': mediaItem.displaySubtitle,
-                'displayDescription': mediaItem.displayDescription,
-              })
-          .toList();
+                    'id': mediaItem.id,
+                    'album': mediaItem.album,
+                    'title': mediaItem.title,
+                    'artist': mediaItem.artist,
+                    'genre': mediaItem.genre,
+                    'duration': mediaItem.duration,
+                    'artUri': mediaItem.artUri,
+                    'playable': mediaItem.playable,
+                    'displayTitle': mediaItem.displayTitle,
+                    'displaySubtitle': mediaItem.displaySubtitle,
+                    'displayDescription': mediaItem.displayDescription,
+                  })
+              .toList();
           return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
           task.onAudioFocusGained();
@@ -755,7 +764,8 @@ class AudioServiceBackground {
           task.onSeekTo(pos);
           break;
         case 'onSetRating':
-          task.onSetRating(Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+          task.onSetRating(
+              Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
@@ -807,8 +817,14 @@ class AudioServiceBackground {
               'action': control.action.index,
             })
         .toList();
-    await _backgroundChannel.invokeMethod('setState',
-        [rawControls, basicState.index, position, speed, updateTime, androidCompactActions]);
+    await _backgroundChannel.invokeMethod('setState', [
+      rawControls,
+      basicState.index,
+      position,
+      speed,
+      updateTime,
+      androidCompactActions
+    ]);
   }
 
   /// Sets the current queue and notifies all clients.
