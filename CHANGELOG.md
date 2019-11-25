@@ -1,3 +1,7 @@
+## 0.5.2
+
+* Update documentation and example.
+
 ## 0.5.1
 
 * Playback state broadcast on connect (iOS).
