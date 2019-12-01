@@ -23,6 +23,7 @@ static NSNumber *state = nil;
 static NSNumber *position = nil;
 static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
+static MPMediaItemArtwork* artwork = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -239,24 +240,27 @@ static NSNumber *speed = nil;
       // update time since epoch
       updateTime
     ]];
-    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
-    // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate]
+    [self updateNowPlayingInfo];
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
     [channel invokeMethod:@"onQueueChanged" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
     mediaItem = call.arguments;
-    // TODO: Make reusable method to update nowPlayingInfo
-    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
-    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
-    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
-    if (mediaItem[@"duration"] != [NSNull null]) {
-      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+    NSString* artUri = mediaItem[@"artUri"];
+    if (artUri != [NSNull null]) {
+      NSURL* artUrl = [[NSURL alloc] initWithString:artUri];
+      NSData* artData = [NSData dataWithContentsOfURL:artUrl];
+      UIImage* artImage = [UIImage imageWithData:artData];
+      artwork = [[MPMediaItemArtwork alloc]
+        initWithBoundsSize:artImage.size
+            requestHandler:^UIImage* _Nonnull(CGSize size){
+              return artImage;
+            }];
+    } else {
+      artwork = nil;
     }
-    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
-    // TODO: nowPlayingInfo[MPMediaItemPropertyArtwork] = ...;
-    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    [self updateNowPlayingInfo];
     [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
     result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
@@ -273,35 +277,31 @@ static NSNumber *speed = nil;
 - (MPRemoteCommandHandlerStatus) play: (MPRemoteCommandEvent *) event {
   NSLog(@"play");
   [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
-  if (mediaItem != nil) {
-    // TODO: Make reusable method to update nowPlayingInfo
-    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
-    nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
-    nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
-    if (mediaItem[@"duration"] != [NSNull null]) {
-      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
-    }
-    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
-    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
-  }
   return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) pause: (MPRemoteCommandEvent *) event {
   NSLog(@"pause");
   [backgroundChannel invokeMethod:@"onPause" arguments:nil];
-  if (mediaItem != nil) {
-    // TODO: Make reusable method to update nowPlayingInfo
-    NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (void) updateNowPlayingInfo {
+  NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
+  if (mediaItem) {
     nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
     nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
     if (mediaItem[@"duration"] != [NSNull null]) {
       nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
     }
-    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 0.0];
-    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    if (artwork) {
+      nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork;
+    }
+    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithInt:([position intValue] / 1000)];
   }
-  return MPRemoteCommandHandlerStatusSuccess;
+  int stateCode = state ? [state intValue] : 0;
+  nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: stateCode >= 3 ? 1.0 : 0.0];
+  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
