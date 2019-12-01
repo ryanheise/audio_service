@@ -20,6 +20,9 @@ static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
 static NSMutableDictionary *mediaItem = nil;
 static NSNumber *state = nil;
+static NSNumber *position = nil;
+static NSNumber *updateTime = nil;
+static NSNumber *speed = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -58,18 +61,21 @@ static NSNumber *state = nil;
     // Notify client of state on subscribing.
     if (state == nil) {
       state = [NSNumber numberWithInt: 0];
+      position = @(0);
+      updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
+      speed = [NSNumber numberWithDouble: 1.0];
     }
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       state,
       // actions (TODO)
       @(0),
-      // position (TODO)
-      @(0),
-      // playback speed (TODO)
-      [NSNumber numberWithDouble: 1.0],
-      // update time since epoch (TODO)
-      [NSNumber numberWithLongLong: msSinceEpoch]
+      // position
+      position,
+      // playback speed
+      speed,
+      // update time since epoch
+      updateTime
     ]];
 
     result(nil);
@@ -218,17 +224,20 @@ static NSNumber *state = nil;
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
     state = call.arguments[1];
+    position = call.arguments[2];
+    updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
+    speed = call.arguments[3];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       state,
       // actions (TODO)
       @(0),
       // position
-      call.arguments[2],
+      position,
       // playback speed
-      call.arguments[3],
+      speed,
       // update time since epoch
-      [NSNumber numberWithLongLong: msSinceEpoch]
+      updateTime
     ]];
     // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackProgress]
     // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate]
