@@ -166,31 +166,31 @@ static NSNumber *speed = nil;
   } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"addQueueItem" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
     result(@YES);
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"click" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onClick" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"prepare" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPrepare" arguments:nil];
     result(@YES);
   } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"play" isEqualToString:call.method]) {
     [self play: nil];
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"pause" isEqualToString:call.method]) {
     [self pause: nil];
@@ -199,7 +199,7 @@ static NSNumber *speed = nil;
     [backgroundChannel invokeMethod:@"onStop" arguments:nil];
     result(@YES);
   } else if ([@"seekTo" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onSeekTo" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSeekTo" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"skipToNext" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
@@ -214,7 +214,7 @@ static NSNumber *speed = nil;
     [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
     result(@YES);
   } else if ([@"setRating" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onSetRating" arguments:call.arguments];
+    [backgroundChannel invokeMethod:@"onSetRating" arguments:@[call.arguments, [NSNull null]]];
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
