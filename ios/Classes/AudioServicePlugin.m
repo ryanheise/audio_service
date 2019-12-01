@@ -243,7 +243,7 @@ static NSNumber *speed = nil;
     // TODO: update nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate]
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
-    // TODO: pass through to onSetQueue
+    [channel invokeMethod:@"onQueueChanged" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
     mediaItem = call.arguments;
@@ -256,10 +256,8 @@ static NSNumber *speed = nil;
     }
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: 1.0];
     // TODO: nowPlayingInfo[MPMediaItemPropertyArtwork] = ...;
-
-    // TODO: Investigate why nowPlayingInfo isn't showing in Control Center.
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
-    [channel invokeMethod:@"onMediaChanged" arguments:call.arguments];
+    [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
     result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
     result(@YES);
