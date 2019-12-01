@@ -26,8 +26,8 @@ Note that because your app's UI and your background audio task will run in separ
 | custom actions                 | ✅         | (untested) |
 | notifications/control center   | ✅         | ✅         |
 | lock screen controls           | ✅         | ✅         |
-| album art                      | ✅         |            |
-| queue management               | ✅         |            |
+| album art                      | ✅         | ✅         |
+| queue management               | ✅         | ✅         |
 | runs in background             | ✅         | ✅         |
 | Handle phonecall interruptions | ✅         |            |
 | Android Auto                   | (untested) |            |

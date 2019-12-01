@@ -1,3 +1,7 @@
+## 0.5.3
+
+* Support Queue, album art and other missing features on iOS.
+
 ## 0.5.2
 
 * Update documentation and example.
