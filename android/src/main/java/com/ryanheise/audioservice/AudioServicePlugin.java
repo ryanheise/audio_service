@@ -32,6 +32,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.flutter.plugin.common.PluginRegistry.ViewDestroyListener;
 import io.flutter.view.FlutterCallbackInformation;
 import io.flutter.view.FlutterMain;
 import io.flutter.view.FlutterNativeView;
@@ -67,7 +68,7 @@ public class AudioServicePlugin {
 		if (registrar.activity() != null)
 			clientHandler = new ClientHandler(registrar);
 		else
-			backgroundHandler = new BackgroundHandler(registrar);
+			backgroundHandler.init(registrar);
 	}
 
 	private static void sendConnectResult(boolean result) {
@@ -80,7 +81,7 @@ public class AudioServicePlugin {
 		startResult = null;
 	}
 
-	private static class ClientHandler implements MethodCallHandler {
+	private static class ClientHandler implements MethodCallHandler, ViewDestroyListener {
 		private Registrar registrar;
 		private MethodChannel channel;
 		private boolean playPending;
@@ -159,6 +160,13 @@ public class AudioServicePlugin {
 			this.registrar = registrar;
 			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE);
 			channel.setMethodCallHandler(this);
+			registrar.addViewDestroyListener(this);
+		}
+
+		@Override
+		public boolean onViewDestroy(FlutterNativeView view) {
+			clientHandler = null;
+			return false;
 		}
 
 		@Override
@@ -190,148 +198,8 @@ public class AudioServicePlugin {
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(application);
 				Activity activity = application.getCurrentActivity();
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, new AudioService.ServiceListener() {
-					@Override
-					public void onAudioFocusGained() {
-						backgroundHandler.invokeMethod("onAudioFocusGained");
-					}
-					@Override
-					public void onAudioFocusLost() {
-						backgroundHandler.invokeMethod("onAudioFocusLost");
-					}
-					@Override
-					public void onAudioFocusLostTransient() {
-						backgroundHandler.invokeMethod("onAudioFocusLostTransient");
-					}
-					@Override
-					public void onAudioFocusLostTransientCanDuck() {
-						backgroundHandler.invokeMethod("onAudioFocusLostTransientCanDuck");
-					}
-					@Override
-					public void onAudioBecomingNoisy() {
-						backgroundHandler.invokeMethod("onAudioBecomingNoisy");
-					}
-					@Override
-					public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
-						ArrayList<Object> list = new ArrayList<Object>();
-						list.add(parentMediaId);
-						backgroundHandler.channel.invokeMethod("onLoadChildren", list, new MethodChannel.Result() {
-							@Override
-							public void error(String errorCode, String errorMessage, Object errorDetails) {
-								result.sendError(new Bundle());
-							}
-							@Override
-							public void notImplemented() {
-								result.sendError(new Bundle());
-							}
-							@Override
-							public void success(Object obj) {
-								List<Map<?,?>> rawMediaItems = (List<Map<?,?>>)obj;
-								List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
-								for (Map<?,?> rawMediaItem : rawMediaItems) {
-									MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-									mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
-								}
-								result.sendResult(mediaItems);
-							}
-						});
-						result.detach();
-					}
-					@Override
-					public void onClick(MediaControl mediaControl) {
-						backgroundHandler.invokeMethod("onClick", mediaControl.ordinal());
-					}
-					@Override
-					public void onPause() {
-						backgroundHandler.invokeMethod("onPause");
-					}
-					@Override
-					public void onPrepare() {
-						backgroundHandler.invokeMethod("onPrepare");
-					}
-					@Override
-					public void onPrepareFromMediaId(String mediaId) {
-						backgroundHandler.invokeMethod("onPrepare", mediaId);
-					}
-					@Override
-					public void onPlay() {
-						if (backgroundFlutterView == null) {
-							FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-							if (cb == null || appBundlePath == null) {
-								sendStartResult(false);
-								return;
-							}
-							backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
-							if (pluginRegistrantCallback == null) {
-								sendStartResult(false);
-								throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
-							}
-							if (enableQueue)
-								AudioService.instance.enableQueue();
-							pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
-							FlutterRunArguments args = new FlutterRunArguments();
-							args.bundlePath = appBundlePath;
-							args.entrypoint = cb.callbackName;
-							args.libraryPath = cb.callbackLibraryPath;
-							backgroundFlutterView.runFromBundle(args);
-						}
-						else
-							backgroundHandler.invokeMethod("onPlay");
-					}
-					@Override
-					public void onPlayFromMediaId(String mediaId) {
-						backgroundHandler.invokeMethod("onPlayFromMediaId", mediaId);
-					}
-					@Override
-					public void onStop() {
-						backgroundHandler.invokeMethod("onStop");
-					}
-					@Override
-					public void onAddQueueItem(MediaMetadataCompat metadata) {
-						backgroundHandler.invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata));
-					}
-					@Override
-					public void onAddQueueItemAt(MediaMetadataCompat metadata, int index) {
-						backgroundHandler.invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata), index);
-					}
-					@Override
-					public void onRemoveQueueItem(MediaMetadataCompat metadata) {
-						backgroundHandler.invokeMethod("onRemoveQueueItem", mediaMetadata2raw(metadata));
-					}
-					@Override
-					public void onSkipToQueueItem(long queueItemId) {
-						String mediaId = queueMediaIds.get((int)queueItemId);
-						backgroundHandler.invokeMethod("onSkipToQueueItem", mediaId);
-					}
-					@Override
-					public void onSkipToNext() {
-						backgroundHandler.invokeMethod("onSkipToNext");
-					}
-					@Override
-					public void onSkipToPrevious() {
-						backgroundHandler.invokeMethod("onSkipToPrevious");
-					}
-					@Override
-					public void onFastForward() {
-						backgroundHandler.invokeMethod("onFastForward");
-					}
-					@Override
-					public void onRewind() {
-						backgroundHandler.invokeMethod("onRewind");
-					}
-					@Override
-					public void onSeekTo(long pos) {
-						backgroundHandler.invokeMethod("onSeekTo", pos);
-					}
-					@Override
-					public void onSetRating(RatingCompat rating) {
-						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), null);
-					}
-					@Override
-					public void onSetRating(RatingCompat rating, Bundle extras) {
-						backgroundHandler.invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
-					}
-				});
+				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
@@ -417,7 +285,8 @@ public class AudioServicePlugin {
 			//case "adjustVolume"
 			case "click":
 				int buttonIndex = (int)call.arguments;
-				backgroundHandler.invokeMethod("onClick", buttonIndex);
+				if (backgroundHandler != null)
+					backgroundHandler.invokeMethod("onClick", buttonIndex);
 				result.success(true);
 				break;
 			case "prepare":
@@ -495,20 +364,22 @@ public class AudioServicePlugin {
 					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>) arguments.get("rating")));
 				}
 			default:
-				backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
-					@Override
-					public void error(String errorCode, String errorMessage, Object errorDetails) {
-						result.success(null);
-					}
-					@Override
-					public void notImplemented() {
-						result.success(null);
-					}
-					@Override
-					public void success(Object obj) {
-						result.success(obj);
-					}
-				});
+				if (backgroundHandler != null) {
+					backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
+						@Override
+						public void error(String errorCode, String errorMessage, Object errorDetails) {
+							result.success(null);
+						}
+						@Override
+						public void notImplemented() {
+							result.success(null);
+						}
+						@Override
+						public void success(Object obj) {
+							result.success(obj);
+						}
+					});
+				}
 				break;
 			}
 		}
@@ -519,18 +390,171 @@ public class AudioServicePlugin {
 		}
 	}
 
-	private static class BackgroundHandler implements MethodCallHandler {
+	private static class BackgroundHandler implements MethodCallHandler, AudioService.ServiceListener {
+		private long callbackHandle;
+		private String appBundlePath;
+		private boolean enableQueue;
 		private Registrar registrar;
 		public MethodChannel channel;
 		private AudioTrack silenceAudioTrack;
 		private static final int SILENCE_SAMPLE_RATE = 44100;
 		private byte[] silence;
 
-		public BackgroundHandler(Registrar registrar) {
+		public BackgroundHandler(long callbackHandle, String appBundlePath, boolean enableQueue) {
+			this.callbackHandle = callbackHandle;
+			this.appBundlePath = appBundlePath;
+			this.enableQueue = enableQueue;
+		}
+
+		public void init(Registrar registrar) {
 			this.registrar = registrar;
 			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE_BACKGROUND);
 			channel.setMethodCallHandler(this);
 		}
+
+		@Override
+		public void onAudioFocusGained() {
+			invokeMethod("onAudioFocusGained");
+		}
+		@Override
+		public void onAudioFocusLost() {
+			invokeMethod("onAudioFocusLost");
+		}
+		@Override
+		public void onAudioFocusLostTransient() {
+			invokeMethod("onAudioFocusLostTransient");
+		}
+		@Override
+		public void onAudioFocusLostTransientCanDuck() {
+			invokeMethod("onAudioFocusLostTransientCanDuck");
+		}
+		@Override
+		public void onAudioBecomingNoisy() {
+			invokeMethod("onAudioBecomingNoisy");
+		}
+		@Override
+		public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
+			ArrayList<Object> list = new ArrayList<Object>();
+			list.add(parentMediaId);
+			if (backgroundHandler != null) {
+				backgroundHandler.channel.invokeMethod("onLoadChildren", list, new MethodChannel.Result() {
+					@Override
+					public void error(String errorCode, String errorMessage, Object errorDetails) {
+						result.sendError(new Bundle());
+					}
+					@Override
+					public void notImplemented() {
+						result.sendError(new Bundle());
+					}
+					@Override
+					public void success(Object obj) {
+						List<Map<?,?>> rawMediaItems = (List<Map<?,?>>)obj;
+						List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
+						for (Map<?,?> rawMediaItem : rawMediaItems) {
+							MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+							mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+						}
+						result.sendResult(mediaItems);
+					}
+				});
+			}
+			result.detach();
+		}
+		@Override
+		public void onClick(MediaControl mediaControl) {
+			invokeMethod("onClick", mediaControl.ordinal());
+		}
+		@Override
+		public void onPause() {
+			invokeMethod("onPause");
+		}
+		@Override
+		public void onPrepare() {
+			invokeMethod("onPrepare");
+		}
+		@Override
+		public void onPrepareFromMediaId(String mediaId) {
+			invokeMethod("onPrepare", mediaId);
+		}
+		@Override
+		public void onPlay() {
+			if (backgroundFlutterView == null) {
+				FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
+				if (cb == null || appBundlePath == null) {
+					sendStartResult(false);
+					return;
+				}
+				backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
+				if (pluginRegistrantCallback == null) {
+					sendStartResult(false);
+					throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
+				}
+				if (enableQueue)
+					AudioService.instance.enableQueue();
+				pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
+				FlutterRunArguments args = new FlutterRunArguments();
+				args.bundlePath = appBundlePath;
+				args.entrypoint = cb.callbackName;
+				args.libraryPath = cb.callbackLibraryPath;
+				backgroundFlutterView.runFromBundle(args);
+			}
+			else
+				invokeMethod("onPlay");
+		}
+		@Override
+		public void onPlayFromMediaId(String mediaId) {
+			invokeMethod("onPlayFromMediaId", mediaId);
+		}
+		@Override
+		public void onStop() {
+			invokeMethod("onStop");
+		}
+		@Override
+		public void onAddQueueItem(MediaMetadataCompat metadata) {
+			invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata));
+		}
+		@Override
+		public void onAddQueueItemAt(MediaMetadataCompat metadata, int index) {
+			invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata), index);
+		}
+		@Override
+		public void onRemoveQueueItem(MediaMetadataCompat metadata) {
+			invokeMethod("onRemoveQueueItem", mediaMetadata2raw(metadata));
+		}
+		@Override
+		public void onSkipToQueueItem(long queueItemId) {
+			String mediaId = queueMediaIds.get((int)queueItemId);
+			invokeMethod("onSkipToQueueItem", mediaId);
+		}
+		@Override
+		public void onSkipToNext() {
+			invokeMethod("onSkipToNext");
+		}
+		@Override
+		public void onSkipToPrevious() {
+			invokeMethod("onSkipToPrevious");
+		}
+		@Override
+		public void onFastForward() {
+			invokeMethod("onFastForward");
+		}
+		@Override
+		public void onRewind() {
+			invokeMethod("onRewind");
+		}
+		@Override
+		public void onSeekTo(long pos) {
+			invokeMethod("onSeekTo", pos);
+		}
+		@Override
+		public void onSetRating(RatingCompat rating) {
+			invokeMethod("onSetRating", rating2raw(rating), null);
+		}
+		@Override
+		public void onSetRating(RatingCompat rating, Bundle extras) {
+			invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
+		}
+
 
 		@Override
 		public void onMethodCall(MethodCall call, Result result) {
@@ -593,8 +617,9 @@ public class AudioServicePlugin {
 				AudioService.instance.stop();
 				if (silenceAudioTrack != null)
 					silenceAudioTrack.release();
+				if (clientHandler != null) clientHandler.invokeMethod("onStopped");
 				backgroundFlutterView = null;
-				clientHandler.invokeMethod("onStopped");
+				backgroundHandler = null;
 				result.success(true);
 				break;
 			case "notifyChildrenChanged":
