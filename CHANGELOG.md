@@ -1,3 +1,7 @@
+## 0.5.4
+
+* Fix Android memory leak.
+
 ## 0.5.3
 
 * Support Queue, album art and other missing features on iOS.
