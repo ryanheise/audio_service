@@ -88,8 +88,7 @@ class MyBackgroundTask extends BackgroundAudioTask {
   }
 }
 ```
-
-The full example on GitHub demonstrates how to fill in these callbacks to do audio playback and also text-to-speech.
+The full example on GitHub demonstrates how to fill in these callbacks to do audio playback and also text-to-speech. Note that the entry point is also run in the background isolate, and therefore must be a static or top level method, as shown.
 
 ## Android setup
 
