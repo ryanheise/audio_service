@@ -18,6 +18,7 @@ static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
+static NSArray *queue = nil;
 static NSMutableDictionary *mediaItem = nil;
 static NSNumber *state = nil;
 static NSNumber *position = nil;
@@ -78,6 +79,8 @@ static MPMediaItemArtwork* artwork = nil;
       // update time since epoch
       updateTime
     ]];
+    [channel invokeMethod:@"onMediaChanged" arguments:@[mediaItem ? mediaItem : [NSNull null]]];
+    [channel invokeMethod:@"onQueueChanged" arguments:@[queue ? queue : [NSNull null]]];
 
     result(nil);
   } else if ([@"disconnect" isEqualToString:call.method]) {
@@ -243,7 +246,8 @@ static MPMediaItemArtwork* artwork = nil;
     [self updateNowPlayingInfo];
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onQueueChanged" arguments:@[call.arguments]];
+    queue = call.arguments;
+    [channel invokeMethod:@"onQueueChanged" arguments:@[queue]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
     mediaItem = call.arguments;

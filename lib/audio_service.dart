@@ -439,12 +439,12 @@ class AudioService {
           _playbackStateSubject.add(_playbackState);
           break;
         case 'onMediaChanged':
-          _currentMediaItem = _raw2mediaItem(call.arguments[0]);
+          _currentMediaItem = call.arguments[0] != null ? _raw2mediaItem(call.arguments[0]) : null;
           _currentMediaItemSubject.add(_currentMediaItem);
           break;
         case 'onQueueChanged':
-          final List<Map> args = List<Map>.from(call.arguments[0]);
-          _queue = args.map(_raw2mediaItem).toList();
+          final List<Map> args = call.arguments[0] != null ? List<Map>.from(call.arguments[0]) : null;
+          _queue = args?.map(_raw2mediaItem)?.toList();
           _queueSubject.add(_queue);
           break;
         case 'onStopped':

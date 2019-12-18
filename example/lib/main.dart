@@ -84,73 +84,64 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             title: const Text('Audio Service Demo'),
           ),
           body: new Center(
-            child: StreamBuilder<List<MediaItem>>(
-              stream: AudioService.queueStream,
+            child: StreamBuilder<ScreenState>(
+              stream: Rx.combineLatest3<List<MediaItem>, MediaItem, PlaybackState, ScreenState>(AudioService.queueStream, AudioService.currentMediaItemStream, AudioService.playbackStateStream, (queue, mediaItem, playbackState) => ScreenState(queue, mediaItem, playbackState)),
               builder: (context, snapshot) {
-                final queue = snapshot.data;
-                return StreamBuilder<MediaItem>(
-                  stream: AudioService.currentMediaItemStream,
-                  builder: (context, snapshot) {
-                    final mediaItem = snapshot.data;
-                    return StreamBuilder<PlaybackState>(
-                      stream: AudioService.playbackStateStream,
-                      builder: (context, snapshot) {
-                        final state = snapshot.data;
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (queue != null && queue.isNotEmpty)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.skip_previous),
-                                    iconSize: 64.0,
-                                    onPressed: mediaItem == queue.first
-                                        ? null
-                                        : AudioService.skipToPrevious,
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.skip_next),
-                                    iconSize: 64.0,
-                                    onPressed: mediaItem == queue.last
-                                        ? null
-                                        : AudioService.skipToNext,
-                                  ),
-                                ],
-                              ),
-                            if (mediaItem?.title != null) Text(mediaItem.title),
-                            if (state?.basicState ==
-                                BasicPlaybackState.connecting) ...[
-                              stopButton(),
-                              Text("Connecting..."),
-                            ] else if (state?.basicState ==
-                                BasicPlaybackState.skippingToNext) ...[
-                              stopButton(),
-                              Text("Skipping..."),
-                            ] else if (state?.basicState ==
-                                BasicPlaybackState.skippingToPrevious) ...[
-                              stopButton(),
-                              Text("Skipping..."),
-                            ] else if (state?.basicState ==
-                                BasicPlaybackState.playing) ...[
-                              pauseButton(),
-                              stopButton(),
-                              positionIndicator(mediaItem, state),
-                            ] else if (state?.basicState ==
-                                BasicPlaybackState.paused) ...[
-                              playButton(),
-                              stopButton(),
-                              positionIndicator(mediaItem, state),
-                            ] else ...[
-                              audioPlayerButton(),
-                              textToSpeechButton(),
-                            ],
-                          ],
-                        );
-                      },
-                    );
-                  },
+                final screenState = snapshot.data;
+                final queue = screenState?.queue;
+                final mediaItem = screenState?.mediaItem;
+                final state = screenState?.playbackState;
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (queue != null && queue.isNotEmpty)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.skip_previous),
+                            iconSize: 64.0,
+                            onPressed: mediaItem == queue.first
+                                ? null
+                                : AudioService.skipToPrevious,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.skip_next),
+                            iconSize: 64.0,
+                            onPressed: mediaItem == queue.last
+                                ? null
+                                : AudioService.skipToNext,
+                          ),
+                        ],
+                      ),
+                    if (mediaItem?.title != null) Text(mediaItem.title),
+                    if (state?.basicState ==
+                        BasicPlaybackState.connecting) ...[
+                      stopButton(),
+                      Text("Connecting..."),
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.skippingToNext) ...[
+                      stopButton(),
+                      Text("Skipping..."),
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.skippingToPrevious) ...[
+                      stopButton(),
+                      Text("Skipping..."),
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.playing) ...[
+                      pauseButton(),
+                      stopButton(),
+                      positionIndicator(mediaItem, state),
+                    ] else if (state?.basicState ==
+                        BasicPlaybackState.paused) ...[
+                      playButton(),
+                      stopButton(),
+                      positionIndicator(mediaItem, state),
+                    ] else ...[
+                      audioPlayerButton(),
+                      textToSpeechButton(),
+                    ],
+                  ],
                 );
               },
             ),
@@ -230,6 +221,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 }
 
+class ScreenState {
+  final List<MediaItem> queue;
+  final MediaItem mediaItem;
+  final PlaybackState playbackState;
+
+  ScreenState(this.queue, this.mediaItem, this.playbackState);
+}
+
 void _audioPlayerTaskEntrypoint() async {
   AudioServiceBackground.run(() => AudioPlayerTask());
 }
@@ -284,9 +283,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
       }
     });
 
+    _setState(state: BasicPlaybackState.connecting, position: 0);
     AudioServiceBackground.setQueue(_queue);
     AudioServiceBackground.setMediaItem(mediaItem);
-    _setState(state: BasicPlaybackState.connecting, position: 0);
     onPlay();
     await _completer.future;
     playerStateSubscription.cancel();
