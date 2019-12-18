@@ -586,11 +586,12 @@ public class AudioServicePlugin {
 			case "setState":
 				List<Object> args = (List<Object>)call.arguments;
 				List<Map<?,?>> rawControls = (List<Map<?,?>>)args.get(0);
-				int playbackState = (Integer)args.get(1);
-				long position = getLong(args.get(2));
-				float speed = (float)((double)((Double)args.get(3)));
-				long updateTimeSinceEpoch = args.get(4) == null ? System.currentTimeMillis() : getLong(args.get(4));
-				List<Object> compactActionIndexList = (List<Object>)args.get(5);
+				List<Integer> rawSystemActions = (List<Integer>)args.get(1);
+				int playbackState = (Integer)args.get(2);
+				long position = getLong(args.get(3));
+				float speed = (float)((double)((Double)args.get(4)));
+				long updateTimeSinceEpoch = args.get(5) == null ? System.currentTimeMillis() : getLong(args.get(5));
+				List<Object> compactActionIndexList = (List<Object>)args.get(6);
 
 				// On the flutter side, we represent the update time relative to the epoch.
 				// On the native side, we must represent the update time relative to the boot time.
@@ -603,6 +604,10 @@ public class AudioServicePlugin {
 					int actionCode = 1 << ((Integer)rawControl.get("action"));
 					actionBits |= actionCode;
 					actions.add(AudioService.instance.action(resource, (String)rawControl.get("label"), actionCode));
+				}
+				for (Integer rawSystemAction : rawSystemActions) {
+					int actionCode = 1 << rawSystemAction;
+					actionBits |= actionCode;
 				}
 				int[] compactActionIndices = null;
 				if (compactActionIndexList != null) {

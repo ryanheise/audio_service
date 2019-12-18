@@ -219,15 +219,15 @@ static MPMediaItemArtwork* artwork = nil;
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
-    if (call.arguments[4] != [NSNull null]) {
-      msSinceEpoch = [call.arguments[4] longLongValue];
+    if (call.arguments[5] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[5] longLongValue];
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
-    state = call.arguments[1];
-    position = call.arguments[2];
+    state = call.arguments[2];
+    position = call.arguments[3];
     updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
-    speed = call.arguments[3];
+    speed = call.arguments[4];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       state,

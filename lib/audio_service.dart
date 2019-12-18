@@ -812,8 +812,15 @@ class AudioServiceBackground {
   }
 
   /// Sets the current playback state and dictates which media actions can be
-  /// controlled by clients and which media controls should be visible in the
-  /// notification, Wear OS and Android Auto.
+  /// controlled by clients and which media controls and actions should be
+  /// enabled in the notification, Wear OS and Android Auto. Each control
+  /// listed in [controls] will appear as a button in the notification and its
+  /// action will also be made available to all clients such as Wear OS and
+  /// Android Auto.  Any additional actions that you would like to enable for
+  /// clients that do not correspond to a button can be listed in
+  /// [systemActions]. For example, include [MediaAction.seekTo] in
+  /// [systemActions] and the system will provide a seek bar in the
+  /// notification.
   ///
   /// All clients will be notified so they can update their display.
   ///
@@ -826,6 +833,7 @@ class AudioServiceBackground {
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
     @required List<MediaControl> controls,
+    List<MediaAction> systemActions = const [],
     @required BasicPlaybackState basicState,
     int position = 0,
     double speed = 1.0,
@@ -846,8 +854,10 @@ class AudioServiceBackground {
               'action': control.action.index,
             })
         .toList();
+    final rawSystemActions = systemActions.map((action) => action.index).toList();
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
+      rawSystemActions,
       basicState.index,
       position,
       speed,
