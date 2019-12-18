@@ -460,6 +460,7 @@ class AudioService {
       }
     });
     await _channel.invokeMethod("connect");
+    _connected = true;
   }
 
   /// Disconnects your UI from the service.
@@ -468,7 +469,12 @@ class AudioService {
   static Future<void> disconnect() async {
     _channel.setMethodCallHandler(null);
     await _channel.invokeMethod("disconnect");
+    _connected = false;
   }
+
+  /// True if the UI is connected.
+  static bool get connected => _connected;
+  static bool _connected = false;
 
   /// True if the background audio task is running.
   static Future<bool> get running async {
