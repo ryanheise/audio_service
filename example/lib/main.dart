@@ -85,7 +85,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
           body: new Center(
             child: StreamBuilder<ScreenState>(
-              stream: Rx.combineLatest3<List<MediaItem>, MediaItem, PlaybackState, ScreenState>(AudioService.queueStream, AudioService.currentMediaItemStream, AudioService.playbackStateStream, (queue, mediaItem, playbackState) => ScreenState(queue, mediaItem, playbackState)),
+              stream: Rx.combineLatest3<List<MediaItem>, MediaItem,
+                      PlaybackState, ScreenState>(
+                  AudioService.queueStream,
+                  AudioService.currentMediaItemStream,
+                  AudioService.playbackStateStream,
+                  (queue, mediaItem, playbackState) =>
+                      ScreenState(queue, mediaItem, playbackState)),
               builder: (context, snapshot) {
                 final screenState = snapshot.data;
                 final queue = screenState?.queue;
@@ -115,8 +121,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         ],
                       ),
                     if (mediaItem?.title != null) Text(mediaItem.title),
-                    if (state?.basicState ==
-                        BasicPlaybackState.connecting) ...[
+                    if (state?.basicState == BasicPlaybackState.connecting) ...[
                       stopButton(),
                       Text("Connecting..."),
                     ] else if (state?.basicState ==
@@ -329,8 +334,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
     if (!hasPrevious) return;
     if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing) {
       _audioPlayer.stop();
-    _queueIndex--;
-    _position = null;
+      _queueIndex--;
+      _position = null;
     }
     _setState(state: BasicPlaybackState.skippingToPrevious, position: 0);
     AudioServiceBackground.setMediaItem(mediaItem);
