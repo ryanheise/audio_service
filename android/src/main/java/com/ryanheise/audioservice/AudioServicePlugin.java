@@ -127,9 +127,8 @@ public class AudioServicePlugin {
 					PlaybackStateCompat state = mediaController.getPlaybackState();
 					controllerCallback.onPlaybackStateChanged(state);
 					MediaMetadataCompat metadata = mediaController.getMetadata();
-					if (metadata != null)
-						controllerCallback.onMetadataChanged(metadata);
 					controllerCallback.onQueueChanged(mediaController.getQueue());
+					controllerCallback.onMetadataChanged(metadata);
 
 					synchronized (this) {
 						if (playPending) {
@@ -672,6 +671,7 @@ public class AudioServicePlugin {
 	}
 
 	private static List<Map<?,?>> queue2raw(List<MediaSessionCompat.QueueItem> queue) {
+		if (queue == null) return null;
 		List<Map<?,?>> rawQueue = new ArrayList<Map<?,?>>();
 		for (MediaSessionCompat.QueueItem queueItem : queue) {
 			MediaDescriptionCompat description = queueItem.getDescription();
@@ -734,6 +734,7 @@ public class AudioServicePlugin {
 	}
 
 	private static Map<?,?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
+		if (mediaMetadata == null) return null;
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String,Object> raw = new HashMap<String,Object>();
 		raw.put("id", description.getMediaId());
