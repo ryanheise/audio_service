@@ -258,6 +258,35 @@ class MediaItem {
     this.rating,
   });
 
+  MediaItem copyWith({
+    String id,
+    String album,
+    String title,
+    String artist,
+    String genre,
+    int duration,
+    String artUri,
+    bool playable,
+    String displayTitle,
+    String displaySubtitle,
+    String displayDescription,
+    Rating rating,
+  }) =>
+      MediaItem(
+        id: id ?? this.id,
+        album: album ?? this.album,
+        title: title ?? this.title,
+        artist: artist ?? this.artist,
+        genre: genre ?? this.genre,
+        duration: duration ?? this.duration,
+        artUri: artUri ?? this.artUri,
+        playable: playable ?? this.playable,
+        displayTitle: displayTitle ?? this.displayTitle,
+        displaySubtitle: displaySubtitle ?? this.displaySubtitle,
+        displayDescription: displayDescription ?? this.displayDescription,
+        rating: rating ?? this.rating,
+      );
+
   @override
   int get hashCode => id.hashCode;
 
