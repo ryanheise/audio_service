@@ -4,10 +4,10 @@ version: 0.5.4
 homepage: https://github.com/ryanheise/audio_service
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: '>=2.6.0 <3.0.0'
 
 dependencies:
-  rxdart: ^0.22.6
+  rxdart: ^0.23.1
   flutter_isolate: ^1.0.0+10
   flutter:
     sdk: flutter

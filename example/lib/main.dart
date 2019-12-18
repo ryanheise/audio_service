@@ -199,9 +199,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Widget positionIndicator(MediaItem mediaItem, PlaybackState state) {
     return StreamBuilder(
-      stream: Observable.combineLatest2<double, double, double>(
+      stream: Rx.combineLatest2<double, double, double>(
           _dragPositionSubject.stream,
-          Observable.periodic(Duration(milliseconds: 200),
+          Stream.periodic(Duration(milliseconds: 200),
               (_) => state.currentPosition.toDouble()),
           (dragPosition, statePosition) => dragPosition ?? statePosition),
       builder: (context, snapshot) {
