@@ -160,6 +160,23 @@ drawable-xxxhdpi
 
 You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these different subdirectories for any standard material design icon.
 
+Starting from Flutter 1.12, you will also need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise your icon resources will be removed during the build:
+
+```
+android {
+    compileSdkVersion 28
+
+    ...
+
+    buildTypes {
+        release {
+            signingConfig ...
+            shrinkResources false // ADD THIS LINE
+        }
+    }
+}
+```
+
 *NOTE: Most Flutter plugins today were written before Flutter added support for running Dart code in a headless environment (without an Android Activity present). As such, a number of plugins assume there is an activity and run into a `NullPointerException`. Fortunately, it is very easy for plugin authors to update their plugins remove this assumption. If you encounter such a plugin, see the bottom of this README file for a sample bug report you can send to the relevant plugin author.*
 
 ## iOS setup

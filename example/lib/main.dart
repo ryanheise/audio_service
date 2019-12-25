@@ -8,6 +8,13 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:rxdart/rxdart.dart';
 
+// NOTE: Since Flutter 1.12, the audioplayer plugin will crash your release
+// builds. As an alternative, I am developing a new audio player plugin called
+// just_audio which I will switch to once the iOS implementation catches up to
+// the Android implementation. In the meantime, or if you really want to use
+// audioplayer, you may need to fork it and update compileSdkVersion = 28 and
+// update the gradle wrapper to the latest.
+
 MediaControl playControl = MediaControl(
   androidIcon: 'drawable/ic_action_play_arrow',
   label: 'Play',
