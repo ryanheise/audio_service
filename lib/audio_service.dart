@@ -813,6 +813,9 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('ready');
     await task.onStart();
     await _backgroundChannel.invokeMethod('stopped');
+    if (Platform.isIOS) {
+      FlutterIsolate.current.kill();
+    }
     _backgroundChannel.setMethodCallHandler(null);
     _state = _noneState;
   }

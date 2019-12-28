@@ -622,6 +622,7 @@ public class AudioServicePlugin {
 				if (silenceAudioTrack != null)
 					silenceAudioTrack.release();
 				if (clientHandler != null) clientHandler.invokeMethod("onStopped");
+				backgroundFlutterView.destroy();
 				backgroundFlutterView = null;
 				backgroundHandler = null;
 				result.success(true);
