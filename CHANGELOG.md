@@ -1,3 +1,7 @@
+## 0.5.6
+
+* Support Flutter 1.12.
+
 ## 0.5.5
 
 * Bump sdk version to 2.6.0.
