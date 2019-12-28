@@ -1,3 +1,7 @@
+## 0.5.7
+
+* Destroy isolates after use.
+
 ## 0.5.6
 
 * Support Flutter 1.12.
