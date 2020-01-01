@@ -671,6 +671,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		public void onSkipToNext() {
 			if (listener == null) return;
 			listener.onSkipToNext();
+			if (androidStopForegroundOnPause) {
+			startForeground(NOTIFICATION_ID, buildNotification());
+			}
 		}
 
 		@Override

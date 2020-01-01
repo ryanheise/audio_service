@@ -31,12 +31,6 @@ MediaControl stopControl = MediaControl(
   action: MediaAction.stop,
 );
 
-MediaControl nextControl = MediaControl(
-  androidIcon: 'drawable/ic_action_stop',
-  label: 'Next',
-  action: MediaAction.skipToNext,
-);
-
 void main() => runApp(new MyApp());
 
 class MyApp extends StatefulWidget {
@@ -184,7 +178,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             androidNotificationChannelName: 'Audio Service Demo',
             notificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
-            androidStopForegroundOnPause: true,
           );
         },
       );
@@ -402,9 +395,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
   List<MediaControl> getControls(BasicPlaybackState state) {
     switch (state) {
       case BasicPlaybackState.playing:
-        return [pauseControl, nextControl, stopControl];
+        return [pauseControl, stopControl];
       case BasicPlaybackState.paused:
-        return [playControl, nextControl, stopControl];
+        return [playControl, stopControl];
       default:
         return [stopControl];
     }
