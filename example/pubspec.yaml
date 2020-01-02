@@ -10,7 +10,7 @@ dependencies:
     sdk: flutter
 
   path_provider: ^1.4.0
-  audioplayer: ^0.5.2
+  just_audio: ^0.0.6
   flutter_tts: ^0.7.0
   rxdart: ^0.23.1
   audio_service:

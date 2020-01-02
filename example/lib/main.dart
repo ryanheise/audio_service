@@ -1,19 +1,12 @@
 import 'dart:math';
 
-import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
-
-// NOTE: Since Flutter 1.12, the audioplayer plugin will crash your release
-// builds. As an alternative, I am developing a new audio player plugin called
-// just_audio which I will switch to once the iOS implementation catches up to
-// the Android implementation. In the meantime, or if you really want to use
-// audioplayer, you may need to fork it and update compileSdkVersion = 28 and
-// update the gradle wrapper to the latest.
 
 MediaControl playControl = MediaControl(
   androidIcon: 'drawable/ic_action_play_arrow',
@@ -24,6 +17,16 @@ MediaControl pauseControl = MediaControl(
   androidIcon: 'drawable/ic_action_pause',
   label: 'Pause',
   action: MediaAction.pause,
+);
+MediaControl skipToNextControl = MediaControl(
+  androidIcon: 'drawable/ic_action_skip_next',
+  label: 'Next',
+  action: MediaAction.skipToNext,
+);
+MediaControl skipToPreviousControl = MediaControl(
+  androidIcon: 'drawable/ic_action_skip_previous',
+  label: 'Previous',
+  action: MediaAction.skipToPrevious,
 );
 MediaControl stopControl = MediaControl(
   androidIcon: 'drawable/ic_action_stop',
@@ -104,6 +107,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 final queue = screenState?.queue;
                 final mediaItem = screenState?.mediaItem;
                 final state = screenState?.playbackState;
+                final basicState = state?.basicState ?? BasicPlaybackState.none;
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -128,31 +132,38 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         ],
                       ),
                     if (mediaItem?.title != null) Text(mediaItem.title),
-                    if (state?.basicState == BasicPlaybackState.connecting) ...[
-                      stopButton(),
-                      Text("Connecting..."),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.skippingToNext) ...[
-                      stopButton(),
-                      Text("Skipping..."),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.skippingToPrevious) ...[
-                      stopButton(),
-                      Text("Skipping..."),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.playing) ...[
-                      pauseButton(),
-                      stopButton(),
-                      positionIndicator(mediaItem, state),
-                    ] else if (state?.basicState ==
-                        BasicPlaybackState.paused) ...[
-                      playButton(),
-                      stopButton(),
-                      positionIndicator(mediaItem, state),
-                    ] else ...[
+                    if (basicState == BasicPlaybackState.none) ...[
                       audioPlayerButton(),
                       textToSpeechButton(),
-                    ],
+                    ] else
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (basicState == BasicPlaybackState.playing)
+                            pauseButton()
+                          else if (basicState == BasicPlaybackState.paused)
+                            playButton()
+                          else if (basicState == BasicPlaybackState.buffering ||
+                              basicState == BasicPlaybackState.skippingToNext ||
+                              basicState ==
+                                  BasicPlaybackState.skippingToPrevious)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: SizedBox(
+                                width: 64.0,
+                                height: 64.0,
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                          stopButton(),
+                        ],
+                      ),
+                    if (basicState != BasicPlaybackState.none &&
+                        basicState != BasicPlaybackState.stopped) ...[
+                      positionIndicator(mediaItem, state),
+                      Text("State: " +
+                          "$basicState".replaceAll(RegExp(r'^.*\.'), '')),
+                    ]
                   ],
                 );
               },
@@ -201,14 +212,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       );
 
   Widget positionIndicator(MediaItem mediaItem, PlaybackState state) {
+    double seekPos;
     return StreamBuilder(
       stream: Rx.combineLatest2<double, double, double>(
           _dragPositionSubject.stream,
-          Stream.periodic(Duration(milliseconds: 200),
-              (_) => state.currentPosition.toDouble()),
-          (dragPosition, statePosition) => dragPosition ?? statePosition),
+          Stream.periodic(Duration(milliseconds: 200)),
+          (dragPosition, _) => dragPosition),
       builder: (context, snapshot) {
-        var position = snapshot.data ?? 0.0;
+        double position = snapshot.data ?? state.currentPosition.toDouble();
         double duration = mediaItem?.duration?.toDouble();
         return Column(
           children: [
@@ -216,12 +227,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               Slider(
                 min: 0.0,
                 max: duration,
-                value: max(0.0, min(position, duration)),
+                value: seekPos ?? max(0.0, min(position, duration)),
                 onChanged: (value) {
                   _dragPositionSubject.add(value);
                 },
                 onChangeEnd: (value) {
                   AudioService.seekTo(value.toInt());
+                  // Due to a delay in platform channel communication, there is
+                  // a brief moment after releasing the Slider thumb before the
+                  // new position is broadcast from the platform side. This
+                  // hack is to hold onto seekPos until the next state update
+                  // comes through.
+                  // TODO: Improve this code.
+                  seekPos = value;
                   _dragPositionSubject.add(null);
                 },
               ),
@@ -266,10 +284,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
           "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
     ),
   ];
-  int _queueIndex = 0;
+  int _queueIndex = -1;
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
-  int _position;
+  BasicPlaybackState _skipState;
+  bool _playing;
 
   bool get hasNext => _queueIndex + 1 < _queue.length;
 
@@ -277,35 +296,49 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   MediaItem get mediaItem => _queue[_queueIndex];
 
+  BasicPlaybackState _stateToBasicState(AudioPlaybackState state) {
+    switch (state) {
+      case AudioPlaybackState.none:
+        return BasicPlaybackState.none;
+      case AudioPlaybackState.stopped:
+        return BasicPlaybackState.stopped;
+      case AudioPlaybackState.paused:
+        return BasicPlaybackState.paused;
+      case AudioPlaybackState.playing:
+        return BasicPlaybackState.playing;
+      case AudioPlaybackState.buffering:
+        return BasicPlaybackState.buffering;
+      case AudioPlaybackState.connecting:
+        return _skipState ?? BasicPlaybackState.connecting;
+      case AudioPlaybackState.completed:
+        return BasicPlaybackState.stopped;
+      default:
+        throw Exception("Illegal state");
+    }
+  }
+
   @override
   Future<void> onStart() async {
-    var playerStateSubscription = _audioPlayer.onPlayerStateChanged
-        .where((state) => state == AudioPlayerState.COMPLETED)
+    var playerStateSubscription = _audioPlayer.playbackStateStream
+        .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
       _handlePlaybackCompleted();
     });
-    var audioPositionSubscription =
-        _audioPlayer.onAudioPositionChanged.listen((when) {
-      final wasConnecting = _position == null;
-      _position = when.inMilliseconds;
-      if (wasConnecting) {
-        // After a delay, we finally start receiving audio positions from the
-        // AudioPlayer plugin, so we can broadcast the playing state.
-        _setPlayState();
+    var eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
+      final state = _stateToBasicState(event.state);
+      if (state != BasicPlaybackState.stopped) {
+        _setState(
+          state: state,
+          position: event.position.inMilliseconds,
+        );
       }
     });
 
-    _setState(state: BasicPlaybackState.connecting, position: 0);
     AudioServiceBackground.setQueue(_queue);
-    AudioServiceBackground.setMediaItem(mediaItem);
-    onPlay();
+    await onSkipToNext();
     await _completer.future;
     playerStateSubscription.cancel();
-    audioPositionSubscription.cancel();
-  }
-
-  void _setPlayState() {
-    _setState(state: BasicPlaybackState.playing, position: _position);
+    eventSubscription.cancel();
   }
 
   void _handlePlaybackCompleted() {
@@ -324,51 +357,56 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onSkipToNext() {
-    if (!hasNext) return;
-    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing) {
-      _audioPlayer.stop();
-    }
-    _queueIndex++;
-    _position = null;
-    _setState(state: BasicPlaybackState.skippingToNext, position: 0);
-    AudioServiceBackground.setMediaItem(mediaItem);
-    onPlay();
-  }
+  Future<void> onSkipToNext() => _skip(1);
 
   @override
-  void onSkipToPrevious() {
-    if (!hasPrevious) return;
-    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing) {
-      _audioPlayer.stop();
-      _queueIndex--;
-      _position = null;
+  Future<void> onSkipToPrevious() => _skip(-1);
+
+  Future<void> _skip(int offset) async {
+    final newPos = _queueIndex + offset;
+    if (!(newPos >= 0 && newPos < _queue.length)) return;
+    if (_playing == null) {
+      // First time, we want to start playing
+      _playing = true;
+    } else if (_playing) {
+      // Stop current item
+      await _audioPlayer.stop();
     }
-    _setState(state: BasicPlaybackState.skippingToPrevious, position: 0);
+    // Load next item
+    _queueIndex = newPos;
     AudioServiceBackground.setMediaItem(mediaItem);
-    onPlay();
+    _skipState = offset > 0
+        ? BasicPlaybackState.skippingToNext
+        : BasicPlaybackState.skippingToPrevious;
+    await _audioPlayer.setUrl(mediaItem.id);
+    _skipState = null;
+    // Resume playback if we were playing
+    if (_playing) {
+      onPlay();
+    } else {
+      _setState(state: BasicPlaybackState.paused);
+    }
   }
 
   @override
   void onPlay() {
-    _audioPlayer.play(mediaItem.id);
-    if (_position != null) {
-      _setPlayState();
-      // Otherwise we are still loading the audio.
+    if (_skipState == null) {
+      _playing = true;
+      _audioPlayer.play();
     }
   }
 
   @override
   void onPause() {
-    _audioPlayer.pause();
-    _setState(state: BasicPlaybackState.paused, position: _position);
+    if (_skipState == null) {
+      _playing = false;
+      _audioPlayer.pause();
+    }
   }
 
   @override
   void onSeekTo(int position) {
-    _audioPlayer.seek(position / 1000.0);
-    final state = AudioServiceBackground.state.basicState;
-    _setState(state: state, position: position);
+    _audioPlayer.seek(Duration(milliseconds: position));
   }
 
   @override
@@ -383,7 +421,10 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _completer.complete();
   }
 
-  void _setState({@required BasicPlaybackState state, int position = 0}) {
+  void _setState({@required BasicPlaybackState state, int position}) {
+    if (position == null) {
+      position = _audioPlayer.playbackEvent.position.inMilliseconds;
+    }
     AudioServiceBackground.setState(
       controls: getControls(state),
       systemActions: [MediaAction.seekTo],
@@ -393,13 +434,20 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   List<MediaControl> getControls(BasicPlaybackState state) {
-    switch (state) {
-      case BasicPlaybackState.playing:
-        return [pauseControl, stopControl];
-      case BasicPlaybackState.paused:
-        return [playControl, stopControl];
-      default:
-        return [stopControl];
+    if (_playing) {
+      return [
+        skipToPreviousControl,
+        pauseControl,
+        stopControl,
+        skipToNextControl
+      ];
+    } else {
+      return [
+        skipToPreviousControl,
+        playControl,
+        stopControl,
+        skipToNextControl
+      ];
     }
   }
 }
