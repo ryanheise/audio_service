@@ -8,7 +8,7 @@ Play audio in the background.
 
 This plugin wraps around your existing Dart audio code to allow it to run in the background, and also respond to media button clicks on the lock screen, notifications, control center, headphone buttons and other supported remote control devices. This is necessary for a whole range of media applications such as music and podcast players, text-to-speech readers, navigators, etc.
 
-This plugin is audio agnostic. It is designed to allow you to use your favourite audio plugins, such as [audioplayer](https://pub.dartlang.org/packages/audioplayer), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others. It simply wraps a special isolate around your existing audio code so that it can run in the background and enable remote control interfaces.
+This plugin is audio agnostic. It is designed to allow you to use your favourite audio plugins, such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others. It simply wraps a special isolate around your existing audio code so that it can run in the background and enable remote control interfaces.
 
 Note that because your app's UI and your background audio task will run in separate isolates, they do not share memory. They communicate through the message passing APIs provided by audio_service.
 
@@ -24,8 +24,8 @@ Note that because your app's UI and your background audio task will run in separ
 | FF/rewind                      | ✅         | ✅         |
 | rate                           | ✅         | ✅         |
 | custom actions                 | ✅         | (untested) |
-| notifications/control center   | ✅         | ✅         |
-| lock screen controls           | ✅         | ✅         |
+| notifications/control center   | ✅         | (partial)  |
+| lock screen controls           | ✅         | (partial)  |
 | album art                      | ✅         | ✅         |
 | queue management               | ✅         | ✅         |
 | runs in background             | ✅         | ✅         |

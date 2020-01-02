@@ -414,16 +414,25 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
 			Bitmap bitmap = artBitmapCache.get(artUri.toString());
 			if (bitmap == null) {
-				try (InputStream in = new URL(artUri.toString()).openConnection().getInputStream()) {
+				InputStream in = null;
+				try {
+					in = new URL(artUri.toString()).openConnection().getInputStream();
 					bitmap = BitmapFactory.decodeStream(in);
 					if (!running)
 						return;
 					artBitmapCache.put(artUri.toString(), bitmap);
-				}
-				catch (IOException e) {
+				} catch (IOException e) {
 					artUriBlacklist.add(artUri.toString());
 					e.printStackTrace();
 					return;
+				} finally {
+					if (in != null) {
+						try {
+							in.close();
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
 				}
 			}
 			String mediaId = mediaMetadata.getDescription().getMediaId();
