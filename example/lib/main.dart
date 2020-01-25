@@ -174,23 +174,35 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     );
   }
 
-  RaisedButton audioPlayerButton() =>
-      startButton('AudioPlayer', _audioPlayerTaskEntrypoint);
-
-  RaisedButton textToSpeechButton() =>
-      startButton('TextToSpeech', _textToSpeechTaskEntrypoint);
-
-  RaisedButton startButton(String label, Function entrypoint) => RaisedButton(
-        child: Text(label),
-        onPressed: () {
+  RaisedButton audioPlayerButton() => startButton(
+        'AudioPlayer',
+        () {
           AudioService.start(
-            backgroundTaskEntrypoint: entrypoint,
-            resumeOnClick: true,
+            backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
+            androidNotificationChannelName: 'Audio Service Demo',
+            notificationColor: 0xFF2196f3,
+            androidNotificationIcon: 'mipmap/ic_launcher',
+            enableQueue: true,
+          );
+        },
+      );
+
+  RaisedButton textToSpeechButton() => startButton(
+        'TextToSpeech',
+        () {
+          AudioService.start(
+            backgroundTaskEntrypoint: _textToSpeechTaskEntrypoint,
             androidNotificationChannelName: 'Audio Service Demo',
             notificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
           );
         },
+      );
+
+  RaisedButton startButton(String label, VoidCallback onPressed) =>
+      RaisedButton(
+        child: Text(label),
+        onPressed: onPressed,
       );
 
   IconButton playButton() => IconButton(
