@@ -93,43 +93,16 @@ The full example on GitHub demonstrates how to fill in these callbacks to do aud
 
 ## Android setup
 
-1. You will need to create a custom `MainApplication` class as follows:
+These instructions assume that your project follows the new project template introduced in Flutter 1.12. If your project was created prior to 1.12 and uses the old project structure, you can either view a previous version of this README on GitHub, or update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
 
-```java
-// Insert your package name here instead of com.example.yourpackagename.
-// You can find your package name at the top of your AndroidManifest file
-// after package="...
-package com.example.yourpackagename;
-
-import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.app.FlutterApplication;
-import io.flutter.plugins.GeneratedPluginRegistrant;
-import com.ryanheise.audioservice.AudioServicePlugin;
-
-public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
-  @Override
-  public void onCreate() {
-    super.onCreate();
-    AudioServicePlugin.setPluginRegistrantCallback(this);
-  }
-
-  @Override
-  public void registerWith(PluginRegistry registry) {
-    GeneratedPluginRegistrant.registerWith(registry);
-  }
-}
-```
-
-2. Edit your project's `AndroidManifest.xml` file to reference your `MainApplication` class, declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
+1. Edit your project's `AndroidManifest.xml` file to declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
 
 ```xml
 <manifest ...>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   
-  <application
-    android:name=".MainApplication"
-    ...>
+  <application ...>
     
     ...
     
@@ -148,7 +121,7 @@ public class MainApplication extends FlutterApplication implements PluginRegistr
 </manifest>
 ```
 
-3. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
+2. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
 
 ```
 drawable-hdpi
@@ -177,8 +150,6 @@ android {
 }
 ```
 
-*NOTE: Most Flutter plugins today were written before Flutter added support for running Dart code in a headless environment (without an Android Activity present). As such, a number of plugins assume there is an activity and run into a `NullPointerException`. Fortunately, it is very easy for plugin authors to update their plugins remove this assumption. If you encounter such a plugin, see the bottom of this README file for a sample bug report you can send to the relevant plugin author.*
-
 ## iOS setup
 
 Insert this in your `Info.plist` file:
@@ -191,24 +162,3 @@ Insert this in your `Info.plist` file:
 ```
 
 The example project may be consulted for context.
-
-### Sample bug report
-
-If you encounter a Flutter plugin that gives a `NullPointerException` on Android, it is likely that the plugin has assumed the existence of an activity when there is none. If that is the case, you can submit a bug report to the author of that plugin and suggest the simple fix that should get it to work.
-
-Here is a sample bug report.
-
-> Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
-> 
-> `    WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
-> 
-> `registrar.activity()` may now return null, and this leads to a `NullPointerException`:
-> 
-> ```
-> E/AndroidRuntime( 2453):   at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
-> E/AndroidRuntime( 2453):   at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
-> ```
-> 
-> The solution is to change the above line of code to this:
-> 
-> `    WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
