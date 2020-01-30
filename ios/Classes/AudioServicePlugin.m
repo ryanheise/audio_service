@@ -88,6 +88,7 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"start" isEqualToString:call.method]) {
     if (_running) {
       result(@NO);
+      return;
     }
     _running = YES;
     // The result will be sent after the background task actually starts.
