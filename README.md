@@ -152,7 +152,7 @@ android {
 
 3. (Optional) Versions of Flutter since 1.12 have a memory leak that affects this plugin. It will be fixed in an upcoming Flutter release but until then you can work around it by overriding the following method in your `MainActivity` class:
 
-```
+```java
 public class MainActivity extends FlutterActivity {
   /** This is a temporary workaround to avoid a memory leak in the Flutter framework */
   @Override

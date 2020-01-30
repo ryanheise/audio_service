@@ -1,3 +1,7 @@
+## 0.6.0
+
+* Migrated to V2 embedding API (Flutter 1.12).
+
 ## 0.5.7
 
 * Destroy isolates after use.
