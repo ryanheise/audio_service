@@ -150,6 +150,28 @@ android {
 }
 ```
 
+3. (Optional) Versions of Flutter since 1.12 have a memory leak that affects this plugin. It will be fixed in an upcoming Flutter release but until then you can work around it by overriding the following method in your `MainActivity` class:
+
+```
+public class MainActivity extends FlutterActivity {
+  /** This is a temporary workaround to avoid a memory leak in the Flutter framework */
+  @Override
+  public FlutterEngine provideFlutterEngine(Context context) {
+    // Instantiate a FlutterEngine.
+    FlutterEngine flutterEngine = new FlutterEngine(context.getApplicationContext());
+
+    // Start executing Dart code to pre-warm the FlutterEngine.
+    flutterEngine.getDartExecutor().executeDartEntrypoint(
+      DartExecutor.DartEntrypoint.createDefault()
+    );
+
+    return flutterEngine;
+  }
+}
+```
+
+Alternatively, if you use a cached flutter engine (as per [these instructions](https://flutter.dev/docs/development/add-to-app/android/add-flutter-screen#step-3-optional-use-a-cached-flutterengine)), you will need to change the instantiation code from `new FlutterEngine(this)` to `new FlutterEngine(getApplicationContext())`.
+
 ## iOS setup
 
 Insert this in your `Info.plist` file:

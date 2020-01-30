@@ -531,7 +531,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		public void onPlay() {
 			if (backgroundFlutterEngine == null) {
 				Context context = AudioService.instance;
-				backgroundFlutterEngine = new FlutterEngine(context);
+				backgroundFlutterEngine = new FlutterEngine(context.getApplicationContext());
 				FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
 				if (cb == null || appBundlePath == null) {
 					sendStartResult(false);
