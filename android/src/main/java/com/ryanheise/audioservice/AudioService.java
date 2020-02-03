@@ -41,6 +41,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import android.os.Handler;
+import android.os.Looper;
 import java.util.Set;
 
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -73,7 +75,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
 
-	public static synchronized void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean androidStopForegroundOnPause, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean androidStopForegroundOnPause, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -118,7 +120,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		stopSelf();
 	}
 
-	public static synchronized boolean isRunning() {
+	public static boolean isRunning() {
 		return running;
 	}
 
@@ -133,6 +135,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private MediaMetadataCompat mediaMetadata;
 	private Object audioFocusRequest;
 	private String notificationChannelId;
+	private Handler handler = new Handler(Looper.getMainLooper());
 
 	int getResourceId(String resource) {
 		String[] parts = resource.split("/");
@@ -394,7 +397,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}.start();
 	}
 
-	synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
+	// Call only on main thread
+	void setMetadata(final MediaMetadataCompat mediaMetadata) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
 		updateNotification();
@@ -409,6 +413,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 	}
 
+	// Must not be called on the main thread
 	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
 		if (needToLoadArt(mediaMetadata)) {
 			Uri artUri = mediaMetadata.getDescription().getIconUri();
@@ -436,14 +441,19 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				}
 			}
 			String mediaId = mediaMetadata.getDescription().getMediaId();
-			mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
+			final MediaMetadataCompat updatedMediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
 				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
 				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap)
 				.build();
-			mediaMetadataCache.put(mediaId, mediaMetadata);
+			mediaMetadataCache.put(mediaId, updatedMediaMetadata);
 			// If this the current media item, update the notification
 			if (this.mediaMetadata != null && mediaId.equals(this.mediaMetadata.getDescription().getMediaId())) {
-				setMetadata(mediaMetadata);
+				handler.post(new Runnable() {
+					@Override
+					public void run() {
+						setMetadata(updatedMediaMetadata);
+					}
+				});
 			}
 		}
 	}
