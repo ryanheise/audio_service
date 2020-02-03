@@ -512,6 +512,7 @@ class AudioService {
     bool shouldPreloadArtwork = false,
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
+    bool androidStopOnRemoveTask = false,
   }) async {
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
@@ -546,6 +547,7 @@ class AudioService {
       'shouldPreloadArtwork': shouldPreloadArtwork,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
+      'androidStopOnRemoveTask': androidStopOnRemoveTask,
     });
   }
 

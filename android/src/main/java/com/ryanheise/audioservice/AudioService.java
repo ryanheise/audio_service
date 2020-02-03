@@ -69,13 +69,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static boolean androidNotificationOngoing;
 	static boolean shouldPreloadArtwork;
 	static boolean androidStopForegroundOnPause;
+	static boolean androidStopOnRemoveTask;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean androidStopForegroundOnPause, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -93,6 +94,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidNotificationOngoing = androidNotificationOngoing;
 		AudioService.shouldPreloadArtwork = shouldPreloadArtwork;
 		AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
+		AudioService.androidStopOnRemoveTask = androidStopOnRemoveTask;
 	}
 
 	public void stop() {
@@ -491,8 +493,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
 		MediaControllerCompat controller = mediaSession.getController();
-		if (androidStopForegroundOnPause && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
-			stopSelf();
+		if (androidStopOnRemoveTask || (androidStopForegroundOnPause && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED)) {
+			listener.onStop();
 		}
 		super.onTaskRemoved(rootIntent);
 	}
