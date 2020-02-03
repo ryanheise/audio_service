@@ -379,9 +379,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	void preloadArtwork(final List<MediaSessionCompat.QueueItem> queue) {
-		// XXX: Although this happens in a thread, it seems to cause a block
-		// somewhere in the Flutter engine, temporarily preventing messages from
-		// being passed over platform channels.
 		new Thread() {
 			@Override
 			public void run() {
