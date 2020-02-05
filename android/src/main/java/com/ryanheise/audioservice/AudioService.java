@@ -559,8 +559,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		private void play(Runnable runner) {
 			int result = requestAudioFocus();
 			if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-				// TODO: Handle this more gracefully
-				throw new RuntimeException("Failed to gain audio focus");
+				// Don't play audio
+				return;
 			}
 
 			startService(new Intent(AudioService.this, AudioService.class));
