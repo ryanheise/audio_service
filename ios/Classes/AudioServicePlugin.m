@@ -335,7 +335,7 @@ static MPMediaItemArtwork* artwork = nil;
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
   NSLog(@"changePlaybackPosition");
-  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@(event.positionTime)]];
+  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@((long long) (event.positionTime * 1000))]];
   return MPRemoteCommandHandlerStatusSuccess;
 }
 
