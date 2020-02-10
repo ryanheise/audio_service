@@ -214,7 +214,7 @@ class MediaItem {
   final String album;
 
   /// The title of this media item
-  final String title;
+  String title;
 
   /// The artist of this media item
   final String artist;
@@ -223,10 +223,10 @@ class MediaItem {
   final String genre;
 
   /// The duration in milliseconds
-  final int duration;
+  int duration;
 
   /// The artwork for this media item as a uri
-  final String artUri;
+  String artUri;
 
   /// Whether this is playable (i.e. not a folder)
   final bool playable;
