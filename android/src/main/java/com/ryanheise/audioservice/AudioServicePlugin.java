@@ -1,5 +1,6 @@
 package com.ryanheise.audioservice;
 
+import io.flutter.embedding.engine.plugins.service.*;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -35,18 +36,29 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.plugin.common.PluginRegistry.ViewDestroyListener;
 import io.flutter.view.FlutterCallbackInformation;
 import io.flutter.view.FlutterMain;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import androidx.annotation.NonNull;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.plugin.common.BinaryMessenger;
+import android.app.Service;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
+import io.flutter.embedding.engine.dart.DartExecutor;
+import io.flutter.embedding.engine.dart.DartExecutor.DartCallback;
+import android.content.res.AssetManager;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterRunArguments;
 
 /** AudioservicePlugin */
-public class AudioServicePlugin {
+public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	private static final String CHANNEL_AUDIO_SERVICE = "ryanheise.com/audioService";
 	private static final String CHANNEL_AUDIO_SERVICE_BACKGROUND = "ryanheise.com/audioServiceBackground";
 
 	private static PluginRegistrantCallback pluginRegistrantCallback;
 	private static ClientHandler clientHandler;
 	private static BackgroundHandler backgroundHandler;
-	private static FlutterNativeView backgroundFlutterView;
+	private static FlutterEngine backgroundFlutterEngine;
 	private static int nextQueueItemId = 0;
 	private static List<String> queueMediaIds = new ArrayList<String>();
 	private static Map<String,Integer> queueItemIds = new HashMap<String,Integer>();
@@ -63,13 +75,64 @@ public class AudioServicePlugin {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
 	}
 
-	/** Plugin registration. */
+	/** v1 plugin registration. */
 	public static void registerWith(Registrar registrar) {
-		if (registrar.activity() != null)
-			clientHandler = new ClientHandler(registrar);
-		else
-			backgroundHandler.init(registrar);
+		if (registrar.activity() != null) {
+			clientHandler = new ClientHandler(registrar.messenger());
+			clientHandler.activity = registrar.activity();
+			registrar.addViewDestroyListener(new ViewDestroyListener() {
+				@Override
+				public boolean onViewDestroy(FlutterNativeView view) {
+					clientHandler = null;
+					return false;
+				}
+			});
+		} else {
+			backgroundHandler.init(registrar.messenger());
+		}
 	}
+
+	private FlutterPluginBinding flutterPluginBinding;
+
+	//
+	// FlutterPlugin callbacks
+	//
+
+	@Override
+	public void onAttachedToEngine(FlutterPluginBinding binding) {
+		flutterPluginBinding = binding;
+	}
+
+	@Override
+	public void onDetachedFromEngine(FlutterPluginBinding binding) {
+		flutterPluginBinding = null;
+	}
+
+	//
+	// ActivityAware callbacks
+	//
+
+	@Override
+	public void onAttachedToActivity(ActivityPluginBinding binding) {
+		clientHandler = new ClientHandler(flutterPluginBinding.getFlutterEngine().getDartExecutor());
+		clientHandler.activity = binding.getActivity();
+	}
+
+	@Override
+	public void onDetachedFromActivityForConfigChanges() {
+	}
+
+	@Override
+	public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+		clientHandler.activity = binding.getActivity();
+	}
+
+	@Override
+	public void onDetachedFromActivity() {
+		clientHandler = null;
+	}
+
+
 
 	private static void sendConnectResult(boolean result) {
 		connectResult.success(result);
@@ -81,8 +144,8 @@ public class AudioServicePlugin {
 		startResult = null;
 	}
 
-	private static class ClientHandler implements MethodCallHandler, ViewDestroyListener {
-		private Registrar registrar;
+	private static class ClientHandler implements MethodCallHandler {
+		Activity activity;
 		private MethodChannel channel;
 		private boolean playPending;
 		public MediaBrowserCompat mediaBrowser;
@@ -119,7 +182,7 @@ public class AudioServicePlugin {
 			@Override
 			public void onConnected() {
 				try {
-					Activity activity = registrar.activity();
+					//Activity activity = registrar.activity();
 					MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
 					mediaController = new MediaControllerCompat(activity, token);
 					MediaControllerCompat.setMediaController(activity, mediaController);
@@ -127,9 +190,8 @@ public class AudioServicePlugin {
 					PlaybackStateCompat state = mediaController.getPlaybackState();
 					controllerCallback.onPlaybackStateChanged(state);
 					MediaMetadataCompat metadata = mediaController.getMetadata();
-					if (metadata != null)
-						controllerCallback.onMetadataChanged(metadata);
 					controllerCallback.onQueueChanged(mediaController.getQueue());
+					controllerCallback.onMetadataChanged(metadata);
 
 					synchronized (this) {
 						if (playPending) {
@@ -156,23 +218,14 @@ public class AudioServicePlugin {
 			}
 		};
 
-		public ClientHandler(Registrar registrar) {
-			this.registrar = registrar;
-			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE);
+		public ClientHandler(BinaryMessenger messenger) {
+			channel = new MethodChannel(messenger, CHANNEL_AUDIO_SERVICE);
 			channel.setMethodCallHandler(this);
-			registrar.addViewDestroyListener(this);
-		}
-
-		@Override
-		public boolean onViewDestroy(FlutterNativeView view) {
-			clientHandler = null;
-			return false;
 		}
 
 		@Override
 		public void onMethodCall(MethodCall call, final Result result) {
-			Context context = registrar.activeContext();
-			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
+			Context context = activity;
 			switch (call.method) {
 			case "isRunning":
 				result.success(AudioService.isRunning());
@@ -195,11 +248,11 @@ public class AudioServicePlugin {
 				boolean shouldPreloadArtwork = (Boolean)arguments.get("shouldPreloadArtwork");
 				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
+				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
 
-				final String appBundlePath = FlutterMain.findAppBundlePath(application);
-				Activity activity = application.getCurrentActivity();
+				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, androidStopOnRemoveTask, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
@@ -394,7 +447,6 @@ public class AudioServicePlugin {
 		private long callbackHandle;
 		private String appBundlePath;
 		private boolean enableQueue;
-		private Registrar registrar;
 		public MethodChannel channel;
 		private AudioTrack silenceAudioTrack;
 		private static final int SILENCE_SAMPLE_RATE = 44100;
@@ -406,9 +458,9 @@ public class AudioServicePlugin {
 			this.enableQueue = enableQueue;
 		}
 
-		public void init(Registrar registrar) {
-			this.registrar = registrar;
-			channel = new MethodChannel(registrar.messenger(), CHANNEL_AUDIO_SERVICE_BACKGROUND);
+		public void init(BinaryMessenger messenger) {
+			if (channel != null) return;
+			channel = new MethodChannel(messenger, CHANNEL_AUDIO_SERVICE_BACKGROUND);
 			channel.setMethodCallHandler(this);
 		}
 
@@ -478,25 +530,26 @@ public class AudioServicePlugin {
 		}
 		@Override
 		public void onPlay() {
-			if (backgroundFlutterView == null) {
+			if (backgroundFlutterEngine == null) {
+				Context context = AudioService.instance;
+				backgroundFlutterEngine = new FlutterEngine(context.getApplicationContext());
 				FlutterCallbackInformation cb = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
 				if (cb == null || appBundlePath == null) {
 					sendStartResult(false);
 					return;
 				}
-				backgroundFlutterView = new FlutterNativeView(AudioService.instance, true);
-				if (pluginRegistrantCallback == null) {
-					sendStartResult(false);
-					throw new IllegalStateException("No pluginRegistrantCallback has been set. Make sure you call AudioServicePlugin.setPluginRegistrantCallback(this) from your application's onCreate.");
-				}
 				if (enableQueue)
 					AudioService.instance.enableQueue();
-				pluginRegistrantCallback.registerWith(backgroundFlutterView.getPluginRegistry());
-				FlutterRunArguments args = new FlutterRunArguments();
-				args.bundlePath = appBundlePath;
-				args.entrypoint = cb.callbackName;
-				args.libraryPath = cb.callbackLibraryPath;
-				backgroundFlutterView.runFromBundle(args);
+				// Register plugins in background isolate if app is using v1 embedding
+				if (pluginRegistrantCallback != null) {
+					pluginRegistrantCallback.registerWith(new ShimPluginRegistry(backgroundFlutterEngine));
+				}
+
+				DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
+				init(executor);
+				DartCallback dartCallback = new DartCallback(context.getAssets(), appBundlePath, cb);
+
+				executor.executeDartCallback(dartCallback);
 			}
 			else
 				invokeMethod("onPlay");
@@ -555,11 +608,9 @@ public class AudioServicePlugin {
 			invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
 		}
 
-
 		@Override
 		public void onMethodCall(MethodCall call, Result result) {
-			Context context = registrar.activeContext();
-			FlutterApplication application = (FlutterApplication)context.getApplicationContext();
+			Context context = AudioService.instance;
 			switch (call.method) {
 			case "ready":
 				result.success(true);
@@ -586,11 +637,12 @@ public class AudioServicePlugin {
 			case "setState":
 				List<Object> args = (List<Object>)call.arguments;
 				List<Map<?,?>> rawControls = (List<Map<?,?>>)args.get(0);
-				int playbackState = (Integer)args.get(1);
-				long position = getLong(args.get(2));
-				float speed = (float)((double)((Double)args.get(3)));
-				long updateTimeSinceEpoch = args.get(4) == null ? System.currentTimeMillis() : getLong(args.get(4));
-				List<Object> compactActionIndexList = (List<Object>)args.get(5);
+				List<Integer> rawSystemActions = (List<Integer>)args.get(1);
+				int playbackState = (Integer)args.get(2);
+				long position = getLong(args.get(3));
+				float speed = (float)((double)((Double)args.get(4)));
+				long updateTimeSinceEpoch = args.get(5) == null ? System.currentTimeMillis() : getLong(args.get(5));
+				List<Object> compactActionIndexList = (List<Object>)args.get(6);
 
 				// On the flutter side, we represent the update time relative to the epoch.
 				// On the native side, we must represent the update time relative to the boot time.
@@ -603,6 +655,10 @@ public class AudioServicePlugin {
 					int actionCode = 1 << ((Integer)rawControl.get("action"));
 					actionBits |= actionCode;
 					actions.add(AudioService.instance.action(resource, (String)rawControl.get("label"), actionCode));
+				}
+				for (Integer rawSystemAction : rawSystemActions) {
+					int actionCode = 1 << rawSystemAction;
+					actionBits |= actionCode;
 				}
 				int[] compactActionIndices = null;
 				if (compactActionIndexList != null) {
@@ -618,7 +674,8 @@ public class AudioServicePlugin {
 				if (silenceAudioTrack != null)
 					silenceAudioTrack.release();
 				if (clientHandler != null) clientHandler.invokeMethod("onStopped");
-				backgroundFlutterView = null;
+				backgroundFlutterEngine.destroy();
+				backgroundFlutterEngine = null;
 				backgroundHandler = null;
 				result.success(true);
 				break;
@@ -667,6 +724,7 @@ public class AudioServicePlugin {
 	}
 
 	private static List<Map<?,?>> queue2raw(List<MediaSessionCompat.QueueItem> queue) {
+		if (queue == null) return null;
 		List<Map<?,?>> rawQueue = new ArrayList<Map<?,?>>();
 		for (MediaSessionCompat.QueueItem queueItem : queue) {
 			MediaDescriptionCompat description = queueItem.getDescription();
@@ -729,6 +787,7 @@ public class AudioServicePlugin {
 	}
 
 	private static Map<?,?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
+		if (mediaMetadata == null) return null;
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String,Object> raw = new HashMap<String,Object>();
 		raw.put("id", description.getMediaId());

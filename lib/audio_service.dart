@@ -258,6 +258,35 @@ class MediaItem {
     this.rating,
   });
 
+  MediaItem copyWith({
+    String id,
+    String album,
+    String title,
+    String artist,
+    String genre,
+    int duration,
+    String artUri,
+    bool playable,
+    String displayTitle,
+    String displaySubtitle,
+    String displayDescription,
+    Rating rating,
+  }) =>
+      MediaItem(
+        id: id ?? this.id,
+        album: album ?? this.album,
+        title: title ?? this.title,
+        artist: artist ?? this.artist,
+        genre: genre ?? this.genre,
+        duration: duration ?? this.duration,
+        artUri: artUri ?? this.artUri,
+        playable: playable ?? this.playable,
+        displayTitle: displayTitle ?? this.displayTitle,
+        displaySubtitle: displaySubtitle ?? this.displaySubtitle,
+        displayDescription: displayDescription ?? this.displayDescription,
+        rating: rating ?? this.rating,
+      );
+
   @override
   int get hashCode => id.hashCode;
 
@@ -410,12 +439,12 @@ class AudioService {
           _playbackStateSubject.add(_playbackState);
           break;
         case 'onMediaChanged':
-          _currentMediaItem = _raw2mediaItem(call.arguments[0]);
+          _currentMediaItem = call.arguments[0] != null ? _raw2mediaItem(call.arguments[0]) : null;
           _currentMediaItemSubject.add(_currentMediaItem);
           break;
         case 'onQueueChanged':
-          final List<Map> args = List<Map>.from(call.arguments[0]);
-          _queue = args.map(_raw2mediaItem).toList();
+          final List<Map> args = call.arguments[0] != null ? List<Map>.from(call.arguments[0]) : null;
+          _queue = args?.map(_raw2mediaItem)?.toList();
           _queueSubject.add(_queue);
           break;
         case 'onStopped':
@@ -431,6 +460,7 @@ class AudioService {
       }
     });
     await _channel.invokeMethod("connect");
+    _connected = true;
   }
 
   /// Disconnects your UI from the service.
@@ -439,7 +469,12 @@ class AudioService {
   static Future<void> disconnect() async {
     _channel.setMethodCallHandler(null);
     await _channel.invokeMethod("disconnect");
+    _connected = false;
   }
+
+  /// True if the UI is connected.
+  static bool get connected => _connected;
+  static bool _connected = false;
 
   /// True if the background audio task is running.
   static Future<bool> get running async {
@@ -477,6 +512,7 @@ class AudioService {
     bool shouldPreloadArtwork = false,
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
+    bool androidStopOnRemoveTask = false,
   }) async {
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
@@ -511,6 +547,7 @@ class AudioService {
       'shouldPreloadArtwork': shouldPreloadArtwork,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
+      'androidStopOnRemoveTask': androidStopOnRemoveTask,
     });
   }
 
@@ -778,13 +815,23 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('ready');
     await task.onStart();
     await _backgroundChannel.invokeMethod('stopped');
+    if (Platform.isIOS) {
+      FlutterIsolate.current.kill();
+    }
     _backgroundChannel.setMethodCallHandler(null);
     _state = _noneState;
   }
 
   /// Sets the current playback state and dictates which media actions can be
-  /// controlled by clients and which media controls should be visible in the
-  /// notification, Wear OS and Android Auto.
+  /// controlled by clients and which media controls and actions should be
+  /// enabled in the notification, Wear OS and Android Auto. Each control
+  /// listed in [controls] will appear as a button in the notification and its
+  /// action will also be made available to all clients such as Wear OS and
+  /// Android Auto.  Any additional actions that you would like to enable for
+  /// clients that do not correspond to a button can be listed in
+  /// [systemActions]. For example, include [MediaAction.seekTo] in
+  /// [systemActions] and the system will provide a seek bar in the
+  /// notification.
   ///
   /// All clients will be notified so they can update their display.
   ///
@@ -797,6 +844,7 @@ class AudioServiceBackground {
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
     @required List<MediaControl> controls,
+    List<MediaAction> systemActions = const [],
     @required BasicPlaybackState basicState,
     int position = 0,
     double speed = 1.0,
@@ -817,8 +865,10 @@ class AudioServiceBackground {
               'action': control.action.index,
             })
         .toList();
+    final rawSystemActions = systemActions.map((action) => action.index).toList();
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
+      rawSystemActions,
       basicState.index,
       position,
       speed,

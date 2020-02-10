@@ -8,7 +8,7 @@ Play audio in the background.
 
 This plugin wraps around your existing Dart audio code to allow it to run in the background, and also respond to media button clicks on the lock screen, notifications, control center, headphone buttons and other supported remote control devices. This is necessary for a whole range of media applications such as music and podcast players, text-to-speech readers, navigators, etc.
 
-This plugin is audio agnostic. It is designed to allow you to use your favourite audio plugins, such as [audioplayer](https://pub.dartlang.org/packages/audioplayer), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others. It simply wraps a special isolate around your existing audio code so that it can run in the background and enable remote control interfaces.
+This plugin is audio agnostic. It is designed to allow you to use your favourite audio plugins, such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others. It simply wraps a special isolate around your existing audio code so that it can run in the background and enable remote control interfaces.
 
 Note that because your app's UI and your background audio task will run in separate isolates, they do not share memory. They communicate through the message passing APIs provided by audio_service.
 
@@ -24,8 +24,8 @@ Note that because your app's UI and your background audio task will run in separ
 | FF/rewind                      | ✅         | ✅         |
 | rate                           | ✅         | ✅         |
 | custom actions                 | ✅         | (untested) |
-| notifications/control center   | ✅         | ✅         |
-| lock screen controls           | ✅         | ✅         |
+| notifications/control center   | ✅         | (partial)  |
+| lock screen controls           | ✅         | (partial)  |
 | album art                      | ✅         | ✅         |
 | queue management               | ✅         | ✅         |
 | runs in background             | ✅         | ✅         |
@@ -93,43 +93,16 @@ The full example on GitHub demonstrates how to fill in these callbacks to do aud
 
 ## Android setup
 
-1. You will need to create a custom `MainApplication` class as follows:
+These instructions assume that your project follows the new project template introduced in Flutter 1.12. If your project was created prior to 1.12 and uses the old project structure, you can either view a previous version of this README on GitHub, or update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
 
-```java
-// Insert your package name here instead of com.example.yourpackagename.
-// You can find your package name at the top of your AndroidManifest file
-// after package="...
-package com.example.yourpackagename;
-
-import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.app.FlutterApplication;
-import io.flutter.plugins.GeneratedPluginRegistrant;
-import com.ryanheise.audioservice.AudioServicePlugin;
-
-public class MainApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
-  @Override
-  public void onCreate() {
-    super.onCreate();
-    AudioServicePlugin.setPluginRegistrantCallback(this);
-  }
-
-  @Override
-  public void registerWith(PluginRegistry registry) {
-    GeneratedPluginRegistrant.registerWith(registry);
-  }
-}
-```
-
-2. Edit your project's `AndroidManifest.xml` file to reference your `MainApplication` class, declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
+1. Edit your project's `AndroidManifest.xml` file to declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
 
 ```xml
 <manifest ...>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   
-  <application
-    android:name=".MainApplication"
-    ...>
+  <application ...>
     
     ...
     
@@ -148,7 +121,7 @@ public class MainApplication extends FlutterApplication implements PluginRegistr
 </manifest>
 ```
 
-3. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
+2. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
 
 ```
 drawable-hdpi
@@ -160,7 +133,44 @@ drawable-xxxhdpi
 
 You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these different subdirectories for any standard material design icon.
 
-*NOTE: Most Flutter plugins today were written before Flutter added support for running Dart code in a headless environment (without an Android Activity present). As such, a number of plugins assume there is an activity and run into a `NullPointerException`. Fortunately, it is very easy for plugin authors to update their plugins remove this assumption. If you encounter such a plugin, see the bottom of this README file for a sample bug report you can send to the relevant plugin author.*
+Starting from Flutter 1.12, you will also need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise your icon resources will be removed during the build:
+
+```
+android {
+    compileSdkVersion 28
+
+    ...
+
+    buildTypes {
+        release {
+            signingConfig ...
+            shrinkResources false // ADD THIS LINE
+        }
+    }
+}
+```
+
+3. (Optional) Versions of Flutter since 1.12 have a memory leak that affects this plugin. It will be fixed in an upcoming Flutter release but until then you can work around it by overriding the following method in your `MainActivity` class:
+
+```java
+public class MainActivity extends FlutterActivity {
+  /** This is a temporary workaround to avoid a memory leak in the Flutter framework */
+  @Override
+  public FlutterEngine provideFlutterEngine(Context context) {
+    // Instantiate a FlutterEngine.
+    FlutterEngine flutterEngine = new FlutterEngine(context.getApplicationContext());
+
+    // Start executing Dart code to pre-warm the FlutterEngine.
+    flutterEngine.getDartExecutor().executeDartEntrypoint(
+      DartExecutor.DartEntrypoint.createDefault()
+    );
+
+    return flutterEngine;
+  }
+}
+```
+
+Alternatively, if you use a cached flutter engine (as per [these instructions](https://flutter.dev/docs/development/add-to-app/android/add-flutter-screen#step-3-optional-use-a-cached-flutterengine)), you will need to change the instantiation code from `new FlutterEngine(this)` to `new FlutterEngine(getApplicationContext())`.
 
 ## iOS setup
 
@@ -174,24 +184,3 @@ Insert this in your `Info.plist` file:
 ```
 
 The example project may be consulted for context.
-
-### Sample bug report
-
-If you encounter a Flutter plugin that gives a `NullPointerException` on Android, it is likely that the plugin has assumed the existence of an activity when there is none. If that is the case, you can submit a bug report to the author of that plugin and suggest the simple fix that should get it to work.
-
-Here is a sample bug report.
-
-> Flutter's new background execution feature (described here: https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124) allows plugins to be registered in a background context (e.g. a Service). The problem is that the wifi plugin assumes that the context for plugin registration is an activity with this line of code:
-> 
-> `    WifiManager wifiManager = (WifiManager) registrar.activity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`
-> 
-> `registrar.activity()` may now return null, and this leads to a `NullPointerException`:
-> 
-> ```
-> E/AndroidRuntime( 2453):   at com.ly.wifi.WifiPlugin.registerWith(WifiPlugin.java:23)
-> E/AndroidRuntime( 2453):   at io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:30)
-> ```
-> 
-> The solution is to change the above line of code to this:
-> 
-> `    WifiManager wifiManager = (WifiManager) registrar.activeContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);`

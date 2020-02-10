@@ -1,22 +1,18 @@
 name: audio_service_example
 description: Demonstrates how to use the audio_service plugin.
+publish_to: 'none'
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# Read more about versioning at semver.org.
-version: 1.0.0+1
+environment:
+  sdk: '>=2.6.0 <3.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
 
-  path_provider: ^1.4.0
-  audioplayer: ^0.5.2
-  flutter_tts: ^0.7.0
-  rxdart: ^0.22.6
+  path_provider: ^1.5.1
+  just_audio: ^0.0.6
+  flutter_tts: ^0.8.5
+  rxdart: ^0.23.1
   audio_service:
     path: ../
 

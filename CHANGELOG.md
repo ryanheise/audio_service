@@ -1,3 +1,23 @@
+## 0.6.1
+
+* Option to stop service on closing task (Android).
+
+## 0.6.0
+
+* Migrated to V2 embedding API (Flutter 1.12).
+
+## 0.5.7
+
+* Destroy isolates after use.
+
+## 0.5.6
+
+* Support Flutter 1.12.
+
+## 0.5.5
+
+* Bump sdk version to 2.6.0.
+
 ## 0.5.4
 
 * Fix Android memory leak.

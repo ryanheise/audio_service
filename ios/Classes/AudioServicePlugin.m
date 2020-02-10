@@ -18,6 +18,7 @@ static FlutterMethodChannel *backgroundChannel = nil;
 static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
+static NSArray *queue = nil;
 static NSMutableDictionary *mediaItem = nil;
 static NSNumber *state = nil;
 static NSNumber *position = nil;
@@ -78,6 +79,8 @@ static MPMediaItemArtwork* artwork = nil;
       // update time since epoch
       updateTime
     ]];
+    [channel invokeMethod:@"onMediaChanged" arguments:@[mediaItem ? mediaItem : [NSNull null]]];
+    [channel invokeMethod:@"onQueueChanged" arguments:@[queue ? queue : [NSNull null]]];
 
     result(nil);
   } else if ([@"disconnect" isEqualToString:call.method]) {
@@ -85,6 +88,7 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"start" isEqualToString:call.method]) {
     if (_running) {
       result(@NO);
+      return;
     }
     _running = YES;
     // The result will be sent after the background task actually starts.
@@ -219,15 +223,15 @@ static MPMediaItemArtwork* artwork = nil;
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
-    if (call.arguments[4] != [NSNull null]) {
-      msSinceEpoch = [call.arguments[4] longLongValue];
+    if (call.arguments[5] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[5] longLongValue];
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
-    state = call.arguments[1];
-    position = call.arguments[2];
+    state = call.arguments[2];
+    position = call.arguments[3];
     updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
-    speed = call.arguments[3];
+    speed = call.arguments[4];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // state
       state,
@@ -243,7 +247,8 @@ static MPMediaItemArtwork* artwork = nil;
     [self updateNowPlayingInfo];
     result(@(YES));
   } else if ([@"setQueue" isEqualToString:call.method]) {
-    [channel invokeMethod:@"onQueueChanged" arguments:@[call.arguments]];
+    queue = call.arguments;
+    [channel invokeMethod:@"onQueueChanged" arguments:@[queue]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
     mediaItem = call.arguments;
@@ -330,7 +335,7 @@ static MPMediaItemArtwork* artwork = nil;
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
   NSLog(@"changePlaybackPosition");
-  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@(event.positionTime)]];
+  [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@((long long) (event.positionTime * 1000))]];
   return MPRemoteCommandHandlerStatusSuccess;
 }
 
