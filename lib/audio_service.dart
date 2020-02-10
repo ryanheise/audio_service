@@ -243,7 +243,7 @@ class MediaItem {
   /// The rating of the MediaItem.
   final Rating rating;
 
-  const MediaItem({
+  MediaItem({
     @required this.id,
     @required this.album,
     @required this.title,
