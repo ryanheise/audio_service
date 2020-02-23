@@ -323,7 +323,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				Map<?,?> rawMediaItem = (Map<?,?>)queueAndIndex.get(0);
 				int index = (Integer)queueAndIndex.get(1);
 				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-				mediaController.addQueueItem(mediaMetadata.getDescription(), index);
+				mediaController.addQueueItemAt(mediaMetadata.getDescription(), index);
 				result.success(true);
 				break;
 			}
