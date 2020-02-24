@@ -1,3 +1,7 @@
+## 0.6.2
+
+* Bug fixes.
+
 ## 0.6.1
 
 * Option to stop service on closing task (Android).
