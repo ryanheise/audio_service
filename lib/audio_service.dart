@@ -375,6 +375,9 @@ class AudioService {
 
   static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
 
+  /// An instance of flutter isolate
+  static FlutterIsolate _flutterIsolate;
+
   /// A stream that broadcasts the children of the current browse
   /// media parent.
   static Stream<List<MediaItem>> get browseMediaChildrenStream =>
@@ -538,7 +541,7 @@ class AudioService {
       // TODO: remove dependency on flutter_isolate by either using the
       // FlutterNativeView API directly or by waiting until Flutter allows
       // regular isolates to use method channels.
-      await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
+      AudioService._flutterIsolate = await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
     }
     return await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
@@ -823,7 +826,7 @@ class AudioServiceBackground {
     await task.onStart();
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
-      FlutterIsolate.current.kill();
+      AudioService._flutterIsolate?.kill();
     }
     _backgroundChannel.setMethodCallHandler(null);
     _state = _noneState;
