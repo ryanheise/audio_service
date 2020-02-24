@@ -568,7 +568,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		}
 		@Override
 		public void onAddQueueItemAt(MediaMetadataCompat metadata, int index) {
-			invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata), index);
+			invokeMethod("onAddQueueItemAt", mediaMetadata2raw(metadata), index);
 		}
 		@Override
 		public void onRemoveQueueItem(MediaMetadataCompat metadata) {
