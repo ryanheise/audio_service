@@ -115,11 +115,13 @@ static MPMediaItemArtwork* artwork = nil;
     if (@available(iOS 9.1, *)) {
       [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
     }
+    // Skipping
+    [commandCenter.skipForwardCommand setEnabled:YES];
+    [commandCenter.skipBackwardCommand setEnabled:YES];
+    [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
+    [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
 
     // TODO: enable more commands
-    // Skipping
-    [commandCenter.skipForwardCommand setEnabled:NO];
-    [commandCenter.skipBackwardCommand setEnabled:NO];
     // Seeking
     [commandCenter.seekForwardCommand setEnabled:NO];
     [commandCenter.seekBackwardCommand setEnabled:NO];
@@ -161,6 +163,11 @@ static MPMediaItemArtwork* artwork = nil;
     if (@available(iOS 9.1, *)) {
       [commandCenter.changePlaybackPositionCommand removeTarget:nil];
     }
+    // Skipping
+    [commandCenter.skipForwardCommand setEnabled:NO];
+    [commandCenter.skipBackwardCommand setEnabled:NO];
+    [commandCenter.skipForwardCommand removeTarget:nil];
+    [commandCenter.skipBackwardCommand removeTarget:nil];
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
@@ -339,4 +346,15 @@ static MPMediaItemArtwork* artwork = nil;
   return MPRemoteCommandHandlerStatusSuccess;
 }
 
+- (MPRemoteCommandHandlerStatus) skipForward: (MPRemoteCommandEvent *) event {
+  NSLog(@"skipForward");
+  [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) skipBackward: (MPRemoteCommandEvent *) event {
+  NSLog(@"skipBackward");
+  [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
+}
 @end
