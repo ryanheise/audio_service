@@ -523,6 +523,8 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
     bool androidStopOnRemoveTask = false,
+    int fastForwardInterval = 0,
+    int rewindInterval = 0,
   }) async {
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
@@ -558,6 +560,8 @@ class AudioService {
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
       'androidStopOnRemoveTask': androidStopOnRemoveTask,
+      'fastForwardInterval': fastForwardInterval,
+      'rewindInterval': rewindInterval,
     });
   }
 

@@ -116,10 +116,18 @@ static MPMediaItemArtwork* artwork = nil;
       [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
     }
     // Skipping
-    [commandCenter.skipForwardCommand setEnabled:YES];
-    [commandCenter.skipBackwardCommand setEnabled:YES];
-    [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
-    [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
+    NSNumber *skipForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
+    NSNumber *skipBackwardInterval = [call.arguments objectForKey:@"rewindInterval"];
+    if (skipForwardInterval > 0) {
+      [commandCenter.skipForwardCommand setEnabled:YES];
+      [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
+      commandCenter.skipForwardCommand.preferredIntervals = @[skipForwardInterval];
+    }
+    if (skipBackwardInterval > 0) {
+      [commandCenter.skipBackwardCommand setEnabled:YES];
+      [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
+      commandCenter.skipBackwardCommand.preferredIntervals = @[skipBackwardInterval];
+    }
 
     // TODO: enable more commands
     // Seeking
