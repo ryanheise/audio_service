@@ -161,6 +161,7 @@ static MPMediaItemArtwork* artwork = nil;
     if (@available(iOS 9.1, *)) {
       [commandCenter.changePlaybackPositionCommand removeTarget:nil];
     }
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
