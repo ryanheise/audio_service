@@ -176,6 +176,7 @@ static MPMediaItemArtwork* artwork = nil;
     [commandCenter.skipBackwardCommand setEnabled:NO];
     [commandCenter.skipForwardCommand removeTarget:nil];
     [commandCenter.skipBackwardCommand removeTarget:nil];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
