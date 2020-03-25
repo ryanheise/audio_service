@@ -251,23 +251,25 @@ static MPMediaItemArtwork* artwork = nil;
     [channel invokeMethod:@"onQueueChanged" arguments:@[queue]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
-    mediaItem = call.arguments;
-    NSString* artUri = mediaItem[@"artUri"];
-    if (artUri != [NSNull null]) {
-      NSURL* artUrl = [[NSURL alloc] initWithString:artUri];
-      NSData* artData = [NSData dataWithContentsOfURL:artUrl];
-      UIImage* artImage = [UIImage imageWithData:artData];
-      artwork = [[MPMediaItemArtwork alloc]
-        initWithBoundsSize:artImage.size
-            requestHandler:^UIImage* _Nonnull(CGSize size){
-              return artImage;
-            }];
-    } else {
-      artwork = nil;
-    }
-    [self updateNowPlayingInfo];
-    [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
-    result(@(YES));
+      mediaItem = call.arguments;
+      NSString* artUri = mediaItem[@"artUri"];
+      artwork= nil;
+      if (![artUri isEqual: [NSNull null]]) {
+          //Dispatch to background Thread to prevent blocking UI
+          dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
+              //this support urls with spacing and arabic letters
+              NSURL* artUrl = [NSURL URLWithString:[artUri stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding]];
+              NSData* artData = [NSData dataWithContentsOfURL:artUrl];
+              UIImage* artImage = [UIImage imageWithData:artData];
+              if(artImage != nil)
+              {
+                  artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
+                  [self updateNowPlayingInfo];
+              }
+          });
+      }
+      [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
+      result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"androidForceEnableMediaButtons" isEqualToString:call.method]) {
