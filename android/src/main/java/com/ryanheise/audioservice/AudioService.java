@@ -311,7 +311,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating) {
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
 			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
@@ -338,6 +338,19 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
 		if (rating != null) {
 			builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, rating);
+		}
+		if (extras != null) {
+			for (Object o : extras.keySet()) {
+				String key = (String)o;
+				Object value = extras.get(key);
+				if (value instanceof Long) {
+					builder.putLong("extra_long_" + key, (Long)value);
+				} else if (value instanceof Integer) {
+					builder.putLong("extra_long_" + key, (Integer)value);
+				} else if (value instanceof String) {
+					builder.putString("extra_string_" + key, (String)value);
+				}
+			}
 		}
 		MediaMetadataCompat mediaMetadata = builder.build();
 		mediaMetadataCache.put(mediaId, mediaMetadata);

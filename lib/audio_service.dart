@@ -246,6 +246,11 @@ class MediaItem {
   /// The rating of the MediaItem.
   final Rating rating;
 
+  /// A map of additional metadata for the media item.
+  ///
+  /// The values must be integers or strings.
+  final Map<String, dynamic> extras;
+
   const MediaItem({
     @required this.id,
     @required this.album,
@@ -259,6 +264,7 @@ class MediaItem {
     this.displaySubtitle,
     this.displayDescription,
     this.rating,
+    this.extras,
   });
 
   MediaItem copyWith({
@@ -274,6 +280,7 @@ class MediaItem {
     String displaySubtitle,
     String displayDescription,
     Rating rating,
+    Map extras,
   }) =>
       MediaItem(
         id: id ?? this.id,
@@ -288,6 +295,7 @@ class MediaItem {
         displaySubtitle: displaySubtitle ?? this.displaySubtitle,
         displayDescription: displayDescription ?? this.displayDescription,
         rating: rating ?? this.rating,
+        extras: extras ?? this.extras,
       );
 
   @override
@@ -340,6 +348,7 @@ Map _mediaItem2raw(MediaItem mediaItem) => {
       'displaySubtitle': mediaItem.displaySubtitle,
       'displayDescription': mediaItem.displayDescription,
       'rating': mediaItem.rating?._toRaw(),
+      'extras': mediaItem.extras,
     };
 
 MediaItem _raw2mediaItem(Map raw) => MediaItem(
@@ -354,7 +363,17 @@ MediaItem _raw2mediaItem(Map raw) => MediaItem(
       displaySubtitle: raw['displaySubtitle'],
       displayDescription: raw['displayDescription'],
       rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
+      extras: _raw2extras(raw['extras']),
     );
+
+Map<String, dynamic> _raw2extras(Map raw) {
+  if (raw == null) return null;
+  final extras = <String, dynamic>{};
+  for (var key in raw.keys) {
+    extras[key as String] = raw[key];
+  }
+  return extras;
+}
 
 const String _CUSTOM_PREFIX = 'custom_';
 
@@ -543,7 +562,8 @@ class AudioService {
       // TODO: remove dependency on flutter_isolate by either using the
       // FlutterNativeView API directly or by waiting until Flutter allows
       // regular isolates to use method channels.
-      AudioService._flutterIsolate = await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
+      AudioService._flutterIsolate =
+          await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
     }
     return await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
@@ -722,21 +742,7 @@ class AudioServiceBackground {
           final List args = call.arguments;
           String parentMediaId = args[0];
           List<MediaItem> mediaItems = await task.onLoadChildren(parentMediaId);
-          List<Map> rawMediaItems = mediaItems
-              .map((mediaItem) => {
-                    'id': mediaItem.id,
-                    'album': mediaItem.album,
-                    'title': mediaItem.title,
-                    'artist': mediaItem.artist,
-                    'genre': mediaItem.genre,
-                    'duration': mediaItem.duration,
-                    'artUri': mediaItem.artUri,
-                    'playable': mediaItem.playable,
-                    'displayTitle': mediaItem.displayTitle,
-                    'displaySubtitle': mediaItem.displaySubtitle,
-                    'displayDescription': mediaItem.displayDescription,
-                  })
-              .toList();
+          List<Map> rawMediaItems = mediaItems.map(_mediaItem2raw).toList();
           return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
           task.onAudioFocusGained();

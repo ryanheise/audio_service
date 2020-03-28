@@ -810,6 +810,19 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
 			raw.put("rating", rating2raw(mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING)));
 		}
+		Map<String, Object> extras = new HashMap<>();
+		for (String key : mediaMetadata.keySet()) {
+			if (key.startsWith("extra_long_")) {
+				String rawKey = key.substring("extra_long_".length());
+				extras.put(rawKey, mediaMetadata.getLong(key));
+			} else if (key.startsWith("extra_string_")) {
+				String rawKey = key.substring("extra_string_".length());
+				extras.put(rawKey, mediaMetadata.getString(key));
+			}
+		}
+		if (extras.size() > 0) {
+			raw.put("extras", extras);
+		}
 		return raw;
 	}
 
@@ -825,7 +838,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				(String)rawMediaItem.get("displayTitle"),
 				(String)rawMediaItem.get("displaySubtitle"),
 				(String)rawMediaItem.get("displayDescription"),
-				raw2rating((Map<String, Object>)rawMediaItem.get("rating"))
+				raw2rating((Map<String, Object>)rawMediaItem.get("rating")),
+				(Map<?, ?>)rawMediaItem.get("extras")
 				);
 	}
 
