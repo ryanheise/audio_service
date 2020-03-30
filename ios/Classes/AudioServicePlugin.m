@@ -267,25 +267,25 @@ static MPMediaItemArtwork* artwork = nil;
     [channel invokeMethod:@"onQueueChanged" arguments:@[queue]];
     result(@YES);
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
-      mediaItem = call.arguments;
-      NSString* artUri = mediaItem[@"artUri"];
-      artwork= nil;
-      if (![artUri isEqual: [NSNull null]]) {
-          //Dispatch to background Thread to prevent blocking UI
-          dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
-              //this support urls with spacing and arabic letters
-              NSURL* artUrl = [NSURL URLWithString:[artUri stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding]];
-              NSData* artData = [NSData dataWithContentsOfURL:artUrl];
-              UIImage* artImage = [UIImage imageWithData:artData];
-              if(artImage != nil)
-              {
-                  artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
-                  [self updateNowPlayingInfo];
-              }
-          });
+    mediaItem = call.arguments;
+    NSString* artUri = mediaItem[@"artUri"];
+    artwork = nil;
+    if (![artUri isEqual: [NSNull null]]) {
+      NSString* artCacheFilePath = [NSNull null];
+      NSDictionary* extras = mediaItem[@"extras"];
+      if (![extras isEqual: [NSNull null]]) {
+        artCacheFilePath = extras[@"artCacheFile"];
       }
-      [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
-      result(@(YES));
+      if (![artCacheFilePath isEqual: [NSNull null]]) {
+        UIImage* artImage = [UIImage imageWithContentsOfFile:artCacheFilePath];
+        if (artImage != nil) {
+          artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
+        }
+      }
+    }
+    [self updateNowPlayingInfo];
+    [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
+    result(@(YES));
   } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
     result(@YES);
   } else if ([@"androidForceEnableMediaButtons" isEqualToString:call.method]) {
