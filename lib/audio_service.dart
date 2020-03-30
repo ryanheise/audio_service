@@ -436,6 +436,9 @@ class AudioService {
   static List<MediaItem> get queue => _queue;
   static List<MediaItem> _queue;
 
+  /// True after service stopped and !running.
+  static bool _afterStop = false;
+
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
   ///
@@ -451,6 +454,8 @@ class AudioService {
           _browseMediaChildrenSubject.add(_browseMediaChildren);
           break;
         case 'onPlaybackStateChanged':
+          // If this event arrives too late, ignore it.
+          if (_afterStop) return;
           final List args = call.arguments;
           int actionBits = args[1];
           _playbackState = PlaybackState(
@@ -486,10 +491,13 @@ class AudioService {
           _currentMediaItemSubject.add(null);
           _queue = null;
           _queueSubject.add(null);
+          _running = false;
+          _afterStop = true;
           break;
       }
     });
     await _channel.invokeMethod("connect");
+    _running = await _channel.invokeMethod("isRunning");
     _connected = true;
   }
 
@@ -507,9 +515,8 @@ class AudioService {
   static bool _connected = false;
 
   /// True if the background audio task is running.
-  static Future<bool> get running async {
-    return await _channel.invokeMethod("isRunning");
-  }
+  static bool _running = false;
+  static bool get running => _running;
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off.
@@ -545,6 +552,9 @@ class AudioService {
     int fastForwardInterval = 0,
     int rewindInterval = 0,
   }) async {
+    if (_running) return false;
+    _running = true;
+    _afterStop = false;
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
     if (handle == null) {
@@ -565,7 +575,7 @@ class AudioService {
       AudioService._flutterIsolate =
           await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
     }
-    return await _channel.invokeMethod('start', {
+    final success = await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
       'androidNotificationChannelName': androidNotificationChannelName,
       'androidNotificationChannelDescription':
@@ -582,6 +592,8 @@ class AudioService {
       'fastForwardInterval': fastForwardInterval,
       'rewindInterval': rewindInterval,
     });
+    _running = await _channel.invokeMethod("isRunning");
+    return success;
   }
 
   /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
