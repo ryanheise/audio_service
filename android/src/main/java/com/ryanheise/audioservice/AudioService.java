@@ -468,7 +468,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	@Override
 	public int onStartCommand(final Intent intent, int flags, int startId) {
 		MediaButtonReceiver.handleIntent(mediaSession, intent);
-		return super.onStartCommand(intent, flags, startId);
+		return START_NOT_STICKY;
 	}
 
 	@Override
