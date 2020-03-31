@@ -43,6 +43,9 @@ import java.util.List;
 import java.util.Map;
 import android.os.Handler;
 import android.os.Looper;
+import java.io.File;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.util.Set;
 
 public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -67,16 +70,16 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static String androidNotificationIcon;
 	static boolean androidNotificationClickStartsActivity;
 	static boolean androidNotificationOngoing;
-	static boolean shouldPreloadArtwork;
 	static boolean androidStopForegroundOnPause;
 	static boolean androidStopOnRemoveTask;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String,MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 	private static Set<String> artUriBlacklist = new HashSet<>();
-	private static Map<String,Bitmap> artBitmapCache = new HashMap<>(); // TODO: old bitmaps should expire FIFO
+	// TODO: Use LRU cache, or only cache art for media items that are in the queue.
+	private static Map<String,Bitmap> artBitmapCache = new HashMap<>();
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean shouldPreloadArtwork, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -92,7 +95,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidNotificationIcon = androidNotificationIcon;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
 		AudioService.androidNotificationOngoing = androidNotificationOngoing;
-		AudioService.shouldPreloadArtwork = shouldPreloadArtwork;
 		AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
 		AudioService.androidStopOnRemoveTask = androidStopOnRemoveTask;
 	}
@@ -190,15 +192,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	private Notification buildNotification() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-			createChannel();
-		int iconId = getResourceId(androidNotificationIcon);
 		int[] compactActionIndices = this.compactActionIndices;
 		if (compactActionIndices == null) {
 			compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, actions.size())];
 			for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
 		}
-		MediaControllerCompat controller = mediaSession.getController();
 		String contentTitle = "";
 		String contentText = "";
 		CharSequence subText = null;
@@ -210,17 +208,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			artBitmap = description.getIconBitmap();
 			subText = description.getDescription();
 		}
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(AudioService.this, notificationChannelId)
-				.setSmallIcon(iconId)
+		NotificationCompat.Builder builder = getNotificationBuilder()
 				.setContentTitle(contentTitle)
 				.setContentText(contentText)
 				.setSubText(subText)
-				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-				.setShowWhen(false)
-				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
 				;
 		if (androidNotificationClickStartsActivity)
-			builder.setContentIntent(controller.getSessionActivity());
+			builder.setContentIntent(mediaSession.getController().getSessionActivity());
 		if (notificationColor != null)
 			builder.setColor(notificationColor);
 		for (NotificationCompat.Action action : actions) {
@@ -238,6 +232,22 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.setOngoing(true);
 		Notification notification = builder.build();
 		return notification;
+	}
+
+	private NotificationCompat.Builder getNotificationBuilder() {
+		NotificationCompat.Builder notificationBuilder = null;
+		if (notificationBuilder == null) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+				createChannel();
+			int iconId = getResourceId(androidNotificationIcon);
+			notificationBuilder = new NotificationCompat.Builder(this, notificationChannelId)
+				.setSmallIcon(iconId)
+				.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+				.setShowWhen(false)
+				.setDeleteIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
+				;
+		}
+		return notificationBuilder;
 	}
 
 	private int requestAudioFocus() {
@@ -311,7 +321,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		noisyReceiver = null;
 	}
 
-	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating) {
+	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
 		MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
 			.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
@@ -324,10 +334,16 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
 		if (artUri != null) {
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
-			Bitmap bitmap = artBitmapCache.get(artUri);
-			if (bitmap != null) {
-				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
-				builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
+			String artCacheFilePath = null;
+			if (extras != null) {
+				artCacheFilePath = (String)extras.get("artCacheFile");
+			}
+			if (artCacheFilePath != null) {
+				Bitmap bitmap = loadArtBitmapFromFile(artCacheFilePath);
+				if (bitmap != null) {
+					builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
+					builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
+				}
 			}
 		}
 		if (displayTitle != null)
@@ -338,6 +354,19 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayDescription);
 		if (rating != null) {
 			builder.putRating(MediaMetadataCompat.METADATA_KEY_RATING, rating);
+		}
+		if (extras != null) {
+			for (Object o : extras.keySet()) {
+				String key = (String)o;
+				Object value = extras.get(key);
+				if (value instanceof Long) {
+					builder.putLong("extra_long_" + key, (Long)value);
+				} else if (value instanceof Integer) {
+					builder.putLong("extra_long_" + key, (Integer)value);
+				} else if (value instanceof String) {
+					builder.putString("extra_string_" + key, (String)value);
+				}
+			}
 		}
 		MediaMetadataCompat mediaMetadata = builder.build();
 		mediaMetadataCache.put(mediaId, mediaMetadata);
@@ -376,92 +405,50 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	void setQueue(List<MediaSessionCompat.QueueItem> queue) {
 		this.queue = queue;
 		mediaSession.setQueue(queue);
-		if (shouldPreloadArtwork)
-			preloadArtwork(queue);
 	}
 
-	void preloadArtwork(final List<MediaSessionCompat.QueueItem> queue) {
-		new Thread() {
-			@Override
-			public void run() {
-				for (MediaSessionCompat.QueueItem queueItem : queue) {
-					final MediaDescriptionCompat description = queueItem.getDescription();
-					synchronized (AudioService.this) {
-						final MediaMetadataCompat mediaMetadata = getMediaMetadata(description.getMediaId());
-						if (needToLoadArt(mediaMetadata))
-							loadArtBitmap(mediaMetadata);
-					}
-				}
-			}
-		}.start();
-	}
-
-	// Call only on main thread
 	void setMetadata(final MediaMetadataCompat mediaMetadata) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
 		updateNotification();
+	}
 
-		if (needToLoadArt(mediaMetadata)) {
-			new Thread() {
-				@Override
-				public void run() {
-					loadArtBitmap(mediaMetadata);
-				}
-			}.start();
+	static Bitmap loadArtBitmapFromFile(String path) {
+		Bitmap bitmap = artBitmapCache.get(path);
+		if (bitmap != null) return bitmap;
+		try {
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			options.inJustDecodeBounds = true;
+			BitmapFactory.decodeFile(path, options);
+			int imageHeight = options.outHeight;
+			int imageWidth = options.outWidth;
+			options.inSampleSize = calculateInSampleSize(options, 96, 96);
+			options.inJustDecodeBounds = false;
+
+			bitmap = BitmapFactory.decodeFile(path, options);
+			artBitmapCache.put(path, bitmap);
+			return bitmap;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 
-	// Must not be called on the main thread
-	synchronized void loadArtBitmap(MediaMetadataCompat mediaMetadata) {
-		if (needToLoadArt(mediaMetadata)) {
-			Uri artUri = mediaMetadata.getDescription().getIconUri();
-			Bitmap bitmap = artBitmapCache.get(artUri.toString());
-			if (bitmap == null) {
-				InputStream in = null;
-				try {
-					in = new URL(artUri.toString()).openConnection().getInputStream();
-					bitmap = BitmapFactory.decodeStream(in);
-					if (!running)
-						return;
-					artBitmapCache.put(artUri.toString(), bitmap);
-				} catch (IOException e) {
-					artUriBlacklist.add(artUri.toString());
-					e.printStackTrace();
-					return;
-				} finally {
-					if (in != null) {
-						try {
-							in.close();
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				}
-			}
-			String mediaId = mediaMetadata.getDescription().getMediaId();
-			final MediaMetadataCompat updatedMediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
-				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap)
-				.build();
-			mediaMetadataCache.put(mediaId, updatedMediaMetadata);
-			// If this the current media item, update the notification
-			if (this.mediaMetadata != null && mediaId.equals(this.mediaMetadata.getDescription().getMediaId())) {
-				handler.post(new Runnable() {
-					@Override
-					public void run() {
-						setMetadata(updatedMediaMetadata);
-					}
-				});
+	private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+		final int height = options.outHeight;
+		final int width = options.outWidth;
+		int inSampleSize = 1;
+
+		if (height > reqHeight || width > reqWidth) {
+			final int halfHeight = height / 2;
+			final int halfWidth = width / 2;
+			while ((halfHeight / inSampleSize) >= reqHeight
+					&& (halfWidth / inSampleSize) >= reqWidth) {
+				inSampleSize *= 2;
 			}
 		}
-	}
 
-	boolean needToLoadArt(MediaMetadataCompat mediaMetadata) {
-		final MediaDescriptionCompat description = mediaMetadata.getDescription();
-		Bitmap bitmap = description.getIconBitmap();
-		Uri artUri = description.getIconUri();
-		return bitmap == null && artUri != null && !artUriBlacklist.contains(artUri.toString());
+		return inSampleSize;
 	}
 
 	@Override
@@ -481,7 +468,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	@Override
 	public int onStartCommand(final Intent intent, int flags, int startId) {
 		MediaButtonReceiver.handleIntent(mediaSession, intent);
-		return super.onStartCommand(intent, flags, startId);
+		return START_NOT_STICKY;
 	}
 
 	@Override

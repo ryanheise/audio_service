@@ -115,11 +115,21 @@ static MPMediaItemArtwork* artwork = nil;
     if (@available(iOS 9.1, *)) {
       [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
     }
+    // Skipping
+    NSNumber *skipForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
+    NSNumber *skipBackwardInterval = [call.arguments objectForKey:@"rewindInterval"];
+    if (skipForwardInterval > 0) {
+      [commandCenter.skipForwardCommand setEnabled:YES];
+      [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
+      commandCenter.skipForwardCommand.preferredIntervals = @[skipForwardInterval];
+    }
+    if (skipBackwardInterval > 0) {
+      [commandCenter.skipBackwardCommand setEnabled:YES];
+      [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
+      commandCenter.skipBackwardCommand.preferredIntervals = @[skipBackwardInterval];
+    }
 
     // TODO: enable more commands
-    // Skipping
-    [commandCenter.skipForwardCommand setEnabled:NO];
-    [commandCenter.skipBackwardCommand setEnabled:NO];
     // Seeking
     [commandCenter.seekForwardCommand setEnabled:NO];
     [commandCenter.seekBackwardCommand setEnabled:NO];
@@ -161,6 +171,12 @@ static MPMediaItemArtwork* artwork = nil;
     if (@available(iOS 9.1, *)) {
       [commandCenter.changePlaybackPositionCommand removeTarget:nil];
     }
+    // Skipping
+    [commandCenter.skipForwardCommand setEnabled:NO];
+    [commandCenter.skipBackwardCommand setEnabled:NO];
+    [commandCenter.skipForwardCommand removeTarget:nil];
+    [commandCenter.skipBackwardCommand removeTarget:nil];
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
@@ -253,17 +269,19 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"setMediaItem" isEqualToString:call.method]) {
     mediaItem = call.arguments;
     NSString* artUri = mediaItem[@"artUri"];
-    if (artUri != [NSNull null]) {
-      NSURL* artUrl = [[NSURL alloc] initWithString:artUri];
-      NSData* artData = [NSData dataWithContentsOfURL:artUrl];
-      UIImage* artImage = [UIImage imageWithData:artData];
-      artwork = [[MPMediaItemArtwork alloc]
-        initWithBoundsSize:artImage.size
-            requestHandler:^UIImage* _Nonnull(CGSize size){
-              return artImage;
-            }];
-    } else {
-      artwork = nil;
+    artwork = nil;
+    if (![artUri isEqual: [NSNull null]]) {
+      NSString* artCacheFilePath = [NSNull null];
+      NSDictionary* extras = mediaItem[@"extras"];
+      if (![extras isEqual: [NSNull null]]) {
+        artCacheFilePath = extras[@"artCacheFile"];
+      }
+      if (![artCacheFilePath isEqual: [NSNull null]]) {
+        UIImage* artImage = [UIImage imageWithContentsOfFile:artCacheFilePath];
+        if (artImage != nil) {
+          artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
+        }
+      }
     }
     [self updateNowPlayingInfo];
     [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
@@ -305,7 +323,7 @@ static MPMediaItemArtwork* artwork = nil;
     nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithInt:([position intValue] / 1000)];
   }
   int stateCode = state ? [state intValue] : 0;
-  nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: stateCode >= 3 ? 1.0 : 0.0];
+  nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: stateCode == 3 ? 1.0 : 0.0];
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
@@ -339,4 +357,15 @@ static MPMediaItemArtwork* artwork = nil;
   return MPRemoteCommandHandlerStatusSuccess;
 }
 
+- (MPRemoteCommandHandlerStatus) skipForward: (MPRemoteCommandEvent *) event {
+  NSLog(@"skipForward");
+  [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) skipBackward: (MPRemoteCommandEvent *) event {
+  NSLog(@"skipBackward");
+  [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
+  return MPRemoteCommandHandlerStatusSuccess;
+}
 @end
