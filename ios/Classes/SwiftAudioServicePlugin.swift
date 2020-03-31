@@ -153,15 +153,6 @@ public class SwiftAudioServicePlugin: NSObject, FlutterPlugin, PlayerActions {
             try SwiftAudioServicePlugin.audioSession.setCategory(.playback)
             try SwiftAudioServicePlugin.audioSession.setActive(true)
             SwiftAudioServicePlugin.remoteCommandController = RemoteCommandController(playerActions: self)
-            SwiftAudioServicePlugin.remoteCommandController?.enable(commands: [
-                .stop,
-                .play,
-                .pause,
-                .togglePlayPause,
-                .next,
-                .previous,
-                .changePlaybackPosition,
-            ])
         } catch {
             print(error)
         }
@@ -182,6 +173,7 @@ public class SwiftAudioServicePlugin: NSObject, FlutterPlugin, PlayerActions {
 
     func setState(arguments: Any?) {
         SwiftAudioServicePlugin.state = PlaybackState.init(arguments: arguments)
+        SwiftAudioServicePlugin.remoteCommandController?.enable(commands: SwiftAudioServicePlugin.state?.controls ?? [])
         SwiftAudioServicePlugin.channel?.invokeMethod("onPlaybackStateChanged", arguments: SwiftAudioServicePlugin.state?.toArguments())
         updateNowPlayingInfo()
     }
