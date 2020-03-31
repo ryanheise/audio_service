@@ -185,19 +185,13 @@ public class SwiftAudioServicePlugin: NSObject, FlutterPlugin, PlayerActions {
 
     func setMediaItem(arguments: Any?) {
         SwiftAudioServicePlugin.mediaItem = arguments as? [String: Any]
-        let artUri: String? = SwiftAudioServicePlugin.mediaItem?["artUri"] as? String
-        if let stringUrl = artUri?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)  {
-            if let url = URL(string: stringUrl) {
-                DispatchQueue.global().async {
-                    if let data = try? Data(contentsOf: url) {
-                        if let artImage = UIImage(data: data) {
-                            SwiftAudioServicePlugin.artwork = MPMediaItemArtwork(image: artImage)
-                            self.updateNowPlayingInfo()
-                        }
-                    }
-                }
-            }
+        SwiftAudioServicePlugin.artwork = nil
+        if let extras = SwiftAudioServicePlugin.mediaItem?["extras"] as? [String: Any],
+            let artCacheFilePath = extras["artCacheFile"] as? String,
+            let artImage =  UIImage(contentsOfFile: artCacheFilePath) {
+            SwiftAudioServicePlugin.artwork = MPMediaItemArtwork(image: artImage)
         }
+        self.updateNowPlayingInfo()
         SwiftAudioServicePlugin.channel?.invokeMethod("onMediaChanged", arguments: [arguments])
     }
     
