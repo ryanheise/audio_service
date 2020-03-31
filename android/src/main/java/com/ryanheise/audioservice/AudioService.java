@@ -58,6 +58,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
 	public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
 	public static final int MAX_COMPACT_ACTIONS = 3;
+	public static final String PLAYBACK_STATE_EXTRA_DURATION = "playback_state_duration";
 
 	private static volatile boolean running;
 	static AudioService instance;
@@ -179,13 +180,17 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 	}
 
-	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, int playbackState, long position, float speed, long updateTime) {
+	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, int playbackState, long position, float speed, long updateTime, long duration) {
 		this.actions = actions;
 		this.compactActionIndices = compactActionIndices;
 
+		Bundle extras = new Bundle();
+		extras.putLong(PLAYBACK_STATE_EXTRA_DURATION, duration);
+
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 			.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE|actionBits)
-			.setState(playbackState, position, speed, updateTime);
+			.setState(playbackState, position, speed, updateTime)
+			.setExtras(extras);
 		mediaSession.setPlaybackState(stateBuilder.build());
 
 		updateNotification();
