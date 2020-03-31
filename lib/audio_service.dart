@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -435,6 +436,9 @@ class AudioService {
   static List<MediaItem> get queue => _queue;
   static List<MediaItem> _queue;
 
+  /// True after service stopped and !running.
+  static bool _afterStop = false;
+
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
   ///
@@ -450,6 +454,8 @@ class AudioService {
           _browseMediaChildrenSubject.add(_browseMediaChildren);
           break;
         case 'onPlaybackStateChanged':
+          // If this event arrives too late, ignore it.
+          if (_afterStop) return;
           final List args = call.arguments;
           int actionBits = args[1];
           _playbackState = PlaybackState(
@@ -485,10 +491,13 @@ class AudioService {
           _currentMediaItemSubject.add(null);
           _queue = null;
           _queueSubject.add(null);
+          _running = false;
+          _afterStop = true;
           break;
       }
     });
     await _channel.invokeMethod("connect");
+    _running = await _channel.invokeMethod("isRunning");
     _connected = true;
   }
 
@@ -506,9 +515,8 @@ class AudioService {
   static bool _connected = false;
 
   /// True if the background audio task is running.
-  static Future<bool> get running async {
-    return await _channel.invokeMethod("isRunning");
-  }
+  static bool _running = false;
+  static bool get running => _running;
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off.
@@ -538,13 +546,15 @@ class AudioService {
     bool androidNotificationClickStartsActivity = true,
     bool androidNotificationOngoing = false,
     bool resumeOnClick = true,
-    bool shouldPreloadArtwork = false,
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
     bool androidStopOnRemoveTask = false,
     int fastForwardInterval = 0,
     int rewindInterval = 0,
   }) async {
+    if (_running) return false;
+    _running = true;
+    _afterStop = false;
     final ui.CallbackHandle handle =
         ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
     if (handle == null) {
@@ -565,7 +575,7 @@ class AudioService {
       AudioService._flutterIsolate =
           await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
     }
-    return await _channel.invokeMethod('start', {
+    final success = await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
       'androidNotificationChannelName': androidNotificationChannelName,
       'androidNotificationChannelDescription':
@@ -576,13 +586,14 @@ class AudioService {
           androidNotificationClickStartsActivity,
       'androidNotificationOngoing': androidNotificationOngoing,
       'resumeOnClick': resumeOnClick,
-      'shouldPreloadArtwork': shouldPreloadArtwork,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
       'androidStopOnRemoveTask': androidStopOnRemoveTask,
       'fastForwardInterval': fastForwardInterval,
       'rewindInterval': rewindInterval,
     });
+    _running = await _channel.invokeMethod("isRunning");
+    return success;
   }
 
   /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
@@ -718,6 +729,8 @@ class AudioServiceBackground {
       PlaybackState(basicState: BasicPlaybackState.none, actions: Set());
   static MethodChannel _backgroundChannel;
   static PlaybackState _state = _noneState;
+  static MediaItem _mediaItem;
+  static BaseCacheManager _cacheManager;
 
   /// The current media playback state.
   ///
@@ -736,6 +749,7 @@ class AudioServiceBackground {
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
     final task = taskBuilder();
+    _cacheManager = task.cacheManager;
     _backgroundChannel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'onLoadChildren':
@@ -906,8 +920,33 @@ class AudioServiceBackground {
 
   /// Sets the currently playing media item and notifies all clients.
   static Future<void> setMediaItem(MediaItem mediaItem) async {
-    await _backgroundChannel.invokeMethod(
-        'setMediaItem', _mediaItem2raw(mediaItem));
+    _mediaItem = mediaItem;
+    if (mediaItem.artUri != null) {
+      // We potentially need to fetch the art.
+      final fileInfo = await _cacheManager.getFileFromMemory(mediaItem.artUri);
+      File file = fileInfo?.file;
+      if (file == null) {
+        // We haven't fetched the art yet, so show the metadata now, and again
+        // after we load the art.
+        await _backgroundChannel.invokeMethod(
+            'setMediaItem', _mediaItem2raw(mediaItem));
+        // Load the art
+        file = await _cacheManager.getSingleFile(mediaItem.artUri);
+        // If we failed to download the art, abort.
+        if (file == null) return;
+        // If we've already set a new media item, cancel this request.
+        if (mediaItem != _mediaItem) return;
+      }
+      final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
+      extras['artCacheFile'] = file.path;
+      final platformMediaItem = mediaItem.copyWith(extras: extras);
+      // Show the media item after the art is loaded.
+      await _backgroundChannel.invokeMethod(
+          'setMediaItem', _mediaItem2raw(platformMediaItem));
+    } else {
+      await _backgroundChannel.invokeMethod(
+          'setMediaItem', _mediaItem2raw(mediaItem));
+    }
   }
 
   /// Notify clients that the child media items of [parentMediaId] have
@@ -941,6 +980,13 @@ class AudioServiceBackground {
 /// You should subclass [BackgroundAudioTask] and override the callbacks for
 /// each type of event that your background task wishes to react to.
 abstract class BackgroundAudioTask {
+  final BaseCacheManager cacheManager;
+
+  /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
+  /// or an instance of [DefaultCacheManager] will be used by default.
+  BackgroundAudioTask({BaseCacheManager cacheManager})
+      : this.cacheManager = cacheManager ?? DefaultCacheManager();
+
   /// Called once when this audio task is first started and ready to play
   /// audio, in response to [AudioService.start]. When the returned future
   /// completes, this task will be immediately terminated.

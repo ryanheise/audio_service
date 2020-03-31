@@ -245,14 +245,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
 				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
-				boolean shouldPreloadArtwork = (Boolean)arguments.get("shouldPreloadArtwork");
 				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, shouldPreloadArtwork, androidStopForegroundOnPause, androidStopOnRemoveTask, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
