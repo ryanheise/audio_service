@@ -913,9 +913,23 @@ class AudioServiceBackground {
   }
 
   /// Sets the current queue and notifies all clients.
-  static Future<void> setQueue(List<MediaItem> queue) async {
+  static Future<void> setQueue(List<MediaItem> queue,
+      {bool preloadArtwork = false}) async {
+    if (preloadArtwork) {
+      _loadArtwork(queue);
+    }
     await _backgroundChannel.invokeMethod(
         'setQueue', queue.map(_mediaItem2raw).toList());
+  }
+
+  static Future<void> _loadArtwork(List<MediaItem> queue) async {
+    for (var mediaItem in queue) {
+      try {
+        if (mediaItem.artUri != null) {
+          await _cacheManager.getSingleFile(mediaItem.artUri);
+        }
+      } catch (e) {}
+    }
   }
 
   /// Sets the currently playing media item and notifies all clients.
