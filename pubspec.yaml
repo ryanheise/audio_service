@@ -5,6 +5,7 @@ homepage: https://github.com/ryanheise/audio_service
 
 environment:
   sdk: '>=2.6.0 <3.0.0'
+  flutter: ">=1.12.8 <2.0.0"
 
 dependencies:
   rxdart: ^0.23.1
@@ -15,5 +16,9 @@ dependencies:
 
 flutter:
   plugin:
-    androidPackage: com.ryanheise.audioservice
-    pluginClass: AudioServicePlugin
+    platforms:
+      android:
+        package: com.ryanheise.audioservice
+        pluginClass: AudioServicePlugin
+      ios:
+        pluginClass: AudioServicePlugin
