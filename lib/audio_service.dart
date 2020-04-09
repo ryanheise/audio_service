@@ -916,20 +916,10 @@ class AudioServiceBackground {
   static Future<void> setQueue(List<MediaItem> queue,
       {bool preloadArtwork = false}) async {
     if (preloadArtwork) {
-      _loadArtwork(queue);
+      _loadAllArtwork(queue);
     }
     await _backgroundChannel.invokeMethod(
         'setQueue', queue.map(_mediaItem2raw).toList());
-  }
-
-  static Future<void> _loadArtwork(List<MediaItem> queue) async {
-    for (var mediaItem in queue) {
-      try {
-        if (mediaItem.artUri != null) {
-          await _cacheManager.getSingleFile(mediaItem.artUri);
-        }
-      } catch (e) {}
-    }
   }
 
   /// Sets the currently playing media item and notifies all clients.
@@ -938,21 +928,21 @@ class AudioServiceBackground {
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
       final fileInfo = await _cacheManager.getFileFromMemory(mediaItem.artUri);
-      File file = fileInfo?.file;
-      if (file == null) {
+      String filePath = fileInfo?.file?.path;
+      if (filePath == null) {
         // We haven't fetched the art yet, so show the metadata now, and again
         // after we load the art.
         await _backgroundChannel.invokeMethod(
             'setMediaItem', _mediaItem2raw(mediaItem));
         // Load the art
-        file = await _cacheManager.getSingleFile(mediaItem.artUri);
+        filePath = await _loadArtwork(mediaItem);
         // If we failed to download the art, abort.
-        if (file == null) return;
+        if (filePath == null) return;
         // If we've already set a new media item, cancel this request.
         if (mediaItem != _mediaItem) return;
       }
       final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
-      extras['artCacheFile'] = file.path;
+      extras['artCacheFile'] = filePath;
       final platformMediaItem = mediaItem.copyWith(extras: extras);
       // Show the media item after the art is loaded.
       await _backgroundChannel.invokeMethod(
@@ -961,6 +951,28 @@ class AudioServiceBackground {
       await _backgroundChannel.invokeMethod(
           'setMediaItem', _mediaItem2raw(mediaItem));
     }
+  }
+
+  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
+    for (var mediaItem in queue) {
+      await _loadArtwork(mediaItem);
+    }
+  }
+
+  static Future<String> _loadArtwork(MediaItem mediaItem) async {
+    try {
+      final artUri = mediaItem.artUri;
+      if (artUri != null) {
+        const prefix = 'file://';
+        if (artUri.toLowerCase().startsWith(prefix)) {
+          return artUri.substring(prefix.length);
+        } else {
+          final file = await _cacheManager.getSingleFile(mediaItem.artUri);
+          return file.path;
+        }
+      }
+    } catch (e) {}
+    return null;
   }
 
   /// Notify clients that the child media items of [parentMediaId] have
