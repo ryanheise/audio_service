@@ -252,6 +252,10 @@ class MediaItem {
   /// The values must be integers or strings.
   final Map<String, dynamic> extras;
 
+  /// Creates a [MediaItem].
+  ///
+  /// [id], [album] and [title] must not be null, and [id] must be unique for
+  /// each instance.
   const MediaItem({
     @required this.id,
     @required this.album,
