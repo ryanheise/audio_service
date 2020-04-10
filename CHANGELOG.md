@@ -1,3 +1,8 @@
+## 0.7.1
+
+* Add AudioServiceWidget to auto-manage connections.
+* Allow file URIs for artUri.
+
 ## 0.7.0
 
 * Support skip forward/backward in command center (iOS).
