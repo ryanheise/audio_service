@@ -473,8 +473,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@Override
 	public void onDestroy() {
-		instance = null;
 		super.onDestroy();
+		if (listener != null) {
+			listener.onDestroy();
+		}
+		instance = null;
 	}
 
 	@Override
@@ -746,6 +749,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onFastForward();
 		void onRewind();
 		void onStop();
+		void onDestroy();
 		void onSeekTo(long pos);
 		void onSetRating(RatingCompat rating);
 		void onSetRating(RatingCompat rating, Bundle extras);
