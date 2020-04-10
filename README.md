@@ -32,31 +32,51 @@ Note that because your app's UI and your background audio task will run in separ
 | Handle phonecall interruptions | ✅         |            |
 | Android Auto                   | (untested) |            |
 
+## Tutorial
+
+A tutorial for this plugin is available at the [GitHub Wiki](https://github.com/ryanheise/audio_service/wiki/Tutorial).
+
 ## Example
 
-audio_service provides two sets of APIs: one for your main UI isolate (`AudioService`), and one for your background audio isolate (`AudioServiceBackground`).
+When using this plugin, your user interface code will run in the main UI isolate, and your audio playing code will run in a separate background isolate, enabling it to outlive the potential suspension or destruction of the UI. To cater for this code separation, the plugin provides two sets of APIs: one for your main UI isolate (`AudioService`), and one for your background audio isolate (`AudioServiceBackground`).
 
 ### UI code
 
-This code runs in the main UI isolate:
+Insert an `AudioServiceWidget` at the top of your widget tree to maintain a connection to `AudioService` shared by all of your app's routes:
 
 ```dart
-AudioService.connect();    // When UI becomes visible
-AudioService.start(        // When user clicks button to start playback
-  backgroundTaskEntrypoint: myBackgroundTaskEntrypoint,
-  androidNotificationChannelName: 'Music Player',
-  androidNotificationIcon: "mipmap/ic_launcher",
+return MaterialApp(
+  home: AudioServiceWidget(MainScreen()),
 );
-AudioService.pause();      // When user clicks button to pause playback
-AudioService.play();       // When user clicks button to resume playback
-AudioService.disconnect(); // When UI is gone
 ```
 
-The full example on GitHub should be consulted for tips on how to hook `connect` and `disconnect` into your widget's lifecycle.
+Once connected, your Flutter UI can start up and shut down the background audio task, and send messages to it:
+
+```dart
+AudioService.start(backgroundTaskEntrypoint: _backgroundTaskEntrypoint);
+AudioService.pause();
+AudioService.play();
+AudioService.skipToNext();
+AudioService.skipToPrevious();
+AudioService.seekTo(10000);
+AudioService.stop(); // shuts down the background audio task
+```
+
+Your background audio task should broadcast state changes which your Flutter UI can listen to via these streams:
+
+```dart
+AudioService.playbackStateStream    // playback state and position
+AudioService.currentMediaItemStream // current item being played
+AudioService.queueStream            // (optional) playlist
+```
+
+If the user closes your Flutter UI and then re-opens it, the connection to your background audio task will be automatically reestablished, and these streams will re-emit the most recent event allowing your UI to restore itself to the current state.
+
+A full example is available on GitHub the `example/` directory.
 
 ### Background code
 
-This code runs in a background isolate, and is the code that is guaranteed to continue running even if your UI is gone:
+The `_backgroundTaskEntrypoint` function that you passed into `AudioService.start` must be a top-level or static function, and it will be the first function to be called as soon as the background isolate is started. It should contain a single line of code that creates your background audio task:
 
 ```dart
 void myBackgroundTaskEntrypoint() {
@@ -86,14 +106,28 @@ class MyBackgroundTask extends BackgroundAudioTask {
   void onClick(MediaButton button) {
     // Your custom dart code to handle a media button click.
   }
+  @override
+  void onSkipToNext() {
+    // Your custom dart code to skip to the next queue item.
+  }
+  @override
+  void onSkipToPrevious() {
+    // Your custom dart code to skip to the previous queue item.
+  }
+  @override
+  void onSeekTo(int position) {
+    // Your custom dart code to seek to a position.
+  }
 }
 ```
+
+At a bare minimum, you must override the `onStart` and `onStop` callbacks to manage setting up and tearing down the background audio task, while all other callbacks are optional and you can implement just those that are relevant to your app.
 
 The full example on GitHub demonstrates how to fill in these callbacks to do audio playback and also text-to-speech.
 
 ## Android setup
 
-These instructions assume that your project follows the new project template introduced in Flutter 1.12. If your project was created prior to 1.12 and uses the old project structure, you can either view a previous version of this README on GitHub, or update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
+These instructions assume that your project follows the new project template introduced in Flutter 1.12. If your project was created prior to 1.12 and uses the old project structure, you can update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
 
 1. Edit your project's `AndroidManifest.xml` file to declare the permission to create a wake lock, and add component entries for the `<service>` and `<receiver>`:
 

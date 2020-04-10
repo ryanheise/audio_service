@@ -392,6 +392,7 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// Your UI must disconnect from the audio service when it is no longer visible
 /// although the audio service will continue to run in the background. If your
 /// UI once again becomes visible, you should reconnect to the audio service.
+/// Use [AudioServiceWidget] to manage this connection automatically.
 class AudioService {
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -449,6 +450,8 @@ class AudioService {
   /// This method should be called when your UI becomes visible, and
   /// [disconnect] should be called when your UI is no longer visible. All
   /// other methods in this class will work only while connected.
+  ///
+  /// Use [AudioServiceWidget] to handle this automatically.
   static Future<void> connect() async {
     _channel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
@@ -508,6 +511,8 @@ class AudioService {
   /// Disconnects your UI from the service.
   ///
   /// This method should be called when the UI is no longer visible.
+  ///
+  /// Use [AudioServiceWidget] to handle this automatically.
   static Future<void> disconnect() async {
     _channel.setMethodCallHandler(null);
     await _channel.invokeMethod("disconnect");
@@ -1125,4 +1130,59 @@ _iosIsolateEntrypoint(int rawHandle) async {
   ui.CallbackHandle handle = ui.CallbackHandle.fromRawHandle(rawHandle);
   Function backgroundTask = ui.PluginUtilities.getCallbackFromHandle(handle);
   backgroundTask();
+}
+
+/// A widget that maintains a connection to [AudioService].
+///
+/// Insert this widget at the top of your widget tree to maintain the
+/// connection across all routes.
+class AudioServiceWidget extends StatefulWidget {
+  final Widget child;
+
+  AudioServiceWidget({@required this.child});
+
+  @override
+  _AudioServiceWidgetState createState() => _AudioServiceWidgetState();
+}
+
+class _AudioServiceWidgetState extends State<AudioServiceWidget>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    AudioService.connect();
+  }
+
+  @override
+  void dispose() {
+    AudioService.disconnect();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        AudioService.connect();
+        break;
+      case AppLifecycleState.paused:
+        AudioService.disconnect();
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        AudioService.disconnect();
+        return true;
+      },
+      child: widget.child,
+    );
+  }
 }
