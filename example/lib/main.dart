@@ -239,7 +239,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   _dragPositionSubject.add(null);
                 },
               ),
-            Text("${(state.position / 100).toStringAsFixed(3)}"),
+            Text("${(state.currentPosition / 1000).toStringAsFixed(3)}"),
           ],
         );
       },
