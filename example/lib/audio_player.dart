@@ -1,25 +1,35 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
-typedef HandlePlayBackEvent = Function Function(BasicPlaybackState skippedState);
+typedef PlaybackStateCallback = void Function(
+    BasicPlaybackState state, int position);
 
 abstract class AudioPlayerBase {
   void initialize(
-      Function handlePlayBackCompleted, HandlePlayBackEvent handlePlayBackEvent);
-  void setUrl(String url);
+    Function handlePlayBackCompleted,
+    BasicPlaybackState skippedState,
+    PlaybackStateCallback handlePlayBackEvent,
+  );
+  Future<void> play({String url});
+  Future<void> pause();
+  Future<void> seekTo(int position);
+  Future<void> stop(bool cancelSubscriptions);
   void dispose();
-  Stream<Duration> get bufferedPositionStream;
-  Stream<Duration> get getPositionStream;
-  Stream<Duration> get durationStream;
-  Stream<FullAudioPlaybackState> get audioPlaybackState;
 }
 
 class JustAudioPlayer implements AudioPlayerBase {
   AudioPlayer _player;
+  StreamSubscription<AudioPlaybackState> _audioPlayBackStateStream;
+  StreamSubscription<AudioPlaybackEvent> _audioPlayBackEventStream;
 
   @override
   void initialize(
-      Function handlePlayBackCompleted, Function handlePlayBackEvent) {
+    Function handlePlayBackCompleted,
+    BasicPlaybackState skippedState,
+    PlaybackStateCallback handlePlayBackEvent,
+  ) {
     _player = AudioPlayer();
     _player.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
@@ -27,15 +37,37 @@ class JustAudioPlayer implements AudioPlayerBase {
       handlePlayBackCompleted();
     });
     _player.playbackEventStream.listen((event) {
-      if (event.state != AudioPlaybackState.stopped || event.state != AudioPlaybackState.completed) {
-        handlePlayBackEvent();
+      if (event.state != AudioPlaybackState.stopped ||
+          event.state != AudioPlaybackState.completed) {
+        handlePlayBackEvent(
+          _eventToBasicState(event, skippedState),
+          event.position.inMilliseconds,
+        );
       }
     });
   }
 
   @override
-  void setUrl(String url) {
-    _player.setUrl(url);
+  Future<void> play({String url}) async {
+    if (url != null) await _player.setUrl(url);
+    _player.play();
+  }
+
+  @override
+  Future<void> pause() async {
+    _player.pause();
+  }
+
+  Future<void> seekTo(int position) async {
+    await _player.seek(Duration(milliseconds: position));
+  }
+
+  Future<void> stop(bool cancelSubscriptions) async {
+    await _player.stop();
+    if (cancelSubscriptions) {
+      _audioPlayBackStateStream.cancel();
+      _audioPlayBackEventStream.cancel();
+    }
   }
 
   @override
@@ -43,7 +75,7 @@ class JustAudioPlayer implements AudioPlayerBase {
     _player.dispose();
   }
 
-  BasicPlaybackState eventToBasicState(
+  BasicPlaybackState _eventToBasicState(
       AudioPlaybackEvent event, BasicPlaybackState isSkippedState) {
     if (event.buffering) {
       return BasicPlaybackState.buffering;
@@ -66,17 +98,4 @@ class JustAudioPlayer implements AudioPlayerBase {
       }
     }
   }
-
-  @override
-  Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
-  @override
-  Stream<Duration> get getPositionStream => _player.getPositionStream();
-  @override
-  Stream<Duration> get durationStream => _player.durationStream;
-  @override
-  Stream<FullAudioPlaybackState> get audioPlaybackState =>
-      _player.fullPlaybackStateStream;
-
-  // Stream<AudioServicePlaybackState> get audioServicePlaybackStream =>
-  //     _player.playbackEventStream.map(_eventToBasicState);
 }

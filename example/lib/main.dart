@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -134,7 +133,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     if (mediaItem?.title != null) Text(mediaItem.title),
                     if (basicState == BasicPlaybackState.none) ...[
                       audioPlayerButton(),
-                      textToSpeechButton(),
                     ] else
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -163,7 +161,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                       positionIndicator(mediaItem, state),
                       Text("State: " +
                           "$basicState".replaceAll(RegExp(r'^.*\.'), '')),
-                    ]
+                      RaisedButton(
+                          child: Text("print items"),
+                          onPressed: () {
+                            print(AudioService.queue.toString());
+                          }),
+                      RaisedButton(
+                          child: Text("add item"),
+                          onPressed: () {
+                            AudioService.addQueueItem(MediaItem(
+                              id: "https://dl.irangfx.com/gerama/albums/ali-jafari-pouyan/1-6/music/ali-jafari-pouyan-1-6-2019.mp3",
+                              album: "Gerama album",
+                              title: "Gerama title",
+                              artist: "Gerama artist",
+                              duration: 444000,
+                              artUri:
+                                  "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+                            ));
+                          }),
+                    ],
                   ],
                 );
               },
@@ -183,18 +199,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             notificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
             enableQueue: true,
-          );
-        },
-      );
-
-  RaisedButton textToSpeechButton() => startButton(
-        'TextToSpeech',
-        () {
-          AudioService.start(
-            backgroundTaskEntrypoint: _textToSpeechTaskEntrypoint,
-            androidNotificationChannelName: 'Audio Service Demo',
-            notificationColor: 0xFF2196f3,
-            androidNotificationIcon: 'mipmap/ic_launcher',
           );
         },
       );
@@ -255,7 +259,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   _dragPositionSubject.add(null);
                 },
               ),
-            Text("${(state.currentPosition / 1000).toStringAsFixed(3)}"),
+            Text("${(state.position / 100).toStringAsFixed(3)}"),
           ],
         );
       },
@@ -364,10 +368,29 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   void playPause() {
-    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing)
-      onPause();
-    else
-      onPlay();
+    if (_skipState == null) {
+      if (AudioServiceBackground.state.basicState ==
+          BasicPlaybackState.playing) {
+        _playing = true;
+        _audioPlayer.play();
+      } else {
+        _playing = false;
+        _audioPlayer.pause();
+      }
+    }
+  }
+
+  @override
+  void onAddQueueItem(MediaItem mediaItem) {
+    a(mediaItem);
+  }
+
+  Future a(MediaItem media) async {
+    await _audioPlayer.stop();
+    List b = _queue;
+    b.add(media);
+    AudioServiceBackground.setQueue(b);
+    onSkipToNext();
   }
 
   @override
@@ -396,25 +419,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _skipState = null;
     // Resume playback if we were playing
     if (_playing) {
-      onPlay();
+      _audioPlayer.play();
     } else {
       _setState(state: BasicPlaybackState.paused);
-    }
-  }
-
-  @override
-  void onPlay() {
-    if (_skipState == null) {
-      _playing = true;
-      _audioPlayer.play();
-    }
-  }
-
-  @override
-  void onPause() {
-    if (_skipState == null) {
-      _playing = false;
-      _audioPlayer.pause();
     }
   }
 
@@ -463,93 +470,5 @@ class AudioPlayerTask extends BackgroundAudioTask {
         skipToNextControl
       ];
     }
-  }
-}
-
-void _textToSpeechTaskEntrypoint() async {
-  AudioServiceBackground.run(() => TextPlayerTask());
-}
-
-class TextPlayerTask extends BackgroundAudioTask {
-  FlutterTts _tts = FlutterTts();
-
-  /// Represents the completion of a period of playing or pausing.
-  Completer _playPauseCompleter = Completer();
-
-  /// This wraps [_playPauseCompleter.future], replacing [_playPauseCompleter]
-  /// if it has already completed.
-  Future _playPauseFuture() {
-    if (_playPauseCompleter.isCompleted) _playPauseCompleter = Completer();
-    return _playPauseCompleter.future;
-  }
-
-  BasicPlaybackState get _basicState => AudioServiceBackground.state.basicState;
-
-  @override
-  Future<void> onStart() async {
-    playPause();
-    for (var i = 1; i <= 10 && _basicState != BasicPlaybackState.stopped; i++) {
-      AudioServiceBackground.setMediaItem(mediaItem(i));
-      AudioServiceBackground.androidForceEnableMediaButtons();
-      _tts.speak('$i');
-      // Wait for the speech or a pause request.
-      await Future.any(
-          [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
-      // If we were just paused...
-      if (_playPauseCompleter.isCompleted &&
-          _basicState == BasicPlaybackState.paused) {
-        // Wait to be unpaused...
-        await _playPauseFuture();
-      }
-    }
-    if (_basicState != BasicPlaybackState.stopped) onStop();
-  }
-
-  MediaItem mediaItem(int number) => MediaItem(
-      id: 'tts_$number',
-      album: 'Numbers',
-      title: 'Number $number',
-      artist: 'Sample Artist');
-
-  void playPause() {
-    if (_basicState == BasicPlaybackState.playing) {
-      _tts.stop();
-      AudioServiceBackground.setState(
-        controls: [playControl, stopControl],
-        basicState: BasicPlaybackState.paused,
-      );
-    } else {
-      AudioServiceBackground.setState(
-        controls: [pauseControl, stopControl],
-        basicState: BasicPlaybackState.playing,
-      );
-    }
-    _playPauseCompleter.complete();
-  }
-
-  @override
-  void onPlay() {
-    playPause();
-  }
-
-  @override
-  void onPause() {
-    playPause();
-  }
-
-  @override
-  void onClick(MediaButton button) {
-    playPause();
-  }
-
-  @override
-  void onStop() {
-    if (_basicState == BasicPlaybackState.stopped) return;
-    _tts.stop();
-    AudioServiceBackground.setState(
-      controls: [],
-      basicState: BasicPlaybackState.stopped,
-    );
-    _playPauseCompleter.complete();
   }
 }
