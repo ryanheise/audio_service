@@ -308,24 +308,26 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   MediaItem get mediaItem => _queue[_queueIndex];
 
-  BasicPlaybackState _stateToBasicState(AudioPlaybackState state) {
-    switch (state) {
-      case AudioPlaybackState.none:
-        return BasicPlaybackState.none;
-      case AudioPlaybackState.stopped:
-        return BasicPlaybackState.stopped;
-      case AudioPlaybackState.paused:
-        return BasicPlaybackState.paused;
-      case AudioPlaybackState.playing:
-        return BasicPlaybackState.playing;
-      case AudioPlaybackState.buffering:
-        return BasicPlaybackState.buffering;
-      case AudioPlaybackState.connecting:
-        return _skipState ?? BasicPlaybackState.connecting;
-      case AudioPlaybackState.completed:
-        return BasicPlaybackState.stopped;
-      default:
-        throw Exception("Illegal state");
+  BasicPlaybackState _eventToBasicState(AudioPlaybackEvent event) {
+    if (event.buffering) {
+      return BasicPlaybackState.buffering;
+    } else {
+      switch (event.state) {
+        case AudioPlaybackState.none:
+          return BasicPlaybackState.none;
+        case AudioPlaybackState.stopped:
+          return BasicPlaybackState.stopped;
+        case AudioPlaybackState.paused:
+          return BasicPlaybackState.paused;
+        case AudioPlaybackState.playing:
+          return BasicPlaybackState.playing;
+        case AudioPlaybackState.connecting:
+          return _skipState ?? BasicPlaybackState.connecting;
+        case AudioPlaybackState.completed:
+          return BasicPlaybackState.stopped;
+        default:
+          throw Exception("Illegal state");
+      }
     }
   }
 
@@ -337,7 +339,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
       _handlePlaybackCompleted();
     });
     var eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
-      final state = _stateToBasicState(event.state);
+      final state = _eventToBasicState(event);
       if (state != BasicPlaybackState.stopped) {
         _setState(
           state: state,
