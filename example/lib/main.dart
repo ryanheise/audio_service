@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'audio_player.dart';
 import 'audio_service.dart';
 
 void main() => runApp(new MyApp());
@@ -108,22 +107,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                       ),
                     if (mediaItem?.title != null) Text(mediaItem.title),
                     if (basicState == BasicPlaybackState.none) ...[
-                      RaisedButton(
-                        child: Text("audio service"),
-                        onPressed: () {
-                          AudioService.start(
-                            backgroundTaskEntrypoint: () async =>
-                                AudioServiceBackground.run(
-                              () => AudioServiceTask(JustAudioPlayer()),
-                            ),
-                            androidNotificationChannelName:
-                                'Audio Service Demo',
-                            notificationColor: 0xFF2196f3,
-                            androidNotificationIcon: 'mipmap/ic_launcher',
-                            enableQueue: true,
-                          );
-                        },
-                      )
+                      audioPlayerButton(),
                     ] else
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -153,20 +137,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                       Text("State: " +
                           "$basicState".replaceAll(RegExp(r'^.*\.'), '')),
                       RaisedButton(
-                          child: Text("print items"),
-                          onPressed: () {
-                            print(AudioService.queue.toString());
-                          }),
-                      RaisedButton(
                         child: Text("add item"),
                         onPressed: () {
                           AudioService.addQueueItem(
                             MediaItem(
-                              id: "https://dl.irangfx.com/gerama/albums/ali-jafari-pouyan/1-6/music/ali-jafari-pouyan-1-6-2019.mp3",
-                              album: "Gerama album",
-                              title: "Gerama title",
-                              artist: "Gerama artist",
-                              duration: 444000,
+                              id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+                              album: "Science Friday",
+                              title: "A Salute To Head-Scratching Science",
+                              artist: "Science Friday and WNYC Studios",
+                              duration: 5739820,
                               artUri:
                                   "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
                             ),
@@ -181,6 +160,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+
+  RaisedButton audioPlayerButton() => startButton(
+        'AudioPlayer',
+        () {
+          AudioService.start(
+            backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
+            androidNotificationChannelName: 'Audio Service Demo',
+            notificationColor: 0xFF2196f3,
+            androidNotificationIcon: 'mipmap/ic_launcher',
+            enableQueue: true,
+          );
+        },
+      );
+
+  RaisedButton startButton(String label, VoidCallback onPressed) =>
+      RaisedButton(
+        child: Text(label),
+        onPressed: onPressed,
+      );
+
+  void _audioPlayerTaskEntrypoint() async {
+    AudioServiceBackground.run(
+      () => AudioServiceTask(),
     );
   }
 
@@ -206,9 +210,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     double seekPos;
     return StreamBuilder(
       stream: Rx.combineLatest2<double, double, double>(
-          _dragPositionSubject.stream,
-          Stream.periodic(Duration(milliseconds: 200)),
-          (dragPosition, _) => dragPosition),
+        _dragPositionSubject.stream,
+        Stream.periodic(Duration(milliseconds: 200)),
+        (dragPosition, _) => dragPosition,
+      ),
       builder: (context, snapshot) {
         double position = snapshot.data ?? state.currentPosition.toDouble();
         double duration = mediaItem?.duration?.toDouble();

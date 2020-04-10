@@ -5,18 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'audio_player.dart';
 
 class AudioServiceTask extends BackgroundAudioTask {
-  final AudioPlayerBase _audioPlayer;
-  AudioServiceTask(this._audioPlayer) {
-    _audioPlayer.initialize(
-      _handlePlaybackCompleted,
-      _skipState,
-      (BasicPlaybackState basicPlaybackState, int position) => _setState(
-        state: basicPlaybackState,
-        position: position,
-      ),
-    );
-  }
-
+  final AudioPlayerBase _audioPlayer = JustAudioPlayer();
   BasicPlaybackState _skipState;
   int _queueIndex = -1;
   bool _playing;
@@ -55,6 +44,14 @@ class AudioServiceTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStart() async {
+    _audioPlayer.initialize(
+      _handlePlaybackCompleted,
+      _skipState,
+      (BasicPlaybackState basicPlaybackState, int position) => _setState(
+        state: basicPlaybackState,
+        position: position,
+      ),
+    );
     AudioServiceBackground.setQueue(_queue);
     await onSkipToNext();
   }

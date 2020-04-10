@@ -8,19 +8,18 @@ typedef PlaybackStateCallback = void Function(
 
 abstract class AudioPlayerBase {
   void initialize(
-    Function handlePlayBackCompleted,
-    BasicPlaybackState skippedState,
-    PlaybackStateCallback handlePlayBackEvent,
-  );
+      Function handlePlayBackCompleted,
+      BasicPlaybackState skippedState,
+      PlaybackStateCallback handlePlayBackEvent);
+
   Future<void> play({String url});
   Future<void> pause();
-  Future<void> seekTo(int position);
   Future<void> stop(bool cancelSubscriptions);
-  void dispose();
+  Future<void> seekTo(int position);
 }
 
 class JustAudioPlayer implements AudioPlayerBase {
-  AudioPlayer _player;
+  final AudioPlayer _player = AudioPlayer();
   StreamSubscription<AudioPlaybackState> _audioPlayBackStateStream;
   StreamSubscription<AudioPlaybackEvent> _audioPlayBackEventStream;
 
@@ -30,7 +29,6 @@ class JustAudioPlayer implements AudioPlayerBase {
     BasicPlaybackState skippedState,
     PlaybackStateCallback handlePlayBackEvent,
   ) {
-    _player = AudioPlayer();
     _player.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
@@ -68,11 +66,6 @@ class JustAudioPlayer implements AudioPlayerBase {
       _audioPlayBackStateStream.cancel();
       _audioPlayBackEventStream.cancel();
     }
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
   }
 
   BasicPlaybackState _eventToBasicState(
