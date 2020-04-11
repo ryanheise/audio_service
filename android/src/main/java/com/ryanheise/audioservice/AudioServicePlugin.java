@@ -562,6 +562,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			invokeMethod("onStop");
 		}
 		@Override
+		public void onDestroy() {
+			clear();
+		}
+		@Override
 		public void onAddQueueItem(MediaMetadataCompat metadata) {
 			invokeMethod("onAddQueueItem", mediaMetadata2raw(metadata));
 		}
@@ -669,13 +673,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				result.success(true);
 				break;
 			case "stopped":
-				AudioService.instance.stop();
-				if (silenceAudioTrack != null)
-					silenceAudioTrack.release();
-				if (clientHandler != null) clientHandler.invokeMethod("onStopped");
-				backgroundFlutterEngine.destroy();
-				backgroundFlutterEngine = null;
-				backgroundHandler = null;
+				clear();
 				result.success(true);
 				break;
 			case "notifyChildrenChanged":
@@ -709,6 +707,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		public void invokeMethod(String method, Object... args) {
 			ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
 			channel.invokeMethod(method, list);
+		}
+		
+		private void clear() {
+			AudioService.instance.stop();
+			if (silenceAudioTrack != null)
+				silenceAudioTrack.release();
+			if (clientHandler != null) clientHandler.invokeMethod("onStopped");
+			backgroundFlutterEngine.destroy();
+			backgroundFlutterEngine = null;
+			backgroundHandler = null;
 		}
 	}
 
