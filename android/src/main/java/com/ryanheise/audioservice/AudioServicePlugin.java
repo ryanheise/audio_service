@@ -525,7 +525,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		}
 		@Override
 		public void onPrepareFromMediaId(String mediaId) {
-			invokeMethod("onPrepare", mediaId);
+			invokeMethod("onPrepareFromMediaId", mediaId);
 		}
 		@Override
 		public void onPlay() {
