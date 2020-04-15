@@ -1,3 +1,8 @@
+## 0.7.2
+
+* Shutdown background task if task killed by IO (Android).
+* Bug fixes and dependency updates.
+
 ## 0.7.1
 
 * Add AudioServiceWidget to auto-manage connections.
