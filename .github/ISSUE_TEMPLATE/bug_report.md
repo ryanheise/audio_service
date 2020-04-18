@@ -2,22 +2,13 @@
 name: Bug report
 about: Create a report to help us improve
 title: ''
-labels: ''
-assignees: ''
+labels: bug, 1 backlog
+assignees: ryanheise
 
 ---
 
 **Describe the bug**
 A clear and concise description of what the bug is.
-
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Error messages**
-
-```
-If applicable, copy & paste error message here.
-```
 
 **Minimal reproduction project**
 If the example project exhibits the bug, please mention that here, otherwise fork this project and modify the example to reproduce the bug. Provide the link to your repository here.
@@ -29,13 +20,21 @@ Steps to reproduce the behavior:
 3. Scroll down to '....'
 4. See error
 
+**Error messages**
+
+```
+If applicable, copy & paste error message here.
+```
+
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
+
 **Runtime Environment (please complete the following information if relevant):**
  - Device: [e.g. Samsung Galaxy Note 8]
- - Android version: [e.g. 8.0.0]
- - iOS version: [e.g. 13.3]
+ - OS: [e.g. Android 8.0.0]
 
 **Flutter SDK version**
 ```
