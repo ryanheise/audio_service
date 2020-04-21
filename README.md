@@ -32,9 +32,9 @@ Note that because your app's UI and your background audio task will run in separ
 | Handle phonecall interruptions | ✅         |            |
 | Android Auto                   | (untested) |            |
 
-## Tutorial
+## Tutorial and FAQ.
 
-A tutorial for this plugin is available at the [GitHub Wiki](https://github.com/ryanheise/audio_service/wiki/Tutorial).
+A [tutorial](https://github.com/ryanheise/audio_service/wiki/Tutorial) and [FAQ](https://github.com/ryanheise/audio_service/wiki/FAQ) for this plugin are available at the GitHub Wiki.
 
 ## Example
 
