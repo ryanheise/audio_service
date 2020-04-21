@@ -628,6 +628,14 @@ class AudioService {
     await _channel.invokeMethod('removeQueueItem', _mediaItem2raw(mediaItem));
   }
 
+  /// A convenience method calls [addQueueItem] for each media item in the
+  /// given list.
+  static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
+    for (var mediaItem in mediaItems) {
+      await addQueueItem(mediaItem);
+    }
+  }
+
   /// Programmatically simulates a click of a media button on the headset.
   ///
   /// This passes through to `onClick` in the background task.
