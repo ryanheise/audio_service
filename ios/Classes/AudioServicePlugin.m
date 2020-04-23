@@ -314,6 +314,7 @@ static MPMediaItemArtwork* artwork = nil;
   if (mediaItem) {
     nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
     nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+    nowPlayingInfo[MPMediaItemPropertyArtist] = mediaItem[@"artist"];
     if (mediaItem[@"duration"] != [NSNull null]) {
       nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
     }
