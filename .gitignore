@@ -9,3 +9,5 @@ build/
 
 doc/
 **/ios/Flutter/flutter_export_environment.sh
+android/.project
+example/android/.project
