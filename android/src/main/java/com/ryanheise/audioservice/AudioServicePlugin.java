@@ -261,15 +261,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
-				final boolean androidDownScaleArtwork = (Boolean)arguments.get("androidDownScaleArtwork");
+				final Map<String, Integer> androidDownScaleDegree = (Map)arguments.get("androidDownScaleDegree");
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				if (androidDownScaleArtwork) {
-					final Map<String, Integer> androidDownScaleDegree = (Map)arguments.get("androidDownScaleDegree");
-					AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, true, androidDownScaleDegree, backgroundHandler);
-				} else
-					AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, false, null, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, androidDownScaleDegree, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
