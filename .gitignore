@@ -9,3 +9,11 @@ build/
 
 doc/
 **/ios/Flutter/flutter_export_environment.sh
+android/.project
+example/android/.project
+android/.classpath
+android/.settings/org.eclipse.buildship.core.prefs
+example/android/.settings/org.eclipse.buildship.core.prefs
+example/android/app/.classpath
+example/android/app/.project
+example/android/app/.settings/org.eclipse.buildship.core.prefs
