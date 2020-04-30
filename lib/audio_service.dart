@@ -543,6 +543,12 @@ class AudioService {
   ///
   /// The [androidNotificationIcon] is specified like an XML resource reference
   /// and defaults to `"mipmap/ic_launcher"`.
+  ///
+  /// [androidDownScaleArtwork]: When set to `true`, the artwork will be scaled down
+  /// to default [androidDownScaleDegree].
+  ///
+  /// The [androidDownScaleDegree] is used to specify the width & height to scale
+  /// the artwork to and defaults to `const {'width': 96, 'height': 96}`.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
     String androidNotificationChannelName = "Notifications",
@@ -555,6 +561,8 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
     bool androidStopOnRemoveTask = false,
+    bool androidDownScaleArtwork = false,
+    Map<String, int> androidDownScaleDegree,
     int fastForwardInterval = 0,
     int rewindInterval = 0,
   }) async {
@@ -594,6 +602,10 @@ class AudioService {
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
       'androidStopOnRemoveTask': androidStopOnRemoveTask,
+      'androidDownScaleArtwork': androidDownScaleArtwork,
+      'androidDownScaleDegree': androidDownScaleArtwork
+          ? (androidDownScaleDegree ?? const {'width': 96, 'height': 96})
+          : null,
       'fastForwardInterval': fastForwardInterval,
       'rewindInterval': rewindInterval,
     });
