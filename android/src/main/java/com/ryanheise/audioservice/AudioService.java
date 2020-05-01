@@ -72,9 +72,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static LruCache<String, Bitmap> artBitmapCache;
-	private static Map<String, Integer> androidDownScaleDegree;
+	private static Size artDownscaleSize;
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Map<String, Integer> androidDownScaleDegree, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -92,7 +92,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidNotificationOngoing = androidNotificationOngoing;
 		AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
 		AudioService.androidStopOnRemoveTask = androidStopOnRemoveTask;
-		AudioService.androidDownScaleDegree = androidDownScaleDegree;
+		AudioService.artDownscaleSize = artDownscaleSize;
 
 		// Get max available VM memory, exceeding this amount will throw an
 		// OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -121,7 +121,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		androidNotificationChannelDescription = null;
 		notificationColor = null;
 		androidNotificationIcon = null;
-		androidDownScaleDegree = null;
+		artDownscaleSize = null;
 		queue.clear();
 		queueIndex = -1;
 		mediaMetadataCache.clear();
@@ -430,13 +430,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		Bitmap bitmap = artBitmapCache.get(path);
 		if (bitmap != null) return bitmap;
 		try {
-			if (androidDownScaleDegree != null) {
+			if (artDownscaleSize != null) {
 				BitmapFactory.Options options = new BitmapFactory.Options();
 				options.inJustDecodeBounds = true;
 				BitmapFactory.decodeFile(path, options);
 				int imageHeight = options.outHeight;
 				int imageWidth = options.outWidth;
-				options.inSampleSize = calculateInSampleSize(options, androidDownScaleDegree.get("width"), androidDownScaleDegree.get("height"));
+				options.inSampleSize = calculateInSampleSize(options, artDownscaleSize.width, artDownscaleSize.height);
 				options.inJustDecodeBounds = false;
 
 				bitmap = BitmapFactory.decodeFile(path, options);

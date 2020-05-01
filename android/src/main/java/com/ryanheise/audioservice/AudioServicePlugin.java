@@ -261,11 +261,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
-				final Map<String, Integer> androidDownScaleDegree = (Map)arguments.get("androidDownScaleDegree");
+				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
+				final Size artDownscaleSize = artDownscaleSizeMap == null ? null
+					: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, androidDownScaleDegree, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)

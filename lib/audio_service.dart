@@ -544,8 +544,11 @@ class AudioService {
   /// The [androidNotificationIcon] is specified like an XML resource reference
   /// and defaults to `"mipmap/ic_launcher"`.
   ///
-  /// The [androidDownScaleDegree] is used to specify the width & height to scale
-  /// the artwork as `const {'width': 640, 'height': 640}`.
+  /// If specified, [androidArtDownscaleSize] causes artwork to be downscaled
+  /// to the given resolution in pixels before being displayed in the
+  /// notification and lock screen. If not specified, no downscaling will be
+  /// performed. If the resolution of your artwork is particularly high,
+  /// downscaling can help to conserve memory.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
     String androidNotificationChannelName = "Notifications",
@@ -558,7 +561,7 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool enableQueue = false,
     bool androidStopOnRemoveTask = false,
-    Map<String, int> androidDownScaleDegree,
+    Size androidArtDownscaleSize,
     int fastForwardInterval = 0,
     int rewindInterval = 0,
   }) async {
@@ -598,7 +601,12 @@ class AudioService {
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'enableQueue': enableQueue,
       'androidStopOnRemoveTask': androidStopOnRemoveTask,
-      'androidDownScaleDegree': androidDownScaleDegree,
+      'androidArtDownscaleSize': androidArtDownscaleSize != null
+          ? {
+              'width': androidArtDownscaleSize.width,
+              'height': androidArtDownscaleSize.height
+            }
+          : null,
       'fastForwardInterval': fastForwardInterval,
       'rewindInterval': rewindInterval,
     });
