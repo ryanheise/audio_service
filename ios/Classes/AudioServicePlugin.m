@@ -203,6 +203,8 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments]];
     result(@YES);
+  } else if ([@"replaceQueue" isEqualToString:call.method]) {
+    [backgroundChannel invokeMethod:@"onReplaceQueue" arguments:@[call.arguments] result: result];
   } else if ([@"click" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments]];
     result(@YES);
@@ -217,6 +219,9 @@ static MPMediaItemArtwork* artwork = nil;
     result(@YES);
   } else if ([@"playFromMediaId" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:@[call.arguments]];
+    result(@YES);
+  } else if ([@"playMediaItem" isEqualToString:call.method]) {
+    [backgroundChannel invokeMethod:@"onPlayMediaItem" arguments:@[call.arguments]];
     result(@YES);
   } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:@[call.arguments]];

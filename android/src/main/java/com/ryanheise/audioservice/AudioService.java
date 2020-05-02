@@ -420,6 +420,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		mediaSession.setQueue(queue);
 	}
 
+	void playMediaItem(MediaDescriptionCompat description) {
+		mediaSessionCallback.onPlayMediaItem(description);
+	}
+
 	void setMetadata(final MediaMetadataCompat mediaMetadata) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
@@ -740,6 +744,19 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			if (listener == null) return;
 			listener.onSetRating(rating, extras);
 		}
+
+		//
+		// NON-STANDARD METHODS
+		//
+
+		public void onPlayMediaItem(final MediaDescriptionCompat description) {
+			if (listener == null) return;
+			play(new Runnable() {
+				public void run() {
+					listener.onPlayMediaItem(getMediaMetadata(description.getMediaId()));
+				}
+			});
+		}
 	}
 
 	public static interface ServiceListener {
@@ -800,5 +817,11 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		void onAddQueueItemAt(MediaMetadataCompat metadata, int index);
 
 		void onRemoveQueueItem(MediaMetadataCompat metadata);
+
+		//
+		// NON-STANDARD METHODS
+		//
+
+		void onPlayMediaItem(MediaMetadataCompat metadata);
 	}
 }

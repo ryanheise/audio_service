@@ -348,6 +348,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				result.success(true);
 				break;
 			}
+			case "replaceQueue": {
+				backgroundHandler.invokeMethod(result, "onReplaceQueue", call.arguments);
+				break;
+			}
 			//case "setVolumeTo"
 			//case "adjustVolume"
 			case "click":
@@ -375,6 +379,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			case "playFromMediaId": {
 				String mediaId = (String)call.arguments;
 				mediaController.getTransportControls().playFromMediaId(mediaId, null);
+				result.success(true);
+				break;
+			}
+			case "playMediaItem": {
+				Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
+				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+				AudioService.instance.playMediaItem(mediaMetadata.getDescription());
 				result.success(true);
 				break;
 			}
@@ -431,22 +442,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				}
 			default:
 				if (backgroundHandler != null) {
-					backgroundHandler.channel.invokeMethod(call.method, call.arguments, new MethodChannel.Result() {
-						@Override
-						public void error(String errorCode, String errorMessage, Object errorDetails) {
-							result.success(null);
-						}
-
-						@Override
-						public void notImplemented() {
-							result.success(null);
-						}
-
-						@Override
-						public void success(Object obj) {
-							result.success(obj);
-						}
-					});
+					backgroundHandler.channel.invokeMethod(call.method, call.arguments, result);
 				}
 				break;
 			}
@@ -584,6 +580,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		@Override
 		public void onPlayFromMediaId(String mediaId) {
 			invokeMethod("onPlayFromMediaId", mediaId);
+		}
+
+		@Override
+		public void onPlayMediaItem(MediaMetadataCompat metadata) {
+			invokeMethod("onPlayMediaItem", mediaMetadata2raw(metadata));
 		}
 
 		@Override
@@ -748,6 +749,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		public void invokeMethod(String method, Object... args) {
 			ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
 			channel.invokeMethod(method, list);
+		}
+
+		public void invokeMethod(final Result result, String method, Object... args) {
+			ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
+			channel.invokeMethod(method, list, result);
 		}
 
 		private void clear() {

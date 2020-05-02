@@ -669,6 +669,12 @@ class AudioService {
     }
   }
 
+  /// Passes through to `onReplaceQueue` in the background task.
+  static Future<void> replaceQueue(List<MediaItem> queue) async {
+    await _channel.invokeMethod(
+        'replaceQueue', queue.map(_mediaItem2raw).toList());
+  }
+
   /// Programmatically simulates a click of a media button on the headset.
   ///
   /// This passes through to `onClick` in the background task.
@@ -697,6 +703,11 @@ class AudioService {
   /// Passes through to 'onPlayFromMediaId' in the background task.
   static Future<void> playFromMediaId(String mediaId) async {
     await _channel.invokeMethod('playFromMediaId', mediaId);
+  }
+
+  /// Passes through to 'onPlayMediaItem' in the background task.
+  static Future<void> playMediaItem(MediaItem mediaItem) async {
+    await _channel.invokeMethod('playMediaItem', _mediaItem2raw(mediaItem));
   }
 
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
@@ -851,6 +862,9 @@ class AudioServiceBackground {
           String mediaId = args[0];
           task.onPlayFromMediaId(mediaId);
           break;
+        case 'onPlayMediaItem':
+          task.onPlayMediaItem(_raw2mediaItem(call.arguments[0]));
+          break;
         case 'onAddQueueItem':
           task.onAddQueueItem(_raw2mediaItem(call.arguments[0]));
           break;
@@ -859,6 +873,12 @@ class AudioServiceBackground {
           MediaItem mediaItem = _raw2mediaItem(args[0]);
           int index = args[1];
           task.onAddQueueItemAt(mediaItem, index);
+          break;
+        case 'onReplaceQueue':
+          final List args = call.arguments;
+          final List queue = args[0];
+          await task.onReplaceQueue(
+              queue?.map((mediaItem) => _raw2mediaItem(mediaItem))?.toList());
           break;
         case 'onRemoveQueueItem':
           task.onRemoveQueueItem(_raw2mediaItem(call.arguments[0]));
@@ -891,8 +911,9 @@ class AudioServiceBackground {
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
-            task.onCustomAction(
+            final result = await task.onCustomAction(
                 call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
+            return result;
           }
           break;
       }
@@ -1129,13 +1150,29 @@ abstract class BackgroundAudioTask {
   /// a call to [AudioService.play].
   void onPlay() {}
 
-  /// Called when a client has requested to play a specific media item, such as
-  /// via a call to [AudioService.playFromMediaId].
+  /// Called when a client has requested to play a media item by its ID, such
+  /// as via a call to [AudioService.playFromMediaId].
   void onPlayFromMediaId(String mediaId) {}
+
+  /// Called when the Flutter UI has requested to play a given media item
+  /// via a call to [AudioService.playMediaItem].
+  ///
+  /// Note: This method can only be triggered by your Flutter UI. Peripheral
+  /// devices such as Android Auto will instead trigger
+  /// [AudioService.onPlayFromMediaId].
+  void onPlayMediaItem(MediaItem mediaItem) {}
 
   /// Called when a client has requested to add a media item to the queue, such
   /// as via a call to [AudioService.addQueueItem].
   void onAddQueueItem(MediaItem mediaItem) {}
+
+  /// Called when the Flutter UI has requested to replace the queue by the
+  /// given queue.
+  ///
+  /// If you use a queue, your implementation of this method should call
+  /// [AudioServiceBackground.setQueue] to notify all clients that the queue
+  /// has changed.
+  Future<void> onReplaceQueue(List<MediaItem> queue) async {}
 
   /// Called when a client has requested to add a media item to the queue at a
   /// specified position, such as via a request to
@@ -1175,8 +1212,9 @@ abstract class BackgroundAudioTask {
   void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
 
   /// Called when a custom action has been sent by the client via
-  /// [AudioService.customAction].
-  void onCustomAction(String name, dynamic arguments) {}
+  /// [AudioService.customAction]. The result of this method will be returned
+  /// to the client.
+  Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {
