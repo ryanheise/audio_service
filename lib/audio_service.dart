@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:io' show File, Platform;
+import 'dart:isolate';
 import 'dart:ui' as ui;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
+
+/// Name of port used to send custom events.
+const _CUSTOM_EVENT_PORT_NAME = 'customEventPort';
 
 /// The different buttons on a headset.
 enum MediaButton {
@@ -422,6 +427,11 @@ class AudioService {
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
 
+  static final _customEventSubject = PublishSubject<dynamic>();
+
+  /// A stream that broadcasts custom events sent from the background.
+  static Stream<dynamic> get customEventStream => _customEventSubject.stream;
+
   /// The children of the current browse media parent.
   static List<MediaItem> get browseMediaChildren => _browseMediaChildren;
   static List<MediaItem> _browseMediaChildren;
@@ -440,6 +450,10 @@ class AudioService {
 
   /// True after service stopped and !running.
   static bool _afterStop = false;
+
+  /// Receives custom events from the background audio task.
+  static ReceivePort _customEventReceivePort;
+  static StreamSubscription _customEventSubscription;
 
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
@@ -500,6 +514,13 @@ class AudioService {
           break;
       }
     });
+    _customEventReceivePort = ReceivePort();
+    _customEventSubscription = _customEventReceivePort.listen((event) {
+      _customEventSubject.add(event);
+    });
+    IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
+    IsolateNameServer.registerPortWithName(
+        _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
     await _channel.invokeMethod("connect");
     _running = await _channel.invokeMethod("isRunning");
     _connected = true;
@@ -512,6 +533,9 @@ class AudioService {
   /// Use [AudioServiceWidget] to handle this automatically.
   static Future<void> disconnect() async {
     _channel.setMethodCallHandler(null);
+    _customEventSubscription?.cancel();
+    _customEventSubscription = null;
+    _customEventReceivePort = null;
     await _channel.invokeMethod("disconnect");
     _connected = false;
   }
@@ -736,7 +760,8 @@ class AudioService {
 
   /// Passes through to `onCustomAction` in the background task.
   ///
-  /// This may be used for your own purposes.
+  /// This may be used for your own purposes. [arguments] can be any data that
+  /// is encodable by `StandardMessageCodec`.
   static Future customAction(String name, [dynamic arguments]) async {
     return await _channel.invokeMethod('$_CUSTOM_PREFIX$name', arguments);
   }
@@ -1001,7 +1026,7 @@ class AudioServiceBackground {
     return null;
   }
 
-  /// Notify clients that the child media items of [parentMediaId] have
+  /// Notifies clients that the child media items of [parentMediaId] have
   /// changed.
   ///
   /// If [parentMediaId] is unspecified, the root parent will be used.
@@ -1023,6 +1048,17 @@ class AudioServiceBackground {
   /// automatically qualify your app to receive media button events.
   static Future<void> androidForceEnableMediaButtons() async {
     await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
+  }
+
+  /// Sends a custom event to the Flutter UI.
+  ///
+  /// The event parameter can contain any data permitted by Dart's
+  /// SendPort/ReceivePort API. Please consult the relevant documentation for
+  /// further information.
+  static void sendCustomEvent(dynamic event) {
+    SendPort sendPort =
+        IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
+    sendPort?.send(event);
   }
 }
 

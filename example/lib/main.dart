@@ -121,7 +121,13 @@ class MainScreen extends StatelessWidget {
                   positionIndicator(mediaItem, state),
                   Text("State: " +
                       "$basicState".replaceAll(RegExp(r'^.*\.'), '')),
-                ]
+                  StreamBuilder(
+                    stream: AudioService.customEventStream,
+                    builder: (context, snapshot) {
+                      return Text("custom event: ${snapshot.data}");
+                    },
+                  ),
+                ],
               ],
             );
           },
@@ -373,6 +379,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     if (_skipState == null) {
       _playing = true;
       _audioPlayer.play();
+      AudioServiceBackground.sendCustomEvent('just played');
     }
   }
 
@@ -381,6 +388,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     if (_skipState == null) {
       _playing = false;
       _audioPlayer.pause();
+      AudioServiceBackground.sendCustomEvent('just paused');
     }
   }
 
