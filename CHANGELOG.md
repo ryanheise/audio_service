@@ -1,3 +1,11 @@
+## 0.8.0
+
+* Allow UI to await the result of custom actions.
+* Allow background to broadcast custom events to UI.
+* Improve memory management for art bitmaps on Android.
+* Convenience methods: replaceQueue, playMediaItem, addQueueItems.
+* Bug fixes and dependency updates.
+
 ## 0.7.2
 
 * Shutdown background task if task killed by IO (Android).
