@@ -403,8 +403,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onStop() {
-    _audioPlayer.stop();
+  Future<void> onStop() async {
+    await _audioPlayer.stop();
+    await _audioPlayer.dispose();
     _setState(state: BasicPlaybackState.stopped);
     _completer.complete();
   }
