@@ -588,6 +588,7 @@ class AudioService {
     Size androidArtDownscaleSize,
     int fastForwardInterval = 0,
     int rewindInterval = 0,
+    Map<String, dynamic> startParams = const {}
   }) async {
     if (_running) return false;
     _running = true;
@@ -633,6 +634,7 @@ class AudioService {
           : null,
       'fastForwardInterval': fastForwardInterval,
       'rewindInterval': rewindInterval,
+      'startParams': startParams
     });
     _running = await _channel.invokeMethod("isRunning");
     return success;
@@ -918,8 +920,8 @@ class AudioServiceBackground {
           break;
       }
     });
-    await _backgroundChannel.invokeMethod('ready');
-    await task.onStart();
+    Map startParams = await _backgroundChannel.invokeMethod('ready');
+    await task.onStart(startParams);
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1099,7 +1101,7 @@ abstract class BackgroundAudioTask {
   /// Called once when this audio task is first started and ready to play
   /// audio, in response to [AudioService.start]. When the returned future
   /// completes, this task will be immediately terminated.
-  Future<void> onStart();
+  Future<void> onStart(Map params);
 
   /// Called in response to [AudioService.stop] to request that this task be
   /// terminated. The implementation should cause any audio playback to stop,

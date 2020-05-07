@@ -304,7 +304,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  Future<void> onStart() async {
+  Future<void> onStart(Map params) async {
     var playerStateSubscription = _audioPlayer.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
@@ -461,7 +461,7 @@ class TextPlayerTask extends BackgroundAudioTask {
   BasicPlaybackState get _basicState => AudioServiceBackground.state.basicState;
 
   @override
-  Future<void> onStart() async {
+  Future<void> onStart(Map params) async {
     playPause();
     for (var i = 1; i <= 10 && _basicState != BasicPlaybackState.stopped; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));

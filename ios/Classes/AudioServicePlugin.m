@@ -25,6 +25,7 @@ static NSNumber *position = nil;
 static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
 static MPMediaItemArtwork* artwork = nil;
+static NSMutableDictionary *startParams = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   @synchronized(self) {
@@ -147,8 +148,9 @@ static MPMediaItemArtwork* artwork = nil;
     [commandCenter.likeCommand setEnabled:NO];
     [commandCenter.dislikeCommand setEnabled:NO];
     [commandCenter.bookmarkCommand setEnabled:NO];
+    startParams = [call.arguments objectForKey:@"startParams"];
   } else if ([@"ready" isEqualToString:call.method]) {
-    result(@YES);
+    result(startParams);
     startResult(@YES);
     startResult = nil;
   } else if ([@"stopped" isEqualToString:call.method]) {
