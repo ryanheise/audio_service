@@ -671,8 +671,8 @@ class AudioService {
 
   /// Passes through to `onReplaceQueue` in the background task.
   static Future<void> replaceQueue(List<MediaItem> queue) async {
-    await _channel.invokeMethod(
-        'replaceQueue', queue.map(_mediaItem2raw).toList());
+    await _channel.invokeMethod('replaceQueue',
+        queue.map((mediaItem) => _mediaItem2raw(mediaItem)).toList());
   }
 
   /// Programmatically simulates a click of a media button on the headset.
