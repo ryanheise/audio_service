@@ -95,6 +95,9 @@ static NSMutableDictionary *startParams = nil;
     // The result will be sent after the background task actually starts.
     // See the "ready" case below.
     startResult = result;
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioInterrupt:) name:AVAudioSessionInterruptionNotification object:nil];
+
     // Initialise AVAudioSession
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
     [[AVAudioSession sharedInstance] setActive: YES error: nil];
@@ -343,6 +346,24 @@ static NSMutableDictionary *startParams = nil;
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
+- (void) audioInterrupt:(NSNotification*)notification {
+    NSNumber *interruptionType = (NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey];
+    switch ([interruptionType integerValue]) {
+        case AVAudioSessionInterruptionTypeBegan:
+            [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:nil];
+            break;
+        case AVAudioSessionInterruptionTypeEnded:
+        {
+            if ([(NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionOptionKey] intValue] == AVAudioSessionInterruptionOptionShouldResume) {
+                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:nil];
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
   NSLog(@"togglePlayPause");
   [backgroundChannel invokeMethod:@"onClick" arguments:@[@(0)]];
@@ -384,4 +405,9 @@ static NSMutableDictionary *startParams = nil;
   [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
   return MPRemoteCommandHandlerStatusSuccess;
 }
+
+- (void) dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 @end
