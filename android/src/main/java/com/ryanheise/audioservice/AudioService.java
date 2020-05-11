@@ -444,11 +444,10 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				options.inJustDecodeBounds = false;
 
 				bitmap = BitmapFactory.decodeFile(path, options);
-				artBitmapCache.put(path, bitmap);
 			} else {
 				bitmap = BitmapFactory.decodeFile(path);
-				artBitmapCache.put(path, bitmap);
 			}
+			artBitmapCache.put(path, bitmap);
 			return bitmap;
 		} catch (Exception e) {
 			e.printStackTrace();
