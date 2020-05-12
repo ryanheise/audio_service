@@ -67,6 +67,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static boolean androidNotificationOngoing;
 	static boolean androidStopForegroundOnPause;
 	static boolean androidStopOnRemoveTask;
+	static boolean isForeground;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
@@ -311,8 +312,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	private void updateNotification() {
-		NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-		notificationManager.notify(NOTIFICATION_ID, buildNotification());
+		if (androidStopForegroundOnPause && !isForeground && mediaSession.getController().getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING) {
+			startForeground(NOTIFICATION_ID, buildNotification());
+			isForeground = true;
+		} else {
+			NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+			notificationManager.notify(NOTIFICATION_ID, buildNotification());
+		}
 	}
 
 	private void registerNoisyReceiver() {
@@ -584,6 +590,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			registerNoisyReceiver();
 			mediaSession.setSessionActivity(contentIntent);
 			startForeground(NOTIFICATION_ID, buildNotification());
+			if (androidStopForegroundOnPause)
+				isForeground = true;
 		}
 
 		@Override
@@ -687,6 +695,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			unregisterNoisyReceiver();
 			if (androidStopForegroundOnPause) {
 				stopForeground(false);
+				isForeground = false;
 			}
 		}
 
