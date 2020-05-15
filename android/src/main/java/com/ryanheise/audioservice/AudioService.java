@@ -313,8 +313,12 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	private void updateNotification() {
 		if (androidStopForegroundOnPause && !isForeground && mediaSession.getController().getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING) {
-			startForeground(NOTIFICATION_ID, buildNotification());
-			isForeground = true;
+			mediaSessionCallback.play(new Runnable() {
+				@Override
+				public void run() {
+
+				}
+			});
 		} else {
 			NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 			notificationManager.notify(NOTIFICATION_ID, buildNotification());
@@ -338,6 +342,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (noisyReceiver == null) return;
 		unregisterReceiver(noisyReceiver);
 		noisyReceiver = null;
+	}
+
+	private void stopForegroundOnPause() {
+		if (androidStopForegroundOnPause) {
+			stopForeground(false);
+			isForeground = false;
+		}
 	}
 
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
@@ -524,9 +535,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS:
 			listener.onAudioFocusLost();
+			unregisterNoisyReceiver();
+			stopForegroundOnPause();
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
 			listener.onAudioFocusLostTransient();
+			unregisterNoisyReceiver();
+			stopForegroundOnPause();
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
 			listener.onAudioFocusLostTransientCanDuck();
@@ -693,10 +708,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			if (listener == null) return;
 			listener.onPause();
 			unregisterNoisyReceiver();
-			if (androidStopForegroundOnPause) {
-				stopForeground(false);
-				isForeground = false;
-			}
+			stopForegroundOnPause();
 		}
 
 		@Override
