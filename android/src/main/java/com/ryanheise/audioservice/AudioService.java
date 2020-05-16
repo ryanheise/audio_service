@@ -203,7 +203,16 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setState(playbackState, position, speed, updateTime);
 		mediaSession.setPlaybackState(stateBuilder.build());
 
-		updateNotification();
+		if(playbackState==PlaybackStateCompat.STATE_PAUSED) stopForegroundOnPause();
+		if (androidStopForegroundOnPause && !isForeground && playbackState == PlaybackStateCompat.STATE_PLAYING)
+			mediaSessionCallback.play(new Runnable() {
+				@Override
+				public void run() {
+
+				}
+			});
+		else
+			updateNotification();
 	}
 
 	private Notification buildNotification() {
@@ -312,17 +321,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	private void updateNotification() {
-		if (androidStopForegroundOnPause && !isForeground && mediaSession.getController().getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING) {
-			mediaSessionCallback.play(new Runnable() {
-				@Override
-				public void run() {
-
-				}
-			});
-		} else {
-			NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-			notificationManager.notify(NOTIFICATION_ID, buildNotification());
-		}
+		NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+		notificationManager.notify(NOTIFICATION_ID, buildNotification());
 	}
 
 	private void registerNoisyReceiver() {
@@ -345,7 +345,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	private void stopForegroundOnPause() {
-		if (androidStopForegroundOnPause) {
+		unregisterNoisyReceiver();
+		if (androidStopForegroundOnPause && isForeground) {
 			stopForeground(false);
 			isForeground = false;
 		}
@@ -535,13 +536,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS:
 			listener.onAudioFocusLost();
-			unregisterNoisyReceiver();
-			stopForegroundOnPause();
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
 			listener.onAudioFocusLostTransient();
-			unregisterNoisyReceiver();
-			stopForegroundOnPause();
 			break;
 		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
 			listener.onAudioFocusLostTransientCanDuck();
@@ -707,8 +704,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		public void onPause() {
 			if (listener == null) return;
 			listener.onPause();
-			unregisterNoisyReceiver();
-			stopForegroundOnPause();
 		}
 
 		@Override
