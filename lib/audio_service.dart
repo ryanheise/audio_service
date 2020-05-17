@@ -427,6 +427,12 @@ class AudioService {
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
 
+  static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
+
+  /// A stream that broadcasts the status of notificationClick event.
+  static Stream<bool> get notificationClickEventStream =>
+      _notificationSubject.stream;
+
   static final _customEventSubject = PublishSubject<dynamic>();
 
   /// A stream that broadcasts custom events sent from the background.
@@ -509,8 +515,12 @@ class AudioService {
           _currentMediaItemSubject.add(null);
           _queue = null;
           _queueSubject.add(null);
+          _notificationSubject.add(false);
           _running = false;
           _afterStop = true;
+          break;
+        case 'notificationClicked':
+          _notificationSubject.add(call.arguments[0]);
           break;
       }
     });

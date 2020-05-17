@@ -5,6 +5,7 @@ import io.flutter.embedding.engine.plugins.service.*;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -36,6 +37,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry.NewIntentListener;
 import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.plugin.common.PluginRegistry.ViewDestroyListener;
@@ -108,6 +110,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	}
 
 	private FlutterPluginBinding flutterPluginBinding;
+	private ActivityPluginBinding activityPluginBinding;
+	private NewIntentListener newIntentListener;
 
 	//
 	// FlutterPlugin callbacks
@@ -129,22 +133,41 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 	@Override
 	public void onAttachedToActivity(ActivityPluginBinding binding) {
-		clientHandler = new ClientHandler(flutterPluginBinding.getFlutterEngine().getDartExecutor());
+		activityPluginBinding = binding;
+		clientHandler = new ClientHandler(flutterPluginBinding.getBinaryMessenger());
 		clientHandler.activity = binding.getActivity();
+		registerOnNewIntentListener();
 	}
 
 	@Override
 	public void onDetachedFromActivityForConfigChanges() {
+		activityPluginBinding.removeOnNewIntentListener(newIntentListener);
 	}
 
 	@Override
 	public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+		activityPluginBinding = binding;
 		clientHandler.activity = binding.getActivity();
+		registerOnNewIntentListener();
 	}
 
 	@Override
 	public void onDetachedFromActivity() {
+		activityPluginBinding.removeOnNewIntentListener(newIntentListener);
+		newIntentListener = null;
+		activityPluginBinding = null;
 		clientHandler = null;
+	}
+
+	private void registerOnNewIntentListener() {
+		activityPluginBinding.addOnNewIntentListener(newIntentListener = new NewIntentListener() {
+			@Override
+			public boolean onNewIntent(Intent intent) {
+				clientHandler.activity.setIntent(new Intent().setAction(intent.getAction()));
+				clientHandler.invokeMethod("notificationClicked", intent.getAction() == null);
+				return false;
+			}
+		});
 	}
 
 
@@ -286,6 +309,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 							connectionCallback,
 							null);
 					mediaBrowser.connect();
+					invokeMethod("notificationClicked", activity.getIntent().getAction() == null);
 				} else {
 					result.success(true);
 				}
@@ -408,6 +432,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				break;
 			case "stop":
 				mediaController.getTransportControls().stop();
+				activity.setIntent(new Intent().setAction("ACTION_MAIN"));
 				result.success(true);
 				break;
 			case "seekTo":
