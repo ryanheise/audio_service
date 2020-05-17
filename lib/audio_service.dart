@@ -277,6 +277,21 @@ class MediaItem {
     this.extras,
   });
 
+  factory MediaItem.fromJson(Map raw) => MediaItem(
+        id: raw['id'],
+        album: raw['album'],
+        title: raw['title'],
+        artist: raw['artist'],
+        genre: raw['genre'],
+        duration: raw['duration'],
+        artUri: raw['artUri'],
+        displayTitle: raw['displayTitle'],
+        displaySubtitle: raw['displaySubtitle'],
+        displayDescription: raw['displayDescription'],
+        rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
+        extras: _raw2extras(raw['extras']),
+      );
+
   MediaItem copyWith({
     String id,
     String album,
@@ -313,6 +328,31 @@ class MediaItem {
 
   @override
   bool operator ==(dynamic other) => other is MediaItem && other.id == id;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'album': album,
+        'title': title,
+        'artist': artist,
+        'genre': genre,
+        'duration': duration,
+        'artUri': artUri,
+        'playable': playable,
+        'displayTitle': displayTitle,
+        'displaySubtitle': displaySubtitle,
+        'displayDescription': displayDescription,
+        'rating': rating?._toRaw(),
+        'extras': extras,
+      };
+
+  static Map<String, dynamic> _raw2extras(Map raw) {
+    if (raw == null) return null;
+    final extras = <String, dynamic>{};
+    for (var key in raw.keys) {
+      extras[key as String] = raw[key];
+    }
+    return extras;
+  }
 }
 
 /// A media action that can be controlled by a client.
@@ -344,46 +384,6 @@ class MediaControl {
 
 const MethodChannel _channel =
     const MethodChannel('ryanheise.com/audioService');
-
-Map _mediaItem2raw(MediaItem mediaItem) => {
-      'id': mediaItem.id,
-      'album': mediaItem.album,
-      'title': mediaItem.title,
-      'artist': mediaItem.artist,
-      'genre': mediaItem.genre,
-      'duration': mediaItem.duration,
-      'artUri': mediaItem.artUri,
-      'playable': mediaItem.playable,
-      'displayTitle': mediaItem.displayTitle,
-      'displaySubtitle': mediaItem.displaySubtitle,
-      'displayDescription': mediaItem.displayDescription,
-      'rating': mediaItem.rating?._toRaw(),
-      'extras': mediaItem.extras,
-    };
-
-MediaItem _raw2mediaItem(Map raw) => MediaItem(
-      id: raw['id'],
-      album: raw['album'],
-      title: raw['title'],
-      artist: raw['artist'],
-      genre: raw['genre'],
-      duration: raw['duration'],
-      artUri: raw['artUri'],
-      displayTitle: raw['displayTitle'],
-      displaySubtitle: raw['displaySubtitle'],
-      displayDescription: raw['displayDescription'],
-      rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
-      extras: _raw2extras(raw['extras']),
-    );
-
-Map<String, dynamic> _raw2extras(Map raw) {
-  if (raw == null) return null;
-  final extras = <String, dynamic>{};
-  for (var key in raw.keys) {
-    extras[key as String] = raw[key];
-  }
-  return extras;
-}
 
 const String _CUSTOM_PREFIX = 'custom_';
 
@@ -474,7 +474,8 @@ class AudioService {
       switch (call.method) {
         case 'onChildrenLoaded':
           final List<Map> args = List<Map>.from(call.arguments[0]);
-          _browseMediaChildren = args.map(_raw2mediaItem).toList();
+          _browseMediaChildren =
+              args.map((raw) => MediaItem.fromJson(raw)).toList();
           _browseMediaChildrenSubject.add(_browseMediaChildren);
           break;
         case 'onPlaybackStateChanged':
@@ -495,7 +496,7 @@ class AudioService {
           break;
         case 'onMediaChanged':
           _currentMediaItem = call.arguments[0] != null
-              ? _raw2mediaItem(call.arguments[0])
+              ? MediaItem.fromJson(call.arguments[0])
               : null;
           _currentMediaItemSubject.add(_currentMediaItem);
           break;
@@ -503,7 +504,7 @@ class AudioService {
           final List<Map> args = call.arguments[0] != null
               ? List<Map>.from(call.arguments[0])
               : null;
-          _queue = args?.map(_raw2mediaItem)?.toList();
+          _queue = args?.map((raw) => MediaItem.fromJson(raw))?.toList();
           _queueSubject.add(_queue);
           break;
         case 'onStopped':
@@ -657,18 +658,17 @@ class AudioService {
 
   /// Passes through to `onAddQueueItem` in the background task.
   static Future<void> addQueueItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('addQueueItem', _mediaItem2raw(mediaItem));
+    await _channel.invokeMethod('addQueueItem', mediaItem.toJson());
   }
 
   /// Passes through to `onAddQueueItemAt` in the background task.
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
-    await _channel
-        .invokeMethod('addQueueItemAt', [_mediaItem2raw(mediaItem), index]);
+    await _channel.invokeMethod('addQueueItemAt', [mediaItem.toJson(), index]);
   }
 
   /// Passes through to `onRemoveQueueItem` in the background task.
   static Future<void> removeQueueItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('removeQueueItem', _mediaItem2raw(mediaItem));
+    await _channel.invokeMethod('removeQueueItem', mediaItem.toJson());
   }
 
   /// A convenience method calls [addQueueItem] for each media item in the
@@ -682,7 +682,7 @@ class AudioService {
   /// Passes through to `onReplaceQueue` in the background task.
   static Future<void> replaceQueue(List<MediaItem> queue) async {
     await _channel.invokeMethod(
-        'replaceQueue', queue.map(_mediaItem2raw).toList());
+        'replaceQueue', queue.map((item) => item.toJson()).toList());
   }
 
   /// Programmatically simulates a click of a media button on the headset.
@@ -717,7 +717,7 @@ class AudioService {
 
   /// Passes through to 'onPlayMediaItem' in the background task.
   static Future<void> playMediaItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('playMediaItem', _mediaItem2raw(mediaItem));
+    await _channel.invokeMethod('playMediaItem', mediaItem.toJson());
   }
 
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
@@ -828,7 +828,8 @@ class AudioServiceBackground {
           final List args = call.arguments;
           String parentMediaId = args[0];
           List<MediaItem> mediaItems = await task.onLoadChildren(parentMediaId);
-          List<Map> rawMediaItems = mediaItems.map(_mediaItem2raw).toList();
+          List<Map> rawMediaItems =
+              mediaItems.map((item) => item.toJson()).toList();
           return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
           task.onAudioFocusGained();
@@ -873,14 +874,14 @@ class AudioServiceBackground {
           task.onPlayFromMediaId(mediaId);
           break;
         case 'onPlayMediaItem':
-          task.onPlayMediaItem(_raw2mediaItem(call.arguments[0]));
+          task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItem':
-          task.onAddQueueItem(_raw2mediaItem(call.arguments[0]));
+          task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItemAt':
           final List args = call.arguments;
-          MediaItem mediaItem = _raw2mediaItem(args[0]);
+          MediaItem mediaItem = MediaItem.fromJson(args[0]);
           int index = args[1];
           task.onAddQueueItemAt(mediaItem, index);
           break;
@@ -888,10 +889,10 @@ class AudioServiceBackground {
           final List args = call.arguments;
           final List queue = args[0];
           await task.onReplaceQueue(
-              queue?.map((mediaItem) => _raw2mediaItem(mediaItem))?.toList());
+              queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
           break;
         case 'onRemoveQueueItem':
-          task.onRemoveQueueItem(_raw2mediaItem(call.arguments[0]));
+          task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onSkipToNext':
           task.onSkipToNext();
@@ -1001,7 +1002,7 @@ class AudioServiceBackground {
       _loadAllArtwork(queue);
     }
     await _backgroundChannel.invokeMethod(
-        'setQueue', queue.map(_mediaItem2raw).toList());
+        'setQueue', queue.map((item) => item.toJson()).toList());
   }
 
   /// Sets the currently playing media item and notifies all clients.
@@ -1015,7 +1016,7 @@ class AudioServiceBackground {
         // We haven't fetched the art yet, so show the metadata now, and again
         // after we load the art.
         await _backgroundChannel.invokeMethod(
-            'setMediaItem', _mediaItem2raw(mediaItem));
+            'setMediaItem', mediaItem.toJson());
         // Load the art
         filePath = await _loadArtwork(mediaItem);
         // If we failed to download the art, abort.
@@ -1028,10 +1029,9 @@ class AudioServiceBackground {
       final platformMediaItem = mediaItem.copyWith(extras: extras);
       // Show the media item after the art is loaded.
       await _backgroundChannel.invokeMethod(
-          'setMediaItem', _mediaItem2raw(platformMediaItem));
+          'setMediaItem', platformMediaItem.toJson());
     } else {
-      await _backgroundChannel.invokeMethod(
-          'setMediaItem', _mediaItem2raw(mediaItem));
+      await _backgroundChannel.invokeMethod('setMediaItem', mediaItem.toJson());
     }
   }
 
