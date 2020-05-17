@@ -203,15 +203,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setState(playbackState, position, speed, updateTime);
 		mediaSession.setPlaybackState(stateBuilder.build());
 
-		if(playbackState==PlaybackStateCompat.STATE_PAUSED) stopForegroundOnPause();
-		if (androidStopForegroundOnPause && !isForeground && playbackState == PlaybackStateCompat.STATE_PLAYING)
-			mediaSessionCallback.play(new Runnable() {
-				@Override
-				public void run() {
+		if (playbackState == PlaybackStateCompat.STATE_PAUSED) stopForegroundOnPause();
+		if (androidStopForegroundOnPause && !isForeground) {
+			if (playbackState == PlaybackStateCompat.STATE_BUFFERING)
+				startForeground(NOTIFICATION_ID, buildNotification());
+			if (playbackState == PlaybackStateCompat.STATE_PLAYING)
+				mediaSessionCallback.play(new Runnable() {
+					@Override
+					public void run() {
 
-				}
-			});
-		else
+					}
+				});
+		} else
 			updateNotification();
 	}
 
@@ -602,8 +605,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			registerNoisyReceiver();
 			mediaSession.setSessionActivity(contentIntent);
 			startForeground(NOTIFICATION_ID, buildNotification());
-			if (androidStopForegroundOnPause)
-				isForeground = true;
+			isForeground = true;
 		}
 
 		@Override
