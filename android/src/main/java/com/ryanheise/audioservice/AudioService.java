@@ -204,16 +204,13 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		mediaSession.setPlaybackState(stateBuilder.build());
 
 		if (playbackState == PlaybackStateCompat.STATE_PAUSED) stopForegroundOnPause();
-		if (androidStopForegroundOnPause && !isForeground) {
-			if (playbackState == PlaybackStateCompat.STATE_BUFFERING)
-				startForeground(NOTIFICATION_ID, buildNotification());
-			if (playbackState == PlaybackStateCompat.STATE_PLAYING)
-				mediaSessionCallback.play(new Runnable() {
-					@Override
-					public void run() {
+		if (androidStopForegroundOnPause && !isForeground && (playbackState == PlaybackStateCompat.STATE_BUFFERING || playbackState == PlaybackStateCompat.STATE_PLAYING)) {
+			mediaSessionCallback.play(new Runnable() {
+				@Override
+				public void run() {
 
-					}
-				});
+				}
+			});
 		} else
 			updateNotification();
 	}
