@@ -410,6 +410,34 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _completer.complete();
   }
 
+  /* Handling Audio Focus */
+  @override
+  void onAudioFocusGained() {
+    _audioPlayer.setVolume(1.0);
+    if (AudioServiceBackground.state.basicState == BasicPlaybackState.paused)
+      onPlay();
+  }
+
+  @override
+  void onAudioFocusLost() {
+    onPause();
+  }
+
+  @override
+  void onAudioFocusLostTransient() {
+    onPause();
+  }
+
+  @override
+  void onAudioFocusLostTransientCanDuck() {
+    _audioPlayer.setVolume(0.5);
+  }
+
+  @override
+  void onAudioBecomingNoisy() {
+    onPause();
+  }
+
   void _setState({@required BasicPlaybackState state, int position}) {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position.inMilliseconds;
