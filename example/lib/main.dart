@@ -66,7 +66,9 @@ class MainScreen extends StatelessWidget {
             final queue = screenState?.queue;
             final mediaItem = screenState?.mediaItem;
             final state = screenState?.playbackState;
-            final basicState = state?.basicState ?? BasicPlaybackState.none;
+            final processingState =
+                state?.processingState ?? AudioProcessingState.none;
+            final playing = state?.playing ?? false;
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -91,36 +93,22 @@ class MainScreen extends StatelessWidget {
                     ],
                   ),
                 if (mediaItem?.title != null) Text(mediaItem.title),
-                if (basicState == BasicPlaybackState.none) ...[
+                if (processingState == AudioProcessingState.none) ...[
                   audioPlayerButton(),
                   textToSpeechButton(),
                 ] else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (basicState == BasicPlaybackState.playing)
-                        pauseButton()
-                      else if (basicState == BasicPlaybackState.paused)
-                        playButton()
-                      else if (basicState == BasicPlaybackState.buffering ||
-                          basicState == BasicPlaybackState.skippingToNext ||
-                          basicState == BasicPlaybackState.skippingToPrevious)
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: SizedBox(
-                            width: 64.0,
-                            height: 64.0,
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
+                      if (playing) pauseButton() else playButton(),
                       stopButton(),
                     ],
                   ),
-                if (basicState != BasicPlaybackState.none &&
-                    basicState != BasicPlaybackState.stopped) ...[
+                if (processingState != AudioProcessingState.none &&
+                    processingState != AudioProcessingState.stopped) ...[
                   positionIndicator(mediaItem, state),
-                  Text("State: " +
-                      "$basicState".replaceAll(RegExp(r'^.*\.'), '')),
+                  Text("Processing state: " +
+                      "$processingState".replaceAll(RegExp(r'^.*\.'), '')),
                   StreamBuilder(
                     stream: AudioService.customEventStream,
                     builder: (context, snapshot) {
@@ -152,6 +140,8 @@ class MainScreen extends StatelessWidget {
           AudioService.start(
             backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
             androidNotificationChannelName: 'Audio Service Demo',
+            // Enable this if you want the Android service to exit the foreground state on pause.
+            //androidStopForegroundOnPause: true,
             notificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
             enableQueue: true,
@@ -271,7 +261,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   int _queueIndex = -1;
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
-  BasicPlaybackState _skipState;
+  AudioProcessingState _skipState;
   bool _playing;
 
   bool get hasNext => _queueIndex + 1 < _queue.length;
@@ -279,29 +269,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
   bool get hasPrevious => _queueIndex > 0;
 
   MediaItem get mediaItem => _queue[_queueIndex];
-
-  BasicPlaybackState _eventToBasicState(AudioPlaybackEvent event) {
-    if (event.buffering) {
-      return BasicPlaybackState.buffering;
-    } else {
-      switch (event.state) {
-        case AudioPlaybackState.none:
-          return BasicPlaybackState.none;
-        case AudioPlaybackState.stopped:
-          return BasicPlaybackState.stopped;
-        case AudioPlaybackState.paused:
-          return BasicPlaybackState.paused;
-        case AudioPlaybackState.playing:
-          return BasicPlaybackState.playing;
-        case AudioPlaybackState.connecting:
-          return _skipState ?? BasicPlaybackState.connecting;
-        case AudioPlaybackState.completed:
-          return BasicPlaybackState.stopped;
-        default:
-          throw Exception("Illegal state");
-      }
-    }
-  }
 
   @override
   Future<void> onStart() async {
@@ -311,12 +278,35 @@ class AudioPlayerTask extends BackgroundAudioTask {
       _handlePlaybackCompleted();
     });
     var eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
-      final state = _eventToBasicState(event);
-      if (state != BasicPlaybackState.stopped) {
-        _setState(
-          state: state,
-          position: event.position.inMilliseconds,
-        );
+      final bufferingState =
+          event.buffering ? AudioProcessingState.buffering : null;
+      switch (event.state) {
+        case AudioPlaybackState.none:
+          _setState(
+            processingState: AudioProcessingState.none,
+            position: event.position.inMilliseconds,
+          );
+          break;
+        case AudioPlaybackState.paused:
+          _setState(
+            processingState: bufferingState ?? AudioProcessingState.ready,
+            position: event.position.inMilliseconds,
+          );
+          break;
+        case AudioPlaybackState.playing:
+          _setState(
+            processingState: bufferingState ?? AudioProcessingState.ready,
+            position: event.position.inMilliseconds,
+          );
+          break;
+        case AudioPlaybackState.connecting:
+          _setState(
+            processingState: _skipState ?? AudioProcessingState.connecting,
+            position: event.position.inMilliseconds,
+          );
+          break;
+        default:
+          break;
       }
     });
 
@@ -336,7 +326,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   void playPause() {
-    if (AudioServiceBackground.state.basicState == BasicPlaybackState.playing)
+    if (AudioServiceBackground.state.playing)
       onPause();
     else
       onPlay();
@@ -362,15 +352,15 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _queueIndex = newPos;
     AudioServiceBackground.setMediaItem(mediaItem);
     _skipState = offset > 0
-        ? BasicPlaybackState.skippingToNext
-        : BasicPlaybackState.skippingToPrevious;
+        ? AudioProcessingState.skippingToNext
+        : AudioProcessingState.skippingToPrevious;
     await _audioPlayer.setUrl(mediaItem.id);
     _skipState = null;
     // Resume playback if we were playing
     if (_playing) {
       onPlay();
     } else {
-      _setState(state: BasicPlaybackState.paused);
+      _setState(processingState: AudioProcessingState.ready);
     }
   }
 
@@ -406,7 +396,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Future<void> onStop() async {
     await _audioPlayer.stop();
     await _audioPlayer.dispose();
-    _setState(state: BasicPlaybackState.stopped);
+    _playing = false;
+    _setState(processingState: AudioProcessingState.stopped);
     _completer.complete();
   }
 
@@ -414,8 +405,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   @override
   void onAudioFocusGained() {
     _audioPlayer.setVolume(1.0);
-    if (AudioServiceBackground.state.basicState == BasicPlaybackState.paused)
-      onPlay();
+    if (!_playing) onPlay();
   }
 
   @override
@@ -438,19 +428,23 @@ class AudioPlayerTask extends BackgroundAudioTask {
     onPause();
   }
 
-  void _setState({@required BasicPlaybackState state, int position}) {
+  void _setState({
+    @required AudioProcessingState processingState,
+    int position,
+  }) {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position.inMilliseconds;
     }
     AudioServiceBackground.setState(
-      controls: getControls(state),
+      controls: getControls(),
       systemActions: [MediaAction.seekTo],
-      basicState: state,
+      processingState: processingState,
+      playing: _playing,
       position: position,
     );
   }
 
-  List<MediaControl> getControls(BasicPlaybackState state) {
+  List<MediaControl> getControls() {
     if (_playing) {
       return [
         skipToPreviousControl,
@@ -486,12 +480,17 @@ class TextPlayerTask extends BackgroundAudioTask {
     return _playPauseCompleter.future;
   }
 
-  BasicPlaybackState get _basicState => AudioServiceBackground.state.basicState;
+  AudioProcessingState get _processingState =>
+      AudioServiceBackground.state.processingState;
+
+  bool get _playing => AudioServiceBackground.state.playing;
 
   @override
   Future<void> onStart() async {
     playPause();
-    for (var i = 1; i <= 10 && _basicState != BasicPlaybackState.stopped; i++) {
+    for (var i = 1;
+        i <= 10 && _processingState != AudioProcessingState.stopped;
+        i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       _tts.speak('$i');
@@ -499,13 +498,12 @@ class TextPlayerTask extends BackgroundAudioTask {
       await Future.any(
           [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
       // If we were just paused...
-      if (_playPauseCompleter.isCompleted &&
-          _basicState == BasicPlaybackState.paused) {
+      if (_playPauseCompleter.isCompleted && !_playing) {
         // Wait to be unpaused...
         await _playPauseFuture();
       }
     }
-    if (_basicState != BasicPlaybackState.stopped) onStop();
+    if (_processingState != AudioProcessingState.stopped) onStop();
   }
 
   MediaItem mediaItem(int number) => MediaItem(
@@ -515,16 +513,18 @@ class TextPlayerTask extends BackgroundAudioTask {
       artist: 'Sample Artist');
 
   void playPause() {
-    if (_basicState == BasicPlaybackState.playing) {
+    if (_playing) {
       _tts.stop();
       AudioServiceBackground.setState(
         controls: [playControl, stopControl],
-        basicState: BasicPlaybackState.paused,
+        processingState: AudioProcessingState.ready,
+        playing: false,
       );
     } else {
       AudioServiceBackground.setState(
         controls: [pauseControl, stopControl],
-        basicState: BasicPlaybackState.playing,
+        processingState: AudioProcessingState.ready,
+        playing: true,
       );
     }
     _playPauseCompleter.complete();
@@ -547,11 +547,12 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   void onStop() {
-    if (_basicState == BasicPlaybackState.stopped) return;
+    if (_processingState == AudioProcessingState.stopped) return;
     _tts.stop();
     AudioServiceBackground.setState(
       controls: [],
-      basicState: BasicPlaybackState.stopped,
+      processingState: AudioProcessingState.stopped,
+      playing: false,
     );
     _playPauseCompleter.complete();
   }

@@ -38,28 +38,42 @@ enum MediaAction {
   playFromUri,
 }
 
-/// The different states during audio playback.
-enum BasicPlaybackState {
+/// The different states during audio processing.
+enum AudioProcessingState {
   none,
-  stopped,
-  paused,
-  playing,
+  connecting,
+  ready,
+  buffering,
   fastForwarding,
   rewinding,
-  buffering,
-  error,
-  connecting,
   skippingToPrevious,
   skippingToNext,
   skippingToQueueItem,
+  completed,
+  stopped,
+  error,
 }
 
-/// The playback state for the audio service which includes a basic state such
-/// as [BasicPlaybackState.paused], the playback position and the currently
-/// supported actions.
+/// The playback state for the audio service which includes a [playing] boolean
+/// state, a processing state such as [AudioProcessingState.buffering], the
+/// playback position and the currently enabled actions to be shown in the
+/// Android notification or the iOS control center.
 class PlaybackState {
-  /// The basic state e.g. [BasicPlaybackState.paused]
-  final BasicPlaybackState basicState;
+  /// The audio processing state e.g. [BasicPlaybackState.buffering].
+  final AudioProcessingState processingState;
+
+  /// Whether audio is either playing, or will play as soon as
+  /// [processingState] is [AudioProcessingState.ready]. A true value should
+  /// be broadcast whenever it would be appropriate for UIs to display a pause
+  /// or stop button.
+  ///
+  /// Since [playing] and [processingState] can vary independently, it is
+  /// possible distinguish a particular audio processing state while audio is
+  /// playing vs paused. For example, when buffering occurs during a seek, the
+  /// [processingState] can be [AudioProcessingState.buffering], but alongside
+  /// that [playing] can be true to indicate that the seek was performed while
+  /// playing, or false to indicate that the seek was performed while paused.
+  final bool playing;
 
   /// The set of actions currently supported by the audio service e.g.
   /// [MediaAction.play]
@@ -75,7 +89,8 @@ class PlaybackState {
   final int updateTime;
 
   const PlaybackState({
-    @required this.basicState,
+    @required this.processingState,
+    @required this.playing,
     @required this.actions,
     this.position,
     this.speed,
@@ -84,7 +99,7 @@ class PlaybackState {
 
   /// The current playback position in milliseconds
   int get currentPosition {
-    if (basicState == BasicPlaybackState.playing) {
+    if (playing && processingState == AudioProcessingState.ready) {
       return (position +
               ((DateTime.now().millisecondsSinceEpoch - updateTime) *
                   (speed ?? 1.0)))
@@ -476,15 +491,16 @@ class AudioService {
           // If this event arrives too late, ignore it.
           if (_afterStop) return;
           final List args = call.arguments;
-          int actionBits = args[1];
+          int actionBits = args[2];
           _playbackState = PlaybackState(
-            basicState: BasicPlaybackState.values[args[0]],
+            processingState: AudioProcessingState.values[args[0]],
+            playing: args[1],
             actions: MediaAction.values
                 .where((action) => (actionBits & (1 << action.index)) != 0)
                 .toSet(),
-            position: args[2],
-            speed: args[3],
-            updateTime: args[4],
+            position: args[3],
+            speed: args[4],
+            updateTime: args[5],
           );
           _playbackStateSubject.add(_playbackState);
           break;
@@ -787,8 +803,11 @@ class AudioService {
 /// broadcast state changes to any UI that may be connected, and to also handle
 /// playback actions initiated by the UI.
 class AudioServiceBackground {
-  static final PlaybackState _noneState =
-      PlaybackState(basicState: BasicPlaybackState.none, actions: Set());
+  static final PlaybackState _noneState = PlaybackState(
+    processingState: AudioProcessingState.none,
+    playing: false,
+    actions: Set(),
+  );
   static MethodChannel _backgroundChannel;
   static PlaybackState _state = _noneState;
   static MediaItem _mediaItem;
@@ -952,14 +971,16 @@ class AudioServiceBackground {
   static Future<void> setState({
     @required List<MediaControl> controls,
     List<MediaAction> systemActions = const [],
-    @required BasicPlaybackState basicState,
+    @required AudioProcessingState processingState,
+    @required bool playing,
     int position = 0,
     double speed = 1.0,
     int updateTime,
     List<int> androidCompactActions,
   }) async {
     _state = PlaybackState(
-      basicState: basicState,
+      processingState: processingState,
+      playing: playing,
       actions: controls.map((control) => control.action).toSet(),
       position: position,
       speed: speed,
@@ -977,7 +998,8 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
       rawSystemActions,
-      basicState.index,
+      processingState.index,
+      playing,
       position,
       speed,
       updateTime,
