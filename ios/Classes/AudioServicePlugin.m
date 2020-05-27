@@ -264,7 +264,7 @@ static MPMediaItemArtwork* artwork = nil;
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
     processingState = [call.arguments[2] intValue];
-    playing = [call.arguments[3] boolValue]
+    playing = [call.arguments[3] boolValue];
     position = call.arguments[4];
     updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
     speed = call.arguments[5];
