@@ -76,13 +76,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static boolean playing = false;
 	private static AudioProcessingState processingState = AudioProcessingState.none;
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Size artDownscaleSize, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
 
 		Context context = activity.getApplicationContext();
 		Intent intent = new Intent(context, activity.getClass());
+		intent.setAction(action);
 		contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 		AudioService.listener = listener;
 		AudioService.resumeOnClick = resumeOnClick;

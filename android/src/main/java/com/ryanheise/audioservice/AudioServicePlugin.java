@@ -69,6 +69,7 @@ import io.flutter.view.FlutterRunArguments;
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	private static final String CHANNEL_AUDIO_SERVICE = "ryanheise.com/audioService";
 	private static final String CHANNEL_AUDIO_SERVICE_BACKGROUND = "ryanheise.com/audioServiceBackground";
+	private static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
 
 	private static PluginRegistrantCallback pluginRegistrantCallback;
 	private static ClientHandler clientHandler;
@@ -163,8 +164,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		activityPluginBinding.addOnNewIntentListener(newIntentListener = new NewIntentListener() {
 			@Override
 			public boolean onNewIntent(Intent intent) {
-				clientHandler.activity.setIntent(new Intent().setAction(intent.getAction()));
-				clientHandler.invokeMethod("notificationClicked", intent.getAction() == null);
+				if (intent.getAction() != null) {
+					clientHandler.activity.getIntent().setAction(intent.getAction());
+					clientHandler.invokeMethod("notificationClicked", intent.getAction().equals(NOTIFICATION_CLICK_ACTION));
+				}
 				return false;
 			}
 		});
@@ -290,7 +293,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
@@ -309,7 +312,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 							connectionCallback,
 							null);
 					mediaBrowser.connect();
-					invokeMethod("notificationClicked", activity.getIntent().getAction() == null);
+					if (activity.getIntent().getAction() != null)
+						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
 				} else {
 					result.success(true);
 				}
@@ -432,7 +436,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				break;
 			case "stop":
 				mediaController.getTransportControls().stop();
-				activity.setIntent(new Intent().setAction("ACTION_MAIN"));
+				activity.getIntent().setAction(Intent.ACTION_MAIN);
 				result.success(true);
 				break;
 			case "seekTo":
