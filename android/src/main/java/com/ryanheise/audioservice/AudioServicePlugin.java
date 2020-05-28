@@ -5,6 +5,7 @@ import io.flutter.embedding.engine.plugins.service.*;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -36,6 +37,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry.NewIntentListener;
 import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.plugin.common.PluginRegistry.ViewDestroyListener;
@@ -67,6 +69,7 @@ import io.flutter.view.FlutterRunArguments;
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	private static final String CHANNEL_AUDIO_SERVICE = "ryanheise.com/audioService";
 	private static final String CHANNEL_AUDIO_SERVICE_BACKGROUND = "ryanheise.com/audioServiceBackground";
+	private static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
 
 	private static PluginRegistrantCallback pluginRegistrantCallback;
 	private static ClientHandler clientHandler;
@@ -108,6 +111,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	}
 
 	private FlutterPluginBinding flutterPluginBinding;
+	private ActivityPluginBinding activityPluginBinding;
+	private NewIntentListener newIntentListener;
 
 	//
 	// FlutterPlugin callbacks
@@ -129,22 +134,43 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 	@Override
 	public void onAttachedToActivity(ActivityPluginBinding binding) {
-		clientHandler = new ClientHandler(flutterPluginBinding.getFlutterEngine().getDartExecutor());
+		activityPluginBinding = binding;
+		clientHandler = new ClientHandler(flutterPluginBinding.getBinaryMessenger());
 		clientHandler.activity = binding.getActivity();
+		registerOnNewIntentListener();
 	}
 
 	@Override
 	public void onDetachedFromActivityForConfigChanges() {
+		activityPluginBinding.removeOnNewIntentListener(newIntentListener);
 	}
 
 	@Override
 	public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+		activityPluginBinding = binding;
 		clientHandler.activity = binding.getActivity();
+		registerOnNewIntentListener();
 	}
 
 	@Override
 	public void onDetachedFromActivity() {
+		activityPluginBinding.removeOnNewIntentListener(newIntentListener);
+		newIntentListener = null;
+		activityPluginBinding = null;
 		clientHandler = null;
+	}
+
+	private void registerOnNewIntentListener() {
+		activityPluginBinding.addOnNewIntentListener(newIntentListener = new NewIntentListener() {
+			@Override
+			public boolean onNewIntent(Intent intent) {
+				if (intent.getAction() != null) {
+					clientHandler.activity.getIntent().setAction(intent.getAction());
+					clientHandler.invokeMethod("notificationClicked", intent.getAction().equals(NOTIFICATION_CLICK_ACTION));
+				}
+				return false;
+			}
+		});
 	}
 
 
@@ -267,7 +293,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
+				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
@@ -286,6 +312,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 							connectionCallback,
 							null);
 					mediaBrowser.connect();
+					if (activity.getIntent().getAction() != null)
+						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
 				} else {
 					result.success(true);
 				}
@@ -408,6 +436,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				break;
 			case "stop":
 				mediaController.getTransportControls().stop();
+				activity.getIntent().setAction(Intent.ACTION_MAIN);
 				result.success(true);
 				break;
 			case "seekTo":
