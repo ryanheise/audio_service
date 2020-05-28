@@ -80,13 +80,13 @@ class PlaybackState {
   final Set<MediaAction> actions;
 
   /// The playback position in milliseconds at the last update time
-  final int position;
+  final Duration position;
 
   /// The current playback speed where 1.0 means normal speed
   final double speed;
 
   /// The time at which the playback position was last updated
-  final int updateTime;
+  final Duration updateTime;
 
   const PlaybackState({
     @required this.processingState,
@@ -98,12 +98,14 @@ class PlaybackState {
   });
 
   /// The current playback position in milliseconds
-  int get currentPosition {
+  Duration get currentPosition {
     if (playing && processingState == AudioProcessingState.ready) {
-      return (position +
-              ((DateTime.now().millisecondsSinceEpoch - updateTime) *
-                  (speed ?? 1.0)))
-          .toInt();
+      return Duration(
+          milliseconds: (position.inMilliseconds +
+                  ((DateTime.now().millisecondsSinceEpoch -
+                          updateTime.inMilliseconds) *
+                      (speed ?? 1.0)))
+              .toInt());
     } else {
       return position;
     }
@@ -246,8 +248,8 @@ class MediaItem {
   /// The genre of this media item
   final String genre;
 
-  /// The duration in milliseconds
-  final int duration;
+  /// The duration of this media item
+  final Duration duration;
 
   /// The artwork for this media item as a uri
   final String artUri;
@@ -298,7 +300,7 @@ class MediaItem {
         title: raw['title'],
         artist: raw['artist'],
         genre: raw['genre'],
-        duration: raw['duration'],
+        duration: Duration(milliseconds: raw['duration']),
         artUri: raw['artUri'],
         displayTitle: raw['displayTitle'],
         displaySubtitle: raw['displaySubtitle'],
@@ -313,7 +315,7 @@ class MediaItem {
     String title,
     String artist,
     String genre,
-    int duration,
+    Duration duration,
     String artUri,
     bool playable,
     String displayTitle,
@@ -350,7 +352,7 @@ class MediaItem {
         'title': title,
         'artist': artist,
         'genre': genre,
-        'duration': duration,
+        'duration': duration.inMilliseconds,
         'artUri': artUri,
         'playable': playable,
         'displayTitle': displayTitle,
@@ -504,9 +506,9 @@ class AudioService {
             actions: MediaAction.values
                 .where((action) => (actionBits & (1 << action.index)) != 0)
                 .toSet(),
-            position: args[3],
+            position: Duration(milliseconds: args[3]),
             speed: args[4],
-            updateTime: args[5],
+            updateTime: Duration(milliseconds: args[5]),
           );
           _playbackStateSubject.add(_playbackState);
           break;
@@ -613,8 +615,8 @@ class AudioService {
     bool androidEnableQueue = false,
     bool androidStopOnRemoveTask = false,
     Size androidArtDownscaleSize,
-    int fastForwardInterval = 0,
-    int rewindInterval = 0,
+    Duration fastForwardInterval = const Duration(seconds: 10),
+    Duration rewindInterval = const Duration(seconds: 10),
   }) async {
     if (_running) return false;
     _running = true;
@@ -658,8 +660,8 @@ class AudioService {
               'height': androidArtDownscaleSize.height
             }
           : null,
-      'fastForwardInterval': fastForwardInterval,
-      'rewindInterval': rewindInterval,
+      'fastForwardInterval': fastForwardInterval.inMilliseconds,
+      'rewindInterval': rewindInterval.inMilliseconds,
     });
     _running = await _channel.invokeMethod("isRunning");
     return success;
@@ -755,8 +757,8 @@ class AudioService {
   }
 
   /// Passes through to `onSeekTo` in the background task.
-  static Future<void> seekTo(int pos) async {
-    await _channel.invokeMethod('seekTo', pos);
+  static Future<void> seekTo(Duration position) async {
+    await _channel.invokeMethod('seekTo', position.inMilliseconds);
   }
 
   /// Passes through to `onSkipToNext` in the background task.
@@ -932,8 +934,9 @@ class AudioServiceBackground {
           break;
         case 'onSeekTo':
           final List args = call.arguments;
-          int pos = args[0];
-          task.onSeekTo(pos);
+          int positionMs = args[0];
+          Duration position = Duration(milliseconds: positionMs);
+          task.onSeekTo(position);
           break;
         case 'onSetRating':
           task.onSetRating(
@@ -983,9 +986,9 @@ class AudioServiceBackground {
     List<MediaAction> systemActions = const [],
     @required AudioProcessingState processingState,
     @required bool playing,
-    int position = 0,
+    Duration position = Duration.zero,
     double speed = 1.0,
-    int updateTime,
+    Duration updateTime,
     List<int> androidCompactActions,
   }) async {
     _state = PlaybackState(
@@ -1010,9 +1013,9 @@ class AudioServiceBackground {
       rawSystemActions,
       processingState.index,
       playing,
-      position,
+      position.inMilliseconds,
       speed,
-      updateTime,
+      updateTime?.inMilliseconds,
       androidCompactActions
     ]);
   }
@@ -1237,7 +1240,7 @@ abstract class BackgroundAudioTask {
 
   /// Called when the client has requested to seek to a position, such as via a
   /// call to [AudioService.seekTo].
-  void onSeekTo(int position) {}
+  void onSeekTo(Duration position) {}
 
   /// Called when the client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
