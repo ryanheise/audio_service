@@ -199,7 +199,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				// On the flutter side, we represent the update time relative to the epoch.
 				long updateTimeSinceBoot = state.getLastPositionUpdateTime();
 				long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
-				invokeMethod("onPlaybackStateChanged", state.getState(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), updateTimeSinceEpoch);
+				invokeMethod("onPlaybackStateChanged", AudioService.getProcessingState().ordinal(), AudioService.isPlaying(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), updateTimeSinceEpoch);
 			}
 
 			@Override
@@ -708,11 +708,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				List<Object> args = (List<Object>)call.arguments;
 				List<Map<?, ?>> rawControls = (List<Map<?, ?>>)args.get(0);
 				List<Integer> rawSystemActions = (List<Integer>)args.get(1);
-				int playbackState = (Integer)args.get(2);
-				long position = getLong(args.get(3));
-				float speed = (float)((double)((Double)args.get(4)));
-				long updateTimeSinceEpoch = args.get(5) == null ? System.currentTimeMillis() : getLong(args.get(5));
-				List<Object> compactActionIndexList = (List<Object>)args.get(6);
+				AudioProcessingState processingState = AudioProcessingState.values()[(Integer)args.get(2)];
+				boolean playing = (Boolean)args.get(3);
+				long position = getLong(args.get(4));
+				float speed = (float)((double)((Double)args.get(5)));
+				long updateTimeSinceEpoch = args.get(6) == null ? System.currentTimeMillis() : getLong(args.get(6));
+				List<Object> compactActionIndexList = (List<Object>)args.get(7);
 
 				// On the flutter side, we represent the update time relative to the epoch.
 				// On the native side, we must represent the update time relative to the boot time.
@@ -736,7 +737,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					for (int i = 0; i < compactActionIndices.length; i++)
 						compactActionIndices[i] = (Integer)compactActionIndexList.get(i);
 				}
-				AudioService.instance.setState(actions, actionBits, compactActionIndices, playbackState, position, speed, updateTimeSinceBoot);
+				AudioService.instance.setState(actions, actionBits, compactActionIndices, processingState, playing, position, speed, updateTimeSinceBoot);
 				result.success(true);
 				break;
 			case "stopped":

@@ -73,6 +73,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static Set<String> artUriBlacklist = new HashSet<>();
 	private static LruCache<String, Bitmap> artBitmapCache;
 	private static Size artDownscaleSize;
+	private static boolean playing = false;
+	private static AudioProcessingState processingState = AudioProcessingState.none;
 
 	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
@@ -94,6 +96,9 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidStopOnRemoveTask = androidStopOnRemoveTask;
 		AudioService.artDownscaleSize = artDownscaleSize;
 
+		playing = false;
+		processingState = AudioProcessingState.none;
+
 		// Get max available VM memory, exceeding this amount will throw an
 		// OutOfMemory exception. Stored in kilobytes as LruCache takes an
 		// int in its constructor.
@@ -110,6 +115,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				return bitmap.getByteCount() / 1024;
 			}
 		};
+	}
+
+	public static AudioProcessingState getProcessingState() {
+		return processingState;
+	}
+
+	public static boolean isPlaying() {
+		return playing;
 	}
 
 	public void stop() {
@@ -133,7 +146,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		instance.abandonAudioFocus();
 		unregisterNoisyReceiver();
 		mediaSession.setActive(false);
-		if (wakeLock.isHeld()) wakeLock.release();
+		releaseWakeLock();
 		stopForeground(true);
 		stopSelf();
 	}
@@ -193,16 +206,43 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 	}
 
-	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, int playbackState, long position, float speed, long updateTime) {
+	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, float speed, long updateTime) {
 		this.actions = actions;
 		this.compactActionIndices = compactActionIndices;
+		boolean wasPlaying = AudioService.playing;
+		AudioService.processingState = processingState;
+		AudioService.playing = playing;
 
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 				.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
-				.setState(playbackState, position, speed, updateTime);
+				.setState(getPlaybackState(), position, speed, updateTime);
 		mediaSession.setPlaybackState(stateBuilder.build());
 
+		if (!wasPlaying && playing) {
+			enterPlayingState();
+		} else if (wasPlaying && !playing) {
+			exitPlayingState();
+		}
+
 		updateNotification();
+	}
+
+	public int getPlaybackState() {
+		switch (processingState) {
+		case none: return PlaybackStateCompat.STATE_NONE;
+		case connecting: return PlaybackStateCompat.STATE_CONNECTING;
+		case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+		case buffering: return PlaybackStateCompat.STATE_BUFFERING;
+		case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
+		case rewinding: return PlaybackStateCompat.STATE_REWINDING;
+		case skippingToPrevious: return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
+		case skippingToNext: return PlaybackStateCompat.STATE_SKIPPING_TO_NEXT;
+		case skippingToQueueItem: return PlaybackStateCompat.STATE_SKIPPING_TO_QUEUE_ITEM;
+		case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+		case stopped: return PlaybackStateCompat.STATE_STOPPED;
+		case error: return PlaybackStateCompat.STATE_ERROR;
+		default: return PlaybackStateCompat.STATE_NONE;
+		}
 	}
 
 	private Notification buildNotification() {
@@ -332,6 +372,46 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		if (noisyReceiver == null) return;
 		unregisterReceiver(noisyReceiver);
 		noisyReceiver = null;
+	}
+
+	private boolean enterPlayingState() {
+		int result = requestAudioFocus();
+		if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+			// Don't play audio. TODO: Pass this on to Dart.
+			return false;
+		}
+
+		startService(new Intent(AudioService.this, AudioService.class));
+		if (!mediaSession.isActive())
+			mediaSession.setActive(true);
+
+		acquireWakeLock();
+		registerNoisyReceiver();
+		mediaSession.setSessionActivity(contentIntent);
+		startForeground(NOTIFICATION_ID, buildNotification());
+		return true;
+	}
+
+	private void exitPlayingState() {
+		unregisterNoisyReceiver();
+		if (androidStopForegroundOnPause) {
+			exitForegroundState();
+		}
+	}
+
+	private void exitForegroundState() {
+		stopForeground(false);
+		releaseWakeLock();
+	}
+
+	private void acquireWakeLock() {
+		if (!wakeLock.isHeld())
+			wakeLock.acquire();
+	}
+
+	private void releaseWakeLock() {
+		if (wakeLock.isHeld())
+			wakeLock.release();
 	}
 
 	static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
@@ -560,30 +640,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		@Override
 		public void onPlay() {
 			if (listener == null) return;
-			play(new Runnable() {
-				public void run() {
-					listener.onPlay();
-				}
-			});
-		}
-
-		private void play(Runnable runner) {
-			int result = requestAudioFocus();
-			if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-				// Don't play audio
-				return;
-			}
-
-			startService(new Intent(AudioService.this, AudioService.class));
-			if (!mediaSession.isActive())
-				mediaSession.setActive(true);
-
-			runner.run();
-
-			acquireWakeLock();
-			registerNoisyReceiver();
-			mediaSession.setSessionActivity(contentIntent);
-			startForeground(NOTIFICATION_ID, buildNotification());
+			listener.onPlay();
 		}
 
 		@Override
@@ -597,16 +654,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		@Override
 		public void onPlayFromMediaId(final String mediaId, final Bundle extras) {
 			if (listener == null) return;
-			play(new Runnable() {
-				public void run() {
-					listener.onPlayFromMediaId(mediaId);
-				}
-			});
-		}
-
-		private void acquireWakeLock() {
-			if (!wakeLock.isHeld())
-				wakeLock.acquire();
+			listener.onPlayFromMediaId(mediaId);
 		}
 
 		@Override
@@ -650,16 +698,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
 				case KeyEvent.KEYCODE_HEADSETHOOK:
 					MediaControllerCompat controller = mediaSession.getController();
-					// If you press the media button while in the pause state, we reactivate the media session.
-					if (resumeOnClick && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED) {
-						play(new Runnable() {
-							public void run() {
-								listener.onClick(mediaControl(event));
-							}
-						});
-					} else {
-						listener.onClick(mediaControl(event));
-					}
+					listener.onClick(mediaControl(event));
 					break;
 				}
 			}
@@ -684,10 +723,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		public void onPause() {
 			if (listener == null) return;
 			listener.onPause();
-			unregisterNoisyReceiver();
-			if (androidStopForegroundOnPause) {
-				stopForeground(false);
-			}
 		}
 
 		@Override
@@ -750,11 +785,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		public void onPlayMediaItem(final MediaDescriptionCompat description) {
 			if (listener == null) return;
-			play(new Runnable() {
-				public void run() {
-					listener.onPlayMediaItem(getMediaMetadata(description.getMediaId()));
-				}
-			});
+			listener.onPlayMediaItem(getMediaMetadata(description.getMediaId()));
 		}
 	}
 

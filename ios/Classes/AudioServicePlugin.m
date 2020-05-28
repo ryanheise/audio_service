@@ -20,7 +20,8 @@ static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
 static NSArray *queue = nil;
 static NSMutableDictionary *mediaItem = nil;
-static NSNumber *state = nil;
+static enum AudioProcessingState processingState = none;
+static BOOL playing = NO;
 static NSNumber *position = nil;
 static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
@@ -61,15 +62,16 @@ static MPMediaItemArtwork* artwork = nil;
   if ([@"connect" isEqualToString:call.method]) {
     long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     // Notify client of state on subscribing.
-    if (state == nil) {
-      state = [NSNumber numberWithInt: 0];
+    if (position == nil) {
       position = @(0);
       updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
       speed = [NSNumber numberWithDouble: 1.0];
     }
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
-      // state
-      state,
+      // processingState
+      @(processingState),
+      // playing
+      @(playing),
       // actions (TODO)
       @(0),
       // position
@@ -180,7 +182,8 @@ static MPMediaItemArtwork* artwork = nil;
     [commandCenter.skipForwardCommand removeTarget:nil];
     [commandCenter.skipBackwardCommand removeTarget:nil];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
-    state = nil;
+    processingState = none;
+    playing = NO;
     position = nil;
     updateTime = nil;
     speed = nil;
@@ -255,18 +258,21 @@ static MPMediaItemArtwork* artwork = nil;
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
-    if (call.arguments[5] != [NSNull null]) {
-      msSinceEpoch = [call.arguments[5] longLongValue];
+    if (call.arguments[6] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[6] longLongValue];
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
-    state = call.arguments[2];
-    position = call.arguments[3];
+    processingState = [call.arguments[2] intValue];
+    playing = [call.arguments[3] boolValue];
+    position = call.arguments[4];
     updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
-    speed = call.arguments[4];
+    speed = call.arguments[5];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
-      // state
-      state,
+      // processingState
+      @(processingState),
+      // playing
+      @(playing),
       // actions (TODO)
       @(0),
       // position
@@ -339,8 +345,7 @@ static MPMediaItemArtwork* artwork = nil;
     }
     nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithInt:([position intValue] / 1000)];
   }
-  int stateCode = state ? [state intValue] : 0;
-  nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: stateCode == 3 ? 1.0 : 0.0];
+  nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: playing ? 1.0 : 0.0];
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
