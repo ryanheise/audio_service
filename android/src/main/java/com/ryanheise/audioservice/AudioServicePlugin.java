@@ -188,6 +188,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		Activity activity;
 		private MethodChannel channel;
 		private boolean playPending;
+		public long fastForwardInterval;
+		public long rewindInterval;
 		public MediaBrowserCompat mediaBrowser;
 		public MediaControllerCompat mediaController;
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
@@ -290,6 +292,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
 				final Size artDownscaleSize = artDownscaleSizeMap == null ? null
 					: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
+				fastForwardInterval = getLong(arguments.get("fastForwardInterval"));
+				rewindInterval = getLong(arguments.get("rewindInterval"));
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
@@ -687,7 +691,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			Context context = AudioService.instance;
 			switch (call.method) {
 			case "ready":
-				result.success(true);
+				Map<String, Object> startParams = new HashMap<String, Object>();
+				startParams.put("fastForwardInterval", clientHandler.fastForwardInterval);
+				startParams.put("rewindInterval", clientHandler.rewindInterval);
+				result.success(startParams);
 				sendStartResult(true);
 				// If the client subscribed to browse children before we
 				// started, process the pending request.

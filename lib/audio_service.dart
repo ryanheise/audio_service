@@ -951,7 +951,15 @@ class AudioServiceBackground {
           break;
       }
     });
-    await _backgroundChannel.invokeMethod('ready');
+    Map startParams = await _backgroundChannel.invokeMethod('ready');
+    Duration fastForwardInterval =
+        Duration(milliseconds: startParams['fastForwardInterval']);
+    Duration rewindInterval =
+        Duration(milliseconds: startParams['rewindInterval']);
+    task._setParams(
+      fastForwardInterval: fastForwardInterval,
+      rewindInterval: rewindInterval,
+    );
     await task.onStart();
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
@@ -1125,11 +1133,24 @@ class AudioServiceBackground {
 /// each type of event that your background task wishes to react to.
 abstract class BackgroundAudioTask {
   final BaseCacheManager cacheManager;
+  Duration _fastForwardInterval;
+  Duration _rewindInterval;
 
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
   BackgroundAudioTask({BaseCacheManager cacheManager})
       : this.cacheManager = cacheManager ?? DefaultCacheManager();
+
+  void _setParams({Duration fastForwardInterval, Duration rewindInterval}) {
+    _fastForwardInterval = fastForwardInterval;
+    _rewindInterval = rewindInterval;
+  }
+
+  /// The fast forward interval passed into [AudioService.start].
+  Duration get fastForwardInterval => _fastForwardInterval;
+
+  /// The rewind interval passed into [AudioService.start].
+  Duration get rewindInterval => _rewindInterval;
 
   /// Called once when this audio task is first started and ready to play
   /// audio, in response to [AudioService.start]. When the returned future

@@ -402,6 +402,23 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
+  Future<void> onFastForward() async {
+    await _seekRelative(fastForwardInterval);
+  }
+
+  @override
+  Future<void> onRewind() async {
+    await _seekRelative(rewindInterval);
+  }
+
+  Future<void> _seekRelative(Duration offset) async {
+    var newPosition = _audioPlayer.playbackEvent.position + offset;
+    if (newPosition < Duration.zero) newPosition = Duration.zero;
+    if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
+    await _audioPlayer.seek(_audioPlayer.playbackEvent.position + offset);
+  }
+
+  @override
   Future<void> onStop() async {
     await _audioPlayer.stop();
     await _audioPlayer.dispose();

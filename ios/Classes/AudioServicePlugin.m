@@ -25,6 +25,8 @@ static BOOL playing = NO;
 static NSNumber *position = nil;
 static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
+static NSNumber *fastForwardInterval = nil;
+static NSNumber *rewindInterval = nil;
 static MPMediaItemArtwork* artwork = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -121,17 +123,17 @@ static MPMediaItemArtwork* artwork = nil;
       [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
     }
     // Skipping
-    NSNumber *skipForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
-    NSNumber *skipBackwardInterval = [call.arguments objectForKey:@"rewindInterval"];
+    *fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
+    *rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
     if (skipForwardInterval.integerValue > 0) {
       [commandCenter.skipForwardCommand setEnabled:YES];
       [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
-      commandCenter.skipForwardCommand.preferredIntervals = @[skipForwardInterval];
+      commandCenter.skipForwardCommand.preferredIntervals = @[fastForwardInterval];
     }
     if (skipBackwardInterval.integerValue > 0) {
       [commandCenter.skipBackwardCommand setEnabled:YES];
       [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
-      commandCenter.skipBackwardCommand.preferredIntervals = @[skipBackwardInterval];
+      commandCenter.skipBackwardCommand.preferredIntervals = @[rewindInterval];
     }
 
     // TODO: enable more commands
@@ -153,7 +155,10 @@ static MPMediaItemArtwork* artwork = nil;
     [commandCenter.dislikeCommand setEnabled:NO];
     [commandCenter.bookmarkCommand setEnabled:NO];
   } else if ([@"ready" isEqualToString:call.method]) {
-    result(@YES);
+    NSMutableDictionary *startParams = [NSMutableDictionary new];
+    startParams["fastForwardInterval"] = fastForwardInterval;
+    startParams["rewindInterval"] = rewindInterval;
+    result(startParams);
     startResult(@YES);
     startResult = nil;
   } else if ([@"stopped" isEqualToString:call.method]) {
