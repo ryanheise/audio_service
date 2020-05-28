@@ -115,15 +115,15 @@ class MainScreen extends StatelessWidget {
                       return Text("custom event: ${snapshot.data}");
                     },
                   ),
+                  StreamBuilder<bool>(
+                    stream: AudioService.notificationClickEventStream,
+                    builder: (context, snapshot) {
+                      return Text(
+                        'Notification Click Status: ${snapshot.data}',
+                      );
+                    },
+                  ),
                 ],
-                StreamBuilder<bool>(
-                  stream: AudioService.notificationClickEventStream,
-                  builder: (context, snapshot) {
-                    return Text(
-                      'Notification Click Status: ${snapshot.data}',
-                    );
-                  },
-                ),
               ],
             );
           },
