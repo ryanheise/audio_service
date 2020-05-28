@@ -279,12 +279,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				final long callbackHandle = getLong(arguments.get("callbackHandle"));
 				boolean androidNotificationClickStartsActivity = (Boolean)arguments.get("androidNotificationClickStartsActivity");
 				boolean androidNotificationOngoing = (Boolean)arguments.get("androidNotificationOngoing");
-				boolean resumeOnClick = (Boolean)arguments.get("resumeOnClick");
+				boolean androidResumeOnClick = (Boolean)arguments.get("androidResumeOnClick");
 				String androidNotificationChannelName = (String)arguments.get("androidNotificationChannelName");
 				String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
-				Integer notificationColor = arguments.get("notificationColor") == null ? null : getInt(arguments.get("notificationColor"));
+				Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
-				final boolean enableQueue = (Boolean)arguments.get("enableQueue");
+				final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
 				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
@@ -292,8 +292,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
-				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, enableQueue);
-				AudioService.init(activity, resumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, notificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
+				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
+				AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
