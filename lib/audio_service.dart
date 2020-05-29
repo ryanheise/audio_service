@@ -300,7 +300,7 @@ class MediaItem {
         title: raw['title'],
         artist: raw['artist'],
         genre: raw['genre'],
-        duration: Duration(milliseconds: raw['duration']),
+        duration: raw['duration'] != null ? Duration(milliseconds: raw['duration']) : null,
         artUri: raw['artUri'],
         displayTitle: raw['displayTitle'],
         displaySubtitle: raw['displaySubtitle'],
@@ -352,7 +352,7 @@ class MediaItem {
         'title': title,
         'artist': artist,
         'genre': genre,
-        'duration': duration.inMilliseconds,
+        'duration': duration?.inMilliseconds,
         'artUri': artUri,
         'playable': playable,
         'displayTitle': displayTitle,
@@ -958,7 +958,7 @@ class AudioServiceBackground {
         Duration(milliseconds: startParams['fastForwardInterval']);
     Duration rewindInterval =
         Duration(milliseconds: startParams['rewindInterval']);
-    Map<String, dynamic> params = startParams['params'].cast<String, dynamic>();
+    Map<String, dynamic> params = startParams['params']?.cast<String, dynamic>();
     task._setParams(
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
