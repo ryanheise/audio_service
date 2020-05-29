@@ -123,14 +123,14 @@ static MPMediaItemArtwork* artwork = nil;
       [commandCenter.changePlaybackPositionCommand addTarget:self action:@selector(changePlaybackPosition:)];
     }
     // Skipping
-    *fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
-    *rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
-    if (skipForwardInterval.integerValue > 0) {
+    fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
+    rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
+    if (fastForwardInterval.integerValue > 0) {
       [commandCenter.skipForwardCommand setEnabled:YES];
       [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
       commandCenter.skipForwardCommand.preferredIntervals = @[fastForwardInterval];
     }
-    if (skipBackwardInterval.integerValue > 0) {
+    if (rewindInterval.integerValue > 0) {
       [commandCenter.skipBackwardCommand setEnabled:YES];
       [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
       commandCenter.skipBackwardCommand.preferredIntervals = @[rewindInterval];
@@ -156,8 +156,8 @@ static MPMediaItemArtwork* artwork = nil;
     [commandCenter.bookmarkCommand setEnabled:NO];
   } else if ([@"ready" isEqualToString:call.method]) {
     NSMutableDictionary *startParams = [NSMutableDictionary new];
-    startParams["fastForwardInterval"] = fastForwardInterval;
-    startParams["rewindInterval"] = rewindInterval;
+    startParams[@"fastForwardInterval"] = fastForwardInterval;
+    startParams[@"rewindInterval"] = rewindInterval;
     result(startParams);
     startResult(@YES);
     startResult = nil;
