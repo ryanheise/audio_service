@@ -524,7 +524,9 @@ class TextPlayerTask extends BackgroundAudioTask {
       await Future.any(
           [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
       // If we were just paused...
-      if (_playPauseCompleter.isCompleted && !_playing) {
+      if (_playPauseCompleter.isCompleted &&
+          !_playing &&
+          _processingState != AudioProcessingState.stopped) {
         // Wait to be unpaused...
         await _playPauseFuture();
       }
@@ -572,10 +574,10 @@ class TextPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onStop() {
+  Future<void> onStop() async {
     if (_processingState == AudioProcessingState.stopped) return;
     _tts.stop();
-    AudioServiceBackground.setState(
+    await AudioServiceBackground.setState(
       controls: [],
       processingState: AudioProcessingState.stopped,
       playing: false,
