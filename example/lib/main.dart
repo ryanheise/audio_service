@@ -280,7 +280,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   MediaItem get mediaItem => _queue[_queueIndex];
 
   @override
-  Future<void> onStart() async {
+  Future<void> onStart(Map<String, dynamic> params) async {
     var playerStateSubscription = _audioPlayer.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
@@ -512,7 +512,7 @@ class TextPlayerTask extends BackgroundAudioTask {
   bool get _playing => AudioServiceBackground.state.playing;
 
   @override
-  Future<void> onStart() async {
+  Future<void> onStart(Map<String, dynamic> params) async {
     playPause();
     for (var i = 1;
         i <= 10 && _processingState != AudioProcessingState.stopped;

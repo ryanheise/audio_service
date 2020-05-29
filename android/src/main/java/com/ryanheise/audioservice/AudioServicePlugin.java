@@ -190,6 +190,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		private boolean playPending;
 		public long fastForwardInterval;
 		public long rewindInterval;
+		public Map<String, Object> params;
 		public MediaBrowserCompat mediaBrowser;
 		public MediaControllerCompat mediaController;
 		public MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
@@ -279,6 +280,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				}
 				Map<?, ?> arguments = (Map<?, ?>)call.arguments;
 				final long callbackHandle = getLong(arguments.get("callbackHandle"));
+				params = (Map<String, Object>)arguments.get("params");
 				boolean androidNotificationClickStartsActivity = (Boolean)arguments.get("androidNotificationClickStartsActivity");
 				boolean androidNotificationOngoing = (Boolean)arguments.get("androidNotificationOngoing");
 				boolean androidResumeOnClick = (Boolean)arguments.get("androidResumeOnClick");
@@ -694,6 +696,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				Map<String, Object> startParams = new HashMap<String, Object>();
 				startParams.put("fastForwardInterval", clientHandler.fastForwardInterval);
 				startParams.put("rewindInterval", clientHandler.rewindInterval);
+				startParams.put("params", clientHandler.params);
 				result.success(startParams);
 				sendStartResult(true);
 				// If the client subscribed to browse children before we

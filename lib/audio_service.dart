@@ -604,6 +604,7 @@ class AudioService {
   /// downscaling can help to conserve memory.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
+    Map<String, dynamic> params,
     String androidNotificationChannelName = "Notifications",
     String androidNotificationChannelDescription,
     int androidNotificationColor,
@@ -642,6 +643,7 @@ class AudioService {
     }
     final success = await _channel.invokeMethod('start', {
       'callbackHandle': callbackHandle,
+      'params': params,
       'androidNotificationChannelName': androidNotificationChannelName,
       'androidNotificationChannelDescription':
           androidNotificationChannelDescription,
@@ -956,11 +958,12 @@ class AudioServiceBackground {
         Duration(milliseconds: startParams['fastForwardInterval']);
     Duration rewindInterval =
         Duration(milliseconds: startParams['rewindInterval']);
+    Map<String, dynamic> params = startParams['params'].cast<String, dynamic>();
     task._setParams(
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
     );
-    await task.onStart();
+    await task.onStart(params);
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1141,7 +1144,10 @@ abstract class BackgroundAudioTask {
   BackgroundAudioTask({BaseCacheManager cacheManager})
       : this.cacheManager = cacheManager ?? DefaultCacheManager();
 
-  void _setParams({Duration fastForwardInterval, Duration rewindInterval}) {
+  void _setParams({
+    Duration fastForwardInterval,
+    Duration rewindInterval,
+  }) {
     _fastForwardInterval = fastForwardInterval;
     _rewindInterval = rewindInterval;
   }
@@ -1155,7 +1161,7 @@ abstract class BackgroundAudioTask {
   /// Called once when this audio task is first started and ready to play
   /// audio, in response to [AudioService.start]. When the returned future
   /// completes, this task will be immediately terminated.
-  Future<void> onStart();
+  Future<void> onStart(Map<String, dynamic> _params);
 
   /// Called in response to [AudioService.stop] to request that this task be
   /// terminated. The implementation should cause any audio playback to stop,

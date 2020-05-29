@@ -27,6 +27,7 @@ static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
 static NSNumber *fastForwardInterval = nil;
 static NSNumber *rewindInterval = nil;
+static NSMutableDictionary *params = nil;
 static MPMediaItemArtwork* artwork = nil;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -135,6 +136,8 @@ static MPMediaItemArtwork* artwork = nil;
       [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
       commandCenter.skipBackwardCommand.preferredIntervals = @[rewindInterval];
     }
+    // Params
+    params = [call.arguments objectForKey:@"params"];
 
     // TODO: enable more commands
     // Seeking
@@ -158,6 +161,7 @@ static MPMediaItemArtwork* artwork = nil;
     NSMutableDictionary *startParams = [NSMutableDictionary new];
     startParams[@"fastForwardInterval"] = fastForwardInterval;
     startParams[@"rewindInterval"] = rewindInterval;
+    startParams[@"params"] = params;
     result(startParams);
     startResult(@YES);
     startResult = nil;
@@ -196,6 +200,9 @@ static MPMediaItemArtwork* artwork = nil;
     mediaItem = nil;
     queue = nil;
     startResult = nil;
+    fastForwardInterval = nil;
+    rewindInterval = nil;
+    params = nil;
     result(@YES);
   } else if ([@"isRunning" isEqualToString:call.method]) {
     if (_running) {
