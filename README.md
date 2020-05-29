@@ -33,7 +33,7 @@ If you'd like to help with any missing features, join us on the [GitHub issues p
 | album art                      | ✅         | ✅        |
 | queue management               | ✅         | ✅        |
 | runs in background             | ✅         | ✅        |
-| Handle phonecall interruptions | ✅         |           |
+| Handle phonecall interruptions | ✅         | ✅        |
 | Android Auto                   | (untested) |           |
 
 ## Documentation
@@ -59,7 +59,7 @@ return MaterialApp(
 Once connected, your Flutter UI can start up and shut down the background audio task, and send messages to it:
 
 ```dart
-AudioService.start(backgroundTaskEntrypoint: _backgroundTaskEntrypoint);
+AudioService.start(backgroundTaskEntrypoint: _backgroundTaskEntrypoint, params: {...});
 AudioService.pause();
 AudioService.play();
 AudioService.skipToNext();
@@ -94,7 +94,7 @@ class MyBackgroundTask extends BackgroundAudioTask {
   Completer _completer = Completer();
   
   @override
-  Future<void> onStart() async {
+  Future<void> onStart(Map<String, dynamic> params) async {
     // Your custom dart code to start audio playback.
     // NOTE: The background audio task will shut down
     // as soon as this async function completes.

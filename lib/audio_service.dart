@@ -76,16 +76,16 @@ class PlaybackState {
   final bool playing;
 
   /// The set of actions currently supported by the audio service e.g.
-  /// [MediaAction.play]
+  /// [MediaAction.play].
   final Set<MediaAction> actions;
 
-  /// The playback position in milliseconds at the last update time
+  /// The playback position at the last update time.
   final Duration position;
 
-  /// The current playback speed where 1.0 means normal speed
+  /// The current playback speed where 1.0 means normal speed.
   final double speed;
 
-  /// The time at which the playback position was last updated
+  /// The time at which the playback position was last updated.
   final Duration updateTime;
 
   const PlaybackState({
@@ -97,7 +97,7 @@ class PlaybackState {
     this.updateTime,
   });
 
-  /// The current playback position in milliseconds
+  /// The current playback position.
   Duration get currentPosition {
     if (playing && processingState == AudioProcessingState.ready) {
       return Duration(
@@ -233,37 +233,37 @@ class Rating {
 /// Metadata about an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
-  /// A unique id
+  /// A unique id.
   final String id;
 
-  /// The album this media item belongs to
+  /// The album this media item belongs to.
   final String album;
 
-  /// The title of this media item
+  /// The title of this media item.
   final String title;
 
-  /// The artist of this media item
+  /// The artist of this media item.
   final String artist;
 
-  /// The genre of this media item
+  /// The genre of this media item.
   final String genre;
 
-  /// The duration of this media item
+  /// The duration of this media item.
   final Duration duration;
 
-  /// The artwork for this media item as a uri
+  /// The artwork for this media item as a uri.
   final String artUri;
 
-  /// Whether this is playable (i.e. not a folder)
+  /// Whether this is playable (i.e. not a folder).
   final bool playable;
 
-  /// Override the default title for display purposes
+  /// Override the default title for display purposes.
   final String displayTitle;
 
-  /// Override the default subtitle for display purposes
+  /// Override the default subtitle for display purposes.
   final String displaySubtitle;
 
-  /// Override the default description for display purposes
+  /// Override the default description for display purposes.
   final String displayDescription;
 
   /// The rating of the MediaItem.
@@ -294,13 +294,17 @@ class MediaItem {
     this.extras,
   });
 
+  /// Creates a [MediaItem] from a map of key/value pairs corresponding to
+  /// fields of this class.
   factory MediaItem.fromJson(Map raw) => MediaItem(
         id: raw['id'],
         album: raw['album'],
         title: raw['title'],
         artist: raw['artist'],
         genre: raw['genre'],
-        duration: raw['duration'] != null ? Duration(milliseconds: raw['duration']) : null,
+        duration: raw['duration'] != null
+            ? Duration(milliseconds: raw['duration'])
+            : null,
         artUri: raw['artUri'],
         displayTitle: raw['displayTitle'],
         displaySubtitle: raw['displaySubtitle'],
@@ -309,6 +313,8 @@ class MediaItem {
         extras: _raw2extras(raw['extras']),
       );
 
+  /// Creates a copy of this [MediaItem] but with with the given fields
+  /// replaced by new values.
   MediaItem copyWith({
     String id,
     String album,
@@ -346,6 +352,8 @@ class MediaItem {
   @override
   bool operator ==(dynamic other) => other is MediaItem && other.id == id;
 
+  /// Converts this [MediaItem] to a map of key/value pairs corresponding to
+  /// the fields of this class.
   Map<String, dynamic> toJson() => {
         'id': id,
         'album': album,
@@ -372,15 +380,13 @@ class MediaItem {
   }
 }
 
-/// A media action that can be controlled by a client.
+/// A media action that can be controlled from the Android notification, iOS
+/// control center, lock screen, Android smart watch, or Android Auto device.
 ///
 /// The set of media controls available at any moment depends on the current
 /// playback state as set by [AudioServiceBackground.setState]. For example, a
 /// "pause" control should be available in the [BasicPlaybackState.playing]
 /// state but not in the [BasicPlaybackState.paused] state.
-///
-/// A button for each media control will be shown in your app's notification,
-/// Wear OS and Android Auto devices.
 class MediaControl {
   /// A reference to an Android icon resource for the control (e.g.
   /// `"drawable/ic_action_pause"`)
@@ -414,7 +420,9 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// Your UI must disconnect from the audio service when it is no longer visible
 /// although the audio service will continue to run in the background. If your
 /// UI once again becomes visible, you should reconnect to the audio service.
-/// Use [AudioServiceWidget] to manage this connection automatically.
+///
+/// It is recommended to use [AudioServiceWidget] to manage this connection
+/// automatically.
 class AudioService {
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -574,11 +582,12 @@ class AudioService {
   static bool _connected = false;
 
   /// True if the background audio task is running.
-  static bool _running = false;
   static bool get running => _running;
+  static bool _running = false;
 
   /// Starts a background audio task which will continue running even when the
-  /// UI is not visible or the screen is turned off.
+  /// UI is not visible or the screen is turned off. Only one background audio task
+  /// may be running at a time.
   ///
   /// While the background task is running, it will display a system
   /// notification showing information about the current media item being
@@ -602,6 +611,21 @@ class AudioService {
   /// notification and lock screen. If not specified, no downscaling will be
   /// performed. If the resolution of your artwork is particularly high,
   /// downscaling can help to conserve memory.
+  ///
+  /// [params] provides a way to pass custom parameters through to the
+  /// `onStart` method of your background audio task. If specified, this must
+  /// be a map consisting of keys/values that can be encoded via Flutter's
+  /// `StandardMessageCodec`.
+  ///
+  /// [fastForwardInterval] and [rewindInterval] are passed through to your
+  /// background audio task as properties, and they represent the duration
+  /// of audio that should be skipped in fast forward / rewind operations. On
+  /// iOS, these values also configure the intervals for the skip forward and
+  /// skip backward buttons.
+  ///
+  /// [androidEnableQueue] enables queue support on the media session on
+  /// Android. If your app will run on Android and has a queue, you should set
+  /// this to true.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
     Map<String, dynamic> params,
@@ -676,30 +700,40 @@ class AudioService {
     await _channel.invokeMethod('setBrowseMediaParent', parentMediaId);
   }
 
-  /// Passes through to `onAddQueueItem` in the background task.
+  /// Sends a request to your background audio task to add an item to the
+  /// queue. This passes through to the `onAddQueueItem` method in your
+  /// background audio task.
   static Future<void> addQueueItem(MediaItem mediaItem) async {
     await _channel.invokeMethod('addQueueItem', mediaItem.toJson());
   }
 
-  /// Passes through to `onAddQueueItemAt` in the background task.
+  /// Sends a request to your background audio task to add a item to the queue
+  /// at a particular position. This passes through to the `onAddQueueItemAt`
+  /// method in your background audio task.
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
     await _channel.invokeMethod('addQueueItemAt', [mediaItem.toJson(), index]);
   }
 
-  /// Passes through to `onRemoveQueueItem` in the background task.
+  /// Sends a request to your background audio task to remove an item from the
+  /// queue. This passes through to the `onRemoveQueueItem` method in your
+  /// background audio task.
   static Future<void> removeQueueItem(MediaItem mediaItem) async {
     await _channel.invokeMethod('removeQueueItem', mediaItem.toJson());
   }
 
   /// A convenience method calls [addQueueItem] for each media item in the
-  /// given list.
+  /// given list. Note that this will be inefficient if you are adding a lot
+  /// of media items at once. If possible, you should use [replaceQueue]
+  /// instead.
   static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     for (var mediaItem in mediaItems) {
       await addQueueItem(mediaItem);
     }
   }
 
-  /// Passes through to `onReplaceQueue` in the background task.
+  /// Sends a request to your background audio task to replace the queue with a
+  /// new list of media items. This passes through to the `onReplaceQueue`
+  /// method in your background audio task.
   static Future<void> replaceQueue(List<MediaItem> queue) async {
     await _channel.invokeMethod(
         'replaceQueue', queue.map((item) => item.toJson()).toList());
@@ -707,17 +741,21 @@ class AudioService {
 
   /// Programmatically simulates a click of a media button on the headset.
   ///
-  /// This passes through to `onClick` in the background task.
+  /// This passes through to `onClick` in the background audio task.
   static Future<void> click([MediaButton button = MediaButton.media]) async {
     await _channel.invokeMethod('click', button.index);
   }
 
-  /// Passes through to `onPrepare` in the background task.
+  /// Sends a request to your background audio task to prepare for audio
+  /// playback. This passes through to the `onPrepare` method in your
+  /// background audio task.
   static Future<void> prepare() async {
     await _channel.invokeMethod('prepare');
   }
 
-  /// Passes through to `onPrepareFromMediaId` in the background task.
+  /// Sends a request to your background audio task to prepare for playing a
+  /// particular media item. This passes through to the `onPrepareFromMediaId`
+  /// method in your background audio task.
   static Future<void> prepareFromMediaId(String mediaId) async {
     await _channel.invokeMethod('prepareFromMediaId', mediaId);
   }
@@ -725,17 +763,22 @@ class AudioService {
   //static Future<void> prepareFromSearch(String query, Bundle extras) async {}
   //static Future<void> prepareFromUri(Uri uri, Bundle extras) async {}
 
-  /// Passes through to 'onPlay' in the background task.
+  /// Sends a request to your background audio task to play the current media
+  /// item. This passes through to 'onPlay' in your background audio task.
   static Future<void> play() async {
     await _channel.invokeMethod('play');
   }
 
-  /// Passes through to 'onPlayFromMediaId' in the background task.
+  /// Sends a request to your background audio task to play a particular media
+  /// item referenced by its media id. This passes through to the
+  /// 'onPlayFromMediaId' method in your background audio task.
   static Future<void> playFromMediaId(String mediaId) async {
     await _channel.invokeMethod('playFromMediaId', mediaId);
   }
 
-  /// Passes through to 'onPlayMediaItem' in the background task.
+  /// Sends a request to your background audio task to play a particular media
+  /// item. This passes through to the 'onPlayMediaItem' method in your
+  /// background audio task.
   static Future<void> playMediaItem(MediaItem mediaItem) async {
     await _channel.invokeMethod('playMediaItem', mediaItem.toJson());
   }
@@ -743,48 +786,65 @@ class AudioService {
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
   //static Future<void> playFromUri(Uri uri, Bundle extras) async {}
 
-  /// Passes through to `skipToQueueItem` in the background task.
+  /// Sends a request to your background audio task to skip to a particular
+  /// item in the queue. This passes through to the `skipToQueueItem` method in
+  /// your background audio task.
   static Future<void> skipToQueueItem(String mediaId) async {
     await _channel.invokeMethod('skipToQueueItem', mediaId);
   }
 
-  /// Passes through to `onPause` in the background task.
+  /// Sends a request to your background audio task to pause playback. This
+  /// passes through to the `onPause` method in your background audio task.
   static Future<void> pause() async {
     await _channel.invokeMethod('pause');
   }
 
-  /// Passes through to `onStop` in the background task.
+  /// Sends a request to your background audio task to stop playback and shut
+  /// down the task. This passes through to the `onStop` method in your
+  /// background audio task.
   static Future<void> stop() async {
     await _channel.invokeMethod('stop');
   }
 
-  /// Passes through to `onSeekTo` in the background task.
+  /// Sends a request to your background audio task to seek to a particular
+  /// position in the current media item. This passes through to the `onSeekTo`
+  /// method in your background audio task.
   static Future<void> seekTo(Duration position) async {
     await _channel.invokeMethod('seekTo', position.inMilliseconds);
   }
 
-  /// Passes through to `onSkipToNext` in the background task.
+  /// Sends a request to your background audio task to skip to the next item in
+  /// the queue. This passes through to the `onSkipToNext` method in your
+  /// background audio task.
   static Future<void> skipToNext() async {
     await _channel.invokeMethod('skipToNext');
   }
 
-  /// Passes through to `onSkipToPrevious` in the background task.
+  /// Sends a request to your background audio task to skip to the previous
+  /// item in the queue. This passes through to the `onSkipToPrevious` method
+  /// in your background audio task.
   static Future<void> skipToPrevious() async {
     await _channel.invokeMethod('skipToPrevious');
   }
 
-  /// Passes through to `onFastForward` in the background task.
+  /// Sends a request to your background audio task to fast forward by the
+  /// interval passed into the [start] method. This passes through to the
+  /// `onFastForward` method in your background audio task.
   static Future<void> fastForward() async {
     await _channel.invokeMethod('fastForward');
   }
 
-  /// Passes through to `onRewind` in the background task.
+  /// Sends a request to your background audio task to rewind by the interval
+  /// passed into the [start] method. This passes through to the `onRewind`
+  /// method in the background audio task.
   static Future<void> rewind() async {
     await _channel.invokeMethod('rewind');
   }
 
-  /// Passes through to `onSetRating` in the background task.
-  /// The extras map must *only* contain primitive types!
+  /// Sends a request to your background audio task to set a rating on the
+  /// current media item. This passes through to the `onSetRating` method in
+  /// your background audio task. The extras map must *only* contain primitive
+  /// types!
   static Future<void> setRating(Rating rating,
       [Map<String, dynamic> extras]) async {
     await _channel.invokeMethod('setRating', {
@@ -799,7 +859,8 @@ class AudioService {
   //static Future<void> sendCustomAction(PlaybackStateCompat.CustomAction customAction,
   //static Future<void> sendCustomAction(String action, Bundle args) async {}
 
-  /// Passes through to `onCustomAction` in the background task.
+  /// Sends a custom request to your background audio task. This passes through
+  /// to the `onCustomAction` in your background audio task.
   ///
   /// This may be used for your own purposes. [arguments] can be any data that
   /// is encodable by `StandardMessageCodec`.
@@ -836,9 +897,10 @@ class AudioServiceBackground {
   ///
   /// This must be the first method called by the entrypoint of your background
   /// task that you passed into [AudioService.start]. The [BackgroundAudioTask]
-  /// parameter defines callbacks to handle the initialization and distruction
-  /// of the task, as well as any requests by the client to play, pause and
-  /// otherwise control audio playback.
+  /// returned by the [taskBuilder] parameter defines callbacks to handle the
+  /// initialization and distruction of the background audio task, as well as
+  /// any requests by the client to play, pause and otherwise control audio
+  /// playback.
   static Future<void> run(BackgroundAudioTask taskBuilder()) async {
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
@@ -958,7 +1020,8 @@ class AudioServiceBackground {
         Duration(milliseconds: startParams['fastForwardInterval']);
     Duration rewindInterval =
         Duration(milliseconds: startParams['rewindInterval']);
-    Map<String, dynamic> params = startParams['params']?.cast<String, dynamic>();
+    Map<String, dynamic> params =
+        startParams['params']?.cast<String, dynamic>();
     task._setParams(
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
@@ -977,7 +1040,7 @@ class AudioServiceBackground {
   /// enabled in the notification, Wear OS and Android Auto. Each control
   /// listed in [controls] will appear as a button in the notification and its
   /// action will also be made available to all clients such as Wear OS and
-  /// Android Auto.  Any additional actions that you would like to enable for
+  /// Android Auto. Any additional actions that you would like to enable for
   /// clients that do not correspond to a button can be listed in
   /// [systemActions]. For example, include [MediaAction.seekTo] in
   /// [systemActions] and the system will provide a seek bar in the
@@ -988,8 +1051,8 @@ class AudioServiceBackground {
   /// The playback [position] should be explicitly updated only when the normal
   /// continuity of time is disrupted, such as when the user performs a seek,
   /// or buffering occurs, etc. Thus, the [position] parameter indicates the
-  /// playback position in milliseconds at the time the state was updated while
-  /// the [updateTime] parameter indicates the precise time of that update.
+  /// playback position at the time the state was updated while the
+  /// [updateTime] parameter indicates the precise time of that update.
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
@@ -1129,11 +1192,12 @@ class AudioServiceBackground {
   }
 }
 
-/// Describes an audio task that can run in the background and react to audio
-/// events.
+/// An audio task that can run in the background and react to audio events.
 ///
 /// You should subclass [BackgroundAudioTask] and override the callbacks for
-/// each type of event that your background task wishes to react to.
+/// each type of event that your background task wishes to react to. At a
+/// minimum, you must override [onStart] and [onStop] to handle initialising
+/// and shutting down the audio task.
 abstract class BackgroundAudioTask {
   final BaseCacheManager cacheManager;
   Duration _fastForwardInterval;
@@ -1160,8 +1224,10 @@ abstract class BackgroundAudioTask {
 
   /// Called once when this audio task is first started and ready to play
   /// audio, in response to [AudioService.start]. When the returned future
-  /// completes, this task will be immediately terminated.
-  Future<void> onStart(Map<String, dynamic> _params);
+  /// completes, this task will be immediately terminated. [params] will
+  /// contain any params passed into [AudioService.start] when starting this
+  /// background audio task.
+  Future<void> onStart(Map<String, dynamic> params);
 
   /// Called in response to [AudioService.stop] to request that this task be
   /// terminated. The implementation should cause any audio playback to stop,
@@ -1173,11 +1239,12 @@ abstract class BackgroundAudioTask {
   /// the available media items to display to the user.
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
 
-  /// Called on Android when your app gains the audio focus.
+  /// Called when your app gains the audio focus on Android and playback should
+  /// resume after an interruption on iOS.
   void onAudioFocusGained() {}
 
-  /// Called on Android when your app loses audio focus for an unknown
-  /// duration.
+  /// Called when your app loses audio focus for an unknown duration on Android
+  /// and when the audio session is interrupted on iOS.
   void onAudioFocusLost() {}
 
   /// Called on Android when your app loses audio focus temporarily and should
@@ -1197,7 +1264,9 @@ abstract class BackgroundAudioTask {
   void onClick(MediaButton button) {}
 
   /// Called when a client has requested to pause audio playback, such as via a
-  /// call to [AudioService.pause].
+  /// call to [AudioService.pause]. You should implement this method to pause
+  /// audio playback and also broadcast the appropriate state change via
+  /// [AudioServiceBackground.setState].
   void onPause() {}
 
   /// Called when a client has requested to prepare audio for playback, such as
@@ -1209,15 +1278,21 @@ abstract class BackgroundAudioTask {
   void onPrepareFromMediaId(String mediaId) {}
 
   /// Called when a client has requested to resume audio playback, such as via
-  /// a call to [AudioService.play].
+  /// a call to [AudioService.play]. You should implement this method to play
+  /// audio and also broadcast the appropriate state change via
+  /// [AudioServiceBackground.setState].
   void onPlay() {}
 
   /// Called when a client has requested to play a media item by its ID, such
-  /// as via a call to [AudioService.playFromMediaId].
+  /// as via a call to [AudioService.playFromMediaId]. You should implement
+  /// this method to play audio and also broadcast the appropriate state change
+  /// via [AudioServiceBackground.setState].
   void onPlayFromMediaId(String mediaId) {}
 
-  /// Called when the Flutter UI has requested to play a given media item
-  /// via a call to [AudioService.playMediaItem].
+  /// Called when the Flutter UI has requested to play a given media item via a
+  /// call to [AudioService.playMediaItem]. You should implement this method to
+  /// play audio and also broadcast the appropriate state change via
+  /// [AudioServiceBackground.setState].
   ///
   /// Note: This method can only be triggered by your Flutter UI. Peripheral
   /// devices such as Android Auto will instead trigger
@@ -1254,11 +1329,14 @@ abstract class BackgroundAudioTask {
   void onSkipToPrevious() {}
 
   /// Called when the client has requested to fast forward, such as via a
-  /// request to [AudioService.fastForward].
+  /// request to [AudioService.fastForward]. An implementation of this callback
+  /// can use the [fastForwardInterval] property to determine how much audio
+  /// to skip.
   void onFastForward() {}
 
   /// Called when the client has requested to rewind, such as via a request to
-  /// [AudioService.rewind].
+  /// [AudioService.rewind]. An implementation of this callback can use the
+  /// [rewindInterval] property to determine how much audio to skip.
   void onRewind() {}
 
   /// Called when the client has requested to skip to a specific item in the
@@ -1266,7 +1344,9 @@ abstract class BackgroundAudioTask {
   void onSkipToQueueItem(String mediaId) {}
 
   /// Called when the client has requested to seek to a position, such as via a
-  /// call to [AudioService.seekTo].
+  /// call to [AudioService.seekTo]. If your implementation of seeking causes
+  /// buffering to occur, consider broadcasting a buffering state via
+  /// [AudioServiceBackground.setState] while the seek is in progress.
   void onSeekTo(Duration position) {}
 
   /// Called when the client has requested to rate the current media item, such as
