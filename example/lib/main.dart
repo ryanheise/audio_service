@@ -290,12 +290,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
       final bufferingState =
           event.buffering ? AudioProcessingState.buffering : null;
       switch (event.state) {
-        case AudioPlaybackState.none:
-          _setState(
-            processingState: AudioProcessingState.none,
-            position: event.position,
-          );
-          break;
         case AudioPlaybackState.paused:
           _setState(
             processingState: bufferingState ?? AudioProcessingState.ready,

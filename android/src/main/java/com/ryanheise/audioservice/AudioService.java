@@ -219,6 +219,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 				.setState(getPlaybackState(), position, speed, updateTime);
 		mediaSession.setPlaybackState(stateBuilder.build());
 
+		if (!running) return;
+
 		if (!wasPlaying && playing) {
 			enterPlayingState();
 		} else if (wasPlaying && !playing) {

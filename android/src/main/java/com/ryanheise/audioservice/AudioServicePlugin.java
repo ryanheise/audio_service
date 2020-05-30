@@ -29,8 +29,10 @@ import android.support.v4.media.session.PlaybackStateCompat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import io.flutter.app.FlutterApplication;
 import io.flutter.plugin.common.MethodCall;
@@ -72,7 +74,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	private static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
 
 	private static PluginRegistrantCallback pluginRegistrantCallback;
-	private static ClientHandler clientHandler;
+	private static Set<ClientHandler> clientHandlers = new HashSet<ClientHandler>();
+	private static ClientHandler mainClientHandler;
 	private static BackgroundHandler backgroundHandler;
 	private static FlutterEngine backgroundFlutterEngine;
 	private static int nextQueueItemId = 0;
@@ -96,12 +99,15 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	 */
 	public static void registerWith(Registrar registrar) {
 		if (registrar.activity() != null) {
-			clientHandler = new ClientHandler(registrar.messenger());
-			clientHandler.activity = registrar.activity();
+			mainClientHandler = new ClientHandler(registrar.messenger());
+			mainClientHandler.setActivity(registrar.activity());
+			mainClientHandler.setContext(registrar.activity());
+			clientHandlers.add(mainClientHandler);
 			registrar.addViewDestroyListener(new ViewDestroyListener() {
 				@Override
 				public boolean onViewDestroy(FlutterNativeView view) {
-					clientHandler = null;
+					mainClientHandler = null;
+					clientHandlers.remove(mainClientHandler);
 					return false;
 				}
 			});
@@ -113,6 +119,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	private FlutterPluginBinding flutterPluginBinding;
 	private ActivityPluginBinding activityPluginBinding;
 	private NewIntentListener newIntentListener;
+	private ClientHandler clientHandler; // v2 only
 
 	//
 	// FlutterPlugin callbacks
@@ -121,11 +128,17 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	@Override
 	public void onAttachedToEngine(FlutterPluginBinding binding) {
 		flutterPluginBinding = binding;
+		clientHandler = new ClientHandler(flutterPluginBinding.getBinaryMessenger());
+		clientHandler.setContext(flutterPluginBinding.getApplicationContext());
+		clientHandlers.add(clientHandler);
 	}
 
 	@Override
 	public void onDetachedFromEngine(FlutterPluginBinding binding) {
+		clientHandlers.remove(clientHandler);
+		clientHandler.setContext(null);
 		flutterPluginBinding = null;
+		clientHandler = null;
 	}
 
 	//
@@ -135,8 +148,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	@Override
 	public void onAttachedToActivity(ActivityPluginBinding binding) {
 		activityPluginBinding = binding;
-		clientHandler = new ClientHandler(flutterPluginBinding.getBinaryMessenger());
-		clientHandler.activity = binding.getActivity();
+		clientHandler.setActivity(binding.getActivity());
+		clientHandler.setContext(binding.getActivity());
+		mainClientHandler = clientHandler;
 		registerOnNewIntentListener();
 	}
 
@@ -148,7 +162,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	@Override
 	public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
 		activityPluginBinding = binding;
-		clientHandler.activity = binding.getActivity();
+		clientHandler.setActivity(binding.getActivity());
+		clientHandler.setContext(binding.getActivity());
 		registerOnNewIntentListener();
 	}
 
@@ -157,7 +172,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		activityPluginBinding.removeOnNewIntentListener(newIntentListener);
 		newIntentListener = null;
 		activityPluginBinding = null;
-		clientHandler = null;
+		clientHandler.setActivity(null);
+		clientHandler.setContext(flutterPluginBinding.getApplicationContext());
 	}
 
 	private void registerOnNewIntentListener() {
@@ -185,7 +201,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	}
 
 	private static class ClientHandler implements MethodCallHandler {
-		Activity activity;
+		private Context context;
+		private Activity activity;
 		private MethodChannel channel;
 		private boolean playPending;
 		public long fastForwardInterval;
@@ -227,8 +244,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				try {
 					//Activity activity = registrar.activity();
 					MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
-					mediaController = new MediaControllerCompat(activity, token);
-					MediaControllerCompat.setMediaController(activity, mediaController);
+					mediaController = new MediaControllerCompat(context, token);
+					if (activity != null) {
+						MediaControllerCompat.setMediaController(activity, mediaController);
+					}
 					mediaController.registerCallback(controllerCallback);
 					PlaybackStateCompat state = mediaController.getPlaybackState();
 					controllerCallback.onPlaybackStateChanged(state);
@@ -265,9 +284,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			channel.setMethodCallHandler(this);
 		}
 
+		private void setContext(Context context) {
+			this.context = context;
+		}
+
+		private void setActivity(Activity activity) {
+			this.activity = activity;
+		}
+
 		@Override
 		public void onMethodCall(MethodCall call, final Result result) {
-			Context context = activity;
 			switch (call.method) {
 			case "isRunning":
 				result.success(AudioService.isRunning());
@@ -275,6 +301,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			case "start": {
 				startResult = result; // The result will be sent after the background task actually starts.
 				if (AudioService.isRunning()) {
+					sendStartResult(false);
+					break;
+				}
+				if (activity == null) {
+					System.out.println("AudioService can only be started from an activity");
 					sendStartResult(false);
 					break;
 				}
@@ -318,7 +349,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 							connectionCallback,
 							null);
 					mediaBrowser.connect();
-					if (activity.getIntent().getAction() != null)
+					if (activity != null && activity.getIntent().getAction() != null)
 						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
 				} else {
 					result.success(true);
@@ -442,7 +473,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				break;
 			case "stop":
 				mediaController.getTransportControls().stop();
-				activity.getIntent().setAction(Intent.ACTION_MAIN);
 				result.success(true);
 				break;
 			case "seekTo":
@@ -694,9 +724,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			switch (call.method) {
 			case "ready":
 				Map<String, Object> startParams = new HashMap<String, Object>();
-				startParams.put("fastForwardInterval", clientHandler.fastForwardInterval);
-				startParams.put("rewindInterval", clientHandler.rewindInterval);
-				startParams.put("params", clientHandler.params);
+				startParams.put("fastForwardInterval", mainClientHandler.fastForwardInterval);
+				startParams.put("rewindInterval", mainClientHandler.rewindInterval);
+				startParams.put("params", mainClientHandler.params);
 				result.success(startParams);
 				sendStartResult(true);
 				// If the client subscribed to browse children before we
@@ -800,7 +830,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			AudioService.instance.stop();
 			if (silenceAudioTrack != null)
 				silenceAudioTrack.release();
-			if (clientHandler != null) clientHandler.invokeMethod("onStopped");
+			if (mainClientHandler != null) {
+				mainClientHandler.activity.getIntent().setAction(Intent.ACTION_MAIN);
+			}
+			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[] {}, AudioProcessingState.none, false, 0, 0.0f, 0);
+			for (ClientHandler eachClientHandler : clientHandlers) {
+				eachClientHandler.invokeMethod("onStopped");
+			}
 			backgroundFlutterEngine.destroy();
 			backgroundFlutterEngine = null;
 			backgroundHandler = null;
