@@ -413,8 +413,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				result.success(true);
 				break;
 			}
-			case "replaceQueue": {
-				backgroundHandler.invokeMethod(result, "onReplaceQueue", call.arguments);
+			case "updateQueue": {
+				backgroundHandler.invokeMethod(result, "onUpdateQueue", call.arguments);
+				break;
+			}
+			case "updateMediaItem": {
+				backgroundHandler.invokeMethod(result, "onUpdateMediaItem", call.arguments);
 				break;
 			}
 			//case "setVolumeTo"

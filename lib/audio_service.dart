@@ -352,6 +352,9 @@ class MediaItem {
   @override
   bool operator ==(dynamic other) => other is MediaItem && other.id == id;
 
+  @override
+  String toString() => '${toJson()}';
+
   /// Converts this [MediaItem] to a map of key/value pairs corresponding to
   /// the fields of this class.
   Map<String, dynamic> toJson() => {
@@ -723,7 +726,7 @@ class AudioService {
 
   /// A convenience method calls [addQueueItem] for each media item in the
   /// given list. Note that this will be inefficient if you are adding a lot
-  /// of media items at once. If possible, you should use [replaceQueue]
+  /// of media items at once. If possible, you should use [updateQueue]
   /// instead.
   static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     for (var mediaItem in mediaItems) {
@@ -732,11 +735,18 @@ class AudioService {
   }
 
   /// Sends a request to your background audio task to replace the queue with a
-  /// new list of media items. This passes through to the `onReplaceQueue`
+  /// new list of media items. This passes through to the `onUpdateQueue`
   /// method in your background audio task.
-  static Future<void> replaceQueue(List<MediaItem> queue) async {
+  static Future<void> updateQueue(List<MediaItem> queue) async {
     await _channel.invokeMethod(
-        'replaceQueue', queue.map((item) => item.toJson()).toList());
+        'updateQueue', queue.map((item) => item.toJson()).toList());
+  }
+
+  /// Sends a request to your background audio task to update the details of a
+  /// media item. This passes through to the 'onUpdateMediaItem' method in your
+  /// background audio task.
+  static Future<void> updateMediaItem(MediaItem mediaItem) async {
+    await _channel.invokeMethod('updateMediaItem', mediaItem.toJson());
   }
 
   /// Programmatically simulates a click of a media button on the headset.
@@ -970,11 +980,14 @@ class AudioServiceBackground {
           int index = args[1];
           task.onAddQueueItemAt(mediaItem, index);
           break;
-        case 'onReplaceQueue':
+        case 'onUpdateQueue':
           final List args = call.arguments;
           final List queue = args[0];
-          await task.onReplaceQueue(
+          await task.onUpdateQueue(
               queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
+          break;
+        case 'onUpdateMediaItem':
+          await task.onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onRemoveQueueItem':
           task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
@@ -1303,13 +1316,16 @@ abstract class BackgroundAudioTask {
   /// as via a call to [AudioService.addQueueItem].
   void onAddQueueItem(MediaItem mediaItem) {}
 
-  /// Called when the Flutter UI has requested to replace the queue by the
-  /// given queue.
+  /// Called when the Flutter UI has requested to set a new queue.
   ///
   /// If you use a queue, your implementation of this method should call
   /// [AudioServiceBackground.setQueue] to notify all clients that the queue
   /// has changed.
-  Future<void> onReplaceQueue(List<MediaItem> queue) async {}
+  Future<void> onUpdateQueue(List<MediaItem> queue) async {}
+
+  /// Called when the Flutter UI has requested to update the details of
+  /// a media item.
+  Future<void> onUpdateMediaItem(MediaItem mediaItem) async {}
 
   /// Called when a client has requested to add a media item to the queue at a
   /// specified position, such as via a request to

@@ -221,8 +221,10 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"removeQueueItem" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments]];
     result(@YES);
-  } else if ([@"replaceQueue" isEqualToString:call.method]) {
-    [backgroundChannel invokeMethod:@"onReplaceQueue" arguments:@[call.arguments] result: result];
+  } else if ([@"updateQueue" isEqualToString:call.method]) {
+    [backgroundChannel invokeMethod:@"onUpdateQueue" arguments:@[call.arguments] result: result];
+  } else if ([@"updateMediaItem" isEqualToString:call.method]) {
+    [backgroundChannel invokeMethod:@"onUpdateMediaItem" arguments:@[call.arguments] result: result];
   } else if ([@"click" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments]];
     result(@YES);
