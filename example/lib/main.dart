@@ -417,7 +417,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await _audioPlayer.stop();
     await _audioPlayer.dispose();
     _playing = false;
-    _setState(processingState: AudioProcessingState.stopped);
+    await _setState(processingState: AudioProcessingState.stopped);
     _completer.complete();
   }
 
