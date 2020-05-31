@@ -272,6 +272,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Completer _completer = Completer();
   AudioProcessingState _skipState;
   bool _playing;
+  bool _interrupted = false;
 
   bool get hasNext => _queueIndex + 1 < _queue.length;
 
@@ -423,24 +424,33 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   /* Handling Audio Focus */
   @override
-  void onAudioFocusGained() {
-    _audioPlayer.setVolume(1.0);
-    if (!_playing) onPlay();
+  void onAudioFocusLost(AudioInterruption interruption) {
+    if (_playing) _interrupted = true;
+    switch (interruption) {
+      case AudioInterruption.pause:
+      case AudioInterruption.temporaryPause:
+      case AudioInterruption.unknownPause:
+        onPause();
+        break;
+      case AudioInterruption.temporaryDuck:
+        _audioPlayer.setVolume(0.5);
+        break;
+    }
   }
 
   @override
-  void onAudioFocusLost() {
-    onPause();
-  }
-
-  @override
-  void onAudioFocusLostTransient() {
-    onPause();
-  }
-
-  @override
-  void onAudioFocusLostTransientCanDuck() {
-    _audioPlayer.setVolume(0.5);
+  void onAudioFocusGained(AudioInterruption interruption) {
+    switch (interruption) {
+      case AudioInterruption.temporaryPause:
+        if (!_playing && _interrupted) onPlay();
+        break;
+      case AudioInterruption.temporaryDuck:
+        _audioPlayer.setVolume(1.0);
+        break;
+      default:
+        break;
+    }
+    _interrupted = false;
   }
 
   @override

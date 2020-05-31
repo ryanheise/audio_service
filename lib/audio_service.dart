@@ -927,16 +927,12 @@ class AudioServiceBackground {
               mediaItems.map((item) => item.toJson()).toList();
           return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
-          task.onAudioFocusGained();
+          final List args = call.arguments;
+          task.onAudioFocusGained(AudioInterruption.values[args[0]]);
           break;
         case 'onAudioFocusLost':
-          task.onAudioFocusLost();
-          break;
-        case 'onAudioFocusLostTransient':
-          task.onAudioFocusLostTransient();
-          break;
-        case 'onAudioFocusLostTransientCanDuck':
-          task.onAudioFocusLostTransientCanDuck();
+          final List args = call.arguments;
+          task.onAudioFocusLost(AudioInterruption.values[args[0]]);
           break;
         case 'onAudioBecomingNoisy':
           task.onAudioBecomingNoisy();
@@ -1252,21 +1248,30 @@ abstract class BackgroundAudioTask {
   /// the available media items to display to the user.
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
 
-  /// Called when your app gains the audio focus on Android and playback should
-  /// resume after an interruption on iOS.
-  void onAudioFocusGained() {}
+  /// Called when your app loses audio focus. This can happen when receiving a
+  /// phone call, or when another app on the device needs to play audio. The
+  /// parameter indicates how to handle the audio interruption:
+  ///
+  /// * [AudioInterruption.pause] indicates that audio should be paused and
+  /// should not automatically resume once focus is regained (Android only)
+  /// * [AudioInterruption.temporaryPause] indicates that audio should be
+  /// temporarily paused and resumed again once focus is regained (Android
+  /// only)
+  /// * [AudioInterruption.temporaryDuck] indicates that audio can be
+  /// temporarily paused or ducked (volume lowered) and resumed or restored
+  /// again once focus is regained (Android only)
+  /// * [AudioInterruption.unknownPause] indicates that audio should be paused
+  /// (iOS only)
+  void onAudioFocusLost(AudioInterruption interruption) {}
 
-  /// Called when your app loses audio focus for an unknown duration on Android
-  /// and when the audio session is interrupted on iOS.
-  void onAudioFocusLost() {}
-
-  /// Called on Android when your app loses audio focus temporarily and should
-  /// pause audio output for that duration.
-  void onAudioFocusLostTransient() {}
-
-  /// Called on Android when your app loses audio focus temporarily and may
-  /// lower the audio output volume for that duration.
-  void onAudioFocusLostTransientCanDuck() {}
+  /// Called when your app gains audio focus. If the audio was interrupted, the
+  /// parameter indicates if and how audio should be restored:
+  ///
+  /// * [AudioInterruption.pause]: Audio should stay paused.
+  /// * [AudioInterruption.temporaryPause]: Audio should resume.
+  /// * [AudioInterruption.temporaryDuck]: Audio should be restored after
+  /// ducking (Android only).
+  void onAudioFocusGained(AudioInterruption interruption) {}
 
   /// Called on Android when your audio output is about to become noisy due
   /// to the user unplugging the headphones.
@@ -1434,4 +1439,13 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
       child: widget.child,
     );
   }
+}
+
+/// Represents how audio should be handled when audio focus is lost and
+/// regained.
+enum AudioInterruption {
+  pause,
+  temporaryPause,
+  temporaryDuck,
+  unknownPause,
 }

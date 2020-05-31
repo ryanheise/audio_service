@@ -367,13 +367,18 @@ static MPMediaItemArtwork* artwork = nil;
     NSNumber *interruptionType = (NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey];
     switch ([interruptionType integerValue]) {
         case AVAudioSessionInterruptionTypeBegan:
-            [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:nil];
+            enum AudioInterruption interruption = unknownPause;
+            [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:@[@(interruption)]];
             break;
         case AVAudioSessionInterruptionTypeEnded:
         {
             if ([(NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionOptionKey] intValue] == AVAudioSessionInterruptionOptionShouldResume) {
-                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:nil];
-            }
+                enum AudioInterruption interruption = temporaryPause;
+                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
+            } else {
+                enum AudioInterruption interruption = pause;
+                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
+	    }
             break;
         }
         default:

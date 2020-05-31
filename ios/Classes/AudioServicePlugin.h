@@ -17,3 +17,10 @@ enum AudioProcessingState {
 	stopped,
 	error
 };
+
+enum AudioInterruption {
+	pause,
+	temporaryPause,
+	temporaryDuck,
+	unknownPause
+};
