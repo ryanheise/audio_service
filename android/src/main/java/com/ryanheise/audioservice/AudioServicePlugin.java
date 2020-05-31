@@ -830,7 +830,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			AudioService.instance.stop();
 			if (silenceAudioTrack != null)
 				silenceAudioTrack.release();
-			if (mainClientHandler != null) {
+			if (mainClientHandler != null && mainClientHandler.activity != null) {
 				mainClientHandler.activity.getIntent().setAction(Intent.ACTION_MAIN);
 			}
 			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[] {}, AudioProcessingState.none, false, 0, 0.0f, 0);
