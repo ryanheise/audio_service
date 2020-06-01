@@ -82,6 +82,9 @@ class PlaybackState {
   /// The playback position at the last update time.
   final Duration position;
 
+  /// The buffered position.
+  final Duration bufferedPosition;
+
   /// The current playback speed where 1.0 means normal speed.
   final double speed;
 
@@ -93,6 +96,7 @@ class PlaybackState {
     @required this.playing,
     @required this.actions,
     this.position,
+    this.bufferedPosition = Duration.zero,
     this.speed,
     this.updateTime,
   });
@@ -518,8 +522,9 @@ class AudioService {
                 .where((action) => (actionBits & (1 << action.index)) != 0)
                 .toSet(),
             position: Duration(milliseconds: args[3]),
-            speed: args[4],
-            updateTime: Duration(milliseconds: args[5]),
+            bufferedPosition: Duration(milliseconds: args[4]),
+            speed: args[5],
+            updateTime: Duration(milliseconds: args[6]),
           );
           _playbackStateSubject.add(_playbackState);
           break;
@@ -1081,6 +1086,7 @@ class AudioServiceBackground {
     @required AudioProcessingState processingState,
     @required bool playing,
     Duration position = Duration.zero,
+    Duration bufferedPosition = Duration.zero,
     double speed = 1.0,
     Duration updateTime,
     List<int> androidCompactActions,
@@ -1090,6 +1096,7 @@ class AudioServiceBackground {
       playing: playing,
       actions: controls.map((control) => control.action).toSet(),
       position: position,
+      bufferedPosition: bufferedPosition,
       speed: speed,
       updateTime: updateTime,
     );
@@ -1108,6 +1115,7 @@ class AudioServiceBackground {
       processingState.index,
       playing,
       position.inMilliseconds,
+      bufferedPosition.inMilliseconds,
       speed,
       updateTime?.inMilliseconds,
       androidCompactActions

@@ -459,8 +459,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   void _setState({
-    @required AudioProcessingState processingState,
+    AudioProcessingState processingState,
     Duration position,
+    Duration bufferedPosition,
   }) {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position;
@@ -468,9 +469,12 @@ class AudioPlayerTask extends BackgroundAudioTask {
     AudioServiceBackground.setState(
       controls: getControls(),
       systemActions: [MediaAction.seekTo],
-      processingState: processingState,
+      processingState:
+          processingState ?? AudioServiceBackground.state.processingState,
       playing: _playing,
       position: position,
+      bufferedPosition: bufferedPosition ?? position,
+      speed: _audioPlayer.speed,
     );
   }
 

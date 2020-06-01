@@ -222,7 +222,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				// On the flutter side, we represent the update time relative to the epoch.
 				long updateTimeSinceBoot = state.getLastPositionUpdateTime();
 				long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
-				invokeMethod("onPlaybackStateChanged", AudioService.getProcessingState().ordinal(), AudioService.isPlaying(), state.getActions(), state.getPosition(), state.getPlaybackSpeed(), updateTimeSinceEpoch);
+				invokeMethod("onPlaybackStateChanged", AudioService.getProcessingState().ordinal(), AudioService.isPlaying(), state.getActions(), state.getPosition(), state.getBufferedPosition(), state.getPlaybackSpeed(), updateTimeSinceEpoch);
 			}
 
 			@Override
@@ -770,9 +770,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				AudioProcessingState processingState = AudioProcessingState.values()[(Integer)args.get(2)];
 				boolean playing = (Boolean)args.get(3);
 				long position = getLong(args.get(4));
-				float speed = (float)((double)((Double)args.get(5)));
-				long updateTimeSinceEpoch = args.get(6) == null ? System.currentTimeMillis() : getLong(args.get(6));
-				List<Object> compactActionIndexList = (List<Object>)args.get(7);
+				long bufferedPosition = getLong(args.get(5));
+				float speed = (float)((double)((Double)args.get(6)));
+				long updateTimeSinceEpoch = args.get(7) == null ? System.currentTimeMillis() : getLong(args.get(7));
+				List<Object> compactActionIndexList = (List<Object>)args.get(8);
 
 				// On the flutter side, we represent the update time relative to the epoch.
 				// On the native side, we must represent the update time relative to the boot time.
@@ -796,7 +797,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					for (int i = 0; i < compactActionIndices.length; i++)
 						compactActionIndices[i] = (Integer)compactActionIndexList.get(i);
 				}
-				AudioService.instance.setState(actions, actionBits, compactActionIndices, processingState, playing, position, speed, updateTimeSinceBoot);
+				AudioService.instance.setState(actions, actionBits, compactActionIndices, processingState, playing, position, bufferedPosition, speed, updateTimeSinceBoot);
 				result.success(true);
 				break;
 			case "stopped":
@@ -848,7 +849,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			if (mainClientHandler != null && mainClientHandler.activity != null) {
 				mainClientHandler.activity.getIntent().setAction(Intent.ACTION_MAIN);
 			}
-			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[] {}, AudioProcessingState.none, false, 0, 0.0f, 0);
+			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[] {}, AudioProcessingState.none, false, 0, 0, 0.0f, 0);
 			for (ClientHandler eachClientHandler : clientHandlers) {
 				eachClientHandler.invokeMethod("onStopped");
 			}

@@ -23,6 +23,7 @@ static NSMutableDictionary *mediaItem = nil;
 static enum AudioProcessingState processingState = none;
 static BOOL playing = NO;
 static NSNumber *position = nil;
+static NSNumber *bufferedPosition = nil;
 static NSNumber *updateTime = nil;
 static NSNumber *speed = nil;
 static NSNumber *fastForwardInterval = nil;
@@ -67,6 +68,7 @@ static MPMediaItemArtwork* artwork = nil;
     // Notify client of state on subscribing.
     if (position == nil) {
       position = @(0);
+      bufferedPosition = nil;
       updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
       speed = [NSNumber numberWithDouble: 1.0];
     }
@@ -79,6 +81,8 @@ static MPMediaItemArtwork* artwork = nil;
       @(0),
       // position
       position,
+      // bufferedPosition
+      bufferedPosition,
       // playback speed
       speed,
       // update time since epoch
@@ -194,6 +198,7 @@ static MPMediaItemArtwork* artwork = nil;
     processingState = none;
     playing = NO;
     position = nil;
+    bufferedPosition = nil;
     updateTime = nil;
     speed = nil;
     artwork = nil;
@@ -275,16 +280,17 @@ static MPMediaItemArtwork* artwork = nil;
     result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
-    if (call.arguments[6] != [NSNull null]) {
-      msSinceEpoch = [call.arguments[6] longLongValue];
+    if (call.arguments[7] != [NSNull null]) {
+      msSinceEpoch = [call.arguments[7] longLongValue];
     } else {
       msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
     }
     processingState = [call.arguments[2] intValue];
     playing = [call.arguments[3] boolValue];
     position = call.arguments[4];
+    bufferedPosition = call.arguments[5];
+    speed = call.arguments[6];
     updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
-    speed = call.arguments[5];
     [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
       // processingState
       @(processingState),
@@ -294,6 +300,8 @@ static MPMediaItemArtwork* artwork = nil;
       @(0),
       // position
       position,
+      // bufferedPosition
+      bufferedPosition,
       // playback speed
       speed,
       // update time since epoch
