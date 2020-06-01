@@ -68,7 +68,7 @@ static MPMediaItemArtwork* artwork = nil;
     // Notify client of state on subscribing.
     if (position == nil) {
       position = @(0);
-      bufferedPosition = nil;
+      bufferedPosition = @(0);
       updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
       speed = [NSNumber numberWithDouble: 1.0];
     }
