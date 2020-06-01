@@ -364,26 +364,28 @@ static MPMediaItemArtwork* artwork = nil;
 }
 
 - (void) audioInterrupt:(NSNotification*)notification {
-    NSNumber *interruptionType = (NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey];
-    switch ([interruptionType integerValue]) {
-        case AVAudioSessionInterruptionTypeBegan:
-            enum AudioInterruption interruption = unknownPause;
-            [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:@[@(interruption)]];
-            break;
-        case AVAudioSessionInterruptionTypeEnded:
-        {
-            if ([(NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionOptionKey] intValue] == AVAudioSessionInterruptionOptionShouldResume) {
-                enum AudioInterruption interruption = temporaryPause;
-                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
-            } else {
-                enum AudioInterruption interruption = pause;
-                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
-	    }
-            break;
-        }
-        default:
-            break;
+  NSNumber *interruptionType = (NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey];
+  switch ([interruptionType integerValue]) {
+    case AVAudioSessionInterruptionTypeBegan:
+    {
+      enum AudioInterruption interruption = AIUnknownPause;
+      [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:@[@(interruption)]];
+      break;
     }
+    case AVAudioSessionInterruptionTypeEnded:
+    {
+      if ([(NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionOptionKey] intValue] == AVAudioSessionInterruptionOptionShouldResume) {
+        enum AudioInterruption interruption = AITemporaryPause;
+        [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
+      } else {
+        enum AudioInterruption interruption = AIPause;
+        [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
+      }
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {

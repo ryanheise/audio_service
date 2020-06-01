@@ -19,8 +19,8 @@ enum AudioProcessingState {
 };
 
 enum AudioInterruption {
-	pause,
-	temporaryPause,
-	temporaryDuck,
-	unknownPause
+	AIPause,
+	AITemporaryPause,
+	AITemporaryDuck,
+	AIUnknownPause
 };
