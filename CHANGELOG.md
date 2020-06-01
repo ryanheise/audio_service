@@ -1,3 +1,21 @@
+## 0.9.0
+
+* New state model: split into playing + processingState.
+* androidStopForegroundOnPause ties foreground state to playing state.
+* Add MediaItem.toJson/fromJson.
+* Add AudioService.notificationClickEventStream (Android).
+* Add AudioService.updateMediaItem.
+* Add AudioService.setSpeed.
+* Add PlaybackState.bufferedPosition.
+* Add custom AudioService.start parameters.
+* Rename replaceQueue -> updateQueue.
+* Rename Android-specific start parameters with android- prefix.
+* Use Duration type for all time values.
+* Pass fastForward/rewind intervals through to background task.
+* Allow connections from background contexts (e.g. android_alarm_manager).
+* Unify iOS/Android focus APIs.
+* Bug fixes and dependency updates.
+
 ## 0.8.0
 
 * Allow UI to await the result of custom actions.
