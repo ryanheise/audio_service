@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show File, Platform;
+import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -1137,7 +1137,7 @@ class AudioServiceBackground {
     _mediaItem = mediaItem;
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
-      final fileInfo = await _cacheManager.getFileFromMemory(mediaItem.artUri);
+      final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
       String filePath = fileInfo?.file?.path;
       if (filePath == null) {
         // We haven't fetched the art yet, so show the metadata now, and again
