@@ -863,6 +863,12 @@ class AudioService {
     });
   }
 
+  /// Sends a request to your background audio task to set the audio playback
+  /// speed.
+  static Future<void> setSpeed(double speed) async {
+    await _channel.invokeMethod('setSpeed', speed);
+  }
+
   //static Future<void> setCaptioningEnabled(boolean enabled) async {}
   //static Future<void> setRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode) async {}
   //static Future<void> setShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode) async {}
@@ -1014,6 +1020,11 @@ class AudioServiceBackground {
         case 'onSetRating':
           task.onSetRating(
               Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+          break;
+        case 'onSetSpeed':
+          final List args = call.arguments;
+          double speed = args[0];
+          task.onSetSpeed(speed);
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
@@ -1373,6 +1384,12 @@ abstract class BackgroundAudioTask {
   /// Called when the client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
   void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
+
+  /// Called when the Flutter UI has requested to set the speed of audio
+  /// playback. An implementation of this callback should change the audio
+  /// speed and broadcast the speed change to all clients via
+  /// [AudioServiceBackground.setState].
+  void onSetSpeed(double speed) {}
 
   /// Called when a custom action has been sent by the client via
   /// [AudioService.customAction]. The result of this method will be returned

@@ -270,6 +270,9 @@ static MPMediaItemArtwork* artwork = nil;
   } else if ([@"setRating" isEqualToString:call.method]) {
     [backgroundChannel invokeMethod:@"onSetRating" arguments:@[call.arguments, [NSNull null]]];
     result(@YES);
+  } else if ([@"setSpeed" isEqualToString:call.method]) {
+    [backgroundChannel invokeMethod:@"onSetSpeed" arguments:@[call.arguments]];
+    result(@YES);
   } else if ([@"setState" isEqualToString:call.method]) {
     long long msSinceEpoch;
     if (call.arguments[6] != [NSNull null]) {

@@ -509,6 +509,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				} else {
 					mediaController.getTransportControls().setRating(raw2rating((Map<String, Object>)arguments.get("rating")));
 				}
+			case "setSpeed":
+				float speed = (float)((double)((Double)call.arguments));
+				if (backgroundHandler != null)
+					backgroundHandler.invokeMethod("onSetSpeed", speed);
+				result.success(true);
+				break;
 			default:
 				if (backgroundHandler != null) {
 					backgroundHandler.channel.invokeMethod(call.method, call.arguments, result);
