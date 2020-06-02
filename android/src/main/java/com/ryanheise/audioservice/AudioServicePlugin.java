@@ -180,11 +180,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		activityPluginBinding.addOnNewIntentListener(newIntentListener = new NewIntentListener() {
 			@Override
 			public boolean onNewIntent(Intent intent) {
-				if (intent.getAction() != null) {
-					clientHandler.activity.getIntent().setAction(intent.getAction());
-					clientHandler.invokeMethod("notificationClicked", intent.getAction().equals(NOTIFICATION_CLICK_ACTION));
-				}
-				return false;
+				clientHandler.activity.setIntent(intent);
+				return true;
 			}
 		});
 	}
@@ -292,6 +289,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			this.activity = activity;
 		}
 
+		// See: https://stackoverflow.com/questions/13135545/android-activity-is-using-old-intent-if-launching-app-from-recent-task
+		protected boolean wasLaunchedFromRecents() {
+			return (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
+		}
+
 		@Override
 		public void onMethodCall(MethodCall call, final Result result) {
 			switch (call.method) {
@@ -324,7 +326,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
 				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
 				final Size artDownscaleSize = artDownscaleSizeMap == null ? null
-					: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
+						: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
 				fastForwardInterval = getLong(arguments.get("fastForwardInterval"));
 				rewindInterval = getLong(arguments.get("rewindInterval"));
 
@@ -342,6 +344,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				break;
 			}
 			case "connect":
+				if (activity != null) {
+					if (wasLaunchedFromRecents()) {
+						// We do this to avoid using the old intent.
+						activity.setIntent(new Intent(Intent.ACTION_MAIN));
+					}
+					if (activity.getIntent().getAction() != null)
+						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
+				}
 				if (mediaBrowser == null) {
 					connectResult = result;
 					mediaBrowser = new MediaBrowserCompat(context,
@@ -349,13 +359,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 							connectionCallback,
 							null);
 					mediaBrowser.connect();
-					if (activity != null && activity.getIntent().getAction() != null)
-						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
 				} else {
 					result.success(true);
 				}
 				break;
 			case "disconnect":
+				// Since the activity enters paused state, we set the intent with ACTION_MAIN.
+				activity.setIntent(new Intent(Intent.ACTION_MAIN));
+
 				if (mediaController != null) {
 					mediaController.unregisterCallback(controllerCallback);
 					mediaController = null;
@@ -847,9 +858,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			if (silenceAudioTrack != null)
 				silenceAudioTrack.release();
 			if (mainClientHandler != null && mainClientHandler.activity != null) {
-				mainClientHandler.activity.getIntent().setAction(Intent.ACTION_MAIN);
+				mainClientHandler.activity.setIntent(new Intent(Intent.ACTION_MAIN));
 			}
-			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[] {}, AudioProcessingState.none, false, 0, 0, 0.0f, 0);
+			AudioService.instance.setState(new ArrayList<NotificationCompat.Action>(), 0, new int[]{}, AudioProcessingState.none, false, 0, 0, 0.0f, 0);
 			for (ClientHandler eachClientHandler : clientHandlers) {
 				eachClientHandler.invokeMethod("onStopped");
 			}
