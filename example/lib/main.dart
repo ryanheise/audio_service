@@ -242,6 +242,7 @@ class ScreenState {
   ScreenState(this.queue, this.mediaItem, this.playbackState);
 }
 
+// NOTE: Your entrypoint MUST be a top-level function.
 void _audioPlayerTaskEntrypoint() async {
   AudioServiceBackground.run(() => AudioPlayerTask());
 }
@@ -497,6 +498,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 }
 
+// NOTE: Your entrypoint MUST be a top-level function.
 void _textToSpeechTaskEntrypoint() async {
   AudioServiceBackground.run(() => TextPlayerTask());
 }

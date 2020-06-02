@@ -604,8 +604,8 @@ class AudioService {
   /// [AudioServiceBackground.setState]).
   ///
   /// The background task is specified by [backgroundTaskEntrypoint] which will
-  /// be run within a background isolate. This function must be a top-level or
-  /// static function, and it must initiate execution by calling
+  /// be run within a background isolate. This function must be a top-level
+  /// function, and it must initiate execution by calling
   /// [AudioServiceBackground.run]. Because the background task runs in an
   /// isolate, no memory is shared between the background isolate and your main
   /// UI isolate and so all communication between the background task and your

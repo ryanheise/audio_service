@@ -82,7 +82,7 @@ If the user closes your Flutter UI and then re-opens it, the connection to your 
 
 ### Background code
 
-The `_backgroundTaskEntrypoint` function that you passed into `AudioService.start` must be a top-level or static function, and it will be the first function to be called as soon as the background isolate is started. It should contain a single line of code that creates your background audio task:
+The `_backgroundTaskEntrypoint` function that you passed into `AudioService.start` must be a top-level function, and it will be the first function to be called as soon as the background isolate is started. It should contain a single line of code that creates your background audio task:
 
 ```dart
 void myBackgroundTaskEntrypoint() {
