@@ -66,7 +66,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	static boolean androidNotificationClickStartsActivity;
 	static boolean androidNotificationOngoing;
 	static boolean androidStopForegroundOnPause;
-	static boolean androidStopOnRemoveTask;
 	private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
 	private static int queueIndex = -1;
 	private static Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
@@ -76,7 +75,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static boolean playing = false;
 	private static AudioProcessingState processingState = AudioProcessingState.none;
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, boolean androidStopOnRemoveTask, Size artDownscaleSize, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -94,7 +93,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
 		AudioService.androidNotificationOngoing = androidNotificationOngoing;
 		AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
-		AudioService.androidStopOnRemoveTask = androidStopOnRemoveTask;
 		AudioService.artDownscaleSize = artDownscaleSize;
 
 		playing = false;
@@ -588,9 +586,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
-		MediaControllerCompat controller = mediaSession.getController();
-		if (androidStopOnRemoveTask || (androidStopForegroundOnPause && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_PAUSED)) {
-			listener.onStop();
+		if (listener != null) {
+			listener.onTaskRemoved();
 		}
 		super.onTaskRemoved(rootIntent);
 	}
@@ -858,5 +855,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		//
 
 		void onPlayMediaItem(MediaMetadataCompat metadata);
+
+		void onTaskRemoved();
 	}
 }

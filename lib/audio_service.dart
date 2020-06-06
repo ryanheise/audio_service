@@ -646,7 +646,6 @@ class AudioService {
     bool androidResumeOnClick = true,
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
-    bool androidStopOnRemoveTask = false,
     Size androidArtDownscaleSize,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
@@ -687,7 +686,6 @@ class AudioService {
       'androidResumeOnClick': androidResumeOnClick,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'androidEnableQueue': androidEnableQueue,
-      'androidStopOnRemoveTask': androidStopOnRemoveTask,
       'androidArtDownscaleSize': androidArtDownscaleSize != null
           ? {
               'width': androidArtDownscaleSize.width,
@@ -1030,6 +1028,9 @@ class AudioServiceBackground {
           final List args = call.arguments;
           double speed = args[0];
           task.onSetSpeed(speed);
+          break;
+        case 'onTaskRemoved':
+          task.onTaskRemoved();
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
@@ -1403,6 +1404,11 @@ abstract class BackgroundAudioTask {
   /// [AudioService.customAction]. The result of this method will be returned
   /// to the client.
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
+
+  /// Called on Android when the user swipes away your app's task in the task
+  /// manager. If you use the `androidStopForegroundOnPause` option to
+  /// [AudioService.start], then
+  void onTaskRemoved() {}
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {

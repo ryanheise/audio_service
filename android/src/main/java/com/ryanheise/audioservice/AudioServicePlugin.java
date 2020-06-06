@@ -323,7 +323,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
 				final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
 				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
-				final boolean androidStopOnRemoveTask = (Boolean)arguments.get("androidStopOnRemoveTask");
 				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
 				final Size artDownscaleSize = artDownscaleSizeMap == null ? null
 						: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
@@ -332,7 +331,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-				AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, androidStopOnRemoveTask, artDownscaleSize, backgroundHandler);
+				AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
 
 				synchronized (connectionCallback) {
 					if (mediaController != null)
@@ -742,6 +741,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		@Override
 		public void onSetRating(RatingCompat rating, Bundle extras) {
 			invokeMethod("onSetRating", rating2raw(rating), extras.getSerializable("extrasMap"));
+		}
+
+		@Override
+		public void onTaskRemoved() {
+			invokeMethod("onTaskRemoved");
 		}
 
 		@Override
