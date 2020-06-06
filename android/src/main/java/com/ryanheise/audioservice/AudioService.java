@@ -339,6 +339,7 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	@RequiresApi(Build.VERSION_CODES.O)
 	private void abandonAudioFocusO() {
+		if (audioFocusRequest == null) return;
 		audioManager.abandonAudioFocusRequest((AudioFocusRequest)audioFocusRequest);
 	}
 
