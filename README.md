@@ -182,7 +182,7 @@ Additionally:
       </intent-filter>
     </service>
 
-    <receiver android:name="androidx.media.session.MediaButtonReceiver" >
+    <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
       <intent-filter>
         <action android:name="android.intent.action.MEDIA_BUTTON" />
       </intent-filter>

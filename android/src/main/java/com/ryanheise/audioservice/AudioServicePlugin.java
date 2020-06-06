@@ -749,6 +749,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		}
 
 		@Override
+		public void onClose() {
+			invokeMethod("onClose");
+		}
+
+		@Override
 		public void onMethodCall(MethodCall call, Result result) {
 			Context context = AudioService.instance;
 			switch (call.method) {

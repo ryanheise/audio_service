@@ -1032,6 +1032,9 @@ class AudioServiceBackground {
         case 'onTaskRemoved':
           task.onTaskRemoved();
           break;
+        case 'onClose':
+          task.onClose();
+          break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
             final result = await task.onCustomAction(
@@ -1409,6 +1412,12 @@ abstract class BackgroundAudioTask {
   /// manager. If you use the `androidStopForegroundOnPause` option to
   /// [AudioService.start], then
   void onTaskRemoved() {}
+
+  /// Called on Android when the user swipes away the notification. The default
+  /// implementation (which you may override) calls [onStop].
+  void onClose() {
+    onStop();
+  }
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {
