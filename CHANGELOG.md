@@ -1,3 +1,9 @@
+## 0.10.0
+
+* Replace androidStopOnRemoveTask with onTaskRemoved callback.
+* Add onClose callback.
+* Breaking change: new MediaButtonReceiver in AndroidManifest.xml.
+
 ## 0.9.0
 
 * New state model: split into playing + processingState.

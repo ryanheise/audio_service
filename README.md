@@ -23,6 +23,18 @@ This plugin wraps around your existing audio code to allow it to run in the back
 | album art                          | ✅         | ✅        |
 | Android Auto                       | (untested) |           |
 
+# Migrating to 0.10.0
+
+`audio_service` 0.10.0 requires a different `AndroidManifest.xml` configuration for headset button clicks to continue to work on Android. Your previous broadcast receiver declaration should be replaced with the one below:
+
+```xml
+    <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
+      <intent-filter>
+        <action android:name="android.intent.action.MEDIA_BUTTON" />
+      </intent-filter>
+    </receiver> 
+```
+
 # How does this plugin work?
 
 `audio_service` creates a special container for your audio code to run in that can survive the absence or destruction of your app's UI. You will therefore need to write your code in such a way that your UI code is kept separate from your audio playing code.
