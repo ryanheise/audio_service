@@ -1,40 +1,37 @@
 # audio_service
 
-This plugin wraps around your existing audio code to allow it to run in the background, and it provides callbacks to allow your app to respond to the media buttons on your headset, Android lock screen and notification, iOS control center, wearables and Android Auto.
-
-The plugin gives you complete flexibility concerning the audio you want to play. It is suitable for:
+This plugin wraps around your existing audio code to allow it to run in the background, and allows your app to interact with headset buttons, the Android lock screen and notification, iOS control center, wearables and Android Auto. It is suitable for:
 
 * Music players
 * Text-to-speech readers
 * Podcast players
 * Navigators
-* Complex combinations of the above
-* Any app that wishes to play any other sort of audio in the background
+* More!
 
-The plugin works by creating a container for your audio code to run in that survives the absence or destruction of your app's UI. You will therefore need to write your code in such a way that your UI code is kept separate from your audio playing code.
+| Feature                            | Android    | iOS       |
+| -------                            | :-------:  | :-----:   |
+| background audio                   | ✅         | ✅        |
+| headset click                      | ✅         | ✅        |
+| Handle phonecall interruptions     | ✅         | ✅        |
+| start/stop/play/pause/seek/rate    | ✅         | ✅        |
+| fast forward/rewind                | ✅         | ✅        |
+| queue manipulation, skip next/prev | ✅         | ✅        |
+| custom actions                     | ✅         | ✅        |
+| custom events                      | ✅         | ✅        |
+| notifications/control center       | ✅         | (partial) |
+| lock screen controls               | ✅         | (partial) |
+| album art                          | ✅         | ✅        |
+| Android Auto                       | (untested) |           |
 
-Because this plugin wraps around your existing audio code, you are free to continue using your favourite audio plugins, such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, to play the actual audio. Note that this plugin will not work with other plugins that that overlap in responsibilities with this plugin. In particular, `audio_service` is responsible for establishing the background execution environment, updating information in the Android notification and lock screen, the iOS control center and now playing info, and for handling callbacks when users interact with media controls on those screens or headsets for example. If you use another plugin that also provides any of these features, it will likely interfere with the operation of this plugin.
+# How does this plugin work?
+
+`audio_service` creates a special container for your audio code to run in that can survive the absence or destruction of your app's UI. You will therefore need to write your code in such a way that your UI code is kept separate from your audio playing code.
+
+Within this container, you are able to write normal Dart code using your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, to play the actual audio. This gives you a lot of flexibility in the audio you are able to play. For example, you can play music with `just_audio`, or you can play text-to-speech with `flutter_tts`, or you could write your own Dart logic to play some combination of these all under the one container.
+
+Note that this plugin will not work with other audio plugins that overlap in responsibility with this plugin (i.e. background audio, iOS control center, Android notifications, lock screen, headset buttons, etc.)
 
 If you'd like to help with any missing features, join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
-
-| Feature                        | Android    | iOS       |
-| -------                        | :-------:  | :-----:   |
-| start/stop                     | ✅         | ✅        |
-| play/pause                     | ✅         | ✅        |
-| headset click                  | ✅         | ✅        |
-| seek                           | ✅         | ✅        |
-| skip next/prev                 | ✅         | ✅        |
-| FF/rewind                      | ✅         | ✅        |
-| rate                           | ✅         | ✅        |
-| custom actions                 | ✅         | ✅        |
-| custom events                  | ✅         | ✅        |
-| notifications/control center   | ✅         | (partial) |
-| lock screen controls           | ✅         | (partial) |
-| album art                      | ✅         | ✅        |
-| queue management               | ✅         | ✅        |
-| runs in background             | ✅         | ✅        |
-| Handle phonecall interruptions | ✅         | ✅        |
-| Android Auto                   | (untested) |           |
 
 ## Documentation
 
@@ -64,7 +61,7 @@ AudioService.pause();
 AudioService.play();
 AudioService.skipToNext();
 AudioService.skipToPrevious();
-AudioService.seekTo(10000);
+AudioService.seekTo(Duration(seconds: 10));
 AudioService.stop(); // shuts down the background audio task
 ```
 
@@ -134,8 +131,16 @@ class MyBackgroundTask extends BackgroundAudioTask {
     // Your custom dart code to skip to the previous queue item.
   }
   @override
-  void onSeekTo(int position) {
+  void onSeekTo(Duration position) {
     // Your custom dart code to seek to a position.
+  }
+  @override
+  void onAudioFocusLost(AudioInterruption interruption) {
+    // Your custom dart code to handle a phone call or other interruption.
+  }
+  @override
+  void onAudioFocusGained(AudioInterruption interruption) {
+    // Your custom dart code to handle the end of an audio interruption.
   }
 }
 ```
