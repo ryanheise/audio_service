@@ -25,7 +25,7 @@ This plugin wraps around your existing audio code to allow it to run in the back
 
 # Migrating to 0.10.0
 
-`audio_service` 0.10.0 requires a different `AndroidManifest.xml` configuration for headset button clicks to continue to work on Android. Your previous broadcast receiver declaration should be replaced with the one below:
+`audio_service` 0.10.0 requires a different `AndroidManifest.xml` configuration for notification and headset button clicks to continue to work on Android. Your previous broadcast receiver declaration should be replaced with the one below:
 
 ```xml
     <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
