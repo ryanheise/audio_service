@@ -270,7 +270,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
   ];
   int _queueIndex = -1;
   AudioPlayer _audioPlayer = new AudioPlayer();
-  Completer _completer = Completer();
   AudioProcessingState _skipState;
   bool _playing;
   bool _interrupted = false;
@@ -281,14 +280,17 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   MediaItem get mediaItem => _queue[_queueIndex];
 
+  StreamSubscription<AudioPlaybackState> _playerStateSubscription;
+  StreamSubscription<AudioPlaybackEvent> _eventSubscription;
+
   @override
-  Future<void> onStart(Map<String, dynamic> params) async {
-    var playerStateSubscription = _audioPlayer.playbackStateStream
+  void onStart(Map<String, dynamic> params) {
+    _playerStateSubscription = _audioPlayer.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
       _handlePlaybackCompleted();
     });
-    var eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
+    _eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
       final bufferingState =
           event.buffering ? AudioProcessingState.buffering : null;
       switch (event.state) {
@@ -316,10 +318,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     });
 
     AudioServiceBackground.setQueue(_queue);
-    await onSkipToNext();
-    await _completer.future;
-    playerStateSubscription.cancel();
-    eventSubscription.cancel();
+    onSkipToNext();
   }
 
   void _handlePlaybackCompleted() {
@@ -420,7 +419,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await _audioPlayer.dispose();
     _playing = false;
     await _setState(processingState: AudioProcessingState.stopped);
-    _completer.complete();
+    _playerStateSubscription.cancel();
+    _eventSubscription.cancel();
+    await AudioServiceBackground.shutdown();
   }
 
   /* Handling Audio Focus */
@@ -459,15 +460,15 @@ class AudioPlayerTask extends BackgroundAudioTask {
     onPause();
   }
 
-  void _setState({
+  Future<void> _setState({
     AudioProcessingState processingState,
     Duration position,
     Duration bufferedPosition,
-  }) {
+  }) async {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position;
     }
-    AudioServiceBackground.setState(
+    await AudioServiceBackground.setState(
       controls: getControls(),
       systemActions: [MediaAction.seekTo],
       processingState:
@@ -541,7 +542,7 @@ class TextPlayerTask extends BackgroundAudioTask {
         await _playPauseFuture();
       }
     }
-    if (_processingState != AudioProcessingState.stopped) onStop();
+    onStop();
   }
 
   MediaItem mediaItem(int number) => MediaItem(
@@ -585,13 +586,15 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStop() async {
-    if (_processingState == AudioProcessingState.stopped) return;
-    _tts.stop();
-    await AudioServiceBackground.setState(
-      controls: [],
-      processingState: AudioProcessingState.stopped,
-      playing: false,
-    );
-    _playPauseCompleter.complete();
+    if (_processingState != AudioProcessingState.stopped) {
+      _tts.stop();
+      await AudioServiceBackground.setState(
+        controls: [],
+        processingState: AudioProcessingState.stopped,
+        playing: false,
+      );
+      _playPauseCompleter.complete();
+    }
+    await AudioServiceBackground.shutdown();
   }
 }

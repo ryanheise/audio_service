@@ -1055,7 +1055,14 @@ class AudioServiceBackground {
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
     );
-    await task.onStart(params);
+    task.onStart(params);
+  }
+
+  /// Shuts down the background audio task within the background isolate. This
+  /// must be the last call made from your background audio task. You should
+  /// dispose of any system resources held by the background task before
+  /// calling this.
+  static Future<void> shutdown() async {
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1259,7 +1266,7 @@ abstract class BackgroundAudioTask {
   /// completes, this task will be immediately terminated. [params] will
   /// contain any params passed into [AudioService.start] when starting this
   /// background audio task.
-  Future<void> onStart(Map<String, dynamic> params);
+  void onStart(Map<String, dynamic> params);
 
   /// Called in response to [AudioService.stop] to request that this task be
   /// terminated. The implementation should cause any audio playback to stop,
