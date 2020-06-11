@@ -174,6 +174,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		activityPluginBinding = null;
 		clientHandler.setActivity(null);
 		clientHandler.setContext(flutterPluginBinding.getApplicationContext());
+		if (clientHandler == mainClientHandler) {
+			mainClientHandler = null;
+		}
 	}
 
 	private void registerOnNewIntentListener() {
