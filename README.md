@@ -121,10 +121,29 @@ return MaterialApp(
 );
 ```
 
-Once connected, your Flutter UI can send requests to your background audio task via methods in the `AudioService` class which pass through to the corresponding methods in your background audio task:
+Starting the background audio task:
 
-* `AudioService.start` (call this to launch the background audio task)
-* `AudioService.stop` (call this to shutdown the background audio task)
+```dart
+await AudioService.start(
+  backgroundTaskEntrypoint: _myEntrypoint,
+  androidNotificationIcon: 'mipmap/ic_launcher',
+  // An example of passing custom parameters.
+  // These will be passed through to your `onStart` callback.
+  params: {'url', 'https://somewhere.com/sometrack.mp3'},
+);
+// this must be a top-level function
+void _myEntrypoint() => AudioServiceBackground.run(() => MyBackgroundTask());
+```
+
+Shutting down the background audio task:
+
+```dart
+// This will pass through to your `onStop` callback.
+AudioService.stop();
+```
+
+While your background task is running, your Flutter UI can send requests to it via methods in the `AudioService` class which pass through to the corresponding methods in your background audio task:
+
 * `AudioService.play`
 * `AudioService.pause`
 * `AudioService.click`
