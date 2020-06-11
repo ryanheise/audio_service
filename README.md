@@ -14,7 +14,7 @@ You encapsulate your audio code in a background task which runs in a special iso
 
 ![audio_service_callbacks](https://user-images.githubusercontent.com/19899190/84386442-b305cc80-ac34-11ea-8c2f-1b4cb126a98d.png)
 
-The flexibility of this plugin means that you can implement these callbacks to play any sort of audio that your app needs, such as audio files, streams or assets, text to speech, or combinations of these, provided that you can write dart code to play it.
+You can implement these callbacks to play any sort of audio that is appropriate for your app, such as music files or streams, audio assets, text to speech, synthesised audio, or combinations of these, provided that you can write dart code to play it within these callbacks.
 
 | Feature                            | Android    | iOS       |
 | -------                            | :-------:  | :-----:   |
