@@ -952,13 +952,7 @@ class AudioServiceBackground {
           task.onClick(button);
           break;
         case 'onStop':
-          try {
-            await task.onStop();
-          } catch (e, stacktrace) {
-            print("An error occurred in onStop: $e");
-            print('$stacktrace');
-          }
-          await _shutdown();
+          await task.onStop();
           break;
         case 'onPause':
           task.onPause();
@@ -1270,10 +1264,17 @@ abstract class BackgroundAudioTask {
   /// audio task.
   void onStart(Map<String, dynamic> params) {}
 
-  /// Called in response to [AudioService.stop] to request audio to stop
-  /// playing and all resources to be released. The isolate containing this
-  /// task will shut down as soon as the returned future completes.
-  Future<void> onStop() async {}
+  /// Called when a client has requested to terminate this background audio
+  /// task, in response to [AudioService.stop]. You should implement this
+  /// method to stop playing audio and dispose of any resources used.
+  ///
+  /// If you override this, make sure your method ends with a call to
+  /// super.stop(). The isolate containing this task will shut down as soon as
+  /// this method completes.
+  @mustCallSuper
+  Future<void> onStop() async {
+    await AudioServiceBackground._shutdown();
+  }
 
   /// Called when a media browser client, such as Android Auto, wants to query
   /// the available media items to display to the user.

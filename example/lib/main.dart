@@ -419,6 +419,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _playerStateSubscription.cancel();
     _eventSubscription.cancel();
     await _setState(processingState: AudioProcessingState.stopped);
+    // Shut down this task
+    await super.onStop();
   }
 
   /* Handling Audio Focus */
@@ -503,43 +505,45 @@ void _textToSpeechTaskEntrypoint() async {
 
 class TextPlayerTask extends BackgroundAudioTask {
   FlutterTts _tts = FlutterTts();
-
-  /// Represents the completion of a period of playing or pausing.
-  Completer _playPauseCompleter = Completer();
-
-  /// This wraps [_playPauseCompleter.future], replacing [_playPauseCompleter]
-  /// if it has already completed.
-  Future _playPauseFuture() {
-    if (_playPauseCompleter.isCompleted) _playPauseCompleter = Completer();
-    return _playPauseCompleter.future;
-  }
-
-  AudioProcessingState get _processingState =>
-      AudioServiceBackground.state.processingState;
+  bool _finished = false;
+  Sleeper _sleeper = Sleeper();
+  Completer _completer = Completer();
 
   bool get _playing => AudioServiceBackground.state.playing;
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
     playPause();
-    for (var i = 1;
-        i <= 10 && _processingState != AudioProcessingState.stopped;
-        i++) {
+    for (var i = 1; i <= 10 && !_finished; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       _tts.speak('$i');
-      // Wait for the speech or a pause request.
-      await Future.any(
-          [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
-      // If we were just paused...
-      if (_playPauseCompleter.isCompleted &&
-          !_playing &&
-          _processingState != AudioProcessingState.stopped) {
-        // Wait to be unpaused...
-        await _playPauseFuture();
+      // Wait for the speech.
+      try {
+        await _sleeper.sleep(Duration(seconds: 1));
+      } catch (e) {
+        // Speech was interrupted
+        _tts.stop();
+      }
+      // If we were just paused
+      if (!_finished && !_playing) {
+        try {
+          // Wait to be unpaused
+          await _sleeper.sleep();
+        } catch (e) {
+          // unpaused
+        }
       }
     }
-    onStop();
+    await AudioServiceBackground.setState(
+      controls: [],
+      processingState: AudioProcessingState.stopped,
+      playing: false,
+    );
+    if (!_finished) {
+      onStop();
+    }
+    _completer.complete();
   }
 
   MediaItem mediaItem(int number) => MediaItem(
@@ -563,7 +567,7 @@ class TextPlayerTask extends BackgroundAudioTask {
         playing: true,
       );
     }
-    _playPauseCompleter.complete();
+    _sleeper.interrupt();
   }
 
   @override
@@ -583,14 +587,42 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStop() async {
-    if (_processingState != AudioProcessingState.stopped) {
-      _tts.stop();
-      await AudioServiceBackground.setState(
-        controls: [],
-        processingState: AudioProcessingState.stopped,
-        playing: false,
-      );
-      _playPauseCompleter.complete();
+    // Signal the speech to stop
+    _finished = true;
+    _sleeper.interrupt();
+    // Wait for the speech to stop
+    await _completer.future;
+    // Shut down this task
+    await super.onStop();
+  }
+}
+
+/// An object that performs interruptable sleep.
+class Sleeper {
+  Completer _blockingCompleter;
+
+  /// Sleep for a duration. If sleep is interrupted, a
+  /// [SleeperInterruptedException] will be thrown.
+  Future<void> sleep([Duration duration]) async {
+    _blockingCompleter = Completer();
+    if (duration != null) {
+      await Future.any([Future.delayed(duration), _blockingCompleter.future]);
+    } else {
+      await _blockingCompleter.future;
+    }
+    final interrupted = _blockingCompleter.isCompleted;
+    _blockingCompleter = null;
+    if (interrupted) {
+      throw SleeperInterruptedException();
+    }
+  }
+
+  /// Interrupt any sleep that's underway.
+  void interrupt() {
+    if (_blockingCompleter?.isCompleted == false) {
+      _blockingCompleter.complete();
     }
   }
 }
+
+class SleeperInterruptedException {}
