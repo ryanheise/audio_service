@@ -31,7 +31,7 @@ The flexibility of this plugin means that you can implement these callbacks to p
 | album art                          | ✅         | ✅        |
 | Android Auto                       | (untested) |           |
 
-If you'd like to help with any missing features, join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
+If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
 ## Migrating to 0.10.0
 
@@ -156,6 +156,8 @@ Your Flutter UI can also react to changes to the state, current media item and q
 * `AudioService.playbackStateStream`
 * `AudioService.currentMediaItemStream`
 * `AudioService.queueStream`
+
+Keep in mind that your Flutter UI and background task run in separate isolates and do not share memory. The only way they communicate is via message passing. Your Flutter UI will only use the `AudioService` API to communicate with the background task, while your background task will only use the `AudioServiceBackground` API to interact with the clients, which include the Flutter UI.
 
 ## Android setup
 
