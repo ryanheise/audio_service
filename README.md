@@ -1,6 +1,6 @@
 # audio_service
 
-This plugin wraps around your existing audio code to allow it to run in the background, and allows your app to interact with headset buttons, the Android lock screen and notification, iOS control center, wearables and Android Auto. It is suitable for:
+This plugin wraps around your existing audio code to allow it to run in the background or with the screen turned off, and allows your app to interact with headset buttons, the Android lock screen and notification, iOS control center, wearables and Android Auto. It is suitable for:
 
 * Music players
 * Text-to-speech readers
@@ -14,7 +14,7 @@ You encapsulate your audio code in a background task which runs in a special iso
 
 ![audio_service_callbacks](https://user-images.githubusercontent.com/19899190/84386442-b305cc80-ac34-11ea-8c2f-1b4cb126a98d.png)
 
-You can implement these callbacks to play any sort of audio that is appropriate for your app, such as music files or streams, audio assets, text to speech, synthesised audio, or combinations of these, provided that you can write dart code to play it within these callbacks.
+You can implement these callbacks to play any sort of audio that is appropriate for your app, such as music files or streams, audio assets, text to speech, synthesised audio, or combinations of these.
 
 | Feature                            | Android    | iOS       |
 | -------                            | :-------:  | :-----:   |
