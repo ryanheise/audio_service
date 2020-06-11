@@ -12,7 +12,7 @@ This plugin wraps around your existing audio code to allow it to run in the back
 
 You encapsulate your audio code in a background task which runs in a special isolate that can survive the potential destruction or absence of your app's UI. Your background task implements callbacks to respond to playback requests coming from any client, including your Flutter UI, headset buttons, the lock screen, notification, iOS control center and smart watches:
 
-![audio_service_callbacks](https://user-images.githubusercontent.com/19899190/84343738-60082700-abec-11ea-9fce-1b010ab89db0.png)
+![audio_service_callbacks](https://user-images.githubusercontent.com/19899190/84386442-b305cc80-ac34-11ea-8c2f-1b4cb126a98d.png)
 
 The flexibility of this plugin means that you can implement these callbacks to play any sort of audio that your app needs, such as audio files, streams or assets, text to speech, or combinations of these, provided that you can write dart code to play it.
 
@@ -32,6 +32,10 @@ The flexibility of this plugin means that you can implement these callbacks to p
 | Android Auto                       | (untested) |           |
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
+
+## Migrating to 0.11.0
+
+Prior to 0.11.0, the background audio task would terminate as soon as `onStart` completes. From 0.11.0, the background audio task terminates as soon as `onStop` completes.
 
 ## Migrating to 0.10.0
 
@@ -60,7 +64,7 @@ class MyBackgroundTask extends BackgroundAudioTask {
   // Initialise your audio task
   onStart(Map<String, dynamic> params) {}
   // Handle a request to stop audio and finish the task
-  onStop() {}
+  onStop() async {}
   // Handle a request to play audio
   onPlay() {}
   // Handle a request to pause audio
@@ -111,7 +115,6 @@ There are several methods in the `AudioServiceBackground` class that are made av
 * `AudioServiceBackground.setState` broadcasts the current playback state to all clients. This includes whether or not audio is playing, but also whether audio is buffering, the current playback position and buffer position, the current playback speed, and the set of audio controls that should be made available. When you broadcast this information to all clients, it allows them to update their user interfaces to show the appropriate set of buttons, and show the correct audio position on seek bars, for example. It is important for you to call this method whenever any of these pieces of state changes. You will typically want to call this method from your `onStart`, `onPlay`, `onPause`, `onSkipToNext`, `onSkipToPrevious` and `onStop` callbacks.
 * `AudioServiceBackground.setMediaItem` broadcasts the currently playing media item to all clients. This includes the track title, artist, genre, duration, any artwork to display, and other information. When you broadcast this information to all clients, it allows them to update their user interface accordingly so that it is displayed on the lock screen, the notification, and in your Flutter UI (if present). You will typically want to call this method from your `onStart`, `onSkipToNext` and `onSkipToPrevious` callbacks.
 * `AudioServiceBackground.setQueue` broadcasts the current queue to all clients. Some clients like Android Auto may display this information in their user interfaces. You will typically want to call this method from your `onStart` callback. Other callbacks exist where it may be appropriate to call this method such as `onAddQueueItem` and `onRemoveQueueItem`.
-* `AudioServiceBackground.shutdown` shuts down the background isolate and should be called from your `onStop` callback after you have stopped playing audio.
 
 Once you have built your isolated background audio task, your Flutter UI connects to it by inserting an `AudioServiceWidget` at the top of your widget tree:
 

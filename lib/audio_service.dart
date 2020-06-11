@@ -952,7 +952,13 @@ class AudioServiceBackground {
           task.onClick(button);
           break;
         case 'onStop':
-          task.onStop();
+          try {
+            await task.onStop();
+          } catch (e, stacktrace) {
+            print("An error occurred in onStop: $e");
+            print('$stacktrace');
+          }
+          await _shutdown();
           break;
         case 'onPause':
           task.onPause();
@@ -1058,11 +1064,8 @@ class AudioServiceBackground {
     task.onStart(params);
   }
 
-  /// Shuts down the background audio task within the background isolate. This
-  /// must be the last call made from your background audio task. You should
-  /// dispose of any system resources held by the background task before
-  /// calling this.
-  static Future<void> shutdown() async {
+  /// Shuts down the background audio task within the background isolate.
+  static Future<void> _shutdown() async {
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1262,17 +1265,15 @@ abstract class BackgroundAudioTask {
   Duration get rewindInterval => _rewindInterval;
 
   /// Called once when this audio task is first started and ready to play
-  /// audio, in response to [AudioService.start]. When the returned future
-  /// completes, this task will be immediately terminated. [params] will
-  /// contain any params passed into [AudioService.start] when starting this
-  /// background audio task.
-  void onStart(Map<String, dynamic> params);
+  /// audio, in response to [AudioService.start]. [params] will contain any
+  /// params passed into [AudioService.start] when starting this background
+  /// audio task.
+  void onStart(Map<String, dynamic> params) {}
 
-  /// Called in response to [AudioService.stop] to request that this task be
-  /// terminated. The implementation should cause any audio playback to stop,
-  /// resources to be released, and the future returned by [onStart] to
-  /// complete.
-  void onStop();
+  /// Called in response to [AudioService.stop] to request audio to stop
+  /// playing and all resources to be released. The isolate containing this
+  /// task will shut down as soon as the returned future completes.
+  Future<void> onStop() async {}
 
   /// Called when a media browser client, such as Android Auto, wants to query
   /// the available media items to display to the user.

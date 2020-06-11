@@ -72,31 +72,31 @@ class MainScreen extends StatelessWidget {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (queue != null && queue.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.skip_previous),
-                        iconSize: 64.0,
-                        onPressed: mediaItem == queue.first
-                            ? null
-                            : AudioService.skipToPrevious,
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.skip_next),
-                        iconSize: 64.0,
-                        onPressed: mediaItem == queue.last
-                            ? null
-                            : AudioService.skipToNext,
-                      ),
-                    ],
-                  ),
-                if (mediaItem?.title != null) Text(mediaItem.title),
                 if (processingState == AudioProcessingState.none) ...[
                   audioPlayerButton(),
                   textToSpeechButton(),
-                ] else
+                ] else ...[
+                  if (queue != null && queue.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.skip_previous),
+                          iconSize: 64.0,
+                          onPressed: mediaItem == queue.first
+                              ? null
+                              : AudioService.skipToPrevious,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.skip_next),
+                          iconSize: 64.0,
+                          onPressed: mediaItem == queue.last
+                              ? null
+                              : AudioService.skipToNext,
+                        ),
+                      ],
+                    ),
+                  if (mediaItem?.title != null) Text(mediaItem.title),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -104,8 +104,6 @@ class MainScreen extends StatelessWidget {
                       stopButton(),
                     ],
                   ),
-                if (processingState != AudioProcessingState.none &&
-                    processingState != AudioProcessingState.stopped) ...[
                   positionIndicator(mediaItem, state),
                   Text("Processing state: " +
                       "$processingState".replaceAll(RegExp(r'^.*\.'), '')),
@@ -418,10 +416,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await _audioPlayer.stop();
     await _audioPlayer.dispose();
     _playing = false;
-    await _setState(processingState: AudioProcessingState.stopped);
     _playerStateSubscription.cancel();
     _eventSubscription.cancel();
-    await AudioServiceBackground.shutdown();
+    await _setState(processingState: AudioProcessingState.stopped);
   }
 
   /* Handling Audio Focus */
@@ -595,6 +592,5 @@ class TextPlayerTask extends BackgroundAudioTask {
       );
       _playPauseCompleter.complete();
     }
-    await AudioServiceBackground.shutdown();
   }
 }
