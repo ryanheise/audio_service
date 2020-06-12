@@ -1,3 +1,8 @@
+## 0.11.0
+
+* Breaking change: onStop must await super.onStop to shutdown task.
+* Fix Android memory leak.
+
 ## 0.10.0
 
 * Replace androidStopOnRemoveTask with onTaskRemoved callback.
