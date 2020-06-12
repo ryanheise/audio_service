@@ -1268,9 +1268,9 @@ abstract class BackgroundAudioTask {
   /// task, in response to [AudioService.stop]. You should implement this
   /// method to stop playing audio and dispose of any resources used.
   ///
-  /// If you override this, make sure your method ends with a call to
-  /// super.stop(). The isolate containing this task will shut down as soon as
-  /// this method completes.
+  /// If you override this, make sure your method ends with a call to `await
+  /// super.onStop()`. The isolate containing this task will shut down as soon
+  /// as this method completes.
   @mustCallSuper
   Future<void> onStop() async {
     await AudioServiceBackground._shutdown();

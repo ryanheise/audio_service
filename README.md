@@ -10,7 +10,7 @@ This plugin wraps around your existing audio code to allow it to run in the back
 
 ## How does this plugin work?
 
-You encapsulate your audio code in a background task which runs in a special isolate that can survive the potential destruction or absence of your app's UI. Your background task implements callbacks to respond to playback requests coming from any client, including your Flutter UI, headset buttons, the lock screen, notification, iOS control center and smart watches:
+You encapsulate your audio code in a background task which runs in a special isolate that continues to run when your UI is absent. Your background task implements callbacks to respond to playback requests coming from your Flutter UI, headset buttons, the lock screen, notification, iOS control center and smart watches:
 
 ![audio_service_callbacks](https://user-images.githubusercontent.com/19899190/84386442-b305cc80-ac34-11ea-8c2f-1b4cb126a98d.png)
 
@@ -35,7 +35,7 @@ If you'd like to help with any missing features, please join us on the [GitHub i
 
 ## Migrating to 0.11.0
 
-Prior to 0.11.0, the background audio task would terminate as soon as `onStart` completes. From 0.11.0, the background audio task terminates as soon as `onStop` completes.
+Prior to 0.11.0, the background audio task would terminate as soon as `onStart` completes. From 0.11.0, the background audio task terminates as soon as `onStop` completes. If you override `onStop`, you must end your implementation with a call to `await super.onStop()`.
 
 ## Migrating to 0.10.0
 
