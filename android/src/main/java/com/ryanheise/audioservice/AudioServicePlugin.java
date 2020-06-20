@@ -955,27 +955,29 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		return raw;
 	}
 
+	private static String metadataToString(MediaMetadataCompat mediaMetadata, String key) {
+		CharSequence value = mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM);
+		if (value != null && value.length() > 0)
+			return value.toString();
+		return null;
+	}
+
 	private static Map<?, ?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
 		if (mediaMetadata == null) return null;
 		MediaDescriptionCompat description = mediaMetadata.getDescription();
 		Map<String, Object> raw = new HashMap<String, Object>();
 		raw.put("id", description.getMediaId());
-		raw.put("album", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM).toString());
-		raw.put("title", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_TITLE).toString());
+		raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
+		raw.put("title", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_TITLE));
 		if (description.getIconUri() != null)
 			raw.put("artUri", description.getIconUri().toString());
-		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_ARTIST))
-			raw.put("artist", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ARTIST).toString());
-		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_GENRE))
-			raw.put("genre", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_GENRE).toString());
+		raw.put("artist", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ARTIST));
+		raw.put("genre", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_GENRE));
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
 			raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE))
-			raw.put("displayTitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE).toString());
-		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE))
-			raw.put("displaySubtitle", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE).toString());
-		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION))
-			raw.put("displayDescription", mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION).toString());
+		raw.put("displayTitle", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
+		raw.put("displaySubtitle", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE));
+		raw.put("displayDescription", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION));
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
 			raw.put("rating", rating2raw(mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING)));
 		}

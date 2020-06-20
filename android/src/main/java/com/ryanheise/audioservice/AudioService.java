@@ -253,21 +253,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, actions.size())];
 			for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
 		}
-		String contentTitle = "";
-		String contentText = "";
-		CharSequence subText = null;
-		Bitmap artBitmap = null;
+		NotificationCompat.Builder builder = getNotificationBuilder();
 		if (mediaMetadata != null) {
 			MediaDescriptionCompat description = mediaMetadata.getDescription();
-			contentTitle = description.getTitle().toString();
-			contentText = description.getSubtitle().toString();
-			artBitmap = description.getIconBitmap();
-			subText = description.getDescription();
+			if (description.getTitle() != null)
+				builder.setContentTitle(description.getTitle());
+			if (description.getSubtitle() != null)
+				builder.setContentText(description.getSubtitle());
+			if (description.getDescription() != null)
+				builder.setSubText(description.getDescription());
+			if (description.getIconBitmap() != null)
+				builder.setLargeIcon(description.getIconBitmap());
 		}
-		NotificationCompat.Builder builder = getNotificationBuilder()
-				.setContentTitle(contentTitle)
-				.setContentText(contentText)
-				.setSubText(subText);
 		if (androidNotificationClickStartsActivity)
 			builder.setContentIntent(mediaSession.getController().getSessionActivity());
 		if (notificationColor != null)
@@ -275,8 +272,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		for (NotificationCompat.Action action : actions) {
 			builder.addAction(action);
 		}
-		if (artBitmap != null)
-			builder.setLargeIcon(artBitmap);
 		builder.setStyle(new MediaStyle()
 				.setMediaSession(mediaSession.getSessionToken())
 				.setShowActionsInCompactView(compactActionIndices)
