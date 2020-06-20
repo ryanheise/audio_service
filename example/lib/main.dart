@@ -408,7 +408,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     var newPosition = _audioPlayer.playbackEvent.position + offset;
     if (newPosition < Duration.zero) newPosition = Duration.zero;
     if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
-    await _audioPlayer.seek(_audioPlayer.playbackEvent.position + offset);
+    await _audioPlayer.seek(newPosition);
   }
 
   @override
