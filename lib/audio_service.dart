@@ -1430,8 +1430,20 @@ abstract class BackgroundAudioTask {
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
 
   /// Called on Android when the user swipes away your app's task in the task
-  /// manager. If you use the `androidStopForegroundOnPause` option to
-  /// [AudioService.start], then
+  /// manager. Note that if you use the `androidStopForegroundOnPause` option to
+  /// [AudioService.start], then when your audio is paused, the operating
+  /// system moves your service to a lower priority level where it can be
+  /// destroyed at any time to reclaim memory. If the user swipes away your
+  /// task under these conditions, the operating system will destroy your
+  /// service, and you may override this method to do any cleanup. For example:
+  ///
+  /// ```dart
+  /// void onTaskRemoved() {
+  ///   if (!AudioServiceBackground.state.playing) {
+  ///     onStop();
+  ///   }
+  /// }
+  /// ```
   void onTaskRemoved() {}
 
   /// Called on Android when the user swipes away the notification. The default
