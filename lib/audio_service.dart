@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show File, Platform;
+import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -604,8 +604,8 @@ class AudioService {
   /// [AudioServiceBackground.setState]).
   ///
   /// The background task is specified by [backgroundTaskEntrypoint] which will
-  /// be run within a background isolate. This function must be a top-level or
-  /// static function, and it must initiate execution by calling
+  /// be run within a background isolate. This function must be a top-level
+  /// function, and it must initiate execution by calling
   /// [AudioServiceBackground.run]. Because the background task runs in an
   /// isolate, no memory is shared between the background isolate and your main
   /// UI isolate and so all communication between the background task and your
@@ -654,7 +654,6 @@ class AudioService {
     bool androidResumeOnClick = true,
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
-    bool androidStopOnRemoveTask = false,
     Size androidArtDownscaleSize,
     IosAudioSessionCategory iosAudioSessionCategory = IosAudioSessionCategory.playback,
     int iosAudioSessionCategoryOptions,
@@ -697,7 +696,6 @@ class AudioService {
       'androidResumeOnClick': androidResumeOnClick,
       'androidStopForegroundOnPause': androidStopForegroundOnPause,
       'androidEnableQueue': androidEnableQueue,
-      'androidStopOnRemoveTask': androidStopOnRemoveTask,
       'androidArtDownscaleSize': androidArtDownscaleSize != null
           ? {
               'width': androidArtDownscaleSize.width,
@@ -966,7 +964,7 @@ class AudioServiceBackground {
           task.onClick(button);
           break;
         case 'onStop':
-          task.onStop();
+          await task.onStop();
           break;
         case 'onPause':
           task.onPause();
@@ -1043,6 +1041,12 @@ class AudioServiceBackground {
           double speed = args[0];
           task.onSetSpeed(speed);
           break;
+        case 'onTaskRemoved':
+          task.onTaskRemoved();
+          break;
+        case 'onClose':
+          task.onClose();
+          break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
             final result = await task.onCustomAction(
@@ -1063,7 +1067,11 @@ class AudioServiceBackground {
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
     );
-    await task.onStart(params);
+    task.onStart(params);
+  }
+
+  /// Shuts down the background audio task within the background isolate.
+  static Future<void> _shutdown() async {
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1149,7 +1157,7 @@ class AudioServiceBackground {
     _mediaItem = mediaItem;
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
-      final fileInfo = await _cacheManager.getFileFromMemory(mediaItem.artUri);
+      final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
       String filePath = fileInfo?.file?.path;
       if (filePath == null) {
         // We haven't fetched the art yet, so show the metadata now, and again
@@ -1263,17 +1271,22 @@ abstract class BackgroundAudioTask {
   Duration get rewindInterval => _rewindInterval;
 
   /// Called once when this audio task is first started and ready to play
-  /// audio, in response to [AudioService.start]. When the returned future
-  /// completes, this task will be immediately terminated. [params] will
-  /// contain any params passed into [AudioService.start] when starting this
-  /// background audio task.
-  Future<void> onStart(Map<String, dynamic> params);
+  /// audio, in response to [AudioService.start]. [params] will contain any
+  /// params passed into [AudioService.start] when starting this background
+  /// audio task.
+  void onStart(Map<String, dynamic> params) {}
 
-  /// Called in response to [AudioService.stop] to request that this task be
-  /// terminated. The implementation should cause any audio playback to stop,
-  /// resources to be released, and the future returned by [onStart] to
-  /// complete.
-  void onStop();
+  /// Called when a client has requested to terminate this background audio
+  /// task, in response to [AudioService.stop]. You should implement this
+  /// method to stop playing audio and dispose of any resources used.
+  ///
+  /// If you override this, make sure your method ends with a call to `await
+  /// super.onStop()`. The isolate containing this task will shut down as soon
+  /// as this method completes.
+  @mustCallSuper
+  Future<void> onStop() async {
+    await AudioServiceBackground._shutdown();
+  }
 
   /// Called when a media browser client, such as Android Auto, wants to query
   /// the available media items to display to the user.
@@ -1415,6 +1428,17 @@ abstract class BackgroundAudioTask {
   /// [AudioService.customAction]. The result of this method will be returned
   /// to the client.
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
+
+  /// Called on Android when the user swipes away your app's task in the task
+  /// manager. If you use the `androidStopForegroundOnPause` option to
+  /// [AudioService.start], then
+  void onTaskRemoved() {}
+
+  /// Called on Android when the user swipes away the notification. The default
+  /// implementation (which you may override) calls [onStop].
+  void onClose() {
+    onStop();
+  }
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {

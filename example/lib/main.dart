@@ -72,31 +72,31 @@ class MainScreen extends StatelessWidget {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (queue != null && queue.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.skip_previous),
-                        iconSize: 64.0,
-                        onPressed: mediaItem == queue.first
-                            ? null
-                            : AudioService.skipToPrevious,
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.skip_next),
-                        iconSize: 64.0,
-                        onPressed: mediaItem == queue.last
-                            ? null
-                            : AudioService.skipToNext,
-                      ),
-                    ],
-                  ),
-                if (mediaItem?.title != null) Text(mediaItem.title),
                 if (processingState == AudioProcessingState.none) ...[
                   audioPlayerButton(),
                   textToSpeechButton(),
-                ] else
+                ] else ...[
+                  if (queue != null && queue.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.skip_previous),
+                          iconSize: 64.0,
+                          onPressed: mediaItem == queue.first
+                              ? null
+                              : AudioService.skipToPrevious,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.skip_next),
+                          iconSize: 64.0,
+                          onPressed: mediaItem == queue.last
+                              ? null
+                              : AudioService.skipToNext,
+                        ),
+                      ],
+                    ),
+                  if (mediaItem?.title != null) Text(mediaItem.title),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -104,8 +104,6 @@ class MainScreen extends StatelessWidget {
                       stopButton(),
                     ],
                   ),
-                if (processingState != AudioProcessingState.none &&
-                    processingState != AudioProcessingState.stopped) ...[
                   positionIndicator(mediaItem, state),
                   Text("Processing state: " +
                       "$processingState".replaceAll(RegExp(r'^.*\.'), '')),
@@ -242,6 +240,7 @@ class ScreenState {
   ScreenState(this.queue, this.mediaItem, this.playbackState);
 }
 
+// NOTE: Your entrypoint MUST be a top-level function.
 void _audioPlayerTaskEntrypoint() async {
   AudioServiceBackground.run(() => AudioPlayerTask());
 }
@@ -269,7 +268,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
   ];
   int _queueIndex = -1;
   AudioPlayer _audioPlayer = new AudioPlayer();
-  Completer _completer = Completer();
   AudioProcessingState _skipState;
   bool _playing;
   bool _interrupted = false;
@@ -280,14 +278,17 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   MediaItem get mediaItem => _queue[_queueIndex];
 
+  StreamSubscription<AudioPlaybackState> _playerStateSubscription;
+  StreamSubscription<AudioPlaybackEvent> _eventSubscription;
+
   @override
-  Future<void> onStart(Map<String, dynamic> params) async {
-    var playerStateSubscription = _audioPlayer.playbackStateStream
+  void onStart(Map<String, dynamic> params) {
+    _playerStateSubscription = _audioPlayer.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
       _handlePlaybackCompleted();
     });
-    var eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
+    _eventSubscription = _audioPlayer.playbackEventStream.listen((event) {
       final bufferingState =
           event.buffering ? AudioProcessingState.buffering : null;
       switch (event.state) {
@@ -315,10 +316,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     });
 
     AudioServiceBackground.setQueue(_queue);
-    await onSkipToNext();
-    await _completer.future;
-    playerStateSubscription.cancel();
-    eventSubscription.cancel();
+    onSkipToNext();
   }
 
   void _handlePlaybackCompleted() {
@@ -418,8 +416,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await _audioPlayer.stop();
     await _audioPlayer.dispose();
     _playing = false;
+    _playerStateSubscription.cancel();
+    _eventSubscription.cancel();
     await _setState(processingState: AudioProcessingState.stopped);
-    _completer.complete();
+    // Shut down this task
+    await super.onStop();
   }
 
   /* Handling Audio Focus */
@@ -458,15 +459,15 @@ class AudioPlayerTask extends BackgroundAudioTask {
     onPause();
   }
 
-  void _setState({
+  Future<void> _setState({
     AudioProcessingState processingState,
     Duration position,
     Duration bufferedPosition,
-  }) {
+  }) async {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position;
     }
-    AudioServiceBackground.setState(
+    await AudioServiceBackground.setState(
       controls: getControls(),
       systemActions: [MediaAction.seekTo],
       processingState:
@@ -497,49 +498,52 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 }
 
+// NOTE: Your entrypoint MUST be a top-level function.
 void _textToSpeechTaskEntrypoint() async {
   AudioServiceBackground.run(() => TextPlayerTask());
 }
 
 class TextPlayerTask extends BackgroundAudioTask {
   FlutterTts _tts = FlutterTts();
-
-  /// Represents the completion of a period of playing or pausing.
-  Completer _playPauseCompleter = Completer();
-
-  /// This wraps [_playPauseCompleter.future], replacing [_playPauseCompleter]
-  /// if it has already completed.
-  Future _playPauseFuture() {
-    if (_playPauseCompleter.isCompleted) _playPauseCompleter = Completer();
-    return _playPauseCompleter.future;
-  }
-
-  AudioProcessingState get _processingState =>
-      AudioServiceBackground.state.processingState;
+  bool _finished = false;
+  Sleeper _sleeper = Sleeper();
+  Completer _completer = Completer();
 
   bool get _playing => AudioServiceBackground.state.playing;
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
     playPause();
-    for (var i = 1;
-        i <= 10 && _processingState != AudioProcessingState.stopped;
-        i++) {
+    for (var i = 1; i <= 10 && !_finished; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       _tts.speak('$i');
-      // Wait for the speech or a pause request.
-      await Future.any(
-          [Future.delayed(Duration(seconds: 1)), _playPauseFuture()]);
-      // If we were just paused...
-      if (_playPauseCompleter.isCompleted &&
-          !_playing &&
-          _processingState != AudioProcessingState.stopped) {
-        // Wait to be unpaused...
-        await _playPauseFuture();
+      // Wait for the speech.
+      try {
+        await _sleeper.sleep(Duration(seconds: 1));
+      } catch (e) {
+        // Speech was interrupted
+        _tts.stop();
+      }
+      // If we were just paused
+      if (!_finished && !_playing) {
+        try {
+          // Wait to be unpaused
+          await _sleeper.sleep();
+        } catch (e) {
+          // unpaused
+        }
       }
     }
-    if (_processingState != AudioProcessingState.stopped) onStop();
+    await AudioServiceBackground.setState(
+      controls: [],
+      processingState: AudioProcessingState.stopped,
+      playing: false,
+    );
+    if (!_finished) {
+      onStop();
+    }
+    _completer.complete();
   }
 
   MediaItem mediaItem(int number) => MediaItem(
@@ -563,7 +567,7 @@ class TextPlayerTask extends BackgroundAudioTask {
         playing: true,
       );
     }
-    _playPauseCompleter.complete();
+    _sleeper.interrupt();
   }
 
   @override
@@ -583,13 +587,42 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStop() async {
-    if (_processingState == AudioProcessingState.stopped) return;
-    _tts.stop();
-    await AudioServiceBackground.setState(
-      controls: [],
-      processingState: AudioProcessingState.stopped,
-      playing: false,
-    );
-    _playPauseCompleter.complete();
+    // Signal the speech to stop
+    _finished = true;
+    _sleeper.interrupt();
+    // Wait for the speech to stop
+    await _completer.future;
+    // Shut down this task
+    await super.onStop();
   }
 }
+
+/// An object that performs interruptable sleep.
+class Sleeper {
+  Completer _blockingCompleter;
+
+  /// Sleep for a duration. If sleep is interrupted, a
+  /// [SleeperInterruptedException] will be thrown.
+  Future<void> sleep([Duration duration]) async {
+    _blockingCompleter = Completer();
+    if (duration != null) {
+      await Future.any([Future.delayed(duration), _blockingCompleter.future]);
+    } else {
+      await _blockingCompleter.future;
+    }
+    final interrupted = _blockingCompleter.isCompleted;
+    _blockingCompleter = null;
+    if (interrupted) {
+      throw SleeperInterruptedException();
+    }
+  }
+
+  /// Interrupt any sleep that's underway.
+  void interrupt() {
+    if (_blockingCompleter?.isCompleted == false) {
+      _blockingCompleter.complete();
+    }
+  }
+}
+
+class SleeperInterruptedException {}
