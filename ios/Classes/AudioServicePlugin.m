@@ -107,7 +107,22 @@ static MPMediaItemArtwork* artwork = nil;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioInterrupt:) name:AVAudioSessionInterruptionNotification object:nil];
 
     // Initialise AVAudioSession
-    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
+    NSNumber *categoryIndex = [call.arguments objectForKey:@"iosAudioSessionCategory"];
+    AVAudioSessionCategory category = nil;
+    switch (categoryIndex.integerValue) {
+      case 0: category = AVAudioSessionCategoryAmbient; break;
+      case 1: category = AVAudioSessionCategorySoloAmbient; break;
+      case 2: category = AVAudioSessionCategoryPlayback; break;
+      case 3: category = AVAudioSessionCategoryRecord; break;
+      case 4: category = AVAudioSessionCategoryPlayAndRecord; break;
+      case 5: category = AVAudioSessionCategoryMultiRoute; break;
+    }
+    NSNumber *categoryOptions = [call.arguments objectForKey:@"iosAudioSessionCategoryOptions"];
+    if (categoryOptions != [NSNull null]) {
+      [[AVAudioSession sharedInstance] setCategory:category withOptions:[categoryOptions integerValue] error:nil];
+    } else {
+      [[AVAudioSession sharedInstance] setCategory:category error:nil];
+    }
     [[AVAudioSession sharedInstance] setActive: YES error: nil];
     // Set callbacks on MPRemoteCommandCenter
     commandCenter = [MPRemoteCommandCenter sharedCommandCenter];

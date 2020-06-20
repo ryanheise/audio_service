@@ -634,6 +634,14 @@ class AudioService {
   /// [androidEnableQueue] enables queue support on the media session on
   /// Android. If your app will run on Android and has a queue, you should set
   /// this to true.
+  ///
+  /// [iosAudioSessionCategory] sets the category for the
+  /// AVAudioSession on iOS, where the default is
+  /// [IosAudioSessionCategory.playback].
+  /// [iosAudioSessionCategoryOptions] is a mask of options for
+  /// the selected category using the constants from
+  /// [IosAudioSessionCategoryOptions]. By default, no options
+  /// will be applied.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
     Map<String, dynamic> params,
@@ -648,6 +656,8 @@ class AudioService {
     bool androidEnableQueue = false,
     bool androidStopOnRemoveTask = false,
     Size androidArtDownscaleSize,
+    IosAudioSessionCategory iosAudioSessionCategory = IosAudioSessionCategory.playback,
+    int iosAudioSessionCategoryOptions,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
@@ -694,6 +704,8 @@ class AudioService {
               'height': androidArtDownscaleSize.height
             }
           : null,
+      'iosAudioSessionCategory': iosAudioSessionCategory.index,
+      'iosAudioSessionCategoryOptions': iosAudioSessionCategoryOptions,
       'fastForwardInterval': fastForwardInterval.inMilliseconds,
       'rewindInterval': rewindInterval.inMilliseconds,
     });
@@ -1473,4 +1485,25 @@ enum AudioInterruption {
   temporaryPause,
   temporaryDuck,
   unknownPause,
+}
+
+/// The audio session categories on iOS.
+enum IosAudioSessionCategory {
+  ambient,
+  soloAmbient,
+  playback,
+  record,
+  playAndRecord,
+  multiRoute,
+}
+
+/// The option bitmasks for the audio session categories on iOS.
+class IosAudioSessionCategoryOptions {
+  static const int MIX_WITH_OTHERS = 0x1;
+  static const int DUCK_OTHERS = 0x2;
+  static const int INTERRUPT_SPOKEN_AUDIO_AND_MIX_WITH_OTHERS = 0x11;
+  static const int ALLOW_BLUETOOTH = 0x4;
+  static const int ALLOW_BLUETOOTH_A2DP = 0x20;
+  static const int ALLOW_AIR_PLAY = 0x40;
+  static const int DEFAULT_TO_SPEAKER = 0x8;
 }
