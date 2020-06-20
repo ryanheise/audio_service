@@ -401,7 +401,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onRewind() async {
-    await _seekRelative(rewindInterval);
+    await _seekRelative(-rewindInterval);
   }
 
   Future<void> _seekRelative(Duration offset) async {
