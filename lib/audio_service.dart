@@ -655,7 +655,8 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
     Size androidArtDownscaleSize,
-    IosAudioSessionCategory iosAudioSessionCategory = IosAudioSessionCategory.playback,
+    IosAudioSessionCategory iosAudioSessionCategory =
+        IosAudioSessionCategory.playback,
     int iosAudioSessionCategoryOptions,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
@@ -1503,14 +1504,14 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
   }
 
   @override
+  Future<bool> didPopRoute() async {
+    AudioService.disconnect();
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        AudioService.disconnect();
-        return true;
-      },
-      child: widget.child,
-    );
+    return widget.child;
   }
 }
 
