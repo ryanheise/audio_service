@@ -1,3 +1,9 @@
+## 0.12.0
+
+* Allow setting the iOS audio session category and options.
+* Allow AudioServiceWidget to recognise swipe gesture on iOS.
+* Check for null title and album on Android.
+
 ## 0.11.0
 
 * Breaking change: onStop must await super.onStop to shutdown task.
