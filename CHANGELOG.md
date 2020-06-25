@@ -1,4 +1,4 @@
-## 0.12.0
+## 0.11.1
 
 * Allow setting the iOS audio session category and options.
 * Allow AudioServiceWidget to recognise swipe gesture on iOS.
