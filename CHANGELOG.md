@@ -1,3 +1,7 @@
+## 0.11.2
+
+* Fix bug with album metadata on Android.
+
 ## 0.11.1
 
 * Allow setting the iOS audio session category and options.
