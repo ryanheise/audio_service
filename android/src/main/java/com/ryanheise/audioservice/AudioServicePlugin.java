@@ -956,7 +956,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 	}
 
 	private static String metadataToString(MediaMetadataCompat mediaMetadata, String key) {
-		CharSequence value = mediaMetadata.getText(MediaMetadataCompat.METADATA_KEY_ALBUM);
+		CharSequence value = mediaMetadata.getText(key);
 		if (value != null && value.length() > 0)
 			return value.toString();
 		return null;
