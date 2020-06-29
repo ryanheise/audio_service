@@ -242,3 +242,6 @@ The example project may be consulted for context.
 * [Full example](https://github.com/ryanheise/audio_service/blob/master/example/lib/main.dart): The `example` subdirectory on GitHub demonstrates both music and text-to-speech use cases.
 * [Frequently Asked Questions](https://github.com/ryanheise/audio_service/wiki/FAQ)
 * [API documentation](https://pub.dev/documentation/audio_service/latest/audio_service/audio_service-library.html)
+
+# Community Projects
+* [just_audio_service](https://github.com/yringler/just_audio_service): A plugin which contains an implementation of `BackgroundAudioTask` which works with [just_audio](https://github.com/ryanheise/just_audio). It aims to be robust, flexible, and mantainable. It is stable enough that it's being used in production by the author, but it is not feature complete (See the [project README](https://github.com/yringler/just_audio_service/blob/master/README.md) for details).
