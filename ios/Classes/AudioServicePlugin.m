@@ -182,8 +182,10 @@ static MPMediaItemArtwork* artwork = nil;
     startParams[@"rewindInterval"] = rewindInterval;
     startParams[@"params"] = params;
     result(startParams);
-    startResult(@YES);
-    startResult = nil;
+    if (startResult) {
+      startResult(@YES);
+      startResult = nil;
+    }
   } else if ([@"stopped" isEqualToString:call.method]) {
     _running = NO;
     [channel invokeMethod:@"onStopped" arguments:nil];
