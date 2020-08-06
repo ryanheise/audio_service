@@ -271,6 +271,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   AudioProcessingState _skipState;
   bool _playing;
   bool _interrupted = false;
+  Seeker _seeker;
 
   bool get hasNext => _queueIndex + 1 < _queue.length;
 
@@ -404,6 +405,26 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await _seekRelative(-rewindInterval);
   }
 
+  @override
+  Future<void> onSeekForward(bool begin) async {
+    _seeker?.stop();
+    if (begin) {
+      _seeker = Seeker(
+          _audioPlayer, Duration(seconds: 10), Duration(seconds: 1), mediaItem)
+        ..start();
+    }
+  }
+
+  @override
+  Future<void> onSeekBackward(bool begin) async {
+    _seeker?.stop();
+    if (begin) {
+      _seeker = Seeker(
+          _audioPlayer, Duration(seconds: -10), Duration(seconds: 1), mediaItem)
+        ..start();
+    }
+  }
+
   Future<void> _seekRelative(Duration offset) async {
     var newPosition = _audioPlayer.playbackEvent.position + offset;
     if (newPosition < Duration.zero) newPosition = Duration.zero;
@@ -469,7 +490,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
     }
     await AudioServiceBackground.setState(
       controls: getControls(),
-      systemActions: [MediaAction.seekTo],
+      systemActions: [
+        MediaAction.seekTo,
+        MediaAction.seekForward,
+        MediaAction.seekBackward
+      ],
       processingState:
           processingState ?? AudioServiceBackground.state.processingState,
       playing: _playing,
@@ -626,3 +651,33 @@ class Sleeper {
 }
 
 class SleeperInterruptedException {}
+
+class Seeker {
+  final AudioPlayer player;
+  final Duration positionInterval;
+  final Duration stepInterval;
+  final MediaItem mediaItem;
+  bool _running = false;
+
+  Seeker(
+    this.player,
+    this.positionInterval,
+    this.stepInterval,
+    this.mediaItem,
+  );
+
+  start() async {
+    _running = true;
+    while (_running) {
+      Duration newPosition = player.position + positionInterval;
+      if (newPosition < Duration.zero) newPosition = Duration.zero;
+      if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
+      player.seek(newPosition);
+      await Future.delayed(stepInterval);
+    }
+  }
+
+  stop() {
+    _running = false;
+  }
+}

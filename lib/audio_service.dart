@@ -36,6 +36,16 @@ enum MediaAction {
   playFromSearch,
   skipToQueueItem,
   playFromUri,
+  prepare,
+  prepareFromMediaId,
+  prepareFromSearch,
+  prepareFromUri,
+  setRepeatMode,
+  unused_1,
+  unused_2,
+  setShuffleMode,
+  seekBackward,
+  seekForward,
 }
 
 /// The different states during audio processing.
@@ -91,6 +101,12 @@ class PlaybackState {
   /// The time at which the playback position was last updated.
   final Duration updateTime;
 
+  /// The current repeat mode.
+  final AudioServiceRepeatMode repeatMode;
+
+  /// The current shuffle mode.
+  final AudioServiceShuffleMode shuffleMode;
+
   const PlaybackState({
     @required this.processingState,
     @required this.playing,
@@ -99,6 +115,8 @@ class PlaybackState {
     this.bufferedPosition = Duration.zero,
     this.speed,
     this.updateTime,
+    this.repeatMode = AudioServiceRepeatMode.none,
+    this.shuffleMode = AudioServiceShuffleMode.none,
   });
 
   /// The current playback position.
@@ -387,13 +405,21 @@ class MediaItem {
   }
 }
 
-/// A media action that can be controlled from the Android notification, iOS
-/// control center, lock screen, Android smart watch, or Android Auto device.
+/// A button to appear in the Android notification, lock screen, Android smart
+/// watch, or Android Auto device. The set of buttons you would like to display
+/// at any given moment should be set via [AudioServiceBackground.setState].
 ///
-/// The set of media controls available at any moment depends on the current
-/// playback state as set by [AudioServiceBackground.setState]. For example, a
-/// "pause" control should be available in the [BasicPlaybackState.playing]
-/// state but not in the [BasicPlaybackState.paused] state.
+/// Each [MediaControl] button controls a specified [MediaAction]. Only the
+/// following actions can be represented as buttons:
+///
+/// * [MediaAction.stop]
+/// * [MediaAction.pause]
+/// * [MediaAction.play]
+/// * [MediaAction.rewind]
+/// * [MediaAction.skipToPrevious]
+/// * [MediaAction.skipToNext]
+/// * [MediaAction.fastForward]
+/// * [MediaAction.playPause]
 class MediaControl {
   /// A reference to an Android icon resource for the control (e.g.
   /// `"drawable/ic_action_pause"`)
@@ -525,6 +551,8 @@ class AudioService {
             bufferedPosition: Duration(milliseconds: args[4]),
             speed: args[5],
             updateTime: Duration(milliseconds: args[6]),
+            repeatMode: AudioServiceRepeatMode.values[args[7]],
+            shuffleMode: AudioServiceShuffleMode.values[args[8]],
           );
           _playbackStateSubject.add(_playbackState);
           break;
@@ -879,15 +907,37 @@ class AudioService {
     });
   }
 
+  //static Future<void> setCaptioningEnabled(boolean enabled) async {}
+
+  /// Sends a request to your background audio task to set the repeat mode.
+  static Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    await _channel.invokeMethod('setRepeatMode', repeatMode.index);
+  }
+
+  /// Sends a request to your background audio task to set the shuffle mode.
+  static Future<void> setShuffleMode(
+      AudioServiceShuffleMode shuffleMode) async {
+    await _channel.invokeMethod('setShuffleMode', shuffleMode.index);
+  }
+
   /// Sends a request to your background audio task to set the audio playback
   /// speed.
   static Future<void> setSpeed(double speed) async {
     await _channel.invokeMethod('setSpeed', speed);
   }
 
-  //static Future<void> setCaptioningEnabled(boolean enabled) async {}
-  //static Future<void> setRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode) async {}
-  //static Future<void> setShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode) async {}
+  /// Sends a request to your background audio task to begin or end seeking
+  /// backward.
+  static Future<void> setSeekBackward(bool begin) async {
+    await _channel.invokeMethod('setSeekBackward', begin);
+  }
+
+  /// Sends a request to your background audio task to begin or end seek
+  /// forward.
+  static Future<void> setSeekForward(bool begin) async {
+    await _channel.invokeMethod('setSeekForward', begin);
+  }
+
   //static Future<void> sendCustomAction(PlaybackStateCompat.CustomAction customAction,
   //static Future<void> sendCustomAction(String action, Bundle args) async {}
 
@@ -1037,6 +1087,22 @@ class AudioServiceBackground {
           task.onSetRating(
               Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           break;
+        case 'onSetRepeatMode':
+          final List args = call.arguments;
+          task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+          break;
+        case 'onSetShuffleMode':
+          final List args = call.arguments;
+          task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+          break;
+        case 'onSeekBackward':
+          final List args = call.arguments;
+          task.onSeekBackward(args[0]);
+          break;
+        case 'onSeekForward':
+          final List args = call.arguments;
+          task.onSeekForward(args[0]);
+          break;
         case 'onSetSpeed':
           final List args = call.arguments;
           double speed = args[0];
@@ -1081,24 +1147,62 @@ class AudioServiceBackground {
     _state = _noneState;
   }
 
-  /// Sets the current playback state and dictates which media actions can be
-  /// controlled by clients and which media controls and actions should be
-  /// enabled in the notification, Wear OS and Android Auto. Each control
-  /// listed in [controls] will appear as a button in the notification and its
-  /// action will also be made available to all clients such as Wear OS and
-  /// Android Auto. Any additional actions that you would like to enable for
-  /// clients that do not correspond to a button can be listed in
-  /// [systemActions]. For example, include [MediaAction.seekTo] in
-  /// [systemActions] and the system will provide a seek bar in the
-  /// notification.
+  /// Broadcasts to all clients the current state, including:
   ///
-  /// All clients will be notified so they can update their display.
+  /// * Whether media is playing or paused
+  /// * Whether media is buffering or skipping
+  /// * The current position, buffered position and speed
+  /// * The current set of media actions that should be enabled
   ///
-  /// The playback [position] should be explicitly updated only when the normal
-  /// continuity of time is disrupted, such as when the user performs a seek,
-  /// or buffering occurs, etc. Thus, the [position] parameter indicates the
-  /// playback position at the time the state was updated while the
-  /// [updateTime] parameter indicates the precise time of that update.
+  /// Connected clients will use this information to update their UI.
+  ///
+  /// You should use [controls] to specify the set of clickable buttons that
+  /// should currently be visible in the notification in the current state,
+  /// where each button is a [MediaControl] that triggers a different
+  /// [MediaAction]. Only the following actions can be enabled as
+  /// [MediaControl]s:
+  ///
+  /// * [MediaAction.stop]
+  /// * [MediaAction.pause]
+  /// * [MediaAction.play]
+  /// * [MediaAction.rewind]
+  /// * [MediaAction.skipToPrevious]
+  /// * [MediaAction.skipToNext]
+  /// * [MediaAction.fastForward]
+  /// * [MediaAction.playPause]
+  ///
+  /// Any other action you would like to enable for clients that is not a clickable
+  /// notification button should be specified in the [systemActions] parameter. For
+  /// example:
+  ///
+  /// * [MediaAction.seekTo] (enable a seek bar)
+  /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
+  /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
+  ///
+  /// In practice, iOS will treat all entries in [controls] and [systemActions]
+  /// in the same way since you cannot customise the icons of controls in the
+  /// Control Center. However, on Android, the distinction is important as clickable
+  /// buttons in the notification require you to specify your own icon.
+  ///
+  /// Note that specifying [MediaAction.seekTo] in [systemActions] will enable
+  /// a seek bar in both the Android notification and the iOS control center.
+  /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
+  /// behaviour on iOS in which if you have already enabled the
+  /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
+  /// additional actions will allow the user to press and hold the buttons to
+  /// activate the continuous seeking behaviour.
+  ///
+  /// On Android, a media notification has a compact and expanded form. In the
+  /// compact view, you can optionally specify the indices of up to 3 of your
+  /// [controls] that you would like to be shown.
+  ///
+  /// The playback [position] should NOT be updated continuously in real time.
+  /// Instead, it should be updated only when the normal continuity of time is
+  /// disrupted, such as during a seek, buffering and seeking. When
+  /// broadcasting such a position change, the [updateTime] specifies the time
+  /// of that change, allowing clients to project the realtime value of the
+  /// position as `position + (DateTime.now() - updateTime)`. As a convenience,
+  /// this calculation is provided by [PlaybackState.currentPosition].
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
@@ -1111,6 +1215,8 @@ class AudioServiceBackground {
     double speed = 1.0,
     Duration updateTime,
     List<int> androidCompactActions,
+    AudioServiceRepeatMode repeatMode = AudioServiceRepeatMode.none,
+    AudioServiceShuffleMode shuffleMode = AudioServiceShuffleMode.none,
   }) async {
     _state = PlaybackState(
       processingState: processingState,
@@ -1120,6 +1226,8 @@ class AudioServiceBackground {
       bufferedPosition: bufferedPosition,
       speed: speed,
       updateTime: updateTime,
+      repeatMode: repeatMode,
+      shuffleMode: shuffleMode,
     );
     List<Map> rawControls = controls
         .map((control) => {
@@ -1139,7 +1247,9 @@ class AudioServiceBackground {
       bufferedPosition.inMilliseconds,
       speed,
       updateTime?.inMilliseconds,
-      androidCompactActions
+      androidCompactActions,
+      repeatMode.index,
+      shuffleMode.index,
     ]);
   }
 
@@ -1394,30 +1504,44 @@ abstract class BackgroundAudioTask {
   /// queue, such as via a request to [AudioService.skipToPrevious].
   void onSkipToPrevious() {}
 
-  /// Called when the client has requested to fast forward, such as via a
+  /// Called when a client has requested to fast forward, such as via a
   /// request to [AudioService.fastForward]. An implementation of this callback
   /// can use the [fastForwardInterval] property to determine how much audio
   /// to skip.
   void onFastForward() {}
 
-  /// Called when the client has requested to rewind, such as via a request to
+  /// Called when a client has requested to rewind, such as via a request to
   /// [AudioService.rewind]. An implementation of this callback can use the
   /// [rewindInterval] property to determine how much audio to skip.
   void onRewind() {}
 
-  /// Called when the client has requested to skip to a specific item in the
+  /// Called when a client has requested to skip to a specific item in the
   /// queue, such as via a call to [AudioService.skipToQueueItem].
   void onSkipToQueueItem(String mediaId) {}
 
-  /// Called when the client has requested to seek to a position, such as via a
+  /// Called when a client has requested to seek to a position, such as via a
   /// call to [AudioService.seekTo]. If your implementation of seeking causes
   /// buffering to occur, consider broadcasting a buffering state via
   /// [AudioServiceBackground.setState] while the seek is in progress.
   void onSeekTo(Duration position) {}
 
-  /// Called when the client has requested to rate the current media item, such as
+  /// Called when a client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
   void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
+
+  /// Called when a client has requested to change the current repeat mode.
+  void onSetRepeatMode(AudioServiceRepeatMode repeatMode) {}
+
+  /// Called when a client has requested to change the current shuffle mode.
+  void onSetShuffleMode(AudioServiceShuffleMode shuffleMode) {}
+
+  /// Called when a client has requested to either begin or end seeking
+  /// backward.
+  void onSeekBackward(bool begin) {}
+
+  /// Called when a client has requested to either begin or end seeking
+  /// forward.
+  void onSeekForward(bool begin) {}
 
   /// Called when the Flutter UI has requested to set the speed of audio
   /// playback. An implementation of this callback should change the audio
@@ -1544,3 +1668,7 @@ class IosAudioSessionCategoryOptions {
   static const int ALLOW_AIR_PLAY = 0x40;
   static const int DEFAULT_TO_SPEAKER = 0x8;
 }
+
+enum AudioServiceShuffleMode { none, all, group }
+
+enum AudioServiceRepeatMode { none, one, all, group }
