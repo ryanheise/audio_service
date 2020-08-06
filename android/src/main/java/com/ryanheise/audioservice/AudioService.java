@@ -73,6 +73,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	private static Size artDownscaleSize;
 	private static boolean playing = false;
 	private static AudioProcessingState processingState = AudioProcessingState.none;
+	private static int repeatMode;
+	private static int shuffleMode;
 
 	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
@@ -96,6 +98,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		playing = false;
 		processingState = AudioProcessingState.none;
+		repeatMode = 0;
+		shuffleMode = 0;
 
 		// Get max available VM memory, exceeding this amount will throw an
 		// OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -121,6 +125,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	public static boolean isPlaying() {
 		return playing;
+	}
+
+	public static int getRepeatMode() {
+		return repeatMode;
+	}
+
+	public static int getShuffleMode() {
+		return shuffleMode;
 	}
 
 	public void stop() {
@@ -205,12 +217,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 	}
 
-	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime) {
+	void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, int repeatMode, int shuffleMode) {
 		this.actions = actions;
 		this.compactActionIndices = compactActionIndices;
 		boolean wasPlaying = AudioService.playing;
 		AudioService.processingState = processingState;
 		AudioService.playing = playing;
+		AudioService.repeatMode = repeatMode;
+		AudioService.shuffleMode = shuffleMode;
 
 		PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
 				.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
@@ -776,6 +790,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		}
 
 		@Override
+		public void onSetRepeatMode(int repeatMode) {
+			if (listener == null) return;
+			listener.onSetRepeatMode(repeatMode);
+		}
+
+		@Override
+		public void onSetShuffleMode(int shuffleMode) {
+			if (listener == null) return;
+			listener.onSetShuffleMode(shuffleMode);
+		}
+
+		@Override
 		public void onSetRating(RatingCompat rating, Bundle extras) {
 			if (listener == null) return;
 			listener.onSetRating(rating, extras);
@@ -840,10 +866,14 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 		void onSetRating(RatingCompat rating, Bundle extras);
 
-		//void onSetRepeatMode(@PlaybackStateCompat.RepeatMode int repeatMode)
+		void onSetRepeatMode(int repeatMode);
+
 		//void onSetShuffleModeEnabled(boolean enabled);
-		//void onSetShuffleMode(@PlaybackStateCompat.ShuffleMode int shuffleMode);
+
+		void onSetShuffleMode(int shuffleMode);
+
 		//void onCustomAction(String action, Bundle extras);
+
 		void onAddQueueItem(MediaMetadataCompat metadata);
 
 		void onAddQueueItemAt(MediaMetadataCompat metadata, int index);
