@@ -16,20 +16,21 @@ You encapsulate your audio code in a background task which runs in a special iso
 
 You can implement these callbacks to play any sort of audio that is appropriate for your app, such as music files or streams, audio assets, text to speech, synthesised audio, or combinations of these.
 
-| Feature                            | Android    | iOS       |
-| -------                            | :-------:  | :-----:   |
-| background audio                   | ✅         | ✅        |
-| headset clicks                     | ✅         | ✅        |
-| Handle phonecall interruptions     | ✅         | ✅        |
-| start/stop/play/pause/seek/rate    | ✅         | ✅        |
-| fast forward/rewind                | ✅         | ✅        |
-| queue manipulation, skip next/prev | ✅         | ✅        |
-| custom actions                     | ✅         | ✅        |
-| custom events                      | ✅         | ✅        |
-| notifications/control center       | ✅         | (partial) |
-| lock screen controls               | ✅         | (partial) |
-| album art                          | ✅         | ✅        |
-| Android Auto                       | (untested) |           |
+| Feature                            | Android    | iOS     |
+| -------                            | :-------:  | :-----: |
+| background audio                   | ✅         | ✅      |
+| headset clicks                     | ✅         | ✅      |
+| Handle phonecall interruptions     | ✅         | ✅      |
+| start/stop/play/pause/seek/rate    | ✅         | ✅      |
+| fast forward/rewind                | ✅         | ✅      |
+| repeat/shuffle mode                | ✅         | ✅      |
+| queue manipulation, skip next/prev | ✅         | ✅      |
+| custom actions                     | ✅         | ✅      |
+| custom events                      | ✅         | ✅      |
+| notifications/control center       | ✅         | ✅      |
+| lock screen controls               | ✅         | ✅      |
+| album art                          | ✅         | ✅      |
+| Android Auto                       | (untested) |         |
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
