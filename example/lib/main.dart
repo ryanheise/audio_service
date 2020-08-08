@@ -312,31 +312,26 @@ class AudioPlayerTask extends BackgroundAudioTask {
   @override
   Future<void> onRewind() => _seekRelative(-rewindInterval);
 
-  @override
-  Future<void> onSeekForward(bool begin) async {
-    _seeker?.stop();
-    if (begin) {
-      _seeker = Seeker(
-          _player, Duration(seconds: 10), Duration(seconds: 1), mediaItem)
-        ..start();
-    }
-  }
-
-  @override
-  Future<void> onSeekBackward(bool begin) async {
-    _seeker?.stop();
-    if (begin) {
-      _seeker = Seeker(
-          _player, Duration(seconds: -10), Duration(seconds: 1), mediaItem)
-        ..start();
-    }
-  }
-
   Future<void> _seekRelative(Duration offset) async {
     var newPosition = _player.position + offset;
     if (newPosition < Duration.zero) newPosition = Duration.zero;
     if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
     await _player.seek(newPosition);
+  }
+
+  @override
+  void onSeekForward(bool begin) => _seekContinuously(begin, 1);
+
+  @override
+  void onSeekBackward(bool begin) => _seekContinuously(begin, -1);
+
+  void _seekContinuously(bool begin, int direction) {
+    _seeker?.stop();
+    if (begin) {
+      _seeker = Seeker(_player, Duration(seconds: 10 * direction),
+          Duration(seconds: 1), mediaItem)
+        ..start();
+    }
   }
 
   @override
@@ -536,19 +531,13 @@ class TextPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onPlay() {
-    playPause();
-  }
+  void onPlay() => playPause();
 
   @override
-  void onPause() {
-    playPause();
-  }
+  void onPause() => playPause();
 
   @override
-  void onClick(MediaButton button) {
-    playPause();
-  }
+  void onClick(MediaButton button) => playPause();
 
   @override
   Future<void> onStop() async {
