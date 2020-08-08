@@ -420,7 +420,74 @@ class MediaItem {
 /// * [MediaAction.skipToNext]
 /// * [MediaAction.fastForward]
 /// * [MediaAction.playPause]
+///
+/// Predefined controls with default Android icons and labels are defined as
+/// static fields of this class. If you wish to define your own custom Android
+/// controls with your own icon resources, you will need to place the Android
+/// resources in `android/app/src/main/res`. Here, you will find a subdirectory
+/// for each different resolution:
+///
+/// ```
+/// drawable-hdpi
+/// drawable-mdpi
+/// drawable-xhdpi
+/// drawable-xxhdpi
+/// drawable-xxxhdpi
+/// ```
+///
+/// You can use [Android Asset
+/// Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these
+/// different subdirectories for any standard material design icon.
 class MediaControl {
+  /// A default control for [MediaAction.stop].
+  static final stop = MediaControl(
+    androidIcon: 'drawable/audio_service_stop',
+    label: 'Stop',
+    action: MediaAction.stop,
+  );
+
+  /// A default control for [MediaAction.pause].
+  static final pause = MediaControl(
+    androidIcon: 'drawable/audio_service_pause',
+    label: 'Pause',
+    action: MediaAction.pause,
+  );
+
+  /// A default control for [MediaAction.play].
+  static final play = MediaControl(
+    androidIcon: 'drawable/audio_service_play_arrow',
+    label: 'Play',
+    action: MediaAction.play,
+  );
+
+  /// A default control for [MediaAction.rewind].
+  static final rewind = MediaControl(
+    androidIcon: 'drawable/audio_service_fast_rewind',
+    label: 'Rewind',
+    action: MediaAction.rewind,
+  );
+
+  /// A default control for [MediaAction.skipToNext].
+  static final skipToNext = MediaControl(
+    androidIcon: 'drawable/audio_service_skip_next',
+    label: 'Next',
+    action: MediaAction.skipToNext,
+  );
+
+  /// A default control for [MediaAction.skipToPrevious].
+  static final skipToPrevious = MediaControl(
+    androidIcon: 'drawable/audio_service_skip_previous',
+    label: 'Previous',
+    action: MediaAction.skipToPrevious,
+  );
+
+  /// A default control for [MediaAction.fastForward].
+  static final fastForward = MediaControl(
+    androidIcon: 'drawable/audio_service_fast_forward',
+    label: 'Fast Forward',
+    action: MediaAction.fastForward,
+  );
+
   /// A reference to an Android icon resource for the control (e.g.
   /// `"drawable/ic_action_pause"`)
   final String androidIcon;
@@ -432,7 +499,7 @@ class MediaControl {
   final MediaAction action;
 
   const MediaControl({
-    this.androidIcon,
+    @required this.androidIcon,
     @required this.label,
     @required this.action,
   });

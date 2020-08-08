@@ -195,19 +195,7 @@ Additionally:
 </manifest>
 ```
 
-2. Any icons that you want to appear in the notification (see the `MediaControl` class) should be defined as Android resources in `android/app/src/main/res`. Here you will find a subdirectory for each different resolution:
-
-```
-drawable-hdpi
-drawable-mdpi
-drawable-xhdpi
-drawable-xxhdpi
-drawable-xxxhdpi
-```
-
-You can use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate these different subdirectories for any standard material design icon.
-
-Starting from Flutter 1.12, you will also need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise your icon resources will be removed during the build:
+2. Starting from Flutter 1.12, you will need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise the icon resources used in the Android notification will be removed during the build:
 
 ```
 android {
