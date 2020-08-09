@@ -1,3 +1,9 @@
+## 0.13.0
+
+* All BackgroundAudioTask callbacks are now async.
+* Add default implementation of onSkipToNext/onSkipToPrevious.
+* Bug fixes.
+
 ## 0.12.0
 
 * Add setRepeatMode/setShuffleMode.

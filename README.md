@@ -34,13 +34,13 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
-## Migrating to 0.11.0
+## Migrating to 0.13.0
 
-Prior to 0.11.0, the background audio task would terminate as soon as `onStart` completes. From 0.11.0, the background audio task terminates as soon as `onStop` completes. If you override `onStop`, you must end your implementation with a call to `await super.onStop()`.
+As of 0.13.0, all callbacks in `AudioBackgroundTask` are asynchronous. This allows the main isolate to await their completion and better synchronise with the background audio task.
 
-## Migrating to 0.10.0
+As of 0.11.0, the background audio task terminates when `onStop` completes rather than when `onStart` completes.
 
-`audio_service` 0.10.0 requires a different `AndroidManifest.xml` configuration for notification and headset button clicks to continue to work on Android. Your previous broadcast receiver declaration should be replaced with the one below:
+As of 0.10.0, your broadcast receiver in `AndroidManifest.xml` should be replaced with the one below to ensure that headset and notification clicks continue to work:
 
 ```xml
     <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
