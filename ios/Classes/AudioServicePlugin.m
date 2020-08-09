@@ -194,10 +194,12 @@ static MPMediaItemArtwork* artwork = nil;
         startParams[@"rewindInterval"] = rewindInterval;
         startParams[@"params"] = params;
         result(startParams);
+    } else if ([@"started" isEqualToString:call.method]) {
         if (startResult) {
             startResult(@YES);
             startResult = nil;
         }
+        result(@YES);
     } else if ([@"stopped" isEqualToString:call.method]) {
         _running = NO;
         [channel invokeMethod:@"onStopped" arguments:nil];
@@ -235,78 +237,55 @@ static MPMediaItemArtwork* artwork = nil;
     } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
         result(@YES);
     } else if ([@"addQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:@[call.arguments] result: result];
     } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments result: result];
     } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments] result: result];
     } else if ([@"updateQueue" isEqualToString:call.method]) {
         [backgroundChannel invokeMethod:@"onUpdateQueue" arguments:@[call.arguments] result: result];
     } else if ([@"updateMediaItem" isEqualToString:call.method]) {
         [backgroundChannel invokeMethod:@"onUpdateMediaItem" arguments:@[call.arguments] result: result];
     } else if ([@"click" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments] result: result];
     } else if ([@"prepare" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPrepare" arguments:nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPrepare" arguments:nil result: result];
     } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:@[call.arguments] result: result];
     } else if ([@"play" isEqualToString:call.method]) {
-        [self play: nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPlay" arguments:nil result: result];
     } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:@[call.arguments] result: result];
     } else if ([@"playMediaItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPlayMediaItem" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPlayMediaItem" arguments:@[call.arguments] result: result];
     } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:@[call.arguments] result: result];
     } else if ([@"pause" isEqualToString:call.method]) {
-        [self pause: nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onPause" arguments:nil result: result];
     } else if ([@"stop" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onStop" arguments:nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onStop" arguments:nil result: result];
     } else if ([@"seekTo" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekTo" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSeekTo" arguments:@[call.arguments] result: result];
     } else if ([@"skipToNext" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil result: result];
     } else if ([@"skipToPrevious" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil result: result];
     } else if ([@"fastForward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onFastForward" arguments:nil result: result];
     } else if ([@"rewind" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
-        result(@YES);
-    } else if ([@"seekForward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekForward" arguments:@[call.arguments]];
-        result(@YES);
-    } else if ([@"seekBackward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekBackward" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onRewind" arguments:nil result: result];
     } else if ([@"setRepeatMode" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetRepeatMode" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSetRepeatMode" arguments:@[call.arguments] result: result];
     } else if ([@"setShuffleMode" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetShuffleMode" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSetShuffleMode" arguments:@[call.arguments] result: result];
     } else if ([@"setRating" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetRating" arguments:@[call.arguments, [NSNull null]]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSetRating" arguments:@[call.arguments[@"rating"], call.arguments[@"extras"]] result: result];
     } else if ([@"setSpeed" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetSpeed" arguments:@[call.arguments]];
-        result(@YES);
+        [backgroundChannel invokeMethod:@"onSetSpeed" arguments:@[call.arguments] result: result];
+    } else if ([@"seekForward" isEqualToString:call.method]) {
+        [backgroundChannel invokeMethod:@"onSeekForward" arguments:@[call.arguments] result: result];
+    } else if ([@"seekBackward" isEqualToString:call.method]) {
+        [backgroundChannel invokeMethod:@"onSeekBackward" arguments:@[call.arguments] result: result];
     } else if ([@"setState" isEqualToString:call.method]) {
         long long msSinceEpoch;
         if (call.arguments[7] != [NSNull null]) {

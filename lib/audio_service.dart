@@ -737,6 +737,10 @@ class AudioService {
   /// the selected category using the constants from
   /// [IosAudioSessionCategoryOptions]. By default, no options
   /// will be applied.
+  ///
+  /// This method waits for [BackgroundAudioTask.onStart] to complete, and
+  /// completes with true if the task was successfully started, or false
+  /// otherwise.
   static Future<bool> start({
     @required Function backgroundTaskEntrypoint,
     Map<String, dynamic> params,
@@ -908,8 +912,8 @@ class AudioService {
   //static Future<void> playFromUri(Uri uri, Bundle extras) async {}
 
   /// Sends a request to your background audio task to skip to a particular
-  /// item in the queue. This passes through to the `skipToQueueItem` method in
-  /// your background audio task.
+  /// item in the queue. This passes through to the `onSkipToQueueItem` method
+  /// in your background audio task.
   static Future<void> skipToQueueItem(String mediaId) async {
     await _channel.invokeMethod('skipToQueueItem', mediaId);
   }
@@ -962,6 +966,23 @@ class AudioService {
     await _channel.invokeMethod('rewind');
   }
 
+  //static Future<void> setCaptioningEnabled(boolean enabled) async {}
+
+  /// Sends a request to your background audio task to set the repeat mode.
+  /// This passes through to the `onSetRepeatMode` method in your background
+  /// audio task.
+  static Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    await _channel.invokeMethod('setRepeatMode', repeatMode.index);
+  }
+
+  /// Sends a request to your background audio task to set the shuffle mode.
+  /// This passes through to the `onSetShuffleMode` method in your background
+  /// audio task.
+  static Future<void> setShuffleMode(
+      AudioServiceShuffleMode shuffleMode) async {
+    await _channel.invokeMethod('setShuffleMode', shuffleMode.index);
+  }
+
   /// Sends a request to your background audio task to set a rating on the
   /// current media item. This passes through to the `onSetRating` method in
   /// your background audio task. The extras map must *only* contain primitive
@@ -974,35 +995,25 @@ class AudioService {
     });
   }
 
-  //static Future<void> setCaptioningEnabled(boolean enabled) async {}
-
-  /// Sends a request to your background audio task to set the repeat mode.
-  static Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
-    await _channel.invokeMethod('setRepeatMode', repeatMode.index);
-  }
-
-  /// Sends a request to your background audio task to set the shuffle mode.
-  static Future<void> setShuffleMode(
-      AudioServiceShuffleMode shuffleMode) async {
-    await _channel.invokeMethod('setShuffleMode', shuffleMode.index);
-  }
-
   /// Sends a request to your background audio task to set the audio playback
-  /// speed.
+  /// speed. This passes through to the `onSetSpeed` method in your background
+  /// audio task.
   static Future<void> setSpeed(double speed) async {
     await _channel.invokeMethod('setSpeed', speed);
   }
 
   /// Sends a request to your background audio task to begin or end seeking
-  /// backward.
-  static Future<void> setSeekBackward(bool begin) async {
-    await _channel.invokeMethod('setSeekBackward', begin);
+  /// backward. This method passes through to the `onSeekBackward` method in
+  /// your background audio task.
+  static Future<void> seekBackward(bool begin) async {
+    await _channel.invokeMethod('seekBackward', begin);
   }
 
   /// Sends a request to your background audio task to begin or end seek
-  /// forward.
-  static Future<void> setSeekForward(bool begin) async {
-    await _channel.invokeMethod('setSeekForward', begin);
+  /// forward. This method passes through to the `onSeekForward` method in your
+  /// background audio task.
+  static Future<void> seekForward(bool begin) async {
+    await _channel.invokeMethod('seekForward', begin);
   }
 
   //static Future<void> sendCustomAction(PlaybackStateCompat.CustomAction customAction,
@@ -1073,53 +1084,53 @@ class AudioServiceBackground {
           return rawMediaItems as dynamic;
         case 'onAudioFocusGained':
           final List args = call.arguments;
-          task.onAudioFocusGained(AudioInterruption.values[args[0]]);
+          await task.onAudioFocusGained(AudioInterruption.values[args[0]]);
           break;
         case 'onAudioFocusLost':
           final List args = call.arguments;
-          task.onAudioFocusLost(AudioInterruption.values[args[0]]);
+          await task.onAudioFocusLost(AudioInterruption.values[args[0]]);
           break;
         case 'onAudioBecomingNoisy':
-          task.onAudioBecomingNoisy();
+          await task.onAudioBecomingNoisy();
           break;
         case 'onClick':
           final List args = call.arguments;
           MediaButton button = MediaButton.values[args[0]];
-          task.onClick(button);
+          await task.onClick(button);
           break;
         case 'onStop':
           await task.onStop();
           break;
         case 'onPause':
-          task.onPause();
+          await task.onPause();
           break;
         case 'onPrepare':
-          task.onPrepare();
+          await task.onPrepare();
           break;
         case 'onPrepareFromMediaId':
           final List args = call.arguments;
           String mediaId = args[0];
-          task.onPrepareFromMediaId(mediaId);
+          await task.onPrepareFromMediaId(mediaId);
           break;
         case 'onPlay':
-          task.onPlay();
+          await task.onPlay();
           break;
         case 'onPlayFromMediaId':
           final List args = call.arguments;
           String mediaId = args[0];
-          task.onPlayFromMediaId(mediaId);
+          await task.onPlayFromMediaId(mediaId);
           break;
         case 'onPlayMediaItem':
-          task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
+          await task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItem':
-          task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
+          await task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItemAt':
           final List args = call.arguments;
           MediaItem mediaItem = MediaItem.fromJson(args[0]);
           int index = args[1];
-          task.onAddQueueItemAt(mediaItem, index);
+          await task.onAddQueueItemAt(mediaItem, index);
           break;
         case 'onUpdateQueue':
           final List args = call.arguments;
@@ -1131,61 +1142,61 @@ class AudioServiceBackground {
           await task.onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onRemoveQueueItem':
-          task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
+          await task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onSkipToNext':
-          task.onSkipToNext();
+          await task.onSkipToNext();
           break;
         case 'onSkipToPrevious':
-          task.onSkipToPrevious();
+          await task.onSkipToPrevious();
           break;
         case 'onFastForward':
-          task.onFastForward();
+          await task.onFastForward();
           break;
         case 'onRewind':
-          task.onRewind();
+          await task.onRewind();
           break;
         case 'onSkipToQueueItem':
           final List args = call.arguments;
           String mediaId = args[0];
-          task.onSkipToQueueItem(mediaId);
+          await task.onSkipToQueueItem(mediaId);
           break;
         case 'onSeekTo':
           final List args = call.arguments;
           int positionMs = args[0];
           Duration position = Duration(milliseconds: positionMs);
-          task.onSeekTo(position);
-          break;
-        case 'onSetRating':
-          task.onSetRating(
-              Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+          await task.onSeekTo(position);
           break;
         case 'onSetRepeatMode':
           final List args = call.arguments;
-          task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+          await task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
           break;
         case 'onSetShuffleMode':
           final List args = call.arguments;
-          task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+          await task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+          break;
+        case 'onSetRating':
+          await task.onSetRating(
+              Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           break;
         case 'onSeekBackward':
           final List args = call.arguments;
-          task.onSeekBackward(args[0]);
+          await task.onSeekBackward(args[0]);
           break;
         case 'onSeekForward':
           final List args = call.arguments;
-          task.onSeekForward(args[0]);
+          await task.onSeekForward(args[0]);
           break;
         case 'onSetSpeed':
           final List args = call.arguments;
           double speed = args[0];
-          task.onSetSpeed(speed);
+          await task.onSetSpeed(speed);
           break;
         case 'onTaskRemoved':
-          task.onTaskRemoved();
+          await task.onTaskRemoved();
           break;
         case 'onClose':
-          task.onClose();
+          await task.onClose();
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
@@ -1207,7 +1218,13 @@ class AudioServiceBackground {
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
     );
-    task.onStart(params);
+    try {
+      await task.onStart(params);
+    } catch (e) {} finally {
+      // For now, we return successfully from AudioService.start regardless of
+      // whether an exception occurred in onStart.
+      await _backgroundChannel.invokeMethod('started');
+    }
   }
 
   /// Shuts down the background audio task within the background isolate.
@@ -1460,7 +1477,7 @@ abstract class BackgroundAudioTask {
   /// audio, in response to [AudioService.start]. [params] will contain any
   /// params passed into [AudioService.start] when starting this background
   /// audio task.
-  void onStart(Map<String, dynamic> params) {}
+  Future<void> onStart(Map<String, dynamic> params) async {}
 
   /// Called when a client has requested to terminate this background audio
   /// task, in response to [AudioService.stop]. You should implement this
@@ -1494,10 +1511,10 @@ abstract class BackgroundAudioTask {
   /// (iOS only)
   ///
   /// The default behaviour is to call [onPause] if audio is playing.
-  void onAudioFocusLost(AudioInterruption interruption) {
+  Future<void> onAudioFocusLost(AudioInterruption interruption) async {
     if (AudioServiceBackground.state?.playing == true) {
       _interrupted = true;
-      onPause();
+      await onPause();
     }
   }
 
@@ -1511,11 +1528,11 @@ abstract class BackgroundAudioTask {
   ///
   /// The default behaviour is to call [onPlay] if audio was previously paused
   /// when the focus was lost.
-  void onAudioFocusGained(AudioInterruption interruption) {
+  Future<void> onAudioFocusGained(AudioInterruption interruption) async {
     switch (interruption) {
       case AudioInterruption.temporaryPause:
       case AudioInterruption.temporaryDuck:
-        if (_interrupted) onPlay();
+        if (_interrupted) await onPlay();
         break;
       default:
         break;
@@ -1527,7 +1544,7 @@ abstract class BackgroundAudioTask {
   /// to the user unplugging the headphones.
   ///
   /// The default behaviour is to call [onPause].
-  void onAudioBecomingNoisy() => onPause();
+  Future<void> onAudioBecomingNoisy() => onPause();
 
   /// Called when the media button on the headset is pressed, or in response to
   /// a call from [AudioService.click]. The default behaviour is:
@@ -1535,21 +1552,20 @@ abstract class BackgroundAudioTask {
   /// * On [MediaButton.media], toggle [onPlay] and [onPause].
   /// * On [MediaButton.next], call [onSkipToNext].
   /// * On [MediaButton.previous], call [onSkipToPrevious].
-  void onClick(MediaButton button) {
-    print("Click: $button");
+  Future<void> onClick(MediaButton button) async {
     switch (button) {
       case MediaButton.media:
         if (AudioServiceBackground.state?.playing == true) {
-          onPause();
+          await onPause();
         } else {
-          onPlay();
+          await onPlay();
         }
         break;
       case MediaButton.next:
-        onSkipToNext();
+        await onSkipToNext();
         break;
       case MediaButton.previous:
-        onSkipToPrevious();
+        await onSkipToPrevious();
         break;
     }
   }
@@ -1558,27 +1574,27 @@ abstract class BackgroundAudioTask {
   /// call to [AudioService.pause]. You should implement this method to pause
   /// audio playback and also broadcast the appropriate state change via
   /// [AudioServiceBackground.setState].
-  void onPause() {}
+  Future<void> onPause() async {}
 
   /// Called when a client has requested to prepare audio for playback, such as
   /// via a call to [AudioService.prepare].
-  void onPrepare() {}
+  Future<void> onPrepare() async {}
 
   /// Called when a client has requested to prepare a specific media item for
   /// audio playback, such as via a call to [AudioService.prepareFromMediaId].
-  void onPrepareFromMediaId(String mediaId) {}
+  Future<void> onPrepareFromMediaId(String mediaId) async {}
 
   /// Called when a client has requested to resume audio playback, such as via
   /// a call to [AudioService.play]. You should implement this method to play
   /// audio and also broadcast the appropriate state change via
   /// [AudioServiceBackground.setState].
-  void onPlay() {}
+  Future<void> onPlay() async {}
 
   /// Called when a client has requested to play a media item by its ID, such
   /// as via a call to [AudioService.playFromMediaId]. You should implement
   /// this method to play audio and also broadcast the appropriate state change
   /// via [AudioServiceBackground.setState].
-  void onPlayFromMediaId(String mediaId) {}
+  Future<void> onPlayFromMediaId(String mediaId) async {}
 
   /// Called when the Flutter UI has requested to play a given media item via a
   /// call to [AudioService.playMediaItem]. You should implement this method to
@@ -1588,11 +1604,11 @@ abstract class BackgroundAudioTask {
   /// Note: This method can only be triggered by your Flutter UI. Peripheral
   /// devices such as Android Auto will instead trigger
   /// [AudioService.onPlayFromMediaId].
-  void onPlayMediaItem(MediaItem mediaItem) {}
+  Future<void> onPlayMediaItem(MediaItem mediaItem) async {}
 
   /// Called when a client has requested to add a media item to the queue, such
   /// as via a call to [AudioService.addQueueItem].
-  void onAddQueueItem(MediaItem mediaItem) {}
+  Future<void> onAddQueueItem(MediaItem mediaItem) async {}
 
   /// Called when the Flutter UI has requested to set a new queue.
   ///
@@ -1608,64 +1624,64 @@ abstract class BackgroundAudioTask {
   /// Called when a client has requested to add a media item to the queue at a
   /// specified position, such as via a request to
   /// [AudioService.addQueueItemAt].
-  void onAddQueueItemAt(MediaItem mediaItem, int index) {}
+  Future<void> onAddQueueItemAt(MediaItem mediaItem, int index) async {}
 
   /// Called when a client has requested to remove a media item from the queue,
   /// such as via a request to [AudioService.removeQueueItem].
-  void onRemoveQueueItem(MediaItem mediaItem) {}
+  Future<void> onRemoveQueueItem(MediaItem mediaItem) async {}
 
   /// Called when a client has requested to skip to the next item in the queue,
   /// such as via a request to [AudioService.skipToNext].
-  void onSkipToNext() {}
+  Future<void> onSkipToNext() async {}
 
   /// Called when a client has requested to skip to the previous item in the
   /// queue, such as via a request to [AudioService.skipToPrevious].
-  void onSkipToPrevious() {}
+  Future<void> onSkipToPrevious() async {}
 
   /// Called when a client has requested to fast forward, such as via a
   /// request to [AudioService.fastForward]. An implementation of this callback
   /// can use the [fastForwardInterval] property to determine how much audio
   /// to skip.
-  void onFastForward() {}
+  Future<void> onFastForward() async {}
 
   /// Called when a client has requested to rewind, such as via a request to
   /// [AudioService.rewind]. An implementation of this callback can use the
   /// [rewindInterval] property to determine how much audio to skip.
-  void onRewind() {}
+  Future<void> onRewind() async {}
 
   /// Called when a client has requested to skip to a specific item in the
   /// queue, such as via a call to [AudioService.skipToQueueItem].
-  void onSkipToQueueItem(String mediaId) {}
+  Future<void> onSkipToQueueItem(String mediaId) async {}
 
   /// Called when a client has requested to seek to a position, such as via a
   /// call to [AudioService.seekTo]. If your implementation of seeking causes
   /// buffering to occur, consider broadcasting a buffering state via
   /// [AudioServiceBackground.setState] while the seek is in progress.
-  void onSeekTo(Duration position) {}
+  Future<void> onSeekTo(Duration position) async {}
 
   /// Called when a client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
-  void onSetRating(Rating rating, Map<dynamic, dynamic> extras) {}
+  Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
 
   /// Called when a client has requested to change the current repeat mode.
-  void onSetRepeatMode(AudioServiceRepeatMode repeatMode) {}
+  Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {}
 
   /// Called when a client has requested to change the current shuffle mode.
-  void onSetShuffleMode(AudioServiceShuffleMode shuffleMode) {}
+  Future<void> onSetShuffleMode(AudioServiceShuffleMode shuffleMode) async {}
 
   /// Called when a client has requested to either begin or end seeking
   /// backward.
-  void onSeekBackward(bool begin) {}
+  Future<void> onSeekBackward(bool begin) async {}
 
   /// Called when a client has requested to either begin or end seeking
   /// forward.
-  void onSeekForward(bool begin) {}
+  Future<void> onSeekForward(bool begin) async {}
 
   /// Called when the Flutter UI has requested to set the speed of audio
   /// playback. An implementation of this callback should change the audio
   /// speed and broadcast the speed change to all clients via
   /// [AudioServiceBackground.setState].
-  void onSetSpeed(double speed) {}
+  Future<void> onSetSpeed(double speed) async {}
 
   /// Called when a custom action has been sent by the client via
   /// [AudioService.customAction]. The result of this method will be returned
@@ -1687,13 +1703,11 @@ abstract class BackgroundAudioTask {
   ///   }
   /// }
   /// ```
-  void onTaskRemoved() {}
+  Future<void> onTaskRemoved() async {}
 
   /// Called on Android when the user swipes away the notification. The default
   /// implementation (which you may override) calls [onStop].
-  void onClose() {
-    onStop();
-  }
+  Future<void> onClose() => onStop();
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {

@@ -233,7 +233,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
       _player.currentIndex != null ? queue[_player.currentIndex] : null;
 
   @override
-  void onStart(Map<String, dynamic> params) {
+  Future<void> onStart(Map<String, dynamic> params) async {
     // Broadcast media item changes.
     _player.currentIndexStream.listen((index) {
       if (index != null) AudioServiceBackground.setMediaItem(queue[index]);
@@ -261,10 +261,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
     // Load and broadcast the queue
     AudioServiceBackground.setQueue(queue);
-    _load();
-  }
-
-  _load() async {
     try {
       await _player.load(ConcatenatingAudioSource(
         children:
@@ -285,13 +281,13 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Future<void> onSkipToPrevious() => _skip(-1);
 
   @override
-  void onPlay() => _player.play();
+  Future<void> onPlay() => _player.play();
 
   @override
-  void onPause() => _player.pause();
+  Future<void> onPause() => _player.pause();
 
   @override
-  void onSeekTo(Duration position) => _player.seek(position);
+  Future<void> onSeekTo(Duration position) => _player.seek(position);
 
   @override
   Future<void> onFastForward() => _seekRelative(fastForwardInterval);
@@ -300,13 +296,13 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Future<void> onRewind() => _seekRelative(-rewindInterval);
 
   @override
-  void onSeekForward(bool begin) => _seekContinuously(begin, 1);
+  Future<void> onSeekForward(bool begin) async => _seekContinuously(begin, 1);
 
   @override
-  void onSeekBackward(bool begin) => _seekContinuously(begin, -1);
+  Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
 
   @override
-  void onAudioFocusLost(AudioInterruption interruption) {
+  Future<void> onAudioFocusLost(AudioInterruption interruption) async {
     // We override the default behaviour to duck when appropriate.
     // First, remember if we were playing when the interruption occurred.
     if (_player.playing) _interrupted = true;
@@ -320,7 +316,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onAudioFocusGained(AudioInterruption interruption) {
+  Future<void> onAudioFocusGained(AudioInterruption interruption) async {
     // Restore normal playback depending on whether we paused or ducked.
     switch (interruption) {
       case AudioInterruption.temporaryPause:
@@ -478,7 +474,7 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
-    _playPause();
+    await _playPause();
     for (var i = 1; i <= 10 && !_finished; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
@@ -512,13 +508,13 @@ class TextPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  void onPlay() => _playPause();
+  Future<void> onPlay() => _playPause();
 
   @override
-  void onPause() => _playPause();
+  Future<void> onPause() => _playPause();
 
   @override
-  void onClick(MediaButton button) => _playPause();
+  Future<void> onClick(MediaButton button) => _playPause();
 
   @override
   Future<void> onStop() async {
@@ -537,16 +533,16 @@ class TextPlayerTask extends BackgroundAudioTask {
       title: 'Number $number',
       artist: 'Sample Artist');
 
-  void _playPause() {
+  Future<void> _playPause() async {
     if (_playing) {
       _tts.stop();
-      AudioServiceBackground.setState(
+      await AudioServiceBackground.setState(
         controls: [MediaControl.play, MediaControl.stop],
         processingState: AudioProcessingState.ready,
         playing: false,
       );
     } else {
-      AudioServiceBackground.setState(
+      await AudioServiceBackground.setState(
         controls: [MediaControl.pause, MediaControl.stop],
         processingState: AudioProcessingState.ready,
         playing: true,
