@@ -1,3 +1,12 @@
+## 0.12.0
+
+* Add setRepeatMode/setShuffleMode.
+* Enable iOS Control Center buttons based on setState.
+* Support seek forward/backward in iOS Control Center.
+* Add default behaviour to BackgroundAudioTask.
+* Bug fixes.
+* Simplify example.
+
 ## 0.11.2
 
 * Fix bug with album metadata on Android.
