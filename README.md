@@ -52,7 +52,7 @@ Prior to 0.11.0, the background audio task would terminate as soon as `onStart` 
 
 ## Can I make use of other plugins within the background audio task?
 
-Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others.
+Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, within your background audio task. There are also plugins like [just_audio_service](https://github.com/yringler/just_audio_service) that provide default implementations of `BackgroundAudioTask` to make your job easier.
 
 Note that this plugin will not work with other audio plugins that overlap in responsibility with this plugin (i.e. background audio, iOS control center, Android notifications, lock screen, headset buttons, etc.)
 
@@ -231,6 +231,3 @@ The example project may be consulted for context.
 * [Full example](https://github.com/ryanheise/audio_service/blob/master/example/lib/main.dart): The `example` subdirectory on GitHub demonstrates both music and text-to-speech use cases.
 * [Frequently Asked Questions](https://github.com/ryanheise/audio_service/wiki/FAQ)
 * [API documentation](https://pub.dev/documentation/audio_service/latest/audio_service/audio_service-library.html)
-
-# Community Projects
-* [just_audio_service](https://github.com/yringler/just_audio_service): A plugin which contains an implementation of `BackgroundAudioTask` which works with [just_audio](https://github.com/ryanheise/just_audio). It aims to be robust, flexible, and mantainable. It is stable enough that it's being used in production by the author, but it is not feature complete (See the [project README](https://github.com/yringler/just_audio_service/blob/master/README.md) for details).
