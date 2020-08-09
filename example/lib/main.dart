@@ -219,6 +219,7 @@ void _audioPlayerTaskEntrypoint() async {
   AudioServiceBackground.run(() => AudioPlayerTask());
 }
 
+/// This task defines logic for playing a list of podcast episodes.
 class AudioPlayerTask extends BackgroundAudioTask {
   final _mediaLibrary = MediaLibrary();
   AudioPlayer _player = new AudioPlayer();
@@ -228,9 +229,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
   StreamSubscription<PlaybackEvent> _eventSubscription;
 
   List<MediaItem> get queue => _mediaLibrary.items;
-
-  MediaItem get mediaItem =>
-      _player.currentIndex != null ? queue[_player.currentIndex] : null;
+  int get index => _player.currentIndex;
+  MediaItem get mediaItem => index == null ? null : queue[index];
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
@@ -275,10 +275,23 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  Future<void> onSkipToNext() => _skip(1);
-
-  @override
-  Future<void> onSkipToPrevious() => _skip(-1);
+  Future<void> onSkipToQueueItem(String mediaId) async {
+    // Then default implementations of onSkipToNext and onSkipToPrevious will
+    // delegate to this method.
+    final newIndex = queue.indexWhere((item) => item.id == mediaId);
+    if (newIndex == -1) return;
+    // During a skip, the player may enter the buffering state. We could just
+    // propagate that state directly to AudioService clients but AudioService
+    // has some more specific states we could use for skipping to next and
+    // previous. This variable holds the preferred state to send instead of
+    // buffering during a skip, and it is cleared as soon as the player exits
+    // buffering (see the listener in onStart).
+    _skipState = newIndex > index
+        ? AudioProcessingState.skippingToNext
+        : AudioProcessingState.skippingToPrevious;
+    // This jumps to the beginning of the queue item at newIndex.
+    _player.seek(Duration.zero, index: newIndex);
+  }
 
   @override
   Future<void> onPlay() => _player.play();
@@ -343,28 +356,10 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _eventSubscription.cancel();
     // It is important to wait for this state to be broadcast before we shut
     // down the task. If we don't, the background task will be destroyed before
-    // the message gets sent to your UI.
+    // the message gets sent to the UI.
     await _broadcastState();
     // Shut down this task
     await super.onStop();
-  }
-
-  /// Skips forward or backward in the queue by [offset].
-  Future<void> _skip(int offset) async {
-    // Compute the new item index to jump to.
-    final newIndex = _player.currentIndex + offset;
-    if (!(newIndex >= 0 && newIndex < queue.length)) return;
-    // During a skip, the player may enter the buffering state. We could just
-    // propagate that state directly to AudioService clients but AudioService
-    // has some more specific states we could use for skipping to next and
-    // previous. This variable holds the preferred state to send instead of
-    // buffering during a skip, and it is cleard as soon as the player exits
-    // buffering (see the listener in onStart).
-    _skipState = offset > 0
-        ? AudioProcessingState.skippingToNext
-        : AudioProcessingState.skippingToPrevious;
-    // This jumps to the beginning of the queue item at newIndex.
-    _player.seek(Duration.zero, index: newIndex);
   }
 
   /// Jumps away from the current position by [offset].
@@ -464,6 +459,8 @@ void _textToSpeechTaskEntrypoint() async {
   AudioServiceBackground.run(() => TextPlayerTask());
 }
 
+/// This task defines logic for speaking a sequence of numbers using
+/// text-to-speech.
 class TextPlayerTask extends BackgroundAudioTask {
   FlutterTts _tts = FlutterTts();
   bool _finished = false;
@@ -512,9 +509,6 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onPause() => _playPause();
-
-  @override
-  Future<void> onClick(MediaButton button) => _playPause();
 
   @override
   Future<void> onStop() async {

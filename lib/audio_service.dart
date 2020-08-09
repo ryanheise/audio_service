@@ -1054,6 +1054,11 @@ class AudioServiceBackground {
   /// This is the value most recently set via [setState].
   static PlaybackState get state => _state;
 
+  /// The current media item.
+  ///
+  /// This is the value most recently set via [setMediaItem].
+  static MediaItem get mediaItem => _mediaItem;
+
   /// The current queue.
   ///
   /// This is the value most recently set via [setQueue].
@@ -1459,14 +1464,6 @@ abstract class BackgroundAudioTask {
   BackgroundAudioTask({BaseCacheManager cacheManager})
       : this.cacheManager = cacheManager ?? DefaultCacheManager();
 
-  void _setParams({
-    Duration fastForwardInterval,
-    Duration rewindInterval,
-  }) {
-    _fastForwardInterval = fastForwardInterval;
-    _rewindInterval = rewindInterval;
-  }
-
   /// The fast forward interval passed into [AudioService.start].
   Duration get fastForwardInterval => _fastForwardInterval;
 
@@ -1632,11 +1629,17 @@ abstract class BackgroundAudioTask {
 
   /// Called when a client has requested to skip to the next item in the queue,
   /// such as via a request to [AudioService.skipToNext].
-  Future<void> onSkipToNext() async {}
+  ///
+  /// By default, calls [onSkipToQueueItem] with the queue item after
+  /// [AudioServiceBackground.mediaItem] if it exists.
+  Future<void> onSkipToNext() => _skip(1);
 
   /// Called when a client has requested to skip to the previous item in the
   /// queue, such as via a request to [AudioService.skipToPrevious].
-  Future<void> onSkipToPrevious() async {}
+  ///
+  /// By default, calls [onSkipToQueueItem] with the queue item before
+  /// [AudioServiceBackground.mediaItem] if it exists.
+  Future<void> onSkipToPrevious() => _skip(-1);
 
   /// Called when a client has requested to fast forward, such as via a
   /// request to [AudioService.fastForward]. An implementation of this callback
@@ -1708,6 +1711,24 @@ abstract class BackgroundAudioTask {
   /// Called on Android when the user swipes away the notification. The default
   /// implementation (which you may override) calls [onStop].
   Future<void> onClose() => onStop();
+
+  void _setParams({
+    Duration fastForwardInterval,
+    Duration rewindInterval,
+  }) {
+    _fastForwardInterval = fastForwardInterval;
+    _rewindInterval = rewindInterval;
+  }
+
+  Future<void> _skip(int offset) async {
+    final mediaItem = AudioServiceBackground.mediaItem;
+    if (mediaItem == null) return;
+    final queue = AudioServiceBackground.queue ?? [];
+    int i = queue.indexOf(mediaItem);
+    if (i == -1) return;
+    int newIndex = i + offset;
+    if (newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
+  }
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {
