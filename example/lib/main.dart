@@ -397,10 +397,10 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Future<void> _broadcastState() async {
     await AudioServiceBackground.setState(
       controls: [
-        if (_player.hasPrevious) MediaControl.skipToPrevious,
+        MediaControl.skipToPrevious,
         if (_player.playing) MediaControl.pause else MediaControl.play,
         MediaControl.stop,
-        if (_player.hasNext) MediaControl.skipToNext,
+        MediaControl.skipToNext,
       ],
       systemActions: [
         MediaAction.seekTo,
