@@ -1035,12 +1035,18 @@ class AudioServiceBackground {
   static MethodChannel _backgroundChannel;
   static PlaybackState _state = _noneState;
   static MediaItem _mediaItem;
+  static List<MediaItem> _queue;
   static BaseCacheManager _cacheManager;
 
   /// The current media playback state.
   ///
   /// This is the value most recently set via [setState].
   static PlaybackState get state => _state;
+
+  /// The current queue.
+  ///
+  /// This is the value most recently set via [setQueue].
+  static List<MediaItem> get queue => _queue;
 
   /// Runs the background audio task within the background isolate.
   ///
@@ -1323,6 +1329,7 @@ class AudioServiceBackground {
   /// Sets the current queue and notifies all clients.
   static Future<void> setQueue(List<MediaItem> queue,
       {bool preloadArtwork = false}) async {
+    _queue = queue;
     if (preloadArtwork) {
       _loadAllArtwork(queue);
     }
@@ -1428,6 +1435,7 @@ abstract class BackgroundAudioTask {
   final BaseCacheManager cacheManager;
   Duration _fastForwardInterval;
   Duration _rewindInterval;
+  bool _interrupted = false;
 
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
@@ -1484,7 +1492,14 @@ abstract class BackgroundAudioTask {
   /// again once focus is regained (Android only)
   /// * [AudioInterruption.unknownPause] indicates that audio should be paused
   /// (iOS only)
-  void onAudioFocusLost(AudioInterruption interruption) {}
+  ///
+  /// The default behaviour is to call [onPause] if audio is playing.
+  void onAudioFocusLost(AudioInterruption interruption) {
+    if (AudioServiceBackground.state?.playing == true) {
+      _interrupted = true;
+      onPause();
+    }
+  }
 
   /// Called when your app gains audio focus. If the audio was interrupted, the
   /// parameter indicates if and how audio should be restored:
@@ -1493,15 +1508,51 @@ abstract class BackgroundAudioTask {
   /// * [AudioInterruption.temporaryPause]: Audio should resume.
   /// * [AudioInterruption.temporaryDuck]: Audio should be restored after
   /// ducking (Android only).
-  void onAudioFocusGained(AudioInterruption interruption) {}
+  ///
+  /// The default behaviour is to call [onPlay] if audio was previously paused
+  /// when the focus was lost.
+  void onAudioFocusGained(AudioInterruption interruption) {
+    switch (interruption) {
+      case AudioInterruption.temporaryPause:
+      case AudioInterruption.temporaryDuck:
+        if (_interrupted) onPlay();
+        break;
+      default:
+        break;
+    }
+    _interrupted = false;
+  }
 
   /// Called on Android when your audio output is about to become noisy due
   /// to the user unplugging the headphones.
-  void onAudioBecomingNoisy() {}
+  ///
+  /// The default behaviour is to call [onPause].
+  void onAudioBecomingNoisy() => onPause();
 
   /// Called when the media button on the headset is pressed, or in response to
-  /// a call from [AudioService.click].
-  void onClick(MediaButton button) {}
+  /// a call from [AudioService.click]. The default behaviour is:
+  ///
+  /// * On [MediaButton.media], toggle [onPlay] and [onPause].
+  /// * On [MediaButton.next], call [onSkipToNext].
+  /// * On [MediaButton.previous], call [onSkipToPrevious].
+  void onClick(MediaButton button) {
+    print("Click: $button");
+    switch (button) {
+      case MediaButton.media:
+        if (AudioServiceBackground.state?.playing == true) {
+          onPause();
+        } else {
+          onPlay();
+        }
+        break;
+      case MediaButton.next:
+        onSkipToNext();
+        break;
+      case MediaButton.previous:
+        onSkipToPrevious();
+        break;
+    }
+  }
 
   /// Called when a client has requested to pause audio playback, such as via a
   /// call to [AudioService.pause]. You should implement this method to pause
