@@ -1739,8 +1739,17 @@ _iosIsolateEntrypoint(int rawHandle) async {
 
 /// A widget that maintains a connection to [AudioService].
 ///
-/// Insert this widget at the top of your widget tree to maintain the
-/// connection across all routes.
+/// Insert this widget at the top of your `/` route's widget tree to maintain
+/// the connection across all routes. e.g.
+///
+/// ```
+/// return MaterialApp(
+///   home: AudioServiceWidget(MainScreen()),
+/// );
+/// ```
+///
+/// Note that this widget will not work if it wraps around [MateriaApp] itself,
+/// you must place it in the widget tree within your route.
 class AudioServiceWidget extends StatefulWidget {
   final Widget child;
 
