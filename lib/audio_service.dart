@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:ui' as ui;
 import 'dart:ui';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -730,14 +731,6 @@ class AudioService {
   /// Android. If your app will run on Android and has a queue, you should set
   /// this to true.
   ///
-  /// [iosAudioSessionCategory] sets the category for the
-  /// AVAudioSession on iOS, where the default is
-  /// [IosAudioSessionCategory.playback].
-  /// [iosAudioSessionCategoryOptions] is a mask of options for
-  /// the selected category using the constants from
-  /// [IosAudioSessionCategoryOptions]. By default, no options
-  /// will be applied.
-  ///
   /// This method waits for [BackgroundAudioTask.onStart] to complete, and
   /// completes with true if the task was successfully started, or false
   /// otherwise.
@@ -754,9 +747,6 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
     Size androidArtDownscaleSize,
-    IosAudioSessionCategory iosAudioSessionCategory =
-        IosAudioSessionCategory.playback,
-    int iosAudioSessionCategoryOptions,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
@@ -802,8 +792,6 @@ class AudioService {
               'height': androidArtDownscaleSize.height
             }
           : null,
-      'iosAudioSessionCategory': iosAudioSessionCategory.index,
-      'iosAudioSessionCategoryOptions': iosAudioSessionCategoryOptions,
       'fastForwardInterval': fastForwardInterval.inMilliseconds,
       'rewindInterval': rewindInterval.inMilliseconds,
     });
@@ -1048,6 +1036,7 @@ class AudioServiceBackground {
   static MediaItem _mediaItem;
   static List<MediaItem> _queue;
   static BaseCacheManager _cacheManager;
+  static BackgroundAudioTask _task;
 
   /// The current media playback state.
   ///
@@ -1076,136 +1065,126 @@ class AudioServiceBackground {
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
-    final task = taskBuilder();
-    _cacheManager = task.cacheManager;
+    _task = taskBuilder();
+    _cacheManager = _task.cacheManager;
     _backgroundChannel.setMethodCallHandler((MethodCall call) async {
       switch (call.method) {
         case 'onLoadChildren':
           final List args = call.arguments;
           String parentMediaId = args[0];
-          List<MediaItem> mediaItems = await task.onLoadChildren(parentMediaId);
+          List<MediaItem> mediaItems =
+              await _task.onLoadChildren(parentMediaId);
           List<Map> rawMediaItems =
               mediaItems.map((item) => item.toJson()).toList();
           return rawMediaItems as dynamic;
-        case 'onAudioFocusGained':
-          final List args = call.arguments;
-          await task.onAudioFocusGained(AudioInterruption.values[args[0]]);
-          break;
-        case 'onAudioFocusLost':
-          final List args = call.arguments;
-          await task.onAudioFocusLost(AudioInterruption.values[args[0]]);
-          break;
-        case 'onAudioBecomingNoisy':
-          await task.onAudioBecomingNoisy();
-          break;
         case 'onClick':
           final List args = call.arguments;
           MediaButton button = MediaButton.values[args[0]];
-          await task.onClick(button);
+          await _task.onClick(button);
           break;
         case 'onStop':
-          await task.onStop();
+          await _task.onStop();
           break;
         case 'onPause':
-          await task.onPause();
+          await _task.onPause();
           break;
         case 'onPrepare':
-          await task.onPrepare();
+          await _task.onPrepare();
           break;
         case 'onPrepareFromMediaId':
           final List args = call.arguments;
           String mediaId = args[0];
-          await task.onPrepareFromMediaId(mediaId);
+          await _task.onPrepareFromMediaId(mediaId);
           break;
         case 'onPlay':
-          await task.onPlay();
+          await _task.onPlay();
           break;
         case 'onPlayFromMediaId':
           final List args = call.arguments;
           String mediaId = args[0];
-          await task.onPlayFromMediaId(mediaId);
+          await _task.onPlayFromMediaId(mediaId);
           break;
         case 'onPlayMediaItem':
-          await task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
+          await _task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItem':
-          await task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
+          await _task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onAddQueueItemAt':
           final List args = call.arguments;
           MediaItem mediaItem = MediaItem.fromJson(args[0]);
           int index = args[1];
-          await task.onAddQueueItemAt(mediaItem, index);
+          await _task.onAddQueueItemAt(mediaItem, index);
           break;
         case 'onUpdateQueue':
           final List args = call.arguments;
           final List queue = args[0];
-          await task.onUpdateQueue(
+          await _task.onUpdateQueue(
               queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
           break;
         case 'onUpdateMediaItem':
-          await task.onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
+          await _task.onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onRemoveQueueItem':
-          await task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
+          await _task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
           break;
         case 'onSkipToNext':
-          await task.onSkipToNext();
+          await _task.onSkipToNext();
           break;
         case 'onSkipToPrevious':
-          await task.onSkipToPrevious();
+          await _task.onSkipToPrevious();
           break;
         case 'onFastForward':
-          await task.onFastForward();
+          await _task.onFastForward();
           break;
         case 'onRewind':
-          await task.onRewind();
+          await _task.onRewind();
           break;
         case 'onSkipToQueueItem':
           final List args = call.arguments;
           String mediaId = args[0];
-          await task.onSkipToQueueItem(mediaId);
+          await _task.onSkipToQueueItem(mediaId);
           break;
         case 'onSeekTo':
           final List args = call.arguments;
           int positionMs = args[0];
           Duration position = Duration(milliseconds: positionMs);
-          await task.onSeekTo(position);
+          await _task.onSeekTo(position);
           break;
         case 'onSetRepeatMode':
           final List args = call.arguments;
-          await task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+          await _task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
           break;
         case 'onSetShuffleMode':
           final List args = call.arguments;
-          await task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+          await _task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
           break;
         case 'onSetRating':
-          await task.onSetRating(
+          await _task.onSetRating(
               Rating._fromRaw(call.arguments[0]), call.arguments[1]);
           break;
         case 'onSeekBackward':
           final List args = call.arguments;
-          await task.onSeekBackward(args[0]);
+          await _task.onSeekBackward(args[0]);
           break;
         case 'onSeekForward':
           final List args = call.arguments;
-          await task.onSeekForward(args[0]);
+          await _task.onSeekForward(args[0]);
           break;
         case 'onSetSpeed':
           final List args = call.arguments;
           double speed = args[0];
-          await task.onSetSpeed(speed);
+          await _task.onSetSpeed(speed);
           break;
         case 'onTaskRemoved':
-          await task.onTaskRemoved();
+          await _task.onTaskRemoved();
           break;
         case 'onClose':
-          await task.onClose();
+          await _task.onClose();
           break;
         default:
           if (call.method.startsWith(_CUSTOM_PREFIX)) {
-            final result = await task.onCustomAction(
+            final result = await _task.onCustomAction(
                 call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
             return result;
           }
@@ -1219,12 +1198,12 @@ class AudioServiceBackground {
         Duration(milliseconds: startParams['rewindInterval']);
     Map<String, dynamic> params =
         startParams['params']?.cast<String, dynamic>();
-    task._setParams(
+    _task._setParams(
       fastForwardInterval: fastForwardInterval,
       rewindInterval: rewindInterval,
     );
     try {
-      await task.onStart(params);
+      await _task.onStart(params);
     } catch (e) {} finally {
       // For now, we return successfully from AudioService.start regardless of
       // whether an exception occurred in onStart.
@@ -1234,6 +1213,12 @@ class AudioServiceBackground {
 
   /// Shuts down the background audio task within the background isolate.
   static Future<void> _shutdown() async {
+    final audioSession = await AudioSession.instance;
+    try {
+      await audioSession.setActive(false);
+    } catch (e) {
+      print("While deactivating audio session: $e");
+    }
     await _backgroundChannel.invokeMethod('stopped');
     if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
@@ -1457,7 +1442,6 @@ abstract class BackgroundAudioTask {
   final BaseCacheManager cacheManager;
   Duration _fastForwardInterval;
   Duration _rewindInterval;
-  bool _interrupted = false;
 
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
@@ -1491,57 +1475,6 @@ abstract class BackgroundAudioTask {
   /// Called when a media browser client, such as Android Auto, wants to query
   /// the available media items to display to the user.
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
-
-  /// Called when your app loses audio focus. This can happen when receiving a
-  /// phone call, or when another app on the device needs to play audio. The
-  /// parameter indicates how to handle the audio interruption:
-  ///
-  /// * [AudioInterruption.pause] indicates that audio should be paused and
-  /// should not automatically resume once focus is regained (Android only)
-  /// * [AudioInterruption.temporaryPause] indicates that audio should be
-  /// temporarily paused and resumed again once focus is regained (Android
-  /// only)
-  /// * [AudioInterruption.temporaryDuck] indicates that audio can be
-  /// temporarily paused or ducked (volume lowered) and resumed or restored
-  /// again once focus is regained (Android only)
-  /// * [AudioInterruption.unknownPause] indicates that audio should be paused
-  /// (iOS only)
-  ///
-  /// The default behaviour is to call [onPause] if audio is playing.
-  Future<void> onAudioFocusLost(AudioInterruption interruption) async {
-    if (AudioServiceBackground.state?.playing == true) {
-      _interrupted = true;
-      await onPause();
-    }
-  }
-
-  /// Called when your app gains audio focus. If the audio was interrupted, the
-  /// parameter indicates if and how audio should be restored:
-  ///
-  /// * [AudioInterruption.pause]: Audio should stay paused.
-  /// * [AudioInterruption.temporaryPause]: Audio should resume.
-  /// * [AudioInterruption.temporaryDuck]: Audio should be restored after
-  /// ducking (Android only).
-  ///
-  /// The default behaviour is to call [onPlay] if audio was previously paused
-  /// when the focus was lost.
-  Future<void> onAudioFocusGained(AudioInterruption interruption) async {
-    switch (interruption) {
-      case AudioInterruption.temporaryPause:
-      case AudioInterruption.temporaryDuck:
-        if (_interrupted) await onPlay();
-        break;
-      default:
-        break;
-    }
-    _interrupted = false;
-  }
-
-  /// Called on Android when your audio output is about to become noisy due
-  /// to the user unplugging the headphones.
-  ///
-  /// The default behaviour is to call [onPause].
-  Future<void> onAudioBecomingNoisy() => onPause();
 
   /// Called when the media button on the headset is pressed, or in response to
   /// a call from [AudioService.click]. The default behaviour is:

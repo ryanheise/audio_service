@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class AudioService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
+public class AudioService extends MediaBrowserServiceCompat {
 	private static final int NOTIFICATION_ID = 1124;
 	private static final int REQUEST_CONTENT_INTENT = 1000;
 	private static final String MEDIA_ROOT_ID = "root";
@@ -153,8 +153,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		compactActionIndices = null;
 
 		mediaSession.setQueue(queue);
-		instance.abandonAudioFocus();
-		unregisterNoisyReceiver();
 		mediaSession.setActive(false);
 		releaseWakeLock();
 		stopForeground(true);
@@ -166,10 +164,8 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 	}
 
 	private PowerManager.WakeLock wakeLock;
-	private BroadcastReceiver noisyReceiver;
 	private MediaSessionCompat mediaSession;
 	private MediaSessionCallback mediaSessionCallback;
-	private AudioManager audioManager;
 	private MediaMetadataCompat preparedMedia;
 	private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
 	private int[] compactActionIndices;
@@ -319,41 +315,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		listener.onClose();
 	}
 
-	private int requestAudioFocus() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-			return requestAudioFocusO();
-		else
-			return audioManager.requestAudioFocus(this,
-					AudioManager.STREAM_MUSIC,
-					AudioManager.AUDIOFOCUS_GAIN);
-	}
-
-	@RequiresApi(Build.VERSION_CODES.O)
-	private int requestAudioFocusO() {
-		AudioAttributes audioAttributes = new AudioAttributes.Builder()
-				.setUsage(AudioAttributes.USAGE_MEDIA)
-				.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-				.build();
-		audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-				.setAudioAttributes(audioAttributes)
-				.setWillPauseWhenDucked(true)
-				.setOnAudioFocusChangeListener(this)
-				.build();
-		return audioManager.requestAudioFocus((AudioFocusRequest)audioFocusRequest);
-	}
-
-	private void abandonAudioFocus() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-			abandonAudioFocusO();
-		else
-			audioManager.abandonAudioFocus(this);
-	}
-
-	@RequiresApi(Build.VERSION_CODES.O)
-	private void abandonAudioFocusO() {
-		if (audioFocusRequest == null) return;
-		audioManager.abandonAudioFocusRequest((AudioFocusRequest)audioFocusRequest);
-	}
 
 	@RequiresApi(Build.VERSION_CODES.O)
 	private void createChannel() {
@@ -372,45 +333,18 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		notificationManager.notify(NOTIFICATION_ID, buildNotification());
 	}
 
-	private void registerNoisyReceiver() {
-		if (noisyReceiver != null) return;
-		noisyReceiver = new BroadcastReceiver() {
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
-					listener.onAudioBecomingNoisy();
-				}
-			}
-		};
-		registerReceiver(noisyReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
-	}
-
-	private void unregisterNoisyReceiver() {
-		if (noisyReceiver == null) return;
-		unregisterReceiver(noisyReceiver);
-		noisyReceiver = null;
-	}
-
 	private boolean enterPlayingState() {
-		int result = requestAudioFocus();
-		if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-			// Don't play audio. TODO: Pass this on to Dart.
-			return false;
-		}
-
 		startService(new Intent(AudioService.this, AudioService.class));
 		if (!mediaSession.isActive())
 			mediaSession.setActive(true);
 
 		acquireWakeLock();
-		registerNoisyReceiver();
 		mediaSession.setSessionActivity(contentIntent);
 		startForeground(NOTIFICATION_ID, buildNotification());
 		return true;
 	}
 
 	private void exitPlayingState() {
-		unregisterNoisyReceiver();
 		if (androidStopForegroundOnPause) {
 			exitForegroundState();
 		}
@@ -492,7 +426,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 		super.onCreate();
 		instance = this;
 		notificationChannelId = getApplication().getPackageName() + ".channel";
-		audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
 
 		mediaSession = new MediaSessionCompat(this, "media-session");
 		mediaSession.setMediaButtonReceiver(null); // TODO: Make this configurable
@@ -604,26 +537,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 			listener.onTaskRemoved();
 		}
 		super.onTaskRemoved(rootIntent);
-	}
-
-	@Override
-	public void onAudioFocusChange(int focusChange) {
-		switch (focusChange) {
-		case AudioManager.AUDIOFOCUS_GAIN:
-			listener.onAudioFocusGained();
-			break;
-		case AudioManager.AUDIOFOCUS_LOSS:
-			listener.onAudioFocusLost();
-			break;
-		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-			listener.onAudioFocusLostTransient();
-			break;
-		case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-			listener.onAudioFocusLostTransientCanDuck();
-			break;
-		default:
-			break;
-		}
 	}
 
 	public class MediaSessionCallback extends MediaSessionCompat.Callback {
@@ -819,16 +732,6 @@ public class AudioService extends MediaBrowserServiceCompat implements AudioMana
 
 	public static interface ServiceListener {
 		void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result);
-
-		void onAudioFocusGained();
-
-		void onAudioFocusLost();
-
-		void onAudioFocusLostTransient();
-
-		void onAudioFocusLostTransientCanDuck();
-
-		void onAudioBecomingNoisy();
 
 		void onClick(MediaControl mediaControl);
 

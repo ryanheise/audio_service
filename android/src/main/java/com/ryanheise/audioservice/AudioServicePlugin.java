@@ -562,7 +562,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		private AudioTrack silenceAudioTrack;
 		private static final int SILENCE_SAMPLE_RATE = 44100;
 		private byte[] silence;
-		private AudioInterruption interruption = AudioInterruption.temporaryPause;
 
 		public BackgroundHandler(long callbackHandle, String appBundlePath, boolean enableQueue) {
 			this.callbackHandle = callbackHandle;
@@ -596,35 +595,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			DartCallback dartCallback = new DartCallback(context.getAssets(), appBundlePath, cb);
 
 			executor.executeDartCallback(dartCallback);
-		}
-
-		@Override
-		public void onAudioFocusGained() {
-			invokeMethod("onAudioFocusGained", interruption.ordinal());
-			interruption = AudioInterruption.temporaryPause;
-		}
-
-		@Override
-		public void onAudioFocusLost() {
-			interruption = AudioInterruption.pause;
-			invokeMethod("onAudioFocusLost", interruption.ordinal());
-		}
-
-		@Override
-		public void onAudioFocusLostTransient() {
-			interruption = AudioInterruption.temporaryPause;
-			invokeMethod("onAudioFocusLost", interruption.ordinal());
-		}
-
-		@Override
-		public void onAudioFocusLostTransientCanDuck() {
-			interruption = AudioInterruption.temporaryDuck;
-			invokeMethod("onAudioFocusLost", interruption.ordinal());
-		}
-
-		@Override
-		public void onAudioBecomingNoisy() {
-			invokeMethod("onAudioBecomingNoisy");
 		}
 
 		@Override

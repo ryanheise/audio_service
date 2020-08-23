@@ -222,9 +222,8 @@ void _audioPlayerTaskEntrypoint() async {
 /// This task defines logic for playing a list of podcast episodes.
 class AudioPlayerTask extends BackgroundAudioTask {
   final _mediaLibrary = MediaLibrary();
-  AudioPlayer _player = new AudioPlayer();
+  AudioPlayer _player = new AudioPlayer(handleInterruptions: true);
   AudioProcessingState _skipState;
-  bool _interrupted = false;
   Seeker _seeker;
   StreamSubscription<PlaybackEvent> _eventSubscription;
 
@@ -313,41 +312,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
-
-  @override
-  Future<void> onAudioFocusLost(AudioInterruption interruption) async {
-    // We override the default behaviour to duck when appropriate.
-    // First, remember if we were playing when the interruption occurred.
-    if (_player.playing) _interrupted = true;
-    // If another app wants to take over the audio focus, we either pause (e.g.
-    // during a phonecall) or duck (e.g. if Maps Navigator starts speaking).
-    if (interruption == AudioInterruption.temporaryDuck) {
-      _player.setVolume(0.5);
-    } else {
-      onPause();
-    }
-  }
-
-  @override
-  Future<void> onAudioFocusGained(AudioInterruption interruption) async {
-    // Restore normal playback depending on whether we paused or ducked.
-    switch (interruption) {
-      case AudioInterruption.temporaryPause:
-        // Resume playback again. But only if we *were* originally playing at
-        // the time the phone call came through. If we were paused when the
-        // phone call came, we shouldn't suddenly start playing when they hang
-        // up.
-        if (!_player.playing && _interrupted) onPlay();
-        break;
-      case AudioInterruption.temporaryDuck:
-        // Resume normal volume after a duck.
-        _player.setVolume(1.0);
-        break;
-      default:
-        break;
-    }
-    _interrupted = false;
-  }
 
   @override
   Future<void> onStop() async {

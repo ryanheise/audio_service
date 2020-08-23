@@ -1,10 +1,7 @@
 #import "AudioServicePlugin.h"
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
-//#import <Foundation/Foundation.h>
 
-// NOTE: This is a barebones implementation of the iOS side.
-//
 // If you'd like to help, please see the TODO comments below, then open a
 // GitHub issue to announce your intention to work on a particular feature, and
 // submit a pull request. We have an open discussion over at issue #10 about
@@ -40,6 +37,7 @@ static MPMediaItemArtwork* artwork = nil;
     @synchronized(self) {
         // TODO: Need a reliable way to detect whether this is the client
         // or background.
+        // TODO: Handle multiple clients.
         if (channel == nil) {
             AudioServicePlugin *clientInstance = [[AudioServicePlugin alloc] init:registrar];
             channel = [FlutterMethodChannel
@@ -118,26 +116,8 @@ static MPMediaItemArtwork* artwork = nil;
         // See the "ready" case below.
         startResult = result;
 
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioInterrupt:) name:AVAudioSessionInterruptionNotification object:nil];
+        [AVAudioSession sharedInstance];
 
-        // Initialise AVAudioSession
-        NSNumber *categoryIndex = [call.arguments objectForKey:@"iosAudioSessionCategory"];
-        AVAudioSessionCategory category = nil;
-        switch (categoryIndex.integerValue) {
-            case 0: category = AVAudioSessionCategoryAmbient; break;
-            case 1: category = AVAudioSessionCategorySoloAmbient; break;
-            case 2: category = AVAudioSessionCategoryPlayback; break;
-            case 3: category = AVAudioSessionCategoryRecord; break;
-            case 4: category = AVAudioSessionCategoryPlayAndRecord; break;
-            case 5: category = AVAudioSessionCategoryMultiRoute; break;
-        }
-        NSNumber *categoryOptions = [call.arguments objectForKey:@"iosAudioSessionCategoryOptions"];
-        if (categoryOptions != [NSNull null]) {
-            [[AVAudioSession sharedInstance] setCategory:category withOptions:[categoryOptions integerValue] error:nil];
-        } else {
-            [[AVAudioSession sharedInstance] setCategory:category error:nil];
-        }
-        [[AVAudioSession sharedInstance] setActive: YES error: nil];
         // Set callbacks on MPRemoteCommandCenter
         fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
         rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
@@ -203,7 +183,6 @@ static MPMediaItemArtwork* artwork = nil;
     } else if ([@"stopped" isEqualToString:call.method]) {
         _running = NO;
         [channel invokeMethod:@"onStopped" arguments:nil];
-        [[AVAudioSession sharedInstance] setActive: NO error: nil];
         [commandCenter.changePlaybackRateCommand setEnabled:NO];
         [commandCenter.togglePlayPauseCommand setEnabled:NO];
         [commandCenter.togglePlayPauseCommand removeTarget:nil];
@@ -500,31 +479,6 @@ static MPMediaItemArtwork* artwork = nil;
             } else {
                 [commandCenter.seekForwardCommand removeTarget:nil];
             }
-            break;
-    }
-}
-
-- (void) audioInterrupt:(NSNotification*)notification {
-    NSNumber *interruptionType = (NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey];
-    switch ([interruptionType integerValue]) {
-        case AVAudioSessionInterruptionTypeBegan:
-        {
-            enum AudioInterruption interruption = AIUnknownPause;
-            [backgroundChannel invokeMethod:@"onAudioFocusLost" arguments:@[@(interruption)]];
-            break;
-        }
-        case AVAudioSessionInterruptionTypeEnded:
-        {
-            if ([(NSNumber*)[notification.userInfo valueForKey:AVAudioSessionInterruptionOptionKey] intValue] == AVAudioSessionInterruptionOptionShouldResume) {
-                enum AudioInterruption interruption = AITemporaryPause;
-                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
-            } else {
-                enum AudioInterruption interruption = AIPause;
-                [backgroundChannel invokeMethod:@"onAudioFocusGained" arguments:@[@(interruption)]];
-            }
-            break;
-        }
-        default:
             break;
     }
 }
