@@ -1,6 +1,8 @@
 PODS:
   - audio_service (0.0.1):
     - Flutter
+  - audio_session (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
   - flutter_isolate (0.0.1):
     - Flutter
@@ -23,6 +25,7 @@ PODS:
 
 DEPENDENCIES:
   - audio_service (from `.symlinks/plugins/audio_service/ios`)
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - Flutter (from `.symlinks/flutter/ios`)
   - flutter_isolate (from `.symlinks/plugins/flutter_isolate/ios`)
   - flutter_tts (from `.symlinks/plugins/flutter_tts/ios`)
@@ -39,6 +42,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   audio_service:
     :path: ".symlinks/plugins/audio_service/ios"
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
   Flutter:
     :path: ".symlinks/flutter/ios"
   flutter_isolate:
@@ -58,6 +63,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   audio_service: f509d65da41b9521a61f1c404dd58651f265a567
+  audio_session: 4f3e461722055d21515cf3261b64c973c062f345
   Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
   flutter_isolate: 0edf5081826d071adf21759d1eb10ff5c24503b5
   flutter_tts: 0f492aab6accf87059b72354fcb4ba934304771d
