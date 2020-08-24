@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:math';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -233,6 +235,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
+    // We configure the audio session for speech since we're playing a podcast.
+    // You can also put this in your app's initialisation if your app doesn't
+    // switch between two types of audio as this example does.
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration.speech());
     // Broadcast media item changes.
     _player.currentIndexStream.listen((index) {
       if (index != null) AudioServiceBackground.setMediaItem(queue[index]);
@@ -430,11 +437,44 @@ class TextPlayerTask extends BackgroundAudioTask {
   bool _finished = false;
   Sleeper _sleeper = Sleeper();
   Completer _completer = Completer();
+  bool _interrupted = false;
 
   bool get _playing => AudioServiceBackground.state.playing;
 
   @override
   Future<void> onStart(Map<String, dynamic> params) async {
+    // We configure the audio session for speech since we're playing
+    // text-to-speech. You can also put this in your app's initialisation if
+    // your app doesn't switch between two types of audio as this example does.
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration.speech());
+    // Handle audio interruptions.
+    session.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        if (_playing) {
+          onPause();
+          _interrupted = true;
+        }
+      } else {
+        switch (event.type) {
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.duck:
+            if (!_playing && _interrupted) {
+              onPlay();
+            }
+            break;
+          case AudioInterruptionType.unknown:
+            break;
+        }
+        _interrupted = false;
+      }
+    });
+    // Handle unplugged headphones.
+    session.becomingNoisyEventStream.listen((_) {
+      if (_playing) onPause();
+    });
+
+    // Start playing.
     await _playPause();
     for (var i = 1; i <= 10 && !_finished; i++) {
       AudioServiceBackground.setMediaItem(mediaItem(i));
@@ -493,20 +533,35 @@ class TextPlayerTask extends BackgroundAudioTask {
 
   Future<void> _playPause() async {
     if (_playing) {
+      _interrupted = false;
       _tts.stop();
       await AudioServiceBackground.setState(
         controls: [MediaControl.play, MediaControl.stop],
         processingState: AudioProcessingState.ready,
         playing: false,
       );
+      _sleeper.interrupt();
     } else {
-      await AudioServiceBackground.setState(
-        controls: [MediaControl.pause, MediaControl.stop],
-        processingState: AudioProcessingState.ready,
-        playing: true,
-      );
+      if (await _activateSession()) {
+        await AudioServiceBackground.setState(
+          controls: [MediaControl.pause, MediaControl.stop],
+          processingState: AudioProcessingState.ready,
+          playing: true,
+        );
+        _sleeper.interrupt();
+      }
     }
-    _sleeper.interrupt();
+  }
+
+  Future<bool> _activateSession() async {
+    // The flutter_tts plugin currently activates the session for iOS but not
+    // for Android, so we add the Android side manually.
+    if (Platform.isAndroid) {
+      final session = await AudioSession.instance;
+      return await session.setActive(true);
+    } else {
+      return true;
+    }
   }
 }
 
