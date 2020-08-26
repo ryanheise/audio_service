@@ -224,7 +224,7 @@ void _audioPlayerTaskEntrypoint() async {
 /// This task defines logic for playing a list of podcast episodes.
 class AudioPlayerTask extends BackgroundAudioTask {
   final _mediaLibrary = MediaLibrary();
-  AudioPlayer _player = new AudioPlayer(handleInterruptions: true);
+  AudioPlayer _player = new AudioPlayer();
   AudioProcessingState _skipState;
   Seeker _seeker;
   StreamSubscription<PlaybackEvent> _eventSubscription;
