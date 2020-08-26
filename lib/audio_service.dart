@@ -1742,36 +1742,6 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
   }
 }
 
-/// Represents how audio should be handled when audio focus is lost and
-/// regained.
-enum AudioInterruption {
-  pause,
-  temporaryPause,
-  temporaryDuck,
-  unknownPause,
-}
-
-/// The audio session categories on iOS.
-enum IosAudioSessionCategory {
-  ambient,
-  soloAmbient,
-  playback,
-  record,
-  playAndRecord,
-  multiRoute,
-}
-
-/// The option bitmasks for the audio session categories on iOS.
-class IosAudioSessionCategoryOptions {
-  static const int MIX_WITH_OTHERS = 0x1;
-  static const int DUCK_OTHERS = 0x2;
-  static const int INTERRUPT_SPOKEN_AUDIO_AND_MIX_WITH_OTHERS = 0x11;
-  static const int ALLOW_BLUETOOTH = 0x4;
-  static const int ALLOW_BLUETOOTH_A2DP = 0x20;
-  static const int ALLOW_AIR_PLAY = 0x40;
-  static const int DEFAULT_TO_SPEAKER = 0x8;
-}
-
 enum AudioServiceShuffleMode { none, all, group }
 
 enum AudioServiceRepeatMode { none, one, all, group }

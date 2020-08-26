@@ -10,15 +10,13 @@ dependencies:
     sdk: flutter
 
   path_provider: ^1.6.10
-  audio_session: ^0.0.2
+  audio_session: ^0.0.3
   # Using an unreleased version of just_audio.
   just_audio:
     git:
       url: https://github.com/ryanheise/just_audio.git
       ref: 598cb4a
-  # flutter_tts: ^0.8.5
-  flutter_tts:
-    path: ../../flutter_tts
+  flutter_tts: ^0.8.5
   rxdart: ^0.24.1
   audio_service:
     path: ../
