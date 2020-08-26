@@ -481,7 +481,7 @@ class TextPlayerTask extends BackgroundAudioTask {
       AudioServiceBackground.setMediaItem(mediaItem(i));
       AudioServiceBackground.androidForceEnableMediaButtons();
       try {
-        await _tts.speak('The next interesting number is the number $i');
+        await _tts.speak('$i');
         i++;
         await _sleeper.sleep(Duration(milliseconds: 300));
       } catch (e) {
