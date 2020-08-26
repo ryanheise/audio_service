@@ -1068,127 +1068,135 @@ class AudioServiceBackground {
     _task = taskBuilder();
     _cacheManager = _task.cacheManager;
     _backgroundChannel.setMethodCallHandler((MethodCall call) async {
-      switch (call.method) {
-        case 'onLoadChildren':
-          final List args = call.arguments;
-          String parentMediaId = args[0];
-          List<MediaItem> mediaItems =
-              await _task.onLoadChildren(parentMediaId);
-          List<Map> rawMediaItems =
-              mediaItems.map((item) => item.toJson()).toList();
-          return rawMediaItems as dynamic;
-        case 'onClick':
-          final List args = call.arguments;
-          MediaButton button = MediaButton.values[args[0]];
-          await _task.onClick(button);
-          break;
-        case 'onStop':
-          await _task.onStop();
-          break;
-        case 'onPause':
-          await _task.onPause();
-          break;
-        case 'onPrepare':
-          await _task.onPrepare();
-          break;
-        case 'onPrepareFromMediaId':
-          final List args = call.arguments;
-          String mediaId = args[0];
-          await _task.onPrepareFromMediaId(mediaId);
-          break;
-        case 'onPlay':
-          await _task.onPlay();
-          break;
-        case 'onPlayFromMediaId':
-          final List args = call.arguments;
-          String mediaId = args[0];
-          await _task.onPlayFromMediaId(mediaId);
-          break;
-        case 'onPlayMediaItem':
-          await _task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
-          break;
-        case 'onAddQueueItem':
-          await _task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
-          break;
-        case 'onAddQueueItemAt':
-          final List args = call.arguments;
-          MediaItem mediaItem = MediaItem.fromJson(args[0]);
-          int index = args[1];
-          await _task.onAddQueueItemAt(mediaItem, index);
-          break;
-        case 'onUpdateQueue':
-          final List args = call.arguments;
-          final List queue = args[0];
-          await _task.onUpdateQueue(
-              queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
-          break;
-        case 'onUpdateMediaItem':
-          await _task.onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
-          break;
-        case 'onRemoveQueueItem':
-          await _task.onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
-          break;
-        case 'onSkipToNext':
-          await _task.onSkipToNext();
-          break;
-        case 'onSkipToPrevious':
-          await _task.onSkipToPrevious();
-          break;
-        case 'onFastForward':
-          await _task.onFastForward();
-          break;
-        case 'onRewind':
-          await _task.onRewind();
-          break;
-        case 'onSkipToQueueItem':
-          final List args = call.arguments;
-          String mediaId = args[0];
-          await _task.onSkipToQueueItem(mediaId);
-          break;
-        case 'onSeekTo':
-          final List args = call.arguments;
-          int positionMs = args[0];
-          Duration position = Duration(milliseconds: positionMs);
-          await _task.onSeekTo(position);
-          break;
-        case 'onSetRepeatMode':
-          final List args = call.arguments;
-          await _task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
-          break;
-        case 'onSetShuffleMode':
-          final List args = call.arguments;
-          await _task.onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
-          break;
-        case 'onSetRating':
-          await _task.onSetRating(
-              Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-          break;
-        case 'onSeekBackward':
-          final List args = call.arguments;
-          await _task.onSeekBackward(args[0]);
-          break;
-        case 'onSeekForward':
-          final List args = call.arguments;
-          await _task.onSeekForward(args[0]);
-          break;
-        case 'onSetSpeed':
-          final List args = call.arguments;
-          double speed = args[0];
-          await _task.onSetSpeed(speed);
-          break;
-        case 'onTaskRemoved':
-          await _task.onTaskRemoved();
-          break;
-        case 'onClose':
-          await _task.onClose();
-          break;
-        default:
-          if (call.method.startsWith(_CUSTOM_PREFIX)) {
-            final result = await _task.onCustomAction(
-                call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
-            return result;
-          }
-          break;
+      try {
+        switch (call.method) {
+          case 'onLoadChildren':
+            final List args = call.arguments;
+            String parentMediaId = args[0];
+            List<MediaItem> mediaItems =
+                await _task.onLoadChildren(parentMediaId);
+            List<Map> rawMediaItems =
+                mediaItems.map((item) => item.toJson()).toList();
+            return rawMediaItems as dynamic;
+          case 'onClick':
+            final List args = call.arguments;
+            MediaButton button = MediaButton.values[args[0]];
+            await _task.onClick(button);
+            break;
+          case 'onStop':
+            await _task.onStop();
+            break;
+          case 'onPause':
+            await _task.onPause();
+            break;
+          case 'onPrepare':
+            await _task.onPrepare();
+            break;
+          case 'onPrepareFromMediaId':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _task.onPrepareFromMediaId(mediaId);
+            break;
+          case 'onPlay':
+            await _task.onPlay();
+            break;
+          case 'onPlayFromMediaId':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _task.onPlayFromMediaId(mediaId);
+            break;
+          case 'onPlayMediaItem':
+            await _task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onAddQueueItem':
+            await _task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onAddQueueItemAt':
+            final List args = call.arguments;
+            MediaItem mediaItem = MediaItem.fromJson(args[0]);
+            int index = args[1];
+            await _task.onAddQueueItemAt(mediaItem, index);
+            break;
+          case 'onUpdateQueue':
+            final List args = call.arguments;
+            final List queue = args[0];
+            await _task.onUpdateQueue(
+                queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
+            break;
+          case 'onUpdateMediaItem':
+            await _task
+                .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onRemoveQueueItem':
+            await _task
+                .onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onSkipToNext':
+            await _task.onSkipToNext();
+            break;
+          case 'onSkipToPrevious':
+            await _task.onSkipToPrevious();
+            break;
+          case 'onFastForward':
+            await _task.onFastForward();
+            break;
+          case 'onRewind':
+            await _task.onRewind();
+            break;
+          case 'onSkipToQueueItem':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _task.onSkipToQueueItem(mediaId);
+            break;
+          case 'onSeekTo':
+            final List args = call.arguments;
+            int positionMs = args[0];
+            Duration position = Duration(milliseconds: positionMs);
+            await _task.onSeekTo(position);
+            break;
+          case 'onSetRepeatMode':
+            final List args = call.arguments;
+            await _task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+            break;
+          case 'onSetShuffleMode':
+            final List args = call.arguments;
+            await _task
+                .onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+            break;
+          case 'onSetRating':
+            await _task.onSetRating(
+                Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+            break;
+          case 'onSeekBackward':
+            final List args = call.arguments;
+            await _task.onSeekBackward(args[0]);
+            break;
+          case 'onSeekForward':
+            final List args = call.arguments;
+            await _task.onSeekForward(args[0]);
+            break;
+          case 'onSetSpeed':
+            final List args = call.arguments;
+            double speed = args[0];
+            await _task.onSetSpeed(speed);
+            break;
+          case 'onTaskRemoved':
+            await _task.onTaskRemoved();
+            break;
+          case 'onClose':
+            await _task.onClose();
+            break;
+          default:
+            if (call.method.startsWith(_CUSTOM_PREFIX)) {
+              final result = await _task.onCustomAction(
+                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
+              return result;
+            }
+            break;
+        }
+      } catch (e, stacktrace) {
+        print('$stacktrace');
+        throw PlatformException(code: '$e');
       }
     });
     Map startParams = await _backgroundChannel.invokeMethod('ready');
