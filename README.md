@@ -20,7 +20,6 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 | -------                            | :-------:  | :-----: |
 | background audio                   | ✅         | ✅      |
 | headset clicks                     | ✅         | ✅      |
-| Handle phonecall interruptions     | ✅         | ✅      |
 | start/stop/play/pause/seek/rate    | ✅         | ✅      |
 | fast forward/rewind                | ✅         | ✅      |
 | repeat/shuffle mode                | ✅         | ✅      |
@@ -34,21 +33,9 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
-## Migrating to 0.13.0
+## Migrating to 0.14.0
 
-As of 0.13.0, all callbacks in `AudioBackgroundTask` are asynchronous. This allows the main isolate to await their completion and better synchronise with the background audio task.
-
-As of 0.11.0, the background audio task terminates when `onStop` completes rather than when `onStart` completes.
-
-As of 0.10.0, your broadcast receiver in `AndroidManifest.xml` should be replaced with the one below to ensure that headset and notification clicks continue to work:
-
-```xml
-    <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
-      <intent-filter>
-        <action android:name="android.intent.action.MEDIA_BUTTON" />
-      </intent-filter>
-    </receiver> 
-```
+Audio focus, interruptions (e.g. phone calls), mixing, ducking and the configuration of your app's audio category and attributes, are now handled by the [audio_session](https://pub.dev/packages/audio_session) package. Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for details.
 
 ## Can I make use of other plugins within the background audio task?
 
@@ -80,13 +67,6 @@ class MyBackgroundTask extends BackgroundAudioTask {
   onSkipToPrevious() {}
   // Handle a request to seek to a position.
   onSeekTo(Duration position) {}
-  // Handle a phone call or other interruption.
-  onAudioFocusLost(AudioInterruption interruption) {}
-  // Handle the end of an audio interruption.
-  onAudioFocusGained(AudioInterruption interruption) {}
-  // Handle when the user unplugs the headphones.
-  onAudioBecomingNoisy(AudioInterruption interruption) {}
-  // See the API documentation for more.
 }
 ```
 

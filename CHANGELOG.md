@@ -1,3 +1,8 @@
+## 0.14.0
+
+* audio session management now handled by audio_session (see [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140)).
+* Exceptions in background audio task are logged and forwarded to client.
+
 ## 0.13.0
 
 * All BackgroundAudioTask callbacks are now async.
