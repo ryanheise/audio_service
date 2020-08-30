@@ -1,3 +1,7 @@
+## 0.14.1
+
+* audio_session dependency now supports minSdkVersion 16 on Android.
+
 ## 0.14.0
 
 * audio session management now handled by audio_session (see [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140)).
