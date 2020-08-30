@@ -599,22 +599,18 @@ class Tts {
   bool _interruptRequested = false;
   bool _playing = false;
 
-  bool get playing => _playing;
-
-  void interrupt() {
-    if (_playing) {
-      _interruptRequested = true;
-      stop();
-    }
+  Tts() {
+    _flutterTts.setCompletionHandler(() {
+      _speechCompleter?.complete();
+    });
   }
+
+  bool get playing => _playing;
 
   Future<void> speak(String text) async {
     _playing = true;
     if (!_interruptRequested) {
       _speechCompleter = Completer();
-      _flutterTts.setCompletionHandler(() {
-        _speechCompleter?.complete();
-      });
       await _flutterTts.speak(text);
       await _speechCompleter.future;
       _speechCompleter = null;
@@ -630,6 +626,13 @@ class Tts {
     if (_playing) {
       await _flutterTts.stop();
       _speechCompleter?.complete();
+    }
+  }
+
+  void interrupt() {
+    if (_playing) {
+      _interruptRequested = true;
+      stop();
     }
   }
 }
