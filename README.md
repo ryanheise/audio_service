@@ -76,9 +76,12 @@ You can implement these (and other) callbacks to play any type of audio dependin
 import 'package:just_audio/just_audio.dart';
 class PodcastBackgroundTask extends BackgroundAudioTask {
   AudioPlayer _player = AudioPlayer();
-  onPlay() {
+  onPlay() async {
     _player.play();
-    AudioServiceBackground.setState(playing: true, ...);
+    // Show the media notification, and let all clients no what
+    // playback state and media item to display.
+    await AudioServiceBackground.setState(playing: true, ...);
+    await AudioServiceBackground.setMediaItem(MediaItem(title: "Hey Jude", ...))
   }
 ```
 
@@ -89,9 +92,12 @@ import 'package:flutter_tts/flutter_tts.dart';
 class ReaderBackgroundTask extends BackgroundAudioTask {
   FlutterTts _tts = FlutterTts();
   String article;
-  onPlay() {
+  onPlay() async {
     _tts.speak(article);
-    AudioServiceBackground.setState(playing: true, ...);
+    // Show the media notification, and let all clients no what
+    // playback state and media item to display.
+    await AudioServiceBackground.setState(playing: true, ...);
+    await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...))
   }
 }
 ```
