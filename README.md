@@ -127,7 +127,7 @@ await AudioService.start(
   androidNotificationIcon: 'mipmap/ic_launcher',
   // An example of passing custom parameters.
   // These will be passed through to your `onStart` callback.
-  params: {'url', 'https://somewhere.com/sometrack.mp3'},
+  params: {'url': 'https://somewhere.com/sometrack.mp3'},
 );
 // this must be a top-level function
 void _myEntrypoint() => AudioServiceBackground.run(() => MyBackgroundTask());
