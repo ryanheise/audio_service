@@ -598,12 +598,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 				case KEYCODE_BYPASS_PAUSE:
 					onPause();
 					break;
-				case KeyEvent.KEYCODE_MEDIA_NEXT:
-					onSkipToNext();
-					break;
-				case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-					onSkipToPrevious();
-					break;
 				case KeyEvent.KEYCODE_MEDIA_STOP:
 					onStop();
 					break;
@@ -621,6 +615,8 @@ public class AudioService extends MediaBrowserServiceCompat {
 				// around this, we make PLAY and PAUSE actions use different keycodes:
 				// KEYCODE_BYPASS_PLAY/PAUSE. Now if we get KEYCODE_MEDIA_PLAY/PUASE
 				// we know it is actually a media button press.
+				case KeyEvent.KEYCODE_MEDIA_NEXT:
+				case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
 				case KeyEvent.KEYCODE_MEDIA_PLAY:
 				case KeyEvent.KEYCODE_MEDIA_PAUSE:
 					// These are the "genuine" media button click events
