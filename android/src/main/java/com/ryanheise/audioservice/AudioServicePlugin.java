@@ -10,7 +10,6 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
-import android.os.RemoteException;
 import android.os.SystemClock;
 
 import androidx.core.app.NotificationCompat;
@@ -274,7 +273,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 						}
 					}
 					sendConnectResult(true);
-				} catch (RemoteException e) {
+				} catch (Exception e) {
 					sendConnectResult(false);
 					throw new RuntimeException(e);
 				}
