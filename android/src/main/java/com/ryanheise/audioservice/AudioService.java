@@ -154,6 +154,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
 		mediaSession.setQueue(queue);
 		mediaSession.setActive(false);
+		mediaSession.release();
 		releaseWakeLock();
 		stopForeground(true);
 		stopSelf();
