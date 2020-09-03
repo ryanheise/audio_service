@@ -228,6 +228,13 @@ Insert this in your `Info.plist` file:
 
 The example project may be consulted for context.
 
+## macOS setup
+The minimum supported macOS version is 10.12.2 (though this could be changed with some work in the future).  
+Modify the platform line in `macos/Podfile` to look like the following:
+```
+platform :osx, '10.12.2'
+```
+
 # Where can I find more information?
 
 * [Tutorial](https://github.com/ryanheise/audio_service/wiki/Tutorial): walks you through building a simple audio player while explaining the basic concepts.

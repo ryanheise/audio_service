@@ -526,6 +526,9 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// It is recommended to use [AudioServiceWidget] to manage this connection
 /// automatically.
 class AudioService {
+  /// True if the background task runs in its own isolate, false if it doesn't.
+  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS);
+
   /// The root media ID for browsing media provided by the background
   /// task.
   static const String MEDIA_ROOT_ID = "root";
@@ -656,7 +659,7 @@ class AudioService {
           break;
       }
     });
-    if (!kIsWeb) {
+    if (AudioService.usesIsolate) {
       _customEventReceivePort = ReceivePort();
       _customEventSubscription = _customEventReceivePort.listen((event) {
         _customEventSubject.add(event);
@@ -757,7 +760,7 @@ class AudioService {
     _running = true;
     _afterStop = false;
     ui.CallbackHandle handle;
-    if (!kIsWeb) {
+    if (AudioService.usesIsolate) {
       handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
       if (handle == null) {
         return false;
@@ -804,7 +807,7 @@ class AudioService {
       'rewindInterval': rewindInterval.inMilliseconds,
     });
     _running = await _channel.invokeMethod("isRunning");
-    if (kIsWeb) backgroundTaskEntrypoint();
+    if (!AudioService.usesIsolate) backgroundTaskEntrypoint();
     return success;
   }
 
@@ -1444,7 +1447,7 @@ class AudioServiceBackground {
   /// SendPort/ReceivePort API. Please consult the relevant documentation for
   /// further information.
   static void sendCustomEvent(dynamic event) {
-    if (kIsWeb) {
+    if (!AudioService.usesIsolate) {
       AudioService._customEventSubject.add(event);
     } else {
       SendPort sendPort =
