@@ -14,6 +14,8 @@ dependencies:
   flutter_cache_manager: ^1.4.0
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
 
 flutter:
   plugin:
@@ -23,3 +25,6 @@ flutter:
         pluginClass: AudioServicePlugin
       ios:
         pluginClass: AudioServicePlugin
+      web:
+        pluginClass: AudioServicePlugin
+        fileName: audio_service_web.dart
