@@ -124,7 +124,6 @@ class MainScreen extends StatelessWidget {
             androidNotificationChannelName: 'Audio Service Demo',
             // Enable this if you want the Android service to exit the foreground state on pause.
             //androidStopForegroundOnPause: true,
-            params: {'somthingusefl': true},
             androidNotificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
             androidEnableQueue: true,
