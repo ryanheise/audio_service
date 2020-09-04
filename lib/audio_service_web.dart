@@ -125,7 +125,6 @@ class AudioServicePlugin {
         if (call.method.startsWith(_CUSTOM_PREFIX)) {
           final result =
               await backgroundChannel.invokeMethod(call.method, call.arguments);
-          print('$result');
           return result;
         }
         throw PlatformException(
@@ -232,7 +231,6 @@ class AudioServicePlugin {
         break;
       case 'setMediaItem':
         final mediaItem = MediaItem.fromJson(call.arguments);
-        print('mediaItem: $mediaItem');
         final mapped = <String, dynamic>{
           'title': mediaItem.title,
           'artist': mediaItem.artist,
@@ -247,7 +245,6 @@ class AudioServicePlugin {
         serviceChannel.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
         break;
       case 'setQueue':
-        print(call.arguments);
         serviceChannel.invokeMethod('onQueueChanged', [call.arguments]);
         break;
       case 'androidForceEnableMediaButtons':

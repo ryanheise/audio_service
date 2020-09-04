@@ -1445,7 +1445,6 @@ class AudioServiceBackground {
   /// further information.
   static void sendCustomEvent(dynamic event) {
     if (kIsWeb) {
-      print('Sending event: $event');
       AudioService._customEventSubject.add(event);
     } else {
       SendPort sendPort =
