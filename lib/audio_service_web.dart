@@ -121,7 +121,6 @@ class AudioServicePlugin {
             [call.arguments['rating'], call.arguments['extras']]);
       case 'setSpeed':
         return backgroundChannel.invokeMethod('onSetSpeed', [call.arguments]);
-      // TODO: CustomActions can't work through the IsolateNameServer we need some other mechanism
       default:
         if (call.method.startsWith(_CUSTOM_PREFIX)) {
           final result =
