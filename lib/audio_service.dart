@@ -1444,9 +1444,14 @@ class AudioServiceBackground {
   /// SendPort/ReceivePort API. Please consult the relevant documentation for
   /// further information.
   static void sendCustomEvent(dynamic event) {
-    SendPort sendPort =
-        IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
-    sendPort?.send(event);
+    if (kIsWeb) {
+      print('Sending event: $event');
+      AudioService._customEventSubject.add(event);
+    } else {
+      SendPort sendPort =
+          IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
+      sendPort?.send(event);
+    }
   }
 }
 

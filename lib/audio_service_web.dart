@@ -6,6 +6,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
+const String _CUSTOM_PREFIX = 'custom_';
+
 class Art {
   String src;
   String type;
@@ -120,9 +122,13 @@ class AudioServicePlugin {
       case 'setSpeed':
         return backgroundChannel.invokeMethod('onSetSpeed', [call.arguments]);
       // TODO: CustomActions can't work through the IsolateNameServer we need some other mechanism
-      //case 'customAction'
       default:
-        // return true;
+        if (call.method.startsWith(_CUSTOM_PREFIX)) {
+          final result =
+              await backgroundChannel.invokeMethod(call.method, call.arguments);
+          print('$result');
+          return result;
+        }
         throw PlatformException(
             code: 'Unimplemented',
             details: "The audio Service plugin for web doesn't implement "
