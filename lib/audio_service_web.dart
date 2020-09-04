@@ -17,6 +17,7 @@ class AudioServicePlugin {
   // BackgroundAudioTask _task;
   int fastForwardInterval;
   int rewindInterval;
+  Map params;
   bool started = false;
   MethodChannel serviceChannel;
   MethodChannel backgroundChannel;
@@ -46,6 +47,7 @@ class AudioServicePlugin {
       case 'start':
         fastForwardInterval = call.arguments['fastForwardInterval'];
         rewindInterval = call.arguments['rewindInterval'];
+        params = call.arguments['params'];
         started = true;
         return started;
       case 'connect':
@@ -137,6 +139,7 @@ class AudioServicePlugin {
         return {
           'fastForwardInterval': fastForwardInterval ?? 30000,
           'rewindInterval': rewindInterval ?? 30000,
+          'params': params
         };
       case 'stopped':
         session.metadata = null;
