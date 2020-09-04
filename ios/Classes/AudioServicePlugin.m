@@ -405,7 +405,7 @@ static MPMediaItemArtwork* artwork = nil;
             if (rewindInterval.integerValue > 0) {
                 if (enable) {
                     [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
-                    int rewindIntervalInSeconds = (int) [rewindInterval floatValue]/1000;
+                    int rewindIntervalInSeconds = [rewindInterval intValue]/1000;
                     NSNumber *rewindIntervalInSec = [NSNumber numberWithInt: rewindIntervalInSeconds];
                     commandCenter.skipBackwardCommand.preferredIntervals = @[rewindIntervalInSec];
                 } else {
@@ -431,7 +431,7 @@ static MPMediaItemArtwork* artwork = nil;
             if (fastForwardInterval.integerValue > 0) {
                 if (enable) {
                     [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
-                    int fastForwardIntervalInSeconds = (int) [fastForwardInterval floatValue]/1000;
+                    int fastForwardIntervalInSeconds = [fastForwardInterval intValue]/1000;
                     NSNumber *fastForwardIntervalInSec = [NSNumber numberWithInt: fastForwardIntervalInSeconds];
                     commandCenter.skipForwardCommand.preferredIntervals = @[fastForwardIntervalInSec];
                 } else {
