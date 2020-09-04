@@ -231,17 +231,27 @@ class AudioServicePlugin {
         break;
       case 'setMediaItem':
         final mediaItem = MediaItem.fromJson(call.arguments);
+        // This would be how we could pull images out of the cache... But nothing is actually cached on web
+        final artUri = /* mediaItem.extras['artCacheFile'] ?? */ mediaItem
+            .artUri;
+        print('artUri: $artUri');
         final mapped = <String, dynamic>{
           'title': mediaItem.title,
           'artist': mediaItem.artist,
           'album': mediaItem.album,
-          if (mediaItem.artUri != null)
-            'artwork': [
-              Art(src: mediaItem.artUri),
-            ]
         };
-        html.window.navigator.mediaSession.metadata =
-            html.MediaMetadata(mapped);
+        if (artUri != null)
+          mapped.putIfAbsent('artwork', () => [Art(src: artUri)]);
+        try {
+          html.window.navigator.mediaSession.metadata =
+              html.MediaMetadata(mapped);
+        } catch (e) {
+          // Some weird chrome crap that I'm not sure is fixable
+          mapped.remove('artwork');
+          html.window.navigator.mediaSession.metadata =
+              html.MediaMetadata(mapped);
+          print('Probably cors issue ${e.toString()}');
+        }
         serviceChannel.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
         break;
       case 'setQueue':
