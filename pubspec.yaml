@@ -25,6 +25,8 @@ flutter:
         pluginClass: AudioServicePlugin
       ios:
         pluginClass: AudioServicePlugin
+      macos:
+        pluginClass: AudioServicePlugin
       web:
         pluginClass: AudioServicePlugin
         fileName: audio_service_web.dart

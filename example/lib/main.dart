@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:audio_session/audio_session.dart';
-import 'package:flutter/material.dart';
-import 'dart:async';
-
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
@@ -50,7 +50,7 @@ class MainScreen extends StatelessWidget {
               children: [
                 if (processingState == AudioProcessingState.none) ...[
                   audioPlayerButton(),
-                  textToSpeechButton(),
+                  if (kIsWeb || !Platform.isMacOS) textToSpeechButton(),
                 ] else ...[
                   if (queue != null && queue.isNotEmpty)
                     Row(
