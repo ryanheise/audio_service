@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -655,13 +656,15 @@ class AudioService {
           break;
       }
     });
-    _customEventReceivePort = ReceivePort();
-    _customEventSubscription = _customEventReceivePort.listen((event) {
-      _customEventSubject.add(event);
-    });
-    IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
-    IsolateNameServer.registerPortWithName(
-        _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
+    if (!kIsWeb) {
+      _customEventReceivePort = ReceivePort();
+      _customEventSubscription = _customEventReceivePort.listen((event) {
+        _customEventSubject.add(event);
+      });
+      IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
+      IsolateNameServer.registerPortWithName(
+          _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
+    }
     await _channel.invokeMethod("connect");
     _running = await _channel.invokeMethod("isRunning");
     _connected = true;
@@ -753,13 +756,18 @@ class AudioService {
     if (_running) return false;
     _running = true;
     _afterStop = false;
-    final ui.CallbackHandle handle =
-        ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
-    if (handle == null) {
-      return false;
+    ui.CallbackHandle handle;
+    if (!kIsWeb) {
+      handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
+      if (handle == null) {
+        return false;
+      }
     }
-    var callbackHandle = handle.toRawHandle();
-    if (Platform.isIOS) {
+
+    var callbackHandle = handle?.toRawHandle();
+    if (kIsWeb) {
+      // Platform throws runtime exceptions on web
+    } else if (Platform.isIOS) {
       // NOTE: to maintain compatibility between the Android and iOS
       // implementations, we ensure that the iOS background task also runs in
       // an isolate. Currently, the standard Isolate API does not allow
@@ -796,6 +804,7 @@ class AudioService {
       'rewindInterval': rewindInterval.inMilliseconds,
     });
     _running = await _channel.invokeMethod("isRunning");
+    if (kIsWeb) backgroundTaskEntrypoint();
     return success;
   }
 
@@ -1228,7 +1237,8 @@ class AudioServiceBackground {
       print("While deactivating audio session: $e");
     }
     await _backgroundChannel.invokeMethod('stopped');
-    if (Platform.isIOS) {
+    if (kIsWeb) {
+    } else if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
     }
     _backgroundChannel.setMethodCallHandler(null);
@@ -1434,9 +1444,13 @@ class AudioServiceBackground {
   /// SendPort/ReceivePort API. Please consult the relevant documentation for
   /// further information.
   static void sendCustomEvent(dynamic event) {
-    SendPort sendPort =
-        IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
-    sendPort?.send(event);
+    if (kIsWeb) {
+      AudioService._customEventSubject.add(event);
+    } else {
+      SendPort sendPort =
+          IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
+      sendPort?.send(event);
+    }
   }
 }
 
