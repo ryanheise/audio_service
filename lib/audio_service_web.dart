@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
-import 'dart:ui';
-import 'package:audio_service/media_metadata.dart';
+import 'package:audio_service/js/media_metadata.dart';
 
-import 'media_session_web.dart';
+import 'js/media_session_web.dart';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +19,6 @@ class Art {
 }
 
 class AudioServicePlugin {
-  // BackgroundAudioTask _task;
   int fastForwardInterval;
   int rewindInterval;
   Map params;
@@ -44,7 +42,6 @@ class AudioServicePlugin {
     final AudioServicePlugin instance = AudioServicePlugin();
     instance.serviceChannel = serviceChannel;
     instance.backgroundChannel = backgroundChannel;
-    //'ryanheise.com/audioServiceBackground'
     serviceChannel.setMethodCallHandler(instance.handleServiceMethodCall);
     backgroundChannel.setMethodCallHandler(instance.handleBackgroundMethodCall);
   }
@@ -167,45 +164,51 @@ class AudioServicePlugin {
             .toList();
 
         // Reset the handlers
-        session.setActionHandler('play', null);
-        session.setActionHandler('pause', null);
-        session.setActionHandler('previoustrack', null);
-        session.setActionHandler('nexttrack', null);
-        session.setActionHandler('seekbackward', null);
-        session.setActionHandler('seekforward', null);
-        session.setActionHandler('stop', null);
+        // TODO: Make this better... Like only change ones that have been changed
+        try {
+          session.setActionHandler('play', null);
+          session.setActionHandler('pause', null);
+          session.setActionHandler('previoustrack', null);
+          session.setActionHandler('nexttrack', null);
+          session.setActionHandler('seekbackward', null);
+          session.setActionHandler('seekforward', null);
+          session.setActionHandler('stop', null);
+        } catch (e) {}
 
         int actionBits = 0;
         for (final control in controls) {
-          switch (control.action) {
-            case MediaAction.play:
-              session.setActionHandler('play', AudioService.play);
-              break;
-            case MediaAction.pause:
-              session.setActionHandler('pause', AudioService.pause);
-              break;
-            case MediaAction.skipToPrevious:
-              session.setActionHandler(
-                  'previoustrack', AudioService.skipToPrevious);
-              break;
-            case MediaAction.skipToNext:
-              session.setActionHandler('nexttrack', AudioService.skipToNext);
-              break;
-            // The naming convention here is a bit odd but seekbackward seems more
-            // analagous to rewind than seekBackward
-            case MediaAction.rewind:
-              session.setActionHandler('seekbackward', AudioService.rewind);
-              break;
-            case MediaAction.fastForward:
-              session.setActionHandler('seekforward', AudioService.fastForward);
-              break;
-            case MediaAction.stop:
-              session.setActionHandler('stop', AudioService.stop);
-              break;
-            default:
-              // no-op
-              break;
-          }
+          try {
+            switch (control.action) {
+              case MediaAction.play:
+                session.setActionHandler('play', AudioService.play);
+                break;
+              case MediaAction.pause:
+                session.setActionHandler('pause', AudioService.pause);
+                break;
+              case MediaAction.skipToPrevious:
+                session.setActionHandler(
+                    'previoustrack', AudioService.skipToPrevious);
+                break;
+              case MediaAction.skipToNext:
+                session.setActionHandler('nexttrack', AudioService.skipToNext);
+                break;
+              // The naming convention here is a bit odd but seekbackward seems more
+              // analagous to rewind than seekBackward
+              case MediaAction.rewind:
+                session.setActionHandler('seekbackward', AudioService.rewind);
+                break;
+              case MediaAction.fastForward:
+                session.setActionHandler(
+                    'seekforward', AudioService.fastForward);
+                break;
+              case MediaAction.stop:
+                session.setActionHandler('stop', AudioService.stop);
+                break;
+              default:
+                // no-op
+                break;
+            }
+          } catch (e) {}
           int actionCode = 1 << control.action.index;
           actionBits |= actionCode;
         }
@@ -214,15 +217,17 @@ class AudioServicePlugin {
           MediaAction action = MediaAction.values[rawSystemAction];
 
           switch (action) {
-            // Workaround because the native html doesn't allow a real function
             case MediaAction.seekTo:
-              // js.JsObject navigator = js.context['navigator'];
-              // js.JsObject mediaSession = navigator['mediaSession'];
-              setActionHandler('seekto', js.allowInterop(f));
-              // mediaSession?.callMethod(
-              //     'setActionHandler', ['seekto', js.allowInterop(f)]);
-              // session
-              //     .setActionHandler('seekto', AudioService.seekTo);
+              try {
+                setActionHandler('seekto', js.allowInterop((ActionResult ev) {
+                  print(ev.action);
+                  print(ev.seekTime);
+                  // Chrome uses seconds for whatever reason
+                  AudioService.seekTo(Duration(
+                    milliseconds: (ev.seekTime * 1000).round(),
+                  ));
+                }));
+              } catch (e) {}
               break;
             default:
               // no-op
@@ -236,24 +241,14 @@ class AudioServicePlugin {
         try {
           // Dart also doesn't expose setPositionState
           if (mediaItem != null) {
-            // js.JsObject navigator = js.context['navigator'];
-            // js.JsObject mediaSession = navigator['mediaSession'];
-
             print(
                 'Setting positionState Duration(${mediaItem.duration.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4]).inSeconds})');
 
-            // mediaSession?.callMethod('setPositionState', [
-            //   {
-            //     'duration': mediaItem.duration?.inSeconds,
-            //     'playbackRate': args[6] ?? 1.0,
-            //     'position': Duration(milliseconds: args[4]).inSeconds
-            //   }
-            // ]);
-
+            // Chrome looks for seconds for some reason
             setPositionState(PositionState(
-              duration: mediaItem.duration?.inSeconds,
+              duration: (mediaItem.duration?.inMilliseconds ?? 0) / 1000,
               playbackRate: args[6] ?? 1.0,
-              position: Duration(milliseconds: args[4]).inSeconds,
+              position: (args[4] ?? 0) / 1000,
             ));
           }
         } catch (e) {
@@ -277,25 +272,8 @@ class AudioServicePlugin {
         // This would be how we could pull images out of the cache... But nothing is actually cached on web
         final artUri = /* mediaItem.extras['artCacheFile'] ?? */ mediaItem
             .artUri;
-        print('artUri: $artUri');
-        final mapped = <String, dynamic>{
-          'title': mediaItem.title,
-          'artist': mediaItem.artist,
-          'album': mediaItem.album,
-        };
-        if (artUri != null)
-          mapped.putIfAbsent(
-              'artwork', () => [Art(src: artUri, sizes: '300x300')]);
 
-        // This is a whole lot of workaround because only chrome/firefox support mediaSession and
-        // I have yet to figure out a CORS issue on the artwork uri
-        // bool successfullySetMetadata = setMediaSessionMetadata(mapped);
-        // if (!successfullySetMetadata) {
-        //   mapped.remove('artwork');
-        //   setMediaSessionMetadata(mapped);
-        // }
         try {
-          // js.JsObject navigator =
           metadata = MediaMetadata(MetadataLiteral(
             album: mediaItem.album,
             title: mediaItem.title,
@@ -303,12 +281,12 @@ class AudioServicePlugin {
             artwork: [
               MetadataArtwork(
                 src: artUri,
-                sizes: '300x300',
+                sizes: '512x512',
               )
             ],
           ));
         } catch (e) {
-          print('Well shiiiiitttt $e');
+          print('Metadata failed $e');
         }
 
         serviceChannel.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
@@ -328,22 +306,4 @@ class AudioServicePlugin {
                 "the method '${call.method}'");
     }
   }
-
-  bool setMediaSessionMetadata(Map metadata) {
-    bool success = true;
-    try {
-      html.window.navigator.mediaSession.metadata =
-          html.MediaMetadata(metadata);
-    } catch (e) {
-      // Some weird chrome crap that I'm not sure is fixable
-      success = false;
-      print('$e');
-    }
-    return success;
-  }
-}
-
-void f(ActionResult ev) {
-  print(ev.action);
-  // AudioService.seekTo(ev['seekTime']);
 }

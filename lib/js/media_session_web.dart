@@ -2,7 +2,7 @@
 library media_session_web;
 
 import 'package:js/js.dart';
-import './media_metadata.dart';
+import 'media_metadata.dart';
 
 @JS('setActionHandler')
 external void setActionHandler(String action, Function(ActionResult) callback);
@@ -14,21 +14,21 @@ external void setPositionState(PositionState state);
 @anonymous
 class ActionResult {
   external String get action;
-  external int get seekTime;
+  external double get seekTime;
 
-  external factory ActionResult({String action, int seekTime});
+  external factory ActionResult({String action, double seekTime});
 }
 
 @JS()
 @anonymous
 class PositionState {
-  external int get duration;
-  external int get playbackRate;
-  external int get position;
+  external double get duration;
+  external double get playbackRate;
+  external double get position;
   external factory PositionState({
-    int duration,
-    int playbackRate,
-    int position,
+    double duration,
+    double playbackRate,
+    double position,
   });
 }
 
