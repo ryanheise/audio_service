@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:ui';
+import 'dart:js' as js;
+import 'package:audio_service/js/media_metadata.dart';
+
+import 'js/media_session_web.dart';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
@@ -16,13 +19,13 @@ class Art {
 }
 
 class AudioServicePlugin {
-  // BackgroundAudioTask _task;
   int fastForwardInterval;
   int rewindInterval;
   Map params;
   bool started = false;
   MethodChannel serviceChannel;
   MethodChannel backgroundChannel;
+  MediaItem mediaItem;
 
   static void registerWith(Registrar registrar) {
     final MethodChannel serviceChannel = MethodChannel(
@@ -39,7 +42,6 @@ class AudioServicePlugin {
     final AudioServicePlugin instance = AudioServicePlugin();
     instance.serviceChannel = serviceChannel;
     instance.backgroundChannel = backgroundChannel;
-    //'ryanheise.com/audioServiceBackground'
     serviceChannel.setMethodCallHandler(instance.handleServiceMethodCall);
     backgroundChannel.setMethodCallHandler(instance.handleBackgroundMethodCall);
   }
@@ -53,10 +55,11 @@ class AudioServicePlugin {
         started = true;
         return started;
       case 'connect':
-        // No-op not really a reason for connect in web
+        // No-op not really anything for us to do with connect on the web, the streams should all be hydrated
         break;
       case 'disconnect':
-        // No-op not really a reason for disconnect in web
+        // No-op not really anything for us to do with disconnect on the web, the streams should stay hydrated because everything is static
+        // and we aren't working with isolates
         break;
       case 'isRunning':
         return started;
@@ -86,7 +89,7 @@ class AudioServicePlugin {
         return backgroundChannel
             .invokeMethod('onLoadChildren', [call.arguments]);
       case 'onClick':
-        //no-op
+        //no-op we don't really have the idea of a bluetooth button click on the web
         break;
       case 'addQueueItem':
         return backgroundChannel
@@ -148,6 +151,7 @@ class AudioServicePlugin {
       case 'stopped':
         session.metadata = null;
         started = false;
+        mediaItem = null;
         serviceChannel.invokeMethod('onStopped');
         break;
       case 'setState':
@@ -160,61 +164,95 @@ class AudioServicePlugin {
             .toList();
 
         // Reset the handlers
-        session.setActionHandler('play', null);
-        session.setActionHandler('pause', null);
-        session.setActionHandler('previoustrack', null);
-        session.setActionHandler('nexttrack', null);
-        session.setActionHandler('seekbackward', null);
-        session.setActionHandler('seekforward', null);
-        session.setActionHandler('stop', null);
+        // TODO: Make this better... Like only change ones that have been changed
+        try {
+          session.setActionHandler('play', null);
+          session.setActionHandler('pause', null);
+          session.setActionHandler('previoustrack', null);
+          session.setActionHandler('nexttrack', null);
+          session.setActionHandler('seekbackward', null);
+          session.setActionHandler('seekforward', null);
+          session.setActionHandler('stop', null);
+        } catch (e) {}
 
+        int actionBits = 0;
         for (final control in controls) {
-          switch (control.action) {
-            case MediaAction.play:
-              session.setActionHandler('play', AudioService.play);
-              break;
-            case MediaAction.pause:
-              session.setActionHandler('pause', AudioService.pause);
-              break;
-            case MediaAction.skipToPrevious:
-              session.setActionHandler(
-                  'previoustrack', AudioService.skipToPrevious);
-              break;
-            case MediaAction.skipToNext:
-              session.setActionHandler('nexttrack', AudioService.skipToNext);
-              break;
-            // The naming convention here is a bit odd but seekbackward seems more
-            // analagous to rewind than seekBackward
-            case MediaAction.rewind:
-              session.setActionHandler('seekbackward', AudioService.rewind);
-              break;
-            case MediaAction.fastForward:
-              session.setActionHandler('seekforward', AudioService.fastForward);
-              break;
-            case MediaAction.stop:
-              session.setActionHandler('stop', AudioService.stop);
-              break;
-              // Not really possible at the moment because the seekto handler
-              // should take a details argument but the dart method expects nothing
-              // case MediaAction.seekTo:
-              //   session
-              //       .setActionHandler('seekto', AudioService.seekTo);
+          try {
+            switch (control.action) {
+              case MediaAction.play:
+                session.setActionHandler('play', AudioService.play);
+                break;
+              case MediaAction.pause:
+                session.setActionHandler('pause', AudioService.pause);
+                break;
+              case MediaAction.skipToPrevious:
+                session.setActionHandler(
+                    'previoustrack', AudioService.skipToPrevious);
+                break;
+              case MediaAction.skipToNext:
+                session.setActionHandler('nexttrack', AudioService.skipToNext);
+                break;
+              // The naming convention here is a bit odd but seekbackward seems more
+              // analagous to rewind than seekBackward
+              case MediaAction.rewind:
+                session.setActionHandler('seekbackward', AudioService.rewind);
+                break;
+              case MediaAction.fastForward:
+                session.setActionHandler(
+                    'seekforward', AudioService.fastForward);
+                break;
+              case MediaAction.stop:
+                session.setActionHandler('stop', AudioService.stop);
+                break;
+              default:
+                // no-op
+                break;
+            }
+          } catch (e) {}
+          int actionCode = 1 << control.action.index;
+          actionBits |= actionCode;
+        }
+
+        for (int rawSystemAction in call.arguments[1]) {
+          MediaAction action = MediaAction.values[rawSystemAction];
+
+          switch (action) {
+            case MediaAction.seekTo:
+              try {
+                setActionHandler('seekto', js.allowInterop((ActionResult ev) {
+                  print(ev.action);
+                  print(ev.seekTime);
+                  // Chrome uses seconds for whatever reason
+                  AudioService.seekTo(Duration(
+                    milliseconds: (ev.seekTime * 1000).round(),
+                  ));
+                }));
+              } catch (e) {}
               break;
             default:
               // no-op
               break;
           }
-        }
 
-        // Just mimicking the android version... Not sure it actually applies to web
-        int actionBits = 0;
-        for (final control in controls) {
-          int actionCode = 1 << control.action.index;
-          actionBits |= actionCode;
-        }
-        for (int rawSystemAction in call.arguments[1]) {
           int actionCode = 1 << rawSystemAction;
           actionBits |= actionCode;
+        }
+
+        try {
+          // Dart also doesn't expose setPositionState
+          if (mediaItem != null) {
+            print(
+                'Setting positionState Duration(${mediaItem.duration.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4]).inSeconds})');
+
+            // Chrome looks for seconds for some reason
+            setPositionState(PositionState(
+              duration: (mediaItem.duration?.inMilliseconds ?? 0) / 1000,
+              playbackRate: args[6] ?? 1.0,
+              position: (args[4] ?? 0) / 1000,
+            ));
+          }
+        } catch (e) {
+          print(e);
         }
 
         serviceChannel.invokeMethod('onPlaybackStateChanged', [
@@ -230,28 +268,27 @@ class AudioServicePlugin {
         ]);
         break;
       case 'setMediaItem':
-        final mediaItem = MediaItem.fromJson(call.arguments);
+        mediaItem = MediaItem.fromJson(call.arguments);
         // This would be how we could pull images out of the cache... But nothing is actually cached on web
         final artUri = /* mediaItem.extras['artCacheFile'] ?? */ mediaItem
             .artUri;
-        print('artUri: $artUri');
-        final mapped = <String, dynamic>{
-          'title': mediaItem.title,
-          'artist': mediaItem.artist,
-          'album': mediaItem.album,
-        };
-        if (artUri != null)
-          mapped.putIfAbsent('artwork', () => [Art(src: artUri)]);
+
         try {
-          html.window.navigator.mediaSession.metadata =
-              html.MediaMetadata(mapped);
+          metadata = MediaMetadata(MetadataLiteral(
+            album: mediaItem.album,
+            title: mediaItem.title,
+            artist: mediaItem.artist,
+            artwork: [
+              MetadataArtwork(
+                src: artUri,
+                sizes: '512x512',
+              )
+            ],
+          ));
         } catch (e) {
-          // Some weird chrome crap that I'm not sure is fixable
-          mapped.remove('artwork');
-          html.window.navigator.mediaSession.metadata =
-              html.MediaMetadata(mapped);
-          print('Probably cors issue ${e.toString()}');
+          print('Metadata failed $e');
         }
+
         serviceChannel.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
         break;
       case 'setQueue':

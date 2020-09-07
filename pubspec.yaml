@@ -12,6 +12,8 @@ dependencies:
   rxdart: ^0.24.1
   flutter_isolate: ^1.0.0+14
   flutter_cache_manager: ^1.4.0
+  js: ^0.6.2
+
   flutter:
     sdk: flutter
   flutter_web_plugins:
