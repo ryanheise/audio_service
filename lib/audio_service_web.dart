@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'dart:ui';
+import 'package:audio_service/media_metadata.dart';
+
+import 'media_session_web.dart';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +27,7 @@ class AudioServicePlugin {
   bool started = false;
   MethodChannel serviceChannel;
   MethodChannel backgroundChannel;
+  MediaItem mediaItem;
 
   static void registerWith(Registrar registrar) {
     final MethodChannel serviceChannel = MethodChannel(
@@ -53,10 +58,11 @@ class AudioServicePlugin {
         started = true;
         return started;
       case 'connect':
-        // No-op not really a reason for connect in web
+        // No-op not really anything for us to do with connect on the web, the streams should all be hydrated
         break;
       case 'disconnect':
-        // No-op not really a reason for disconnect in web
+        // No-op not really anything for us to do with disconnect on the web, the streams should stay hydrated because everything is static
+        // and we aren't working with isolates
         break;
       case 'isRunning':
         return started;
@@ -86,7 +92,7 @@ class AudioServicePlugin {
         return backgroundChannel
             .invokeMethod('onLoadChildren', [call.arguments]);
       case 'onClick':
-        //no-op
+        //no-op we don't really have the idea of a bluetooth button click on the web
         break;
       case 'addQueueItem':
         return backgroundChannel
@@ -148,6 +154,7 @@ class AudioServicePlugin {
       case 'stopped':
         session.metadata = null;
         started = false;
+        mediaItem = null;
         serviceChannel.invokeMethod('onStopped');
         break;
       case 'setState':
@@ -168,6 +175,7 @@ class AudioServicePlugin {
         session.setActionHandler('seekforward', null);
         session.setActionHandler('stop', null);
 
+        int actionBits = 0;
         for (final control in controls) {
           switch (control.action) {
             case MediaAction.play:
@@ -194,27 +202,62 @@ class AudioServicePlugin {
             case MediaAction.stop:
               session.setActionHandler('stop', AudioService.stop);
               break;
-              // Not really possible at the moment because the seekto handler
-              // should take a details argument but the dart method expects nothing
-              // case MediaAction.seekTo:
-              //   session
-              //       .setActionHandler('seekto', AudioService.seekTo);
+            default:
+              // no-op
+              break;
+          }
+          int actionCode = 1 << control.action.index;
+          actionBits |= actionCode;
+        }
+
+        for (int rawSystemAction in call.arguments[1]) {
+          MediaAction action = MediaAction.values[rawSystemAction];
+
+          switch (action) {
+            // Workaround because the native html doesn't allow a real function
+            case MediaAction.seekTo:
+              // js.JsObject navigator = js.context['navigator'];
+              // js.JsObject mediaSession = navigator['mediaSession'];
+              setActionHandler('seekto', js.allowInterop(f));
+              // mediaSession?.callMethod(
+              //     'setActionHandler', ['seekto', js.allowInterop(f)]);
+              // session
+              //     .setActionHandler('seekto', AudioService.seekTo);
               break;
             default:
               // no-op
               break;
           }
-        }
 
-        // Just mimicking the android version... Not sure it actually applies to web
-        int actionBits = 0;
-        for (final control in controls) {
-          int actionCode = 1 << control.action.index;
-          actionBits |= actionCode;
-        }
-        for (int rawSystemAction in call.arguments[1]) {
           int actionCode = 1 << rawSystemAction;
           actionBits |= actionCode;
+        }
+
+        try {
+          // Dart also doesn't expose setPositionState
+          if (mediaItem != null) {
+            // js.JsObject navigator = js.context['navigator'];
+            // js.JsObject mediaSession = navigator['mediaSession'];
+
+            print(
+                'Setting positionState Duration(${mediaItem.duration.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4]).inSeconds})');
+
+            // mediaSession?.callMethod('setPositionState', [
+            //   {
+            //     'duration': mediaItem.duration?.inSeconds,
+            //     'playbackRate': args[6] ?? 1.0,
+            //     'position': Duration(milliseconds: args[4]).inSeconds
+            //   }
+            // ]);
+
+            setPositionState(PositionState(
+              duration: mediaItem.duration?.inSeconds,
+              playbackRate: args[6] ?? 1.0,
+              position: Duration(milliseconds: args[4]).inSeconds,
+            ));
+          }
+        } catch (e) {
+          print(e);
         }
 
         serviceChannel.invokeMethod('onPlaybackStateChanged', [
@@ -230,7 +273,7 @@ class AudioServicePlugin {
         ]);
         break;
       case 'setMediaItem':
-        final mediaItem = MediaItem.fromJson(call.arguments);
+        mediaItem = MediaItem.fromJson(call.arguments);
         // This would be how we could pull images out of the cache... But nothing is actually cached on web
         final artUri = /* mediaItem.extras['artCacheFile'] ?? */ mediaItem
             .artUri;
@@ -241,17 +284,33 @@ class AudioServicePlugin {
           'album': mediaItem.album,
         };
         if (artUri != null)
-          mapped.putIfAbsent('artwork', () => [Art(src: artUri)]);
+          mapped.putIfAbsent(
+              'artwork', () => [Art(src: artUri, sizes: '300x300')]);
+
+        // This is a whole lot of workaround because only chrome/firefox support mediaSession and
+        // I have yet to figure out a CORS issue on the artwork uri
+        // bool successfullySetMetadata = setMediaSessionMetadata(mapped);
+        // if (!successfullySetMetadata) {
+        //   mapped.remove('artwork');
+        //   setMediaSessionMetadata(mapped);
+        // }
         try {
-          html.window.navigator.mediaSession.metadata =
-              html.MediaMetadata(mapped);
+          // js.JsObject navigator =
+          metadata = MediaMetadata(MetadataLiteral(
+            album: mediaItem.album,
+            title: mediaItem.title,
+            artist: mediaItem.artist,
+            artwork: [
+              MetadataArtwork(
+                src: artUri,
+                sizes: '300x300',
+              )
+            ],
+          ));
         } catch (e) {
-          // Some weird chrome crap that I'm not sure is fixable
-          mapped.remove('artwork');
-          html.window.navigator.mediaSession.metadata =
-              html.MediaMetadata(mapped);
-          print('Probably cors issue ${e.toString()}');
+          print('Well shiiiiitttt $e');
         }
+
         serviceChannel.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
         break;
       case 'setQueue':
@@ -269,4 +328,22 @@ class AudioServicePlugin {
                 "the method '${call.method}'");
     }
   }
+
+  bool setMediaSessionMetadata(Map metadata) {
+    bool success = true;
+    try {
+      html.window.navigator.mediaSession.metadata =
+          html.MediaMetadata(metadata);
+    } catch (e) {
+      // Some weird chrome crap that I'm not sure is fixable
+      success = false;
+      print('$e');
+    }
+    return success;
+  }
+}
+
+void f(ActionResult ev) {
+  print(ev.action);
+  // AudioService.seekTo(ev['seekTime']);
 }
