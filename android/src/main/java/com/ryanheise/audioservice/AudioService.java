@@ -75,6 +75,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 	private static AudioProcessingState processingState = AudioProcessingState.none;
 	private static int repeatMode;
 	private static int shuffleMode;
+	private static boolean notificationCreated;
 
 	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
@@ -96,6 +97,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 		AudioService.androidStopForegroundOnPause = androidStopForegroundOnPause;
 		AudioService.artDownscaleSize = artDownscaleSize;
 
+		notificationCreated = false;
 		playing = false;
 		processingState = AudioProcessingState.none;
 		repeatMode = 0;
@@ -156,6 +158,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 		mediaSession.setActive(false);
 		releaseWakeLock();
 		stopForeground(true);
+		notificationCreated = false;
 		stopSelf();
 	}
 
@@ -329,6 +332,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 	}
 
 	private void updateNotification() {
+		if (!notificationCreated) return;
 		NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 		notificationManager.notify(NOTIFICATION_ID, buildNotification());
 	}
@@ -340,7 +344,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
 		acquireWakeLock();
 		mediaSession.setSessionActivity(contentIntent);
-		startForeground(NOTIFICATION_ID, buildNotification());
+		internalStartForeground();
 		return true;
 	}
 
@@ -353,6 +357,11 @@ public class AudioService extends MediaBrowserServiceCompat {
 	private void exitForegroundState() {
 		stopForeground(false);
 		releaseWakeLock();
+	}
+
+	private void internalStartForeground() {
+		startForeground(NOTIFICATION_ID, buildNotification());
+		notificationCreated = true;
 	}
 
 	private void acquireWakeLock() {
