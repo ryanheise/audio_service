@@ -154,7 +154,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
 		mediaSession.setQueue(queue);
 		mediaSession.setActive(false);
-		mediaSession.release();
 		releaseWakeLock();
 		stopForeground(true);
 		stopSelf();
@@ -529,6 +528,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 		if (listener != null) {
 			listener.onDestroy();
 		}
+		mediaSession.release();
 		instance = null;
 	}
 
