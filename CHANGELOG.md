@@ -1,3 +1,12 @@
+## 0.15.0
+
+* Web support (@keaganhilliard)
+* macOS support (@hacker1024)
+* Route next/previous buttons to onClick on Android (@stonega)
+* Correctly scale skip intervals for control center (@subhash279)
+* Handle repeated stop/start calls more robustly.
+* Fix Android 11 bugs.
+
 ## 0.14.1
 
 * audio_session dependency now supports minSdkVersion 16 on Android.
