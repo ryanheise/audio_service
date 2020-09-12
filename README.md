@@ -78,7 +78,7 @@ class PodcastBackgroundTask extends BackgroundAudioTask {
   AudioPlayer _player = AudioPlayer();
   onPlay() async {
     _player.play();
-    // Show the media notification, and let all clients no what
+    // Show the media notification, and let all clients know what
     // playback state and media item to display.
     await AudioServiceBackground.setState(playing: true, ...);
     await AudioServiceBackground.setMediaItem(MediaItem(title: "Hey Jude", ...))
@@ -94,7 +94,7 @@ class ReaderBackgroundTask extends BackgroundAudioTask {
   String article;
   onPlay() async {
     _tts.speak(article);
-    // Show the media notification, and let all clients no what
+    // Show the media notification, and let all clients know what
     // playback state and media item to display.
     await AudioServiceBackground.setState(playing: true, ...);
     await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...))
