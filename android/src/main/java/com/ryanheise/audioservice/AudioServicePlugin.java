@@ -90,6 +90,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
 	}
 
+	static BackgroundHandler backgroundHandler() throws Exception {
+		if (backgroundHandler == null) throw new Exception("Background audio task not running");
+		return backgroundHandler;
+	}
+
 	public static void setPluginRegistrantCallback(PluginRegistrantCallback pluginRegistrantCallback) {
 		AudioServicePlugin.pluginRegistrantCallback = pluginRegistrantCallback;
 	}
@@ -310,240 +315,255 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 		@Override
 		public void onMethodCall(MethodCall call, final Result result) {
-			switch (call.method) {
-			case "isRunning":
-				result.success(AudioService.isRunning());
-				break;
-			case "start": {
-				startResult = result; // The result will be sent after the background task actually starts.
-				if (AudioService.isRunning()) {
-					sendStartResult(false);
+			try {
+				switch (call.method) {
+				case "isRunning":
+					result.success(AudioService.isRunning());
 					break;
-				}
-				if (activity == null) {
-					System.out.println("AudioService can only be started from an activity");
-					sendStartResult(false);
-					break;
-				}
-				Map<?, ?> arguments = (Map<?, ?>)call.arguments;
-				final long callbackHandle = getLong(arguments.get("callbackHandle"));
-				params = (Map<String, Object>)arguments.get("params");
-				boolean androidNotificationClickStartsActivity = (Boolean)arguments.get("androidNotificationClickStartsActivity");
-				boolean androidNotificationOngoing = (Boolean)arguments.get("androidNotificationOngoing");
-				boolean androidResumeOnClick = (Boolean)arguments.get("androidResumeOnClick");
-				String androidNotificationChannelName = (String)arguments.get("androidNotificationChannelName");
-				String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
-				Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
-				String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
-				final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
-				final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
-				final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
-				final Size artDownscaleSize = artDownscaleSizeMap == null ? null
-						: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
-				fastForwardInterval = getLong(arguments.get("fastForwardInterval"));
-				rewindInterval = getLong(arguments.get("rewindInterval"));
-
-				final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
-				backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-				AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
-
-				synchronized (connectionCallback) {
-					if (mediaController != null)
-						backgroundHandler.initEngine();
-					else
-						initEnginePending = true;
-				}
-
-				break;
-			}
-			case "connect":
-				if (activity != null) {
-					if (wasLaunchedFromRecents()) {
-						// We do this to avoid using the old intent.
-						activity.setIntent(new Intent(Intent.ACTION_MAIN));
+				case "start": {
+					if (startResult != null) {
+						sendStartResult(false);
+						break;
 					}
-					if (activity.getIntent().getAction() != null)
-						invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
-				}
-				if (mediaBrowser == null) {
-					connectResult = result;
-					mediaBrowser = new MediaBrowserCompat(context,
-							new ComponentName(context, AudioService.class),
-							connectionCallback,
-							null);
-					mediaBrowser.connect();
-				} else {
-					result.success(true);
-				}
-				break;
-			case "disconnect":
-				// Since the activity enters paused state, we set the intent with ACTION_MAIN.
-				activity.setIntent(new Intent(Intent.ACTION_MAIN));
+					startResult = result; // The result will be sent after the background task actually starts.
+					if (AudioService.isRunning() || backgroundHandler != null) {
+						sendStartResult(false);
+						break;
+					}
+					if (activity == null) {
+						System.out.println("AudioService can only be started from an activity");
+						sendStartResult(false);
+						break;
+					}
+					Map<?, ?> arguments = (Map<?, ?>)call.arguments;
+					final long callbackHandle = getLong(arguments.get("callbackHandle"));
+					params = (Map<String, Object>)arguments.get("params");
+					boolean androidNotificationClickStartsActivity = (Boolean)arguments.get("androidNotificationClickStartsActivity");
+					boolean androidNotificationOngoing = (Boolean)arguments.get("androidNotificationOngoing");
+					boolean androidResumeOnClick = (Boolean)arguments.get("androidResumeOnClick");
+					String androidNotificationChannelName = (String)arguments.get("androidNotificationChannelName");
+					String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
+					Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
+					String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
+					final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
+					final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
+					final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
+					final Size artDownscaleSize = artDownscaleSizeMap == null ? null
+						: new Size((int)Math.round(artDownscaleSizeMap.get("width")), (int)Math.round(artDownscaleSizeMap.get("height")));
+					fastForwardInterval = getLong(arguments.get("fastForwardInterval"));
+					rewindInterval = getLong(arguments.get("rewindInterval"));
 
-				if (mediaController != null) {
-					mediaController.unregisterCallback(controllerCallback);
-					mediaController = null;
+					final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
+					backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
+					AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+
+					synchronized (connectionCallback) {
+						if (mediaController != null)
+							backgroundHandler.initEngine();
+						else
+							initEnginePending = true;
+					}
+
+					break;
 				}
-				if (subscribedParentMediaId != null) {
-					mediaBrowser.unsubscribe(subscribedParentMediaId);
-					subscribedParentMediaId = null;
-				}
-				if (mediaBrowser != null) {
-					mediaBrowser.disconnect();
-					mediaBrowser = null;
-				}
-				result.success(true);
-				break;
-			case "setBrowseMediaParent":
-				String parentMediaId = (String)call.arguments;
-				// If the ID has changed, unsubscribe from the old one
-				if (subscribedParentMediaId != null && !subscribedParentMediaId.equals(parentMediaId)) {
-					mediaBrowser.unsubscribe(subscribedParentMediaId);
-					subscribedParentMediaId = null;
-				}
-				// Subscribe to the new one.
-				// Don't subscribe if we're still holding onto the old one
-				// Don't subscribe if the new ID is null.
-				if (subscribedParentMediaId == null && parentMediaId != null) {
-					subscribedParentMediaId = parentMediaId;
-					mediaBrowser.subscribe(parentMediaId, subscriptionCallback);
-				}
-				// If the new ID is null, send clients an empty list
-				if (subscribedParentMediaId == null) {
-					subscriptionCallback.onChildrenLoaded(subscribedParentMediaId, new ArrayList<MediaBrowserCompat.MediaItem>());
-				}
-				result.success(true);
-				break;
-			case "addQueueItem": {
-				Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
-				// Cache item
-				createMediaMetadata(rawMediaItem);
-				// Pass through
-				backgroundHandler.invokeMethod(result, "onAddQueueItem", call.arguments);
-				break;
-			}
-			case "addQueueItemAt": {
-				List<?> queueAndIndex = (List<?>)call.arguments;
-				Map<?, ?> rawMediaItem = (Map<?, ?>)queueAndIndex.get(0);
-				int index = (Integer)queueAndIndex.get(1);
-				// Cache item
-				createMediaMetadata(rawMediaItem);
-				// Pass through
-				backgroundHandler.invokeMethod(result, "onAddQueueItemAt", rawMediaItem, index);
-				break;
-			}
-			case "removeQueueItem": {
-				Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
-				// Cache item
-				createMediaMetadata(rawMediaItem);
-				// Pass through
-				backgroundHandler.invokeMethod(result, "onRemoveQueueItem", call.arguments);
-				break;
-			}
-			case "updateQueue": {
-				backgroundHandler.invokeMethod(result, "onUpdateQueue", call.arguments);
-				break;
-			}
-			case "updateMediaItem": {
-				backgroundHandler.invokeMethod(result, "onUpdateMediaItem", call.arguments);
-				break;
-			}
-			//case "setVolumeTo"
-			//case "adjustVolume"
-			case "click":
-				int buttonIndex = (int)call.arguments;
-				if (backgroundHandler != null)
-					backgroundHandler.invokeMethod(result, "onClick", buttonIndex);
-				else
+				case "connect":
+					if (connectResult != null) {
+						result.success(false);
+						break;
+					}
+					if (activity != null) {
+						if (wasLaunchedFromRecents()) {
+							// We do this to avoid using the old intent.
+							activity.setIntent(new Intent(Intent.ACTION_MAIN));
+						}
+						if (activity.getIntent().getAction() != null)
+							invokeMethod("notificationClicked", activity.getIntent().getAction().equals(NOTIFICATION_CLICK_ACTION));
+					}
+					if (mediaBrowser == null) {
+						connectResult = result;
+						mediaBrowser = new MediaBrowserCompat(context,
+								new ComponentName(context, AudioService.class),
+								connectionCallback,
+								null);
+						mediaBrowser.connect();
+					} else {
+						result.success(true);
+					}
+					break;
+				case "disconnect":
+					// Since the activity enters paused state, we set the intent with ACTION_MAIN.
+					activity.setIntent(new Intent(Intent.ACTION_MAIN));
+
+					if (mediaController != null) {
+						mediaController.unregisterCallback(controllerCallback);
+						mediaController = null;
+					}
+					if (subscribedParentMediaId != null) {
+						mediaBrowser.unsubscribe(subscribedParentMediaId);
+						subscribedParentMediaId = null;
+					}
+					if (mediaBrowser != null) {
+						mediaBrowser.disconnect();
+						mediaBrowser = null;
+					}
 					result.success(true);
-				break;
-			case "prepare":
-				backgroundHandler.invokeMethod(result, "onPrepare");
-				break;
-			case "prepareFromMediaId": {
-				String mediaId = (String)call.arguments;
-				backgroundHandler.invokeMethod(result, "onPrepareFromMediaId", mediaId);
-				break;
-			}
-			//prepareFromSearch
-			//prepareFromUri
-			case "play":
-				backgroundHandler.invokeMethod(result, "onPlay");
-				break;
-			case "playFromMediaId": {
-				String mediaId = (String)call.arguments;
-				backgroundHandler.invokeMethod(result, "onPlayFromMediaId", mediaId);
-				break;
-			}
-			case "playMediaItem": {
-				Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
-				// Cache item
-				createMediaMetadata(rawMediaItem);
-				// Pass through
-				backgroundHandler.invokeMethod(result, "onPlayMediaItem", call.arguments);
-				break;
-			}
-			//playFromSearch
-			//playFromUri
-			case "skipToQueueItem": {
-				String mediaId = (String)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSkipToQueueItem", mediaId);
-				break;
-			}
-			case "pause":
-				backgroundHandler.invokeMethod(result, "onPause");
-				break;
-			case "stop":
-				stopResult = result;
-				backgroundHandler.invokeMethod("onStop");
-				break;
-			case "seekTo":
-				int pos = (Integer)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSeekTo", pos);
-				break;
-			case "skipToNext":
-				backgroundHandler.invokeMethod(result, "onSkipToNext");
-				break;
-			case "skipToPrevious":
-				backgroundHandler.invokeMethod(result, "onSkipToPrevious");
-				break;
-			case "fastForward":
-				backgroundHandler.invokeMethod(result, "onFastForward");
-				break;
-			case "rewind":
-				backgroundHandler.invokeMethod(result, "onRewind");
-				break;
-			case "setRepeatMode":
-				int repeatMode = (Integer)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSetRepeatMode", repeatMode);
-				break;
-			case "setShuffleMode":
-				int shuffleMode = (Integer)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSetShuffleMode", shuffleMode);
-				break;
-			case "setRating":
-				HashMap<String, Object> arguments = (HashMap<String, Object>)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSetRating", arguments.get("rating"), arguments.get("extras"));
-				break;
-			case "setSpeed":
-				float speed = (float)((double)((Double)call.arguments));
-				backgroundHandler.invokeMethod(result, "onSetSpeed", speed);
-				break;
-			case "seekForward": {
-				boolean begin = (Boolean)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSeekForward", begin);
-				break;
-			}
-			case "seekBackward": {
-				boolean begin = (Boolean)call.arguments;
-				backgroundHandler.invokeMethod(result, "onSeekBackward", begin);
-				break;
-			}
-			default:
-				if (backgroundHandler != null) {
-					backgroundHandler.channel.invokeMethod(call.method, call.arguments, result);
+					break;
+				case "setBrowseMediaParent":
+					String parentMediaId = (String)call.arguments;
+					// If the ID has changed, unsubscribe from the old one
+					if (subscribedParentMediaId != null && !subscribedParentMediaId.equals(parentMediaId)) {
+						mediaBrowser.unsubscribe(subscribedParentMediaId);
+						subscribedParentMediaId = null;
+					}
+					// Subscribe to the new one.
+					// Don't subscribe if we're still holding onto the old one
+					// Don't subscribe if the new ID is null.
+					if (subscribedParentMediaId == null && parentMediaId != null) {
+						subscribedParentMediaId = parentMediaId;
+						mediaBrowser.subscribe(parentMediaId, subscriptionCallback);
+					}
+					// If the new ID is null, send clients an empty list
+					if (subscribedParentMediaId == null) {
+						subscriptionCallback.onChildrenLoaded(subscribedParentMediaId, new ArrayList<MediaBrowserCompat.MediaItem>());
+					}
+					result.success(true);
+					break;
+				case "addQueueItem": {
+					Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
+					// Cache item
+					createMediaMetadata(rawMediaItem);
+					// Pass through
+					backgroundHandler().invokeMethod(result, "onAddQueueItem", call.arguments);
+					break;
 				}
-				break;
+				case "addQueueItemAt": {
+					List<?> queueAndIndex = (List<?>)call.arguments;
+					Map<?, ?> rawMediaItem = (Map<?, ?>)queueAndIndex.get(0);
+					int index = (Integer)queueAndIndex.get(1);
+					// Cache item
+					createMediaMetadata(rawMediaItem);
+					// Pass through
+					backgroundHandler().invokeMethod(result, "onAddQueueItemAt", rawMediaItem, index);
+					break;
+				}
+				case "removeQueueItem": {
+					Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
+					// Cache item
+					createMediaMetadata(rawMediaItem);
+					// Pass through
+					backgroundHandler().invokeMethod(result, "onRemoveQueueItem", call.arguments);
+					break;
+				}
+				case "updateQueue": {
+					backgroundHandler().invokeMethod(result, "onUpdateQueue", call.arguments);
+					break;
+				}
+				case "updateMediaItem": {
+					backgroundHandler().invokeMethod(result, "onUpdateMediaItem", call.arguments);
+					break;
+				}
+				//case "setVolumeTo"
+				//case "adjustVolume"
+				case "click":
+					int buttonIndex = (int)call.arguments;
+					backgroundHandler().invokeMethod(result, "onClick", buttonIndex);
+					break;
+				case "prepare":
+					backgroundHandler().invokeMethod(result, "onPrepare");
+					break;
+				case "prepareFromMediaId": {
+					String mediaId = (String)call.arguments;
+					backgroundHandler().invokeMethod(result, "onPrepareFromMediaId", mediaId);
+					break;
+				}
+				//prepareFromSearch
+				//prepareFromUri
+				case "play":
+					backgroundHandler().invokeMethod(result, "onPlay");
+					break;
+				case "playFromMediaId": {
+					String mediaId = (String)call.arguments;
+					backgroundHandler().invokeMethod(result, "onPlayFromMediaId", mediaId);
+					break;
+				}
+				case "playMediaItem": {
+					Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
+					// Cache item
+					createMediaMetadata(rawMediaItem);
+					// Pass through
+					backgroundHandler().invokeMethod(result, "onPlayMediaItem", call.arguments);
+					break;
+				}
+				//playFromSearch
+				//playFromUri
+				case "skipToQueueItem": {
+					String mediaId = (String)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSkipToQueueItem", mediaId);
+					break;
+				}
+				case "pause":
+					backgroundHandler().invokeMethod(result, "onPause");
+					break;
+				case "stop":
+					if (stopResult != null) {
+						result.success(false);
+						break;
+					}
+					if (backgroundHandler == null) {
+						result.success(false);
+						break;
+					}
+					stopResult = result;
+					backgroundHandler.invokeMethod("onStop");
+					break;
+				case "seekTo":
+					int pos = (Integer)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSeekTo", pos);
+					break;
+				case "skipToNext":
+					backgroundHandler().invokeMethod(result, "onSkipToNext");
+					break;
+				case "skipToPrevious":
+					backgroundHandler().invokeMethod(result, "onSkipToPrevious");
+					break;
+				case "fastForward":
+					backgroundHandler().invokeMethod(result, "onFastForward");
+					break;
+				case "rewind":
+					backgroundHandler().invokeMethod(result, "onRewind");
+					break;
+				case "setRepeatMode":
+					int repeatMode = (Integer)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSetRepeatMode", repeatMode);
+					break;
+				case "setShuffleMode":
+					int shuffleMode = (Integer)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSetShuffleMode", shuffleMode);
+					break;
+				case "setRating":
+					HashMap<String, Object> arguments = (HashMap<String, Object>)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSetRating", arguments.get("rating"), arguments.get("extras"));
+					break;
+				case "setSpeed":
+					float speed = (float)((double)((Double)call.arguments));
+					backgroundHandler().invokeMethod(result, "onSetSpeed", speed);
+					break;
+				case "seekForward": {
+					boolean begin = (Boolean)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSeekForward", begin);
+					break;
+				}
+				case "seekBackward": {
+					boolean begin = (Boolean)call.arguments;
+					backgroundHandler().invokeMethod(result, "onSeekBackward", begin);
+					break;
+				}
+				default:
+					backgroundHandler().channel.invokeMethod(call.method, call.arguments, result);
+					break;
+				}
+			} catch (Exception e) {
+				result.error(e.getMessage(), null, null);
 			}
 		}
 
