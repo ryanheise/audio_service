@@ -1370,19 +1370,22 @@ class AudioServiceBackground {
     _mediaItem = mediaItem;
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
-      final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
-      String filePath = fileInfo?.file?.path;
+      String filePath = _getLocalPath(mediaItem.artUri);
       if (filePath == null) {
-        // We haven't fetched the art yet, so show the metadata now, and again
-        // after we load the art.
-        await _backgroundChannel.invokeMethod(
-            'setMediaItem', mediaItem.toJson());
-        // Load the art
-        filePath = await _loadArtwork(mediaItem);
-        // If we failed to download the art, abort.
-        if (filePath == null) return;
-        // If we've already set a new media item, cancel this request.
-        if (mediaItem != _mediaItem) return;
+        final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
+        filePath = fileInfo?.file?.path;
+        if (filePath == null) {
+          // We haven't fetched the art yet, so show the metadata now, and again
+          // after we load the art.
+          await _backgroundChannel.invokeMethod(
+              'setMediaItem', mediaItem.toJson());
+          // Load the art
+          filePath = await _loadArtwork(mediaItem);
+          // If we failed to download the art, abort.
+          if (filePath == null) return;
+          // If we've already set a new media item, cancel this request.
+          if (mediaItem != _mediaItem) return;
+        }
       }
       final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
       extras['artCacheFile'] = filePath;
@@ -1405,15 +1408,23 @@ class AudioServiceBackground {
     try {
       final artUri = mediaItem.artUri;
       if (artUri != null) {
-        const prefix = 'file://';
-        if (artUri.toLowerCase().startsWith(prefix)) {
-          return artUri.substring(prefix.length);
+        String local = _getLocalPath(artUri);
+        if (local != null) {
+          return local;
         } else {
           final file = await _cacheManager.getSingleFile(mediaItem.artUri);
           return file.path;
         }
       }
     } catch (e) {}
+    return null;
+  }
+
+  static String _getLocalPath(String artUri) {
+    const prefix = "file://";
+    if (artUri.toLowerCase().startsWith(prefix)) {
+      return artUri.substring(prefix.length);
+    }
     return null;
   }
 
