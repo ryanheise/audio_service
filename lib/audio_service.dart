@@ -330,6 +330,7 @@ class MediaItem {
             ? Duration(milliseconds: raw['duration'])
             : null,
         artUri: raw['artUri'],
+        playable: raw['playable'],
         displayTitle: raw['displayTitle'],
         displaySubtitle: raw['displaySubtitle'],
         displayDescription: raw['displayDescription'],

@@ -996,6 +996,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		raw.put("genre", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_GENRE));
 		if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_DURATION))
 			raw.put("duration", mediaMetadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+		raw.put("playable", mediaMetadata.getLong("playable_long") != 0);
 		raw.put("displayTitle", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
 		raw.put("displaySubtitle", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE));
 		raw.put("displayDescription", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION));
@@ -1010,6 +1011,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 			} else if (key.startsWith("extra_string_")) {
 				String rawKey = key.substring("extra_string_".length());
 				extras.put(rawKey, mediaMetadata.getString(key));
+			} else if (key.startsWith("extra_boolean_")) {
+				String rawKey = key.substring("extra_boolean_".length());
+				extras.put(rawKey, mediaMetadata.getLong(key) != 0);
+			} else if (key.startsWith("extra_double_")) {
+				String rawKey = key.substring("extra_double_".length());
+				extras.put(rawKey, new Double(mediaMetadata.getString(key)));
 			}
 		}
 		if (extras.size() > 0) {
@@ -1027,6 +1034,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				(String)rawMediaItem.get("genre"),
 				getLong(rawMediaItem.get("duration")),
 				(String)rawMediaItem.get("artUri"),
+				(Boolean)rawMediaItem.get("playable"),
 				(String)rawMediaItem.get("displayTitle"),
 				(String)rawMediaItem.get("displaySubtitle"),
 				(String)rawMediaItem.get("displayDescription"),
