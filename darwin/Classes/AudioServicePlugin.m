@@ -321,10 +321,10 @@ static MPMediaItemArtwork* artwork = nil;
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
         mediaItem = call.arguments;
         NSString* artUri = mediaItem[@"artUri"];
+        NSDictionary* extras = mediaItem[@"extras"];
         artwork = nil;
         if (![artUri isEqual: [NSNull null]]) {
             NSString* artCacheFilePath = [NSNull null];
-            NSDictionary* extras = mediaItem[@"extras"];
             if (![extras isEqual: [NSNull null]]) {
                 artCacheFilePath = extras[@"artCacheFile"];
             }
@@ -333,6 +333,25 @@ static MPMediaItemArtwork* artwork = nil;
                 UIImage* artImage = [UIImage imageWithContentsOfFile:artCacheFilePath];
 #else
                 NSImage* artImage = [[NSImage alloc] initWithContentsOfFile:artCacheFilePath];
+#endif
+                if (artImage != nil) {
+#if TARGET_OS_IPHONE
+                    artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
+#else
+                    artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:artImage.size requestHandler:^NSImage* _Nonnull(CGSize aSize) {
+                        return artImage;
+                    }];
+#endif
+                }
+            }
+        }
+        if (![extras isEqual: [NSNull null]]) {
+            FlutterStandardTypedData *data = extras[@"pictureData"];
+            if (data != nil && ![data isEqual: [NSNull null]]) {
+#if TARGET_OS_IPHONE
+                UIImage* artImage = [UIImage imageWithData:[data data]];
+#else
+                NSImage* artImage = [[NSImage alloc] initWithData:[data data]];
 #endif
                 if (artImage != nil) {
 #if TARGET_OS_IPHONE
