@@ -11,6 +11,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.graphics.Bitmap;
 
 import androidx.core.app.NotificationCompat;
 
@@ -32,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.io.ByteArrayOutputStream;
 
 import io.flutter.app.FlutterApplication;
 import io.flutter.plugin.common.MethodCall;
@@ -1018,6 +1020,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				String rawKey = key.substring("extra_double_".length());
 				extras.put(rawKey, new Double(mediaMetadata.getString(key)));
 			}
+		}
+		Bitmap artwork = mediaMetadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART);
+		if (artwork != null) {
+			ByteArrayOutputStream stream = new ByteArrayOutputStream();
+			artwork.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+			extras.put("artwork", stream.toByteArray());
+			artwork.recycle();
 		}
 		if (extras.size() > 0) {
 			raw.put("extras", extras);

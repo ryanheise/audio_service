@@ -425,6 +425,13 @@ public class AudioService extends MediaBrowserServiceCompat {
 				} else if (value instanceof Double) {
 					builder.putString("extra_double_" + key, value.toString());
 				}
+				if (key.equals("pictureData")) {
+					Bitmap bitmap = loadArtBitmapFromData((byte[]) value);
+					if (bitmap != null) {
+						builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
+						builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
+					}
+				}
 			}
 		}
 		MediaMetadataCompat mediaMetadata = builder.build();
@@ -493,6 +500,16 @@ public class AudioService extends MediaBrowserServiceCompat {
 				bitmap = BitmapFactory.decodeFile(path);
 			}
 			artBitmapCache.put(path, bitmap);
+			return bitmap;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	static Bitmap loadArtBitmapFromData(byte[] data) {
+		try {
+			Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
 			return bitmap;
 		} catch (Exception e) {
 			e.printStackTrace();
