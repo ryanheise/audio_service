@@ -158,8 +158,13 @@ public class AudioService extends MediaBrowserServiceCompat {
 		mediaSession.setActive(false);
 		releaseWakeLock();
 		stopForeground(true);
-		notificationCreated = false;
 		stopSelf();
+		// This still does not solve the Android 11 problem.
+		// if (notificationCreated) {
+		// 	NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+		// 	notificationManager.cancel(NOTIFICATION_ID);
+		// }
+		notificationCreated = false;
 	}
 
 	public static boolean isRunning() {
