@@ -1025,8 +1025,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 		if (artwork != null) {
 			ByteArrayOutputStream stream = new ByteArrayOutputStream();
 			artwork.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-			extras.put("artwork", stream.toByteArray());
-			artwork.recycle();
+			extras.put("pictureData", stream.toByteArray());
 		}
 		if (extras.size() > 0) {
 			raw.put("extras", extras);

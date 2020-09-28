@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/audio_service.iml" filepath="$PROJECT_DIR$/audio_service.iml" />
-      <module fileurl="file://$PROJECT_DIR$/audio_service_android.iml" filepath="$PROJECT_DIR$/audio_service_android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/audio_service.iml" filepath="$PROJECT_DIR$/.idea/modules/audio_service.iml" group="audio_service" />
     </modules>
   </component>
 </project>
