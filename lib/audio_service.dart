@@ -1050,6 +1050,7 @@ class AudioServiceBackground {
   static List<MediaItem> _queue;
   static BaseCacheManager _cacheManager;
   static BackgroundAudioTask _task;
+  static bool _running = false;
 
   /// The current media playback state.
   ///
@@ -1075,6 +1076,7 @@ class AudioServiceBackground {
   /// any requests by the client to play, pause and otherwise control audio
   /// playback.
   static Future<void> run(BackgroundAudioTask taskBuilder()) async {
+    _running = true;
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
@@ -1234,6 +1236,10 @@ class AudioServiceBackground {
 
   /// Shuts down the background audio task within the background isolate.
   static Future<void> _shutdown() async {
+    if (!_running) return;
+    // Set this to false immediately so that if duplicate shutdown requests come
+    // through, they are ignored.
+    _running = false;
     final audioSession = await AudioSession.instance;
     try {
       await audioSession.setActive(false);
