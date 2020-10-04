@@ -1,3 +1,9 @@
+## 0.15.1
+
+* Fix loading of file:// artUri values.
+* Allow booleans/doubles in MediaItems.
+* Silently ignore duplicate onStop requests.
+
 ## 0.15.0
 
 * Web support (@keaganhilliard)
