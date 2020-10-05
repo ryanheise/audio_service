@@ -1,6 +1,6 @@
 ---
 name: Documentation request
-about: Suggest an improvement to the documentation
+about: Follow the instructions carefully on the next page.
 title: ''
 labels: 1 backlog, documentation
 assignees: ryanheise

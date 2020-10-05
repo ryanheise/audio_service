@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
+about: Follow the instructions carefully on the next page.
 title: ''
 labels: 1 backlog, enhancement
 assignees: ryanheise

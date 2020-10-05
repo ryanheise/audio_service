@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Follow the instructions carefully on the next page.
 title: ''
 labels: 1 backlog, bug
 assignees: ryanheise
