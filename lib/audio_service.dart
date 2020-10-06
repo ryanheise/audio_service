@@ -1701,9 +1701,9 @@ abstract class BackgroundAudioTask {
     if (mediaItem == null) return;
     final queue = AudioServiceBackground.queue ?? [];
     int i = queue.indexOf(mediaItem);
-    if (i == -1 || (i == 0 && offset < 0)) return;
+    if (i == -1) return;
     int newIndex = i + offset;
-    if (newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
+    if (newIndex >= 0 && newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
   }
 }
 
