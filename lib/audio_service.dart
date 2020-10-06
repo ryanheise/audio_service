@@ -1703,7 +1703,7 @@ abstract class BackgroundAudioTask {
     int i = queue.indexOf(mediaItem);
     if (i == -1) return;
     int newIndex = i + offset;
-    if (newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
+    if (newIndex >= 0 && newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
   }
 }
 
