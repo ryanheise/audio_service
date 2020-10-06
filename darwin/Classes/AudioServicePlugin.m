@@ -125,6 +125,8 @@ static MPMediaItemArtwork* artwork = nil;
 
 #if TARGET_OS_IPHONE
         [AVAudioSession sharedInstance];
+        // Start receiving remote control events if they have been stopped
+        [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
 #endif
 
         // Set callbacks on MPRemoteCommandCenter
