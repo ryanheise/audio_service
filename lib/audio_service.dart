@@ -738,6 +738,12 @@ class AudioService {
   /// Android. If your app will run on Android and has a queue, you should set
   /// this to true.
   ///
+  /// [androidStopForegroundOnPause] will switch the Android service to a lower
+  /// priority state when playback is paused allowing the user to swipe away the
+  /// notification. Note that while in this lower priority state, the operating
+  /// system will also be able to kill your service at any time to reclaim
+  /// resources.
+  ///
   /// This method waits for [BackgroundAudioTask.onStart] to complete, and
   /// completes with true if the task was successfully started, or false
   /// otherwise.
@@ -1685,7 +1691,16 @@ abstract class BackgroundAudioTask {
   Future<void> onTaskRemoved() async {}
 
   /// Called on Android when the user swipes away the notification. The default
-  /// implementation (which you may override) calls [onStop].
+  /// implementation (which you may override) calls [onStop]. Note that by
+  /// default, the service runs in the foreground state which (despite the name)
+  /// allows the service to run at a high priority in the background without the
+  /// operating system killing it. While in the foreground state, the
+  /// notification cannot be swiped away. You can pass a parameter value of
+  /// `true` for `androidStopForegroundOnPause` in the [AudioService.start]
+  /// method if you would like the service to exit the foreground state when
+  /// playback is paused. This will allow the user to swipe the notification
+  /// away while playback is paused (but it will also allow the operating system
+  /// to kill your service at any time to free up resources).
   Future<void> onClose() => onStop();
 
   void _setParams({
@@ -1703,7 +1718,8 @@ abstract class BackgroundAudioTask {
     int i = queue.indexOf(mediaItem);
     if (i == -1) return;
     int newIndex = i + offset;
-    if (newIndex >= 0 && newIndex < queue.length) await onSkipToQueueItem(queue[newIndex]?.id);
+    if (newIndex >= 0 && newIndex < queue.length)
+      await onSkipToQueueItem(queue[newIndex]?.id);
   }
 }
 
