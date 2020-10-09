@@ -7,7 +7,39 @@ assignees: ryanheise
 
 ---
 
-<!--    ALL SECTIONS BELOW MUST BE COMPLETED   -->
+<!--
+
+        Note: Issues that don't follow these instructions will be closed,
+        therefore please read them carefully.
+
+        1. A bug report must demonstrate a bug in the plugin, and not merely a
+           bug in your app. Understand that this plugin WILL throw exceptions
+           or otherwise misbehave if not used in accordance with the
+           documentation. In order to verify that you have indeed found a bug,
+           you will need to make a reference to the documentation in order to
+           explain how the actual behaviour you experienced is different from
+           the behaviour that was documented. If the behaviour you want is
+           undocumented, please submit either a documentation request or a
+           feature request instead, whichever is more appropriate.
+
+        2. You must supply a link to a minimal reproduction project and explain
+           what steps I need to perform (as a user) in the app to reproduce the
+           bug. A minimal reproduction project can be created by forking this
+           project and making the minimal number of changes required to the
+           example to reproduce the bug. Do not post code directly into the bug
+           report, it must be a link to a git repo that I can clone and then
+           immediately run.
+
+        3. Leave all markdown formatting in this template intact. Do not modify
+           the section headings in any way, and insert your answers below each
+           section heading. Use code markdown (3 backticks) when inserting
+           errors and logs, not only for readability, but also to avoid issue
+           reference spamming using the # symbol.
+
+        THANK YOU :-D
+
+
+-->
 **Which API doesn't behave as documented, and how does it misbehave?**
 Name here the specific methods or fields that are not behaving as documented, and explain clearly what is happening.
 

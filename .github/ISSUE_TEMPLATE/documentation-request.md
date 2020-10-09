@@ -9,15 +9,19 @@ assignees: ryanheise
 
 <!--
 
-        PLEASE READ CAREFULLY!
+        Note: Issues that don't follow these instructions will be closed,
+        therefore please read them carefully.
 
+        1. This form is not intended for asking questions or asking for
+           support. For that, you are advised to ask your question on
+           StackOverflow or Gitter. Instead, this form is intended for people
+           who wish to help improve this plugin's documentation in a concrete
+           way.
 
-
-
-
-        FOR YOUR DOCUMENTATION REQUEST TO BE PROCESSED, YOU WILL NEED
-        TO FILL IN ALL SECTIONS BELOW. DON'T DELETE THE HEADINGS.
-
+        2. To that end, it is required that you link to the specific
+           page/section, and quote the words that are unclear (unless you are
+           proposing an entirely new section), and describe how you would like
+           it to be improved.
 
         THANK YOU :-D
 
