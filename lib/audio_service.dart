@@ -592,6 +592,16 @@ class AudioService {
   static ReceivePort _customEventReceivePort;
   static StreamSubscription _customEventSubscription;
 
+  /// A queue of tasks to be processed serially. Tasks that are processed on
+  /// this queue:
+  ///
+  /// - [connect]
+  /// - [disconnect]
+  /// - [start]
+  ///
+  /// TODO: Queue other tasks? Note, only short-running tasks should be queued.
+  static final _asyncTaskQueue = _AsyncTaskQueue();
+
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
   ///
@@ -600,93 +610,95 @@ class AudioService {
   /// other methods in this class will work only while connected.
   ///
   /// Use [AudioServiceWidget] to handle this automatically.
-  static Future<void> connect() async {
-    _channel.setMethodCallHandler((MethodCall call) async {
-      switch (call.method) {
-        case 'onChildrenLoaded':
-          final List<Map> args = List<Map>.from(call.arguments[0]);
-          _browseMediaChildren =
-              args.map((raw) => MediaItem.fromJson(raw)).toList();
-          _browseMediaChildrenSubject.add(_browseMediaChildren);
-          break;
-        case 'onPlaybackStateChanged':
-          // If this event arrives too late, ignore it.
-          if (_afterStop) return;
-          final List args = call.arguments;
-          int actionBits = args[2];
-          _playbackState = PlaybackState(
-            processingState: AudioProcessingState.values[args[0]],
-            playing: args[1],
-            actions: MediaAction.values
-                .where((action) => (actionBits & (1 << action.index)) != 0)
-                .toSet(),
-            position: Duration(milliseconds: args[3]),
-            bufferedPosition: Duration(milliseconds: args[4]),
-            speed: args[5],
-            updateTime: Duration(milliseconds: args[6]),
-            repeatMode: AudioServiceRepeatMode.values[args[7]],
-            shuffleMode: AudioServiceShuffleMode.values[args[8]],
-          );
-          _playbackStateSubject.add(_playbackState);
-          break;
-        case 'onMediaChanged':
-          _currentMediaItem = call.arguments[0] != null
-              ? MediaItem.fromJson(call.arguments[0])
-              : null;
-          _currentMediaItemSubject.add(_currentMediaItem);
-          break;
-        case 'onQueueChanged':
-          final List<Map> args = call.arguments[0] != null
-              ? List<Map>.from(call.arguments[0])
-              : null;
-          _queue = args?.map((raw) => MediaItem.fromJson(raw))?.toList();
-          _queueSubject.add(_queue);
-          break;
-        case 'onStopped':
-          _browseMediaChildren = null;
-          _browseMediaChildrenSubject.add(null);
-          _playbackState = null;
-          _playbackStateSubject.add(null);
-          _currentMediaItem = null;
-          _currentMediaItemSubject.add(null);
-          _queue = null;
-          _queueSubject.add(null);
-          _notificationSubject.add(false);
-          _running = false;
-          _afterStop = true;
-          break;
-        case 'notificationClicked':
-          _notificationSubject.add(call.arguments[0]);
-          break;
-      }
-    });
-    if (AudioService.usesIsolate) {
-      _customEventReceivePort = ReceivePort();
-      _customEventSubscription = _customEventReceivePort.listen((event) {
-        _customEventSubject.add(event);
+  static Future<void> connect() => _asyncTaskQueue.schedule(() async {
+        if (_connected) return;
+        _channel.setMethodCallHandler((MethodCall call) async {
+          switch (call.method) {
+            case 'onChildrenLoaded':
+              final List<Map> args = List<Map>.from(call.arguments[0]);
+              _browseMediaChildren =
+                  args.map((raw) => MediaItem.fromJson(raw)).toList();
+              _browseMediaChildrenSubject.add(_browseMediaChildren);
+              break;
+            case 'onPlaybackStateChanged':
+              // If this event arrives too late, ignore it.
+              if (_afterStop) return;
+              final List args = call.arguments;
+              int actionBits = args[2];
+              _playbackState = PlaybackState(
+                processingState: AudioProcessingState.values[args[0]],
+                playing: args[1],
+                actions: MediaAction.values
+                    .where((action) => (actionBits & (1 << action.index)) != 0)
+                    .toSet(),
+                position: Duration(milliseconds: args[3]),
+                bufferedPosition: Duration(milliseconds: args[4]),
+                speed: args[5],
+                updateTime: Duration(milliseconds: args[6]),
+                repeatMode: AudioServiceRepeatMode.values[args[7]],
+                shuffleMode: AudioServiceShuffleMode.values[args[8]],
+              );
+              _playbackStateSubject.add(_playbackState);
+              break;
+            case 'onMediaChanged':
+              _currentMediaItem = call.arguments[0] != null
+                  ? MediaItem.fromJson(call.arguments[0])
+                  : null;
+              _currentMediaItemSubject.add(_currentMediaItem);
+              break;
+            case 'onQueueChanged':
+              final List<Map> args = call.arguments[0] != null
+                  ? List<Map>.from(call.arguments[0])
+                  : null;
+              _queue = args?.map((raw) => MediaItem.fromJson(raw))?.toList();
+              _queueSubject.add(_queue);
+              break;
+            case 'onStopped':
+              _browseMediaChildren = null;
+              _browseMediaChildrenSubject.add(null);
+              _playbackState = null;
+              _playbackStateSubject.add(null);
+              _currentMediaItem = null;
+              _currentMediaItemSubject.add(null);
+              _queue = null;
+              _queueSubject.add(null);
+              _notificationSubject.add(false);
+              _running = false;
+              _afterStop = true;
+              break;
+            case 'notificationClicked':
+              _notificationSubject.add(call.arguments[0]);
+              break;
+          }
+        });
+        if (AudioService.usesIsolate) {
+          _customEventReceivePort = ReceivePort();
+          _customEventSubscription = _customEventReceivePort.listen((event) {
+            _customEventSubject.add(event);
+          });
+          IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
+          IsolateNameServer.registerPortWithName(
+              _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
+        }
+        await _channel.invokeMethod("connect");
+        _running = await _channel.invokeMethod("isRunning");
+        _connected = true;
       });
-      IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
-      IsolateNameServer.registerPortWithName(
-          _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
-    }
-    await _channel.invokeMethod("connect");
-    _running = await _channel.invokeMethod("isRunning");
-    _connected = true;
-  }
 
   /// Disconnects your UI from the service.
   ///
   /// This method should be called when the UI is no longer visible.
   ///
   /// Use [AudioServiceWidget] to handle this automatically.
-  static Future<void> disconnect() async {
-    _channel.setMethodCallHandler(null);
-    _customEventSubscription?.cancel();
-    _customEventSubscription = null;
-    _customEventReceivePort = null;
-    await _channel.invokeMethod("disconnect");
-    _connected = false;
-  }
+  static Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
+        if (!_connected) return;
+        _channel.setMethodCallHandler(null);
+        _customEventSubscription?.cancel();
+        _customEventSubscription = null;
+        _customEventReceivePort = null;
+        await _channel.invokeMethod("disconnect");
+        _connected = false;
+      });
 
   /// True if the UI is connected.
   static bool get connected => _connected;
@@ -763,59 +775,62 @@ class AudioService {
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
-    if (_running) return false;
-    _running = true;
-    _afterStop = false;
-    ui.CallbackHandle handle;
-    if (AudioService.usesIsolate) {
-      handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
-      if (handle == null) {
-        return false;
+    return await _asyncTaskQueue.schedule(() async {
+      if (!_connected) throw Exception("Not connected");
+      if (_running) return false;
+      _running = true;
+      _afterStop = false;
+      ui.CallbackHandle handle;
+      if (AudioService.usesIsolate) {
+        handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
+        if (handle == null) {
+          return false;
+        }
       }
-    }
 
-    var callbackHandle = handle?.toRawHandle();
-    if (kIsWeb) {
-      // Platform throws runtime exceptions on web
-    } else if (Platform.isIOS) {
-      // NOTE: to maintain compatibility between the Android and iOS
-      // implementations, we ensure that the iOS background task also runs in
-      // an isolate. Currently, the standard Isolate API does not allow
-      // isolates to invoke methods on method channels. That may be fixed in
-      // the future, but until then, we use the flutter_isolate plugin which
-      // creates a FlutterNativeView for us, similar to what the Android
-      // implementation does.
-      // TODO: remove dependency on flutter_isolate by either using the
-      // FlutterNativeView API directly or by waiting until Flutter allows
-      // regular isolates to use method channels.
-      await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
-    }
-    final success = await _channel.invokeMethod('start', {
-      'callbackHandle': callbackHandle,
-      'params': params,
-      'androidNotificationChannelName': androidNotificationChannelName,
-      'androidNotificationChannelDescription':
-          androidNotificationChannelDescription,
-      'androidNotificationColor': androidNotificationColor,
-      'androidNotificationIcon': androidNotificationIcon,
-      'androidNotificationClickStartsActivity':
-          androidNotificationClickStartsActivity,
-      'androidNotificationOngoing': androidNotificationOngoing,
-      'androidResumeOnClick': androidResumeOnClick,
-      'androidStopForegroundOnPause': androidStopForegroundOnPause,
-      'androidEnableQueue': androidEnableQueue,
-      'androidArtDownscaleSize': androidArtDownscaleSize != null
-          ? {
-              'width': androidArtDownscaleSize.width,
-              'height': androidArtDownscaleSize.height
-            }
-          : null,
-      'fastForwardInterval': fastForwardInterval.inMilliseconds,
-      'rewindInterval': rewindInterval.inMilliseconds,
+      var callbackHandle = handle?.toRawHandle();
+      if (kIsWeb) {
+        // Platform throws runtime exceptions on web
+      } else if (Platform.isIOS) {
+        // NOTE: to maintain compatibility between the Android and iOS
+        // implementations, we ensure that the iOS background task also runs in
+        // an isolate. Currently, the standard Isolate API does not allow
+        // isolates to invoke methods on method channels. That may be fixed in
+        // the future, but until then, we use the flutter_isolate plugin which
+        // creates a FlutterNativeView for us, similar to what the Android
+        // implementation does.
+        // TODO: remove dependency on flutter_isolate by either using the
+        // FlutterNativeView API directly or by waiting until Flutter allows
+        // regular isolates to use method channels.
+        await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
+      }
+      final success = await _channel.invokeMethod('start', {
+        'callbackHandle': callbackHandle,
+        'params': params,
+        'androidNotificationChannelName': androidNotificationChannelName,
+        'androidNotificationChannelDescription':
+            androidNotificationChannelDescription,
+        'androidNotificationColor': androidNotificationColor,
+        'androidNotificationIcon': androidNotificationIcon,
+        'androidNotificationClickStartsActivity':
+            androidNotificationClickStartsActivity,
+        'androidNotificationOngoing': androidNotificationOngoing,
+        'androidResumeOnClick': androidResumeOnClick,
+        'androidStopForegroundOnPause': androidStopForegroundOnPause,
+        'androidEnableQueue': androidEnableQueue,
+        'androidArtDownscaleSize': androidArtDownscaleSize != null
+            ? {
+                'width': androidArtDownscaleSize.width,
+                'height': androidArtDownscaleSize.height
+              }
+            : null,
+        'fastForwardInterval': fastForwardInterval.inMilliseconds,
+        'rewindInterval': rewindInterval.inMilliseconds,
+      });
+      _running = await _channel.invokeMethod("isRunning");
+      if (!AudioService.usesIsolate) backgroundTaskEntrypoint();
+      return success;
     });
-    _running = await _channel.invokeMethod("isRunning");
-    if (!AudioService.usesIsolate) backgroundTaskEntrypoint();
-    return success;
   }
 
   /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
@@ -1796,3 +1811,37 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
 enum AudioServiceShuffleMode { none, all, group }
 
 enum AudioServiceRepeatMode { none, one, all, group }
+
+class _AsyncTaskQueue {
+  final _queuedAsyncTaskController = StreamController<_AsyncTaskQueueEntry>();
+
+  _AsyncTaskQueue() {
+    _process();
+  }
+
+  Future<void> _process() async {
+    await for (var entry in _queuedAsyncTaskController.stream) {
+      try {
+        final result = await entry.asyncTask();
+        entry.completer.complete(result);
+      } catch (e, stacktrace) {
+        entry.completer.completeError(e, stacktrace);
+      }
+    }
+  }
+
+  Future<dynamic> schedule(_AsyncTask asyncTask) async {
+    final completer = Completer<dynamic>();
+    _queuedAsyncTaskController.add(_AsyncTaskQueueEntry(asyncTask, completer));
+    return completer.future;
+  }
+}
+
+class _AsyncTaskQueueEntry {
+  final _AsyncTask asyncTask;
+  final Completer completer;
+
+  _AsyncTaskQueueEntry(this.asyncTask, this.completer);
+}
+
+typedef _AsyncTask = Future<dynamic> Function();
