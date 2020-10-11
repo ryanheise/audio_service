@@ -1370,15 +1370,15 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
       rawSystemActions,
-      processingState.index,
-      playing,
-      position.inMilliseconds,
-      bufferedPosition.inMilliseconds,
-      speed,
+      processingState?.index ?? AudioProcessingState.none.index,
+      playing ?? false,
+      position?.inMilliseconds ?? 0,
+      bufferedPosition?.inMilliseconds ?? 0,
+      speed ?? 1.0,
       updateTime?.inMilliseconds,
       androidCompactActions,
-      repeatMode.index,
-      shuffleMode.index,
+      repeatMode?.index ?? AudioServiceRepeatMode.none.index,
+      shuffleMode?.index ?? AudioServiceShuffleMode.none.index,
     ]);
   }
 
