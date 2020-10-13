@@ -1,3 +1,9 @@
+## 0.15.2
+
+* Process connect/disconnect/start requests in a queue.
+* Guard against null setState arguments.
+* Range check in onSkipToPrevious (@snaeji).
+
 ## 0.15.1
 
 * Fix loading of file:// artUri values.
