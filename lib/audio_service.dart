@@ -513,19 +513,19 @@ const MethodChannel _channel =
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-/// Client API to start and interact with the audio service.
+/// Client API to connect with and communciate with the background audio task.
 ///
-/// This class is used from your UI code to establish a connection with the
-/// audio service. While connected to the service, your UI may invoke methods
-/// of this class to start/pause/stop/etc. playback and listen to changes in
-/// playback state and playing media.
+/// You may use this API from your UI to send start/pause/play/stop/etc messages
+/// to your background audio task, and to listen to state changes broadcast by
+/// your background audio task. You may also use this API from other background
+/// isolates (e.g. android_alarm_manager) to communicate with the background
+/// audio task.
 ///
-/// Your UI must disconnect from the audio service when it is no longer visible
-/// although the audio service will continue to run in the background. If your
-/// UI once again becomes visible, you should reconnect to the audio service.
-///
-/// It is recommended to use [AudioServiceWidget] to manage this connection
-/// automatically.
+/// A client must [connect] to the service before it will be able to send
+/// messages to the background audio task, and must [disconnect] when
+/// communication is no longer required. In practice, a UI should maintain a
+/// connection exactly while it is visible. It is strongly recommended that you
+/// use [AudioServiceWidget] to manage this connection for you automatically.
 class AudioService {
   /// True if the background task runs in its own isolate, false if it doesn't.
   static bool get usesIsolate => !(kIsWeb || Platform.isMacOS);
@@ -541,11 +541,18 @@ class AudioService {
   static Stream<List<MediaItem>> get browseMediaChildrenStream =>
       _browseMediaChildrenSubject.stream;
 
+  /// The children of the current browse media parent.
+  static List<MediaItem> get browseMediaChildren =>
+      _browseMediaChildrenSubject.value;
+
   static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
 
   /// A stream that broadcasts the playback state.
   static Stream<PlaybackState> get playbackStateStream =>
       _playbackStateSubject.stream;
+
+  /// The current playback state.
+  static PlaybackState get playbackState => _playbackStateSubject.value;
 
   static final _currentMediaItemSubject = BehaviorSubject<MediaItem>();
 
@@ -553,37 +560,33 @@ class AudioService {
   static Stream<MediaItem> get currentMediaItemStream =>
       _currentMediaItemSubject.stream;
 
+  /// The current [MediaItem].
+  static MediaItem get currentMediaItem => _currentMediaItemSubject.value;
+
   static final _queueSubject = BehaviorSubject<List<MediaItem>>();
 
   /// A stream that broadcasts the queue.
   static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
 
+  /// The current queue.
+  static List<MediaItem> get queue => _queueSubject.value;
+
   static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
 
-  /// A stream that broadcasts the status of notificationClick event.
+  /// A stream that broadcasts the status of the notificationClick event.
   static Stream<bool> get notificationClickEventStream =>
       _notificationSubject.stream;
+
+  /// The status of the notificationClick event.
+  static bool get notificationClickEvent => _notificationSubject.value;
 
   static final _customEventSubject = PublishSubject<dynamic>();
 
   /// A stream that broadcasts custom events sent from the background.
   static Stream<dynamic> get customEventStream => _customEventSubject.stream;
 
-  /// The children of the current browse media parent.
-  static List<MediaItem> get browseMediaChildren => _browseMediaChildren;
-  static List<MediaItem> _browseMediaChildren;
-
-  /// The current playback state.
-  static PlaybackState get playbackState => _playbackState;
-  static PlaybackState _playbackState;
-
-  /// The current media item.
-  static MediaItem get currentMediaItem => _currentMediaItem;
-  static MediaItem _currentMediaItem;
-
-  /// The current queue.
-  static List<MediaItem> get queue => _queue;
-  static List<MediaItem> _queue;
+  /// If a seek is in progress, this holds the position we are seeking to.
+  static Duration _seekPos;
 
   /// True after service stopped and !running.
   static bool _afterStop = false;
@@ -602,6 +605,8 @@ class AudioService {
   /// TODO: Queue other tasks? Note, only short-running tasks should be queued.
   static final _asyncTaskQueue = _AsyncTaskQueue();
 
+  static BehaviorSubject<Duration> _positionSubject;
+
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
   ///
@@ -616,16 +621,15 @@ class AudioService {
           switch (call.method) {
             case 'onChildrenLoaded':
               final List<Map> args = List<Map>.from(call.arguments[0]);
-              _browseMediaChildren =
-                  args.map((raw) => MediaItem.fromJson(raw)).toList();
-              _browseMediaChildrenSubject.add(_browseMediaChildren);
+              _browseMediaChildrenSubject
+                  .add(args.map((raw) => MediaItem.fromJson(raw)).toList());
               break;
             case 'onPlaybackStateChanged':
               // If this event arrives too late, ignore it.
               if (_afterStop) return;
               final List args = call.arguments;
               int actionBits = args[2];
-              _playbackState = PlaybackState(
+              _playbackStateSubject.add(PlaybackState(
                 processingState: AudioProcessingState.values[args[0]],
                 playing: args[1],
                 actions: MediaAction.values
@@ -637,33 +641,27 @@ class AudioService {
                 updateTime: Duration(milliseconds: args[6]),
                 repeatMode: AudioServiceRepeatMode.values[args[7]],
                 shuffleMode: AudioServiceShuffleMode.values[args[8]],
-              );
-              _playbackStateSubject.add(_playbackState);
+              ));
               break;
             case 'onMediaChanged':
-              _currentMediaItem = call.arguments[0] != null
+              _currentMediaItemSubject.add(call.arguments[0] != null
                   ? MediaItem.fromJson(call.arguments[0])
-                  : null;
-              _currentMediaItemSubject.add(_currentMediaItem);
+                  : null);
               break;
             case 'onQueueChanged':
               final List<Map> args = call.arguments[0] != null
                   ? List<Map>.from(call.arguments[0])
                   : null;
-              _queue = args?.map((raw) => MediaItem.fromJson(raw))?.toList();
-              _queueSubject.add(_queue);
+              _queueSubject
+                  .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
               break;
             case 'onStopped':
-              _browseMediaChildren = null;
               _browseMediaChildrenSubject.add(null);
-              _playbackState = null;
               _playbackStateSubject.add(null);
-              _currentMediaItem = null;
               _currentMediaItemSubject.add(null);
-              _queue = null;
               _queueSubject.add(null);
               _notificationSubject.add(false);
-              _running = false;
+              _runningSubject.add(false);
               _afterStop = true;
               break;
             case 'notificationClicked':
@@ -681,7 +679,10 @@ class AudioService {
               _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
         }
         await _channel.invokeMethod("connect");
-        _running = await _channel.invokeMethod("isRunning");
+        final running = await _channel.invokeMethod("isRunning");
+        if (running != AudioService.running) {
+          _runningSubject.add(running);
+        }
         _connected = true;
       });
 
@@ -704,9 +705,13 @@ class AudioService {
   static bool get connected => _connected;
   static bool _connected = false;
 
+  static final _runningSubject = BehaviorSubject<bool>();
+
+  /// A stream indicating when the [running] state changes.
+  static get runningStream => _runningSubject.stream;
+
   /// True if the background audio task is running.
-  static bool get running => _running;
-  static bool _running = false;
+  static bool get running => _runningSubject.value;
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off. Only one background audio task
@@ -777,8 +782,8 @@ class AudioService {
   }) async {
     return await _asyncTaskQueue.schedule(() async {
       if (!_connected) throw Exception("Not connected");
-      if (_running) return false;
-      _running = true;
+      if (running) return false;
+      _runningSubject.add(true);
       _afterStop = false;
       ui.CallbackHandle handle;
       if (AudioService.usesIsolate) {
@@ -827,7 +832,9 @@ class AudioService {
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
       });
-      _running = await _channel.invokeMethod("isRunning");
+      if (!success) {
+        _runningSubject.add(false);
+      }
       if (!AudioService.usesIsolate) backgroundTaskEntrypoint();
       return success;
     });
@@ -957,7 +964,9 @@ class AudioService {
   /// position in the current media item. This passes through to the `onSeekTo`
   /// method in your background audio task.
   static Future<void> seekTo(Duration position) async {
+    _seekPos = position;
     await _channel.invokeMethod('seekTo', position.inMilliseconds);
+    _seekPos = null;
   }
 
   /// Sends a request to your background audio task to skip to the next item in
@@ -1048,6 +1057,84 @@ class AudioService {
   /// is encodable by `StandardMessageCodec`.
   static Future customAction(String name, [dynamic arguments]) async {
     return await _channel.invokeMethod('$_CUSTOM_PREFIX$name', arguments);
+  }
+
+  /// A stream tracking the current position, suitable for animating a seek bar.
+  /// To ensure a smooth animation, this stream emits values more frequently on
+  /// short media items where the seek bar moves more quickly, and less
+  /// frequenly on long media items where the seek bar moves more slowly. The
+  /// interval between each update will be no quicker than once every 16ms and
+  /// no slower than once every 200ms.
+  ///
+  /// See [createPositionStream] for more control over the stream parameters.
+  //static Stream<Duration> _positionStream;
+  static Stream<Duration> get positionStream {
+    if (_positionSubject == null) {
+      _positionSubject = BehaviorSubject<Duration>(sync: true);
+      _positionSubject.addStream(createPositionStream(
+          steps: 800,
+          minPeriod: Duration(milliseconds: 16),
+          maxPeriod: Duration(milliseconds: 200)));
+    }
+    return _positionSubject.stream;
+  }
+
+  /// Creates a new stream periodically tracking the current position. The
+  /// stream will aim to emit [steps] position updates at intervals of
+  /// [duration] / [steps]. This interval will be clipped between [minPeriod]
+  /// and [maxPeriod]. This stream will not emit values while audio playback is
+  /// paused or stalled.
+  ///
+  /// Note: each time this method is called, a new stream is created. If you
+  /// intend to use this stream multiple times, you should hold a reference to
+  /// the returned stream.
+  static Stream<Duration> createPositionStream({
+    int steps = 800,
+    Duration minPeriod = const Duration(milliseconds: 200),
+    Duration maxPeriod = const Duration(milliseconds: 200),
+  }) {
+    assert(minPeriod <= maxPeriod);
+    assert(minPeriod > Duration.zero);
+    Duration last;
+    // ignore: close_sinks
+    StreamController<Duration> controller;
+    StreamSubscription<MediaItem> mediaItemSubscription;
+    StreamSubscription<PlaybackState> playbackStateSubscription;
+    Timer currentTimer;
+    Duration duration() => currentMediaItem?.duration ?? Duration.zero;
+    Duration step() {
+      var s = duration() ~/ steps;
+      if (s < minPeriod) s = minPeriod;
+      if (s > maxPeriod) s = maxPeriod;
+      return s;
+    }
+
+    void yieldPosition(Timer timer) {
+      if (last != (_seekPos ?? playbackState?.currentPosition)) {
+        controller.add(last = (_seekPos ?? playbackState?.currentPosition));
+      }
+    }
+
+    controller = StreamController.broadcast(
+      sync: true,
+      onListen: () {
+        mediaItemSubscription = currentMediaItemStream.listen((mediaItem) {
+          // Potentially a new duration
+          currentTimer?.cancel();
+          currentTimer = Timer.periodic(step(), yieldPosition);
+        });
+        playbackStateSubscription = playbackStateStream.listen((state) {
+          // Potentially a time discontinuity
+          yieldPosition(currentTimer);
+        });
+      },
+      onCancel: () {
+        mediaItemSubscription.cancel();
+        playbackStateSubscription.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 }
 
@@ -1323,7 +1410,7 @@ class AudioServiceBackground {
   ///
   /// On Android, a media notification has a compact and expanded form. In the
   /// compact view, you can optionally specify the indices of up to 3 of your
-  /// [controls] that you would like to be shown.
+  /// [controls] that you would like to be shown via [androidCompactActions].
   ///
   /// The playback [position] should NOT be updated continuously in real time.
   /// Instead, it should be updated only when the normal continuity of time is

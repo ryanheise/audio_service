@@ -24,10 +24,6 @@ class MyApp extends StatelessWidget {
 }
 
 class MainScreen extends StatelessWidget {
-  /// Tracks the position while the user drags the seek bar.
-  final BehaviorSubject<double> _dragPositionSubject =
-      BehaviorSubject.seeded(null);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,60 +31,112 @@ class MainScreen extends StatelessWidget {
         title: const Text('Audio Service Demo'),
       ),
       body: Center(
-        child: StreamBuilder<ScreenState>(
-          stream: _screenStateStream,
+        child: StreamBuilder<bool>(
+          stream: AudioService.runningStream,
           builder: (context, snapshot) {
-            final screenState = snapshot.data;
-            final queue = screenState?.queue;
-            final mediaItem = screenState?.mediaItem;
-            final state = screenState?.playbackState;
-            final processingState =
-                state?.processingState ?? AudioProcessingState.none;
-            final playing = state?.playing ?? false;
+            if (snapshot.connectionState != ConnectionState.active) {
+              // Don't show anything until we've ascertained whether or not the
+              // service is running, since we want to show a different UI in
+              // each case.
+              return SizedBox();
+            }
+            final running = snapshot.data ?? false;
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (processingState == AudioProcessingState.none) ...[
+                if (!running) ...[
+                  // UI to show when we're not running, i.e. a menu.
                   audioPlayerButton(),
                   if (kIsWeb || !Platform.isMacOS) textToSpeechButton(),
                 ] else ...[
-                  if (queue != null && queue.isNotEmpty)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.skip_previous),
-                          iconSize: 64.0,
-                          onPressed: mediaItem == queue.first
-                              ? null
-                              : AudioService.skipToPrevious,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.skip_next),
-                          iconSize: 64.0,
-                          onPressed: mediaItem == queue.last
-                              ? null
-                              : AudioService.skipToNext,
-                        ),
-                      ],
-                    ),
-                  if (mediaItem?.title != null) Text(mediaItem.title),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (playing) pauseButton() else playButton(),
-                      stopButton(),
-                    ],
+                  // UI to show when we're running, i.e. player state/controls.
+
+                  // Queue display/controls.
+                  StreamBuilder<QueueState>(
+                    stream: _queueStateStream,
+                    builder: (context, snapshot) {
+                      final queueState = snapshot.data;
+                      final queue = queueState?.queue ?? [];
+                      final mediaItem = queueState?.mediaItem;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (queue != null && queue.isNotEmpty)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.skip_previous),
+                                  iconSize: 64.0,
+                                  onPressed: mediaItem == queue.first
+                                      ? null
+                                      : AudioService.skipToPrevious,
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.skip_next),
+                                  iconSize: 64.0,
+                                  onPressed: mediaItem == queue.last
+                                      ? null
+                                      : AudioService.skipToNext,
+                                ),
+                              ],
+                            ),
+                          if (mediaItem?.title != null) Text(mediaItem.title),
+                        ],
+                      );
+                    },
                   ),
-                  positionIndicator(mediaItem, state),
-                  Text("Processing state: " +
-                      "$processingState".replaceAll(RegExp(r'^.*\.'), '')),
+                  // Play/pause/stop buttons.
+                  StreamBuilder<bool>(
+                    stream: AudioService.playbackStateStream
+                        .map((state) => state.playing)
+                        .distinct(),
+                    builder: (context, snapshot) {
+                      final playing = snapshot.data ?? false;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (playing) pauseButton() else playButton(),
+                          stopButton(),
+                        ],
+                      );
+                    },
+                  ),
+                  // A seek bar.
+                  StreamBuilder<MediaState>(
+                    stream: _mediaStateStream,
+                    builder: (context, snapshot) {
+                      final mediaState = snapshot.data;
+                      return SeekBar(
+                        duration:
+                            mediaState?.mediaItem?.duration ?? Duration.zero,
+                        position: mediaState?.position ?? Duration.zero,
+                        onChangeEnd: (newPosition) {
+                          AudioService.seekTo(newPosition);
+                        },
+                      );
+                    },
+                  ),
+                  // Display the processing state.
+                  StreamBuilder<AudioProcessingState>(
+                    stream: AudioService.playbackStateStream
+                        .map((state) => state.processingState)
+                        .distinct(),
+                    builder: (context, snapshot) {
+                      final processingState =
+                          snapshot.data ?? AudioProcessingState.none;
+                      return Text(
+                          "Processing state: ${describeEnum(processingState)}");
+                    },
+                  ),
+                  // Display the latest custom event.
                   StreamBuilder(
                     stream: AudioService.customEventStream,
                     builder: (context, snapshot) {
                       return Text("custom event: ${snapshot.data}");
                     },
                   ),
+                  // Display the notification click status.
                   StreamBuilder<bool>(
                     stream: AudioService.notificationClickEventStream,
                     builder: (context, snapshot) {
@@ -106,15 +154,21 @@ class MainScreen extends StatelessWidget {
     );
   }
 
-  /// Encapsulate all the different data we're interested in into a single
-  /// stream so we don't have to nest StreamBuilders.
-  Stream<ScreenState> get _screenStateStream =>
-      Rx.combineLatest3<List<MediaItem>, MediaItem, PlaybackState, ScreenState>(
+  /// A stream reporting the combined state of the current media item and its
+  /// current position.
+  Stream<MediaState> get _mediaStateStream =>
+      Rx.combineLatest2<MediaItem, Duration, MediaState>(
+          AudioService.currentMediaItemStream,
+          AudioService.positionStream,
+          (mediaItem, position) => MediaState(mediaItem, position));
+
+  /// A stream reporting the combined state of the current queue and the current
+  /// media item within that queue.
+  Stream<QueueState> get _queueStateStream =>
+      Rx.combineLatest2<List<MediaItem>, MediaItem, QueueState>(
           AudioService.queueStream,
           AudioService.currentMediaItemStream,
-          AudioService.playbackStateStream,
-          (queue, mediaItem, playbackState) =>
-              ScreenState(queue, mediaItem, playbackState));
+          (queue, mediaItem) => QueueState(queue, mediaItem));
 
   RaisedButton audioPlayerButton() => startButton(
         'AudioPlayer',
@@ -166,54 +220,89 @@ class MainScreen extends StatelessWidget {
         iconSize: 64.0,
         onPressed: AudioService.stop,
       );
-
-  Widget positionIndicator(MediaItem mediaItem, PlaybackState state) {
-    double seekPos;
-    return StreamBuilder(
-      stream: Rx.combineLatest2<double, double, double>(
-          _dragPositionSubject.stream,
-          Stream.periodic(Duration(milliseconds: 200)),
-          (dragPosition, _) => dragPosition),
-      builder: (context, snapshot) {
-        double position =
-            snapshot.data ?? state.currentPosition.inMilliseconds.toDouble();
-        double duration = mediaItem?.duration?.inMilliseconds?.toDouble();
-        return Column(
-          children: [
-            if (duration != null)
-              Slider(
-                min: 0.0,
-                max: duration,
-                value: seekPos ?? max(0.0, min(position, duration)),
-                onChanged: (value) {
-                  _dragPositionSubject.add(value);
-                },
-                onChangeEnd: (value) {
-                  AudioService.seekTo(Duration(milliseconds: value.toInt()));
-                  // Due to a delay in platform channel communication, there is
-                  // a brief moment after releasing the Slider thumb before the
-                  // new position is broadcast from the platform side. This
-                  // hack is to hold onto seekPos until the next state update
-                  // comes through.
-                  // TODO: Improve this code.
-                  seekPos = value;
-                  _dragPositionSubject.add(null);
-                },
-              ),
-            Text("${state.currentPosition}"),
-          ],
-        );
-      },
-    );
-  }
 }
 
-class ScreenState {
+class QueueState {
   final List<MediaItem> queue;
   final MediaItem mediaItem;
-  final PlaybackState playbackState;
 
-  ScreenState(this.queue, this.mediaItem, this.playbackState);
+  QueueState(this.queue, this.mediaItem);
+}
+
+class MediaState {
+  final MediaItem mediaItem;
+  final Duration position;
+
+  MediaState(this.mediaItem, this.position);
+}
+
+class SeekBar extends StatefulWidget {
+  final Duration duration;
+  final Duration position;
+  final ValueChanged<Duration> onChanged;
+  final ValueChanged<Duration> onChangeEnd;
+
+  SeekBar({
+    @required this.duration,
+    @required this.position,
+    this.onChanged,
+    this.onChangeEnd,
+  });
+
+  @override
+  _SeekBarState createState() => _SeekBarState();
+}
+
+class _SeekBarState extends State<SeekBar> {
+  double _dragValue;
+  bool _dragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = min(_dragValue ?? widget.position?.inMilliseconds?.toDouble(),
+        widget.duration.inMilliseconds.toDouble());
+    if (_dragValue != null && !_dragging) {
+      _dragValue = null;
+    }
+    return Stack(
+      children: [
+        Slider(
+          min: 0.0,
+          max: widget.duration.inMilliseconds.toDouble(),
+          value: value,
+          onChanged: (value) {
+            if (!_dragging) {
+              _dragging = true;
+            }
+            setState(() {
+              _dragValue = value;
+            });
+            if (widget.onChanged != null) {
+              widget.onChanged(Duration(milliseconds: value.round()));
+            }
+          },
+          onChangeEnd: (value) {
+            if (widget.onChangeEnd != null) {
+              widget.onChangeEnd(Duration(milliseconds: value.round()));
+            }
+            _dragging = false;
+          },
+        ),
+        Positioned(
+          right: 16.0,
+          bottom: 0.0,
+          child: Text(
+              RegExp(r'((^0*[1-9]\d*:)?\d{2}:\d{2})\.\d+$')
+                      .firstMatch("$_remaining")
+                      ?.group(1) ??
+                  '$_remaining',
+              style: Theme.of(context).textTheme.caption),
+        ),
+      ],
+    );
+  }
+
+  Duration get _remaining => widget.duration - widget.position;
 }
 
 // NOTE: Your entrypoint MUST be a top-level function.
@@ -369,6 +458,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
         MediaAction.seekForward,
         MediaAction.seekBackward,
       ],
+      androidCompactActions: [0, 1, 3],
       processingState: _getProcessingState(),
       playing: _player.playing,
       position: _player.position,
