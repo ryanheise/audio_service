@@ -5,6 +5,7 @@ This plugin wraps around your existing audio code to allow it to run in the back
 * Music players
 * Text-to-speech readers
 * Podcast players
+* Video players
 * Navigators
 * More!
 
