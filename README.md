@@ -66,15 +66,15 @@ class MyApp extends StatelessWidget {
 Interact with your background audio task via the `AudioService` API:
 
 ```dart
-  // Start button
+  // Start the background audio task
   RaisedButton(
       child: Text("Start"),
       onPressed: () => AudioService.start(backgroundTaskEntrypoint: _entrypoint)),
-  // Stop button
+  // Stop the background audio task
   RaisedButton(child: Text("Stop"), onPressed: AudioService.stop),
-  // Play button
+  // Play/resume playback
   RaisedButton(child: Text("Play"), onPressed: AudioService.play),
-  // Pause button
+  // Pause playback
   RaisedButton(child: Text("Pause"), onPressed: AudioService.pause),
   // Display current state
   StreamBuilder<PlaybackState>(
