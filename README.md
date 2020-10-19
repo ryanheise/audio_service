@@ -91,7 +91,7 @@ Interact with your background audio task via the `AudioService` API:
 
 ### Background code
 
-Define the callbacks for `onStart`, `onStop`, `onPlay` and `onPause` in your background audio task. This will run in a separate isolate detachable from your UI. The following example will play a podcast using an audio player plugin:
+Define the callbacks for `onStart`, `onStop`, `onPlay` and `onPause` in your background audio task. This will run in a separate isolate detachable from your UI. The following example will play a song using the just_audio plugin:
 
 ```dart
 // Must be a top-level function
@@ -102,15 +102,15 @@ class AudioPlayerTask extends BackgroundAudioTask {
   
   onStart(Map<String, dynamic> params) async {
     final mediaItem = MediaItem(
-      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-      album: "Science Friday",
-      title: "A Salute To Head-Scratching Science",
+      id: "https://foo.bar/baz.mp3",
+      album: "Foo",
+      title: "Bar",
     );
     // Tell the UI and media notification what we're playing.
     AudioServiceBackground.setMediaItem(mediaItem);
     // Listen to state changes on the player...
     _player.playerStateStream.listen((playerState) {
-      // ... and forward them on to all audio_service clients.
+      // ... and forward them to all audio_service clients.
       AudioServiceBackground.setState(
         playing: playerState.playing,
         // Every state from the audio player gets mapped onto an audio_service state.
