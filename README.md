@@ -65,12 +65,6 @@ class MyApp extends StatelessWidget {
 Interact with your background audio task via the `AudioService` API:
 
 ```dart
-class MainScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: Text("Audio Service Demo")),
-      body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Start button
         RaisedButton(
             child: Text("Start"),
@@ -98,8 +92,6 @@ class MainScreen extends StatelessWidget {
             builder: (context, snapshot) => Text(
                 "Now playing: ${snapshot.data?.title}",
                 textAlign: TextAlign.center)),
-      ])));
-}
 ```
 
 ### Background code
