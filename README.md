@@ -65,33 +65,28 @@ class MyApp extends StatelessWidget {
 Interact with your background audio task via the `AudioService` API:
 
 ```dart
-        // Start button
-        RaisedButton(
-            child: Text("Start"),
-            onPressed: () => AudioService.start(
-                backgroundTaskEntrypoint: _entrypoint,
-                androidNotificationChannelName: 'Audio Service Demo',
-                androidNotificationColor: 0xFF2196f3,
-                androidNotificationIcon: 'mipmap/ic_launcher')),
-        // Stop button
-        RaisedButton(child: Text("Stop"), onPressed: AudioService.stop),
-        // Play button
-        RaisedButton(child: Text("Play"), onPressed: AudioService.play),
-        // Pause button
-        RaisedButton(child: Text("Pause"), onPressed: AudioService.pause),
-        // Display current state
-        StreamBuilder<PlaybackState>(
-            stream: AudioService.playbackStateStream,
-            builder: (context, snapshot) => Text(
-                "${snapshot.data?.processingState}\n"
-                "${snapshot.data?.playing ?? false ? 'playing' : 'not playing'}",
-                textAlign: TextAlign.center)),
-        // Display current media item
-        StreamBuilder<MediaItem>(
-            stream: AudioService.currentMediaItemStream,
-            builder: (context, snapshot) => Text(
-                "Now playing: ${snapshot.data?.title}",
-                textAlign: TextAlign.center)),
+  // Start button
+  RaisedButton(
+      child: Text("Start"),
+      onPressed: () => AudioService.start(backgroundTaskEntrypoint: _entrypoint)),
+  // Stop button
+  RaisedButton(child: Text("Stop"), onPressed: AudioService.stop),
+  // Play button
+  RaisedButton(child: Text("Play"), onPressed: AudioService.play),
+  // Pause button
+  RaisedButton(child: Text("Pause"), onPressed: AudioService.pause),
+  // Display current state
+  StreamBuilder<PlaybackState>(
+      stream: AudioService.playbackStateStream,
+      builder: (context, snapshot) => Text(
+          "${snapshot.data?.processingState}\n"
+          "${snapshot.data?.playing ?? false ? 'playing' : 'not playing'}",
+          textAlign: TextAlign.center)),
+  // Display current media item
+  StreamBuilder<MediaItem>(
+      stream: AudioService.currentMediaItemStream,
+      builder: (context, snapshot) => Text(
+          "Now playing: ${snapshot.data?.title}", textAlign: TextAlign.center)),
 ```
 
 ### Background code
@@ -113,10 +108,12 @@ class AudioPlayerTask extends BackgroundAudioTask {
     );
     // Tell the UI and media notification what we're playing.
     AudioServiceBackground.setMediaItem(mediaItem);
-    // Tell the UI and media notification about state changes.
+    // Listen to state changes on the player...
     _player.playerStateStream.listen((playerState) {
+      // ... and forward them on to all audio_service clients.
       AudioServiceBackground.setState(
         playing: playerState.playing,
+        // Every state from the audio player gets mapped onto an audio_service state.
         processingState: {
           ProcessingState.none: AudioProcessingState.none,
           ProcessingState.loading: AudioProcessingState.connecting,
@@ -132,9 +129,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
         ],
       );
     });
-    // Automatically start playing on start.
-    onPlay();
-    // Start loading a media item to play.
+    // Play when ready.
+    _player.play();
+    // Start loading something (will play when ready).
     await _player.setUrl(mediaItem.id);
   }
 
@@ -158,7 +155,7 @@ class ReaderBackgroundTask extends BackgroundAudioTask {
   String article;
   
   onStart() async {
-    // Tell clients what we're reading
+    // Tell clients what we're listening to
     await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...));
     // Tell clients that we're now playing
     await AudioServiceBackground.setState(
@@ -168,10 +165,6 @@ class ReaderBackgroundTask extends BackgroundAudioTask {
     );
     // Start speaking
     _tts.speak(article);
-    
-    // Show the media notification, and let all clients know what
-    // playback state and media item to display.
-    await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...))
   }
   
   onStop() async {
@@ -181,7 +174,7 @@ class ReaderBackgroundTask extends BackgroundAudioTask {
       processingState: AudioProcessingState.stopped,
       controls: [MediaControl.play],
     );
-    await super.shutdown();
+    await super.onStop();
   }
 }
 ```
