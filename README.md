@@ -45,44 +45,116 @@ Note that this plugin will not work with other audio plugins that overlap in res
 
 ## Example
 
-### Background code
+### UI code
 
-Your audio code will run in a special background isolate, separate and detachable from your app's UI. To achieve this, define a subclass of `BackgroundAudioTask` that overrides a set of callbacks to respond to client requests:
+Wrap your `/` route's widget tree in a `AudioServiceWidget:
 
 ```dart
-class MyBackgroundTask extends BackgroundAudioTask {
-  // Initialise your audio task.
-  onStart(Map<String, dynamic> params) {}
-  // Handle a request to stop audio and finish the task.
-  onStop() async {}
-  // Handle a request to play audio.
-  onPlay() {}
-  // Handle a request to pause audio.
-  onPause() {}
-  // Handle a headset button click (play/pause, skip next/prev).
-  onClick(MediaButton button) {}
-  // Handle a request to skip to the next queue item.
-  onSkipToNext() {}
-  // Handle a request to skip to the previous queue item.
-  onSkipToPrevious() {}
-  // Handle a request to seek to a position.
-  onSeekTo(Duration position) {}
+void main() => runApp(new MyApp());
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Audio Service Demo',
+      home: AudioServiceWidget(child: MainScreen()),
+    );
+  }
 }
 ```
 
-You can implement these (and other) callbacks to play any type of audio depending on the requirements of your app. For example, if you are building a podcast player, you may have code such as the following:
+Interact with your background audio task via the `AudioService` API:
 
 ```dart
-import 'package:just_audio/just_audio.dart';
-class PodcastBackgroundTask extends BackgroundAudioTask {
-  AudioPlayer _player = AudioPlayer();
-  onPlay() async {
-    _player.play();
-    // Show the media notification, and let all clients know what
-    // playback state and media item to display.
-    await AudioServiceBackground.setState(playing: true, ...);
-    await AudioServiceBackground.setMediaItem(MediaItem(title: "Hey Jude", ...))
+class MainScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(title: Text("Audio Service Demo")),
+      body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Start button
+        RaisedButton(
+            child: Text("Start"),
+            onPressed: () => AudioService.start(
+                backgroundTaskEntrypoint: _entrypoint,
+                androidNotificationChannelName: 'Audio Service Demo',
+                androidNotificationColor: 0xFF2196f3,
+                androidNotificationIcon: 'mipmap/ic_launcher')),
+        // Stop button
+        RaisedButton(child: Text("Stop"), onPressed: AudioService.stop),
+        // Play button
+        RaisedButton(child: Text("Play"), onPressed: AudioService.play),
+        // Pause button
+        RaisedButton(child: Text("Pause"), onPressed: AudioService.pause),
+        // Display current state
+        StreamBuilder<PlaybackState>(
+            stream: AudioService.playbackStateStream,
+            builder: (context, snapshot) => Text(
+                "${snapshot.data?.processingState}\n"
+                "${snapshot.data?.playing ?? false ? 'playing' : 'not playing'}",
+                textAlign: TextAlign.center)),
+        // Display current media item
+        StreamBuilder<MediaItem>(
+            stream: AudioService.currentMediaItemStream,
+            builder: (context, snapshot) => Text(
+                "Now playing: ${snapshot.data?.title}",
+                textAlign: TextAlign.center)),
+      ])));
+}
+```
+
+### Background code
+
+Define the callbacks for `onStart`, `onStop`, `onPlay` and `onPause` in your background audio task. This will run in a separate isolate detachable from your UI. The following example will play a podcast using an audio player plugin:
+
+```dart
+// Must be a top-level function
+void _entrypoint() => AudioServiceBackground.run(() => AudioPlayerTask());
+
+class AudioPlayerTask extends BackgroundAudioTask {
+  final _player = AudioPlayer(); // e.g. just_audio
+  
+  onStart(Map<String, dynamic> params) async {
+    final mediaItem = MediaItem(
+      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+      album: "Science Friday",
+      title: "A Salute To Head-Scratching Science",
+    );
+    // Tell the UI and media notification what we're playing.
+    AudioServiceBackground.setMediaItem(mediaItem);
+    // Tell the UI and media notification about state changes.
+    _player.playerStateStream.listen((playerState) {
+      AudioServiceBackground.setState(
+        playing: playerState.playing,
+        processingState: {
+          ProcessingState.none: AudioProcessingState.none,
+          ProcessingState.loading: AudioProcessingState.connecting,
+          ProcessingState.buffering: AudioProcessingState.buffering,
+          ProcessingState.ready: AudioProcessingState.ready,
+          ProcessingState.completed: AudioProcessingState.completed,
+        }[playerState.processingState],
+        // Tell clients what buttons/controls should be enabled in the
+        // current state.
+        controls: [
+          playerState.playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.stop,
+        ],
+      );
+    });
+    // Automatically start playing on start.
+    onPlay();
+    // Start loading a media item to play.
+    await _player.setUrl(mediaItem.id);
   }
+
+  onPlay() => _player.play();
+  onPause() => _player.pause();
+  onStop() async {
+    // Dispose of any resources.
+    await _player.dispose();
+    // Shut down the background task.
+    await super.onStop();
+  }
+}
 ```
 
 If you are instead building a text-to-speech reader, you may have code such as the following:
@@ -90,72 +162,41 @@ If you are instead building a text-to-speech reader, you may have code such as t
 ```dart
 import 'package:flutter_tts/flutter_tts.dart';
 class ReaderBackgroundTask extends BackgroundAudioTask {
-  FlutterTts _tts = FlutterTts();
+  final _tts = FlutterTts();
   String article;
-  onPlay() async {
+  
+  onStart() async {
+    // Tell clients what we're reading
+    await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...));
+    // Tell clients that we're now playing
+    await AudioServiceBackground.setState(
+      playing: true,
+      processingState: AudioProcessingState.ready,
+      controls: [MediaControl.stop],
+    );
+    // Start speaking
     _tts.speak(article);
+    
     // Show the media notification, and let all clients know what
     // playback state and media item to display.
-    await AudioServiceBackground.setState(playing: true, ...);
     await AudioServiceBackground.setMediaItem(MediaItem(album: "Business Insider", ...))
+  }
+  
+  onStop() async {
+    await _tts.stop();
+    await AudioServiceBackground.setState(
+      playing: false,
+      processingState: AudioProcessingState.stopped,
+      controls: [MediaControl.play],
+    );
+    await super.shutdown();
   }
 }
 ```
 
-There are several methods in the `AudioServiceBackground` class that are made available to your background audio task to allow it to communicate to clients outside the isolate, such as your Flutter UI (if present), the iOS control center, the Android notification and lock screen. These are:
+See the full example for how to handle queues/playlists, seeking, headset button clicks and media artwork.
 
-* `AudioServiceBackground.setState` broadcasts the current playback state to all clients. This includes whether or not audio is playing, but also whether audio is buffering, the current playback position and buffer position, the current playback speed, and the set of audio controls that should be made available. When you broadcast this information to all clients, it allows them to update their user interfaces to show the appropriate set of buttons, and show the correct audio position on seek bars, for example. It is important for you to call this method whenever any of these pieces of state changes. You will typically want to call this method from your `onStart`, `onPlay`, `onPause`, `onSkipToNext`, `onSkipToPrevious` and `onStop` callbacks.
-* `AudioServiceBackground.setMediaItem` broadcasts the currently playing media item to all clients. This includes the track title, artist, genre, duration, any artwork to display, and other information. When you broadcast this information to all clients, it allows them to update their user interface accordingly so that it is displayed on the lock screen, the notification, and in your Flutter UI (if present). You will typically want to call this method from your `onStart`, `onSkipToNext` and `onSkipToPrevious` callbacks.
-* `AudioServiceBackground.setQueue` broadcasts the current queue to all clients. Some clients like Android Auto may display this information in their user interfaces. You will typically want to call this method from your `onStart` callback. Other callbacks exist where it may be appropriate to call this method such as `onAddQueueItem` and `onRemoveQueueItem`.
-
-### UI code
-
-Connecting to `AudioService`:
-
-```dart
-// Wrap your "/" route's widget tree in an AudioServiceWidget:
-return MaterialApp(
-  home: AudioServiceWidget(MainScreen()),
-);
-```
-
-Starting your background audio task:
-
-```dart
-await AudioService.start(
-  backgroundTaskEntrypoint: _myEntrypoint,
-  androidNotificationIcon: 'mipmap/ic_launcher',
-  // An example of passing custom parameters.
-  // These will be passed through to your `onStart` callback.
-  params: {'url': 'https://somewhere.com/sometrack.mp3'},
-);
-// this must be a top-level function
-void _myEntrypoint() => AudioServiceBackground.run(() => MyBackgroundTask());
-```
-
-Sending messages to it:
-
-* `AudioService.play()`
-* `AudioService.pause()`
-* `AudioService.click()`
-* `AudioService.skipToNext()`
-* `AudioService.skipToPrevious()`
-* `AudioService.seekTo(Duration(seconds: 53))`
-
-Shutting it down:
-
-```dart
-// This will pass through to your `onStop` callback.
-AudioService.stop();
-```
-
-Reacting to state changes:
-
-* `AudioService.playbackStateStream` (e.g. playing/paused, buffering/ready)
-* `AudioService.currentMediaItemStream` (metadata about the currently playing media item)
-* `AudioService.queueStream` (the current queue/playlist)
-
-Keep in mind that your UI and background task run in separate isolates and do not share memory. The only way they communicate is via message passing. Your Flutter UI will only use the `AudioService` API to communicate with the background task, while your background task will only use the `AudioServiceBackground` API to interact with the clients, which include the Flutter UI.
+Note that your UI and background task run in separate isolates and do not share memory. The only way they communicate is via message passing. Your Flutter UI will only use the `AudioService` API to communicate with the background task, while your background task will only use the `AudioServiceBackground` API to interact with the UI and other clients.
 
 ### Connecting to `AudioService` from the background
 
