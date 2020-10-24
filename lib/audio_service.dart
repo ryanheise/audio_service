@@ -734,6 +734,9 @@ class AudioService {
   /// The [androidNotificationIcon] is specified like an XML resource reference
   /// and defaults to `"mipmap/ic_launcher"`.
   ///
+  /// [androidShowNotificationBadge] enable notification badges (also known as notification dots)
+  /// to appear on a launcher icon when the app has an active notification.
+  ///
   /// If specified, [androidArtDownscaleSize] causes artwork to be downscaled
   /// to the given resolution in pixels before being displayed in the
   /// notification and lock screen. If not specified, no downscaling will be
@@ -771,6 +774,7 @@ class AudioService {
     String androidNotificationChannelDescription,
     int androidNotificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
+    bool androidShowNotificationBadge = false,
     bool androidNotificationClickStartsActivity = true,
     bool androidNotificationOngoing = false,
     bool androidResumeOnClick = true,
@@ -817,6 +821,7 @@ class AudioService {
             androidNotificationChannelDescription,
         'androidNotificationColor': androidNotificationColor,
         'androidNotificationIcon': androidNotificationIcon,
+        'androidShowNotificationBadge': androidShowNotificationBadge,
         'androidNotificationClickStartsActivity':
             androidNotificationClickStartsActivity,
         'androidNotificationOngoing': androidNotificationOngoing,

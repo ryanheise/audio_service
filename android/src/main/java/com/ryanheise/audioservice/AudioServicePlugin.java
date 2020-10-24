@@ -345,6 +345,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
 					Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
 					String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
+					boolean androidShowNotificationBadge = (Boolean)arguments.get("androidShowNotificationBadge");
 					final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
 					final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
 					final Map<String, Double> artDownscaleSizeMap = (Map)arguments.get("androidArtDownscaleSize");
@@ -355,7 +356,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 					final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 					backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-					AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+					AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
 
 					synchronized (connectionCallback) {
 						if (mediaController != null)
