@@ -11,7 +11,7 @@ dependencies:
 
   path_provider: ^1.6.10
   audio_session: ^0.0.9
-  just_audio: ^0.5.4
+  just_audio: ^0.5.5
   flutter_tts: ^0.8.5
   rxdart: ^0.24.1
   audio_service:
