@@ -63,19 +63,45 @@ class MyApp extends StatelessWidget {
 }
 ```
 
+Start your audio task in a background isolate with a media notification. Android notifications have some additional customisability (options with the `android` prefix). All supported options are shown below:
+
+```dart
+  RaisedButton(
+    child: Text("Start"),
+    onPressed: () =>   AudioService.start(
+      backgroundTaskEntrypoint: _entrypoint,
+      androidNotificationChannelName: "Channel name",
+      androidNotificationChannelDescription: "Channel description",
+      androidNotificationColor: 0xFF2196f3,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidShowNotificationBadge: false,
+      androidNotificationClickStartsActivity: true,
+      androidNotificationOngoing: false,
+      androidStopForegroundOnPause: false,
+      androidEnableQueue: false,
+      androidArtDownscaleSize: const Size(96, 96),
+      fastForwardInterval: const Duration(seconds: 10),
+      rewindInterval: const Duration(seconds: 10),
+    ),
+  ),
+```
+
 Interact with your background audio task via the `AudioService` API:
 
 ```dart
-  // Start the background audio task
-  RaisedButton(
-      child: Text("Start"),
-      onPressed: () => AudioService.start(backgroundTaskEntrypoint: _entrypoint)),
   // Stop the background audio task
   RaisedButton(child: Text("Stop"), onPressed: AudioService.stop),
   // Play/resume playback
   RaisedButton(child: Text("Play"), onPressed: AudioService.play),
   // Pause playback
   RaisedButton(child: Text("Pause"), onPressed: AudioService.pause),
+```
+
+Refer to the [full documentation](https://pub.dev/documentation/audio_service/latest/audio_service/AudioService-class.html) for more (`addQueueItem`, `addQueueItemAt`, `removeQueueItem`, `addQueueItems`, `updateQueue`, `updateMediaItem`, `click`, `prepare`, `prepareFromMediaId`, `playFromMediaId`, `playMediaItem`, `skipToQueueItem`, `seekTo`, `skipToNext`, `skipToPrevious`, `fastForward`, `rewind`, `setRepeatMode`, `setShuffleMode`, `setRating`, `setSpeed`, `seekBackward`, `seekForward`, `customAction`).
+
+Listen to state changes:
+
+```
   // Display current state
   StreamBuilder<PlaybackState>(
       stream: AudioService.playbackStateStream,
@@ -88,6 +114,11 @@ Interact with your background audio task via the `AudioService` API:
       stream: AudioService.currentMediaItemStream,
       builder: (context, snapshot) => Text(
           "Now playing: ${snapshot.data?.title}", textAlign: TextAlign.center)),
+  // Display current position
+  StreamBuilder<MediaItem>(
+      stream: AudioService.positionStreamm,
+      builder: (context, snapshot) => Text(
+          "Position: ${snapshot.data}", textAlign: TextAlign.center)),
 ```
 
 ### Background code
@@ -147,7 +178,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
 }
 ```
 
-If you are instead building a text-to-speech reader, you may have code such as the following:
+These callbacks will be called not only when triggered by your Flutter UI, but also by headset buttons, the notification, lock screen, etc.
+
+Refer to the [full documentation](https://pub.dev/documentation/audio_service/latest/audio_service/AudioServiceBackground-class.html) for more (`onClick`, `onPrepare`, `onPrepareFromMediaId`, `onPlayFromMediaId`, `onPlayMediaItem`, `onAddQueueItem`, `onUpdateQueue`, `onUpdateMediaItem`, `onAddQueueItemAt`, `onRemoveQueueItem`, `onSkipToNext`, `onSkipToPrevious`, `onFastForward`, `onRewind`, `onSkipToQueueItem`, `onSeekTo`, `onSetRating`, `onSetRepeatMode`, `onSetShuffleMode`, `onSeekBackward`, `onSeekForward`, `onSetSpeed`, `onCustomAction`, `onTaskRemoved`, `onClose`).
+
+If you are instead building a text-to-speech reader, you could implement these callbacks differently:
 
 ```dart
 import 'package:flutter_tts/flutter_tts.dart';
