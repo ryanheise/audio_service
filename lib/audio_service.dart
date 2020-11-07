@@ -1849,10 +1849,14 @@ _iosIsolateEntrypoint(int rawHandle) async {
 ///
 /// Note that this widget will not work if it wraps around [MateriaApp] itself,
 /// you must place it in the widget tree within your route.
+/// 
+/// [onFirstConnect] callback will be executed if successfull connection to a 
+/// running service was made on first widget build.
 class AudioServiceWidget extends StatefulWidget {
   final Widget child;
+  final VoidCallback onFirstConnect;
 
-  AudioServiceWidget({@required this.child});
+  AudioServiceWidget({@required this.child, this.onFirstConnect});
 
   @override
   _AudioServiceWidgetState createState() => _AudioServiceWidgetState();
@@ -1864,7 +1868,11 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    AudioService.connect();
+    AudioService.connect().then((_) {
+      if (widget.onFirstConnect != null && AudioService.running) {
+        widget.onFirstConnect();
+      }
+    });
   }
 
   @override
