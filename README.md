@@ -63,7 +63,7 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-Start/stop your background audio task (all supported options shown):
+Start/stop your background audio task:
 
 ```dart
 await AudioService.start(backgroundTaskEntrypoint: _entrypoint);
