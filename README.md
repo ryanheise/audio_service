@@ -166,7 +166,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
 }
 ```
 
-The purpose of this class is to encapsulate all audio logic in your app so that it is completely self-contained, and can continue to run on its own even when the Flutter UI is not present. Every message that you send from your Flutter UI (`start`, `stop`, `play`, `pause`) has a corresponding callback that you can implement in your background audio task (`onStart`, `onStop`, `onPlay`, `onPause`) in addition to callbacks that respond only to events outside of your Flutter UI. For example, `onClick` responds to a click of a headset button, while `onClose` responds to the user swiping away the Android media notification.
+The purpose of this class is to encapsulate all audio logic in your app so that it is completely self-contained, and can continue to run on its own even when the Flutter UI is not present. Every message that you send from your Flutter UI (`start`, `stop`, `play`, `pause`) has a corresponding callback that you can implement in your background audio task (`onStart`, `onStop`, `onPlay`, `onPause`). Additionally, there are callbacks that respond only to events outside of your Flutter UI, such as `onClick`, which responds to a click of a headset button, and `onClose` which responds to the user swiping away the Android media notification.
 
 Most of these callbacks can be implemented by simply delegating to your audio player plugin:
 

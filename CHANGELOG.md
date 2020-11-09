@@ -1,3 +1,8 @@
+## 0.15.3
+
+* Add positionStream and runningStream.
+* Add androidShowNotificationBadge option (@aleexbt).
+
 ## 0.15.2
 
 * Process connect/disconnect/start requests in a queue.
