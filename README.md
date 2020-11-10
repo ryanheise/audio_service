@@ -48,7 +48,7 @@ Note that this plugin will not work with other audio plugins that overlap in res
 
 ### UI code
 
-Wrap your `/` route's widget tree in an `AudioServiceWidget:
+Wrap your `/` route's widget tree in an `AudioServiceWidget`:
 
 ```dart
 void main() => runApp(new MyApp());
