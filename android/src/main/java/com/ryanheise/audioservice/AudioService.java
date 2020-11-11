@@ -280,8 +280,8 @@ public class AudioService extends MediaBrowserServiceCompat {
 				builder.setContentTitle(description.getTitle());
 			if (description.getSubtitle() != null)
 				builder.setContentText(description.getSubtitle());
-			if (description.getDescription() != null)
-				builder.setSubText(description.getDescription());
+			if (mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION) != null)
+				builder.setSubText(mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION));
 			if (description.getIconBitmap() != null)
 				builder.setLargeIcon(description.getIconBitmap());
 		}
@@ -721,7 +721,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 			if (listener == null) return;
 			listener.onSetRating(rating);
 		}
-
+ 
 		@Override
 		public void onSetRepeatMode(int repeatMode) {
 			if (listener == null) return;
