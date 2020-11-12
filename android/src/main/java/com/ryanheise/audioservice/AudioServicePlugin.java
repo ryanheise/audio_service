@@ -343,7 +343,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					boolean androidResumeOnClick = (Boolean)arguments.get("androidResumeOnClick");
 					String androidNotificationChannelName = (String)arguments.get("androidNotificationChannelName");
 					String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
-					Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
 					String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
 					boolean androidShowNotificationBadge = (Boolean)arguments.get("androidShowNotificationBadge");
 					final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
@@ -356,7 +355,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
 					final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
 					backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-					AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+					AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
 
 					synchronized (connectionCallback) {
 						if (mediaController != null)
@@ -793,19 +792,21 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 					AudioService.instance.notifyChildrenChanged(subscribedParentMediaId);
 				result.success(true);
 				break;
-			case "setMediaItem":
-				Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
+			case "setMediaItem": {
+				List<Object> args = (List<Object>)call.arguments;
+				Map<?, ?> rawMediaItem = (Map<?, ?>)args.get(0);
 				MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-				AudioService.instance.setMetadata(mediaMetadata);
+				AudioService.instance.setMetadata(mediaMetadata, getInt(args.get(1)));
 				result.success(true);
 				break;
+			}
 			case "setQueue":
 				List<Map<?, ?>> rawQueue = (List<Map<?, ?>>)call.arguments;
 				List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
 				AudioService.instance.setQueue(queue);
 				result.success(true);
 				break;
-			case "setState":
+			case "setState": {
 				List<Object> args = (List<Object>)call.arguments;
 				List<Map<?, ?>> rawControls = (List<Map<?, ?>>)args.get(0);
 				List<Integer> rawSystemActions = (List<Integer>)args.get(1);
@@ -844,6 +845,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 				AudioService.instance.setState(actions, actionBits, compactActionIndices, processingState, playing, position, bufferedPosition, speed, updateTimeSinceBoot, repeatMode, shuffleMode);
 				result.success(true);
 				break;
+			}
 			case "stopped":
 				clear();
 				result.success(true);

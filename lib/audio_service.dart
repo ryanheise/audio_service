@@ -772,7 +772,6 @@ class AudioService {
     Map<String, dynamic> params,
     String androidNotificationChannelName = "Notifications",
     String androidNotificationChannelDescription,
-    int androidNotificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidShowNotificationBadge = false,
     bool androidNotificationClickStartsActivity = true,
@@ -819,7 +818,6 @@ class AudioService {
         'androidNotificationChannelName': androidNotificationChannelName,
         'androidNotificationChannelDescription':
             androidNotificationChannelDescription,
-        'androidNotificationColor': androidNotificationColor,
         'androidNotificationIcon': androidNotificationIcon,
         'androidShowNotificationBadge': androidShowNotificationBadge,
         'androidNotificationClickStartsActivity':
@@ -1486,7 +1484,11 @@ class AudioServiceBackground {
   }
 
   /// Sets the currently playing media item and notifies all clients.
-  static Future<void> setMediaItem(MediaItem mediaItem) async {
+  ///
+  /// [color] is the dominant color of the media item.
+  /// It is used in the service notification on supported platforms, and may be
+  /// left unset to let the system choose its own color.
+  static Future<void> setMediaItem(MediaItem mediaItem, [Color color]) async {
     _mediaItem = mediaItem;
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
@@ -1497,8 +1499,8 @@ class AudioServiceBackground {
         if (filePath == null) {
           // We haven't fetched the art yet, so show the metadata now, and again
           // after we load the art.
-          await _backgroundChannel.invokeMethod(
-              'setMediaItem', mediaItem.toJson());
+          await _backgroundChannel
+              .invokeMethod('setMediaItem', [mediaItem.toJson(), color?.value]);
           // Load the art
           filePath = await _loadArtwork(mediaItem);
           // If we failed to download the art, abort.
@@ -1512,9 +1514,10 @@ class AudioServiceBackground {
       final platformMediaItem = mediaItem.copyWith(extras: extras);
       // Show the media item after the art is loaded.
       await _backgroundChannel.invokeMethod(
-          'setMediaItem', platformMediaItem.toJson());
+          'setMediaItem', [platformMediaItem.toJson(), color?.value]);
     } else {
-      await _backgroundChannel.invokeMethod('setMediaItem', mediaItem.toJson());
+      await _backgroundChannel
+          .invokeMethod('setMediaItem', [mediaItem.toJson(), color?.value]);
     }
   }
 

@@ -78,7 +78,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 	private static int shuffleMode;
 	private static boolean notificationCreated;
 
-	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
+	public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
 		if (running)
 			throw new IllegalStateException("AudioService already running");
 		running = true;
@@ -91,7 +91,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 		AudioService.resumeOnClick = resumeOnClick;
 		AudioService.androidNotificationChannelName = androidNotificationChannelName;
 		AudioService.androidNotificationChannelDescription = androidNotificationChannelDescription;
-		AudioService.notificationColor = notificationColor;
 		AudioService.androidNotificationIcon = androidNotificationIcon;
 		AudioService.androidShowNotificationBadge = androidShowNotificationBadge;
 		AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
@@ -477,9 +476,10 @@ public class AudioService extends MediaBrowserServiceCompat {
 		mediaSessionCallback.onPlayMediaItem(description);
 	}
 
-	void setMetadata(final MediaMetadataCompat mediaMetadata) {
+	void setMetadata(final MediaMetadataCompat mediaMetadata, final Integer color) {
 		this.mediaMetadata = mediaMetadata;
 		mediaSession.setMetadata(mediaMetadata);
+		notificationColor = color;
 		updateNotification();
 	}
 
