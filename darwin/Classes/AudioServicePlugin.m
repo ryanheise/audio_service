@@ -274,7 +274,7 @@ static MPMediaItemArtwork* artwork = nil;
     } else if ([@"setShuffleMode" isEqualToString:call.method]) {
         [backgroundChannel invokeMethod:@"onSetShuffleMode" arguments:@[call.arguments] result: result];
     } else if ([@"setRating" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetRating" arguments:@[call.arguments[@"rating"], call.arguments[@"extras"]] result: result];
+        [backgroundChannel invokeMethod:@"onSetRating" arguments:@[[call.arguments valueForKey:@"rating"], [call.arguments valueForKey:@"extras"]] result: result];
     } else if ([@"setSpeed" isEqualToString:call.method]) {
         [backgroundChannel invokeMethod:@"onSetSpeed" arguments:@[call.arguments] result: result];
     } else if ([@"seekForward" isEqualToString:call.method]) {
