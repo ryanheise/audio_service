@@ -182,7 +182,7 @@ class Rating {
   }
 
   /// Create a new star rating.
-  factory Rating.newStartRating(RatingStyle starRatingStyle, int starRating) {
+  factory Rating.newStarRating(RatingStyle starRatingStyle, int starRating) {
     if (starRatingStyle != RatingStyle.range3stars &&
         starRatingStyle != RatingStyle.range4stars &&
         starRatingStyle != RatingStyle.range5stars) {
