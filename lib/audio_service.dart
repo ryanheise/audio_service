@@ -101,7 +101,7 @@ class PlaybackState {
   final double speed;
 
   /// The time at which the playback position was last updated.
-  final Duration updateTime;
+  final DateTime updateTime;
 
   /// The current repeat mode.
   final AudioServiceRepeatMode repeatMode;
@@ -127,7 +127,7 @@ class PlaybackState {
       return Duration(
           milliseconds: (position.inMilliseconds +
                   ((DateTime.now().millisecondsSinceEpoch -
-                          updateTime.inMilliseconds) *
+                          updateTime.millisecondsSinceEpoch) *
                       (speed ?? 1.0)))
               .toInt());
     } else {
@@ -638,7 +638,7 @@ class AudioService {
                 position: Duration(milliseconds: args[3]),
                 bufferedPosition: Duration(milliseconds: args[4]),
                 speed: args[5],
-                updateTime: Duration(milliseconds: args[6]),
+                updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
                 repeatMode: AudioServiceRepeatMode.values[args[7]],
                 shuffleMode: AudioServiceShuffleMode.values[args[8]],
               ));
@@ -1462,12 +1462,12 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('setState', [
       rawControls,
       rawSystemActions,
-      processingState?.index ?? AudioProcessingState.none.index,
-      playing ?? false,
-      position?.inMilliseconds ?? 0,
-      bufferedPosition?.inMilliseconds ?? 0,
-      speed ?? 1.0,
-      updateTime?.inMilliseconds,
+      processingState.index,
+      playing,
+      position.inMilliseconds,
+      bufferedPosition.inMilliseconds,
+      speed,
+      updateTime?.millisecondsSinceEpoch,
       androidCompactActions,
       repeatMode?.index ?? AudioServiceRepeatMode.none.index,
       shuffleMode?.index ?? AudioServiceShuffleMode.none.index,
