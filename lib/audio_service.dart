@@ -1811,9 +1811,9 @@ abstract class BackgroundAudioTask {
   /// service, and you may override this method to do any cleanup. For example:
   ///
   /// ```dart
-  /// void onTaskRemoved() {
+  /// Future<void> onTaskRemoved() {
   ///   if (!AudioServiceBackground.state.playing) {
-  ///     onStop();
+  ///     await onStop();
   ///   }
   /// }
   /// ```
