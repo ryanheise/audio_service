@@ -1156,9 +1156,16 @@ class AudioServiceBackground {
     processingState: AudioProcessingState.none,
     playing: false,
     actions: Set(),
+    position: Duration.zero,
+    bufferedPosition: Duration.zero,
+    speed: 1.0,
+    repeatMode: AudioServiceRepeatMode.none,
+    shuffleMode: AudioServiceShuffleMode.none,
   );
   static MethodChannel _backgroundChannel;
   static PlaybackState _state = _noneState;
+  static List<MediaControl> _controls = [];
+  static List<MediaAction> _systemActions = [];
   static MediaItem _mediaItem;
   static List<MediaItem> _queue;
   static BaseCacheManager _cacheManager;
@@ -1359,13 +1366,16 @@ class AudioServiceBackground {
     } catch (e) {
       print("While deactivating audio session: $e");
     }
+    _state = _noneState;
+    _controls = [];
+    _systemActions = [];
+    _queue = [];
     await _backgroundChannel.invokeMethod('stopped');
     if (kIsWeb) {
     } else if (Platform.isIOS) {
       FlutterIsolate.current?.kill();
     }
     _backgroundChannel.setMethodCallHandler(null);
-    _state = _noneState;
   }
 
   /// Broadcasts to all clients the current state, including:
@@ -1427,18 +1437,30 @@ class AudioServiceBackground {
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
-    @required List<MediaControl> controls,
-    List<MediaAction> systemActions = const [],
-    @required AudioProcessingState processingState,
-    @required bool playing,
-    Duration position = Duration.zero,
-    Duration bufferedPosition = Duration.zero,
-    double speed = 1.0,
-    Duration updateTime,
+    List<MediaControl> controls,
+    List<MediaAction> systemActions,
+    AudioProcessingState processingState,
+    bool playing,
+    Duration position,
+    Duration bufferedPosition,
+    double speed,
+    DateTime updateTime,
     List<int> androidCompactActions,
     AudioServiceRepeatMode repeatMode = AudioServiceRepeatMode.none,
     AudioServiceShuffleMode shuffleMode = AudioServiceShuffleMode.none,
   }) async {
+    controls ??= _controls;
+    systemActions ??= _systemActions;
+    processingState ??= _state.processingState;
+    playing ??= _state.playing;
+    position ??= _state.currentPosition;
+    updateTime ??= DateTime.now();
+    bufferedPosition ??= _state.bufferedPosition;
+    speed ??= _state.speed ?? 1.0;
+    repeatMode ??= AudioServiceRepeatMode.none;
+    shuffleMode ??= AudioServiceShuffleMode.none;
+    _controls = controls;
+    _systemActions = systemActions;
     _state = PlaybackState(
       processingState: processingState,
       playing: playing,
@@ -1469,8 +1491,8 @@ class AudioServiceBackground {
       speed,
       updateTime?.millisecondsSinceEpoch,
       androidCompactActions,
-      repeatMode?.index ?? AudioServiceRepeatMode.none.index,
-      shuffleMode?.index ?? AudioServiceShuffleMode.none.index,
+      repeatMode.index,
+      shuffleMode.index,
     ]);
   }
 
