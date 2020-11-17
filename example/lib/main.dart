@@ -411,7 +411,6 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStop() async {
-    await _player.pause();
     await _player.dispose();
     _eventSubscription.cancel();
     // It is important to wait for this state to be broadcast before we shut
