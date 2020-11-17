@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show HttpOverrides, Platform;
 import 'dart:isolate';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -528,7 +528,7 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// use [AudioServiceWidget] to manage this connection for you automatically.
 class AudioService {
   /// True if the background task runs in its own isolate, false if it doesn't.
-  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS);
+  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !_testing;
 
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -595,6 +595,12 @@ class AudioService {
   static ReceivePort _customEventReceivePort;
   static StreamSubscription _customEventSubscription;
 
+  static Completer<void> _startNonIsolateCompleter;
+
+  static void _startedNonIsolate() {
+    _startNonIsolateCompleter?.complete();
+  }
+
   /// A queue of tasks to be processed serially. Tasks that are processed on
   /// this queue:
   ///
@@ -617,7 +623,7 @@ class AudioService {
   /// Use [AudioServiceWidget] to handle this automatically.
   static Future<void> connect() => _asyncTaskQueue.schedule(() async {
         if (_connected) return;
-        _channel.setMethodCallHandler((MethodCall call) async {
+        final handler = (MethodCall call) async {
           switch (call.method) {
             case 'onChildrenLoaded':
               final List<Map> args = List<Map>.from(call.arguments[0]);
@@ -668,7 +674,13 @@ class AudioService {
               _notificationSubject.add(call.arguments[0]);
               break;
           }
-        });
+        };
+        if (_testing) {
+          MethodChannel('ryanheise.com/audioServiceInverse')
+              .setMockMethodCallHandler(handler);
+        } else {
+          _channel.setMethodCallHandler(handler);
+        }
         if (AudioService.usesIsolate) {
           _customEventReceivePort = ReceivePort();
           _customEventSubscription = _customEventReceivePort.listen((event) {
@@ -837,10 +849,15 @@ class AudioService {
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
       });
+      if (!AudioService.usesIsolate) {
+        _startNonIsolateCompleter = Completer();
+        backgroundTaskEntrypoint();
+        await _startNonIsolateCompleter?.future;
+        _startNonIsolateCompleter = null;
+      }
       if (!success) {
         _runningSubject.add(false);
       }
-      if (!AudioService.usesIsolate) backgroundTaskEntrypoint();
       return success;
     });
   }
@@ -1202,7 +1219,7 @@ class AudioServiceBackground {
     WidgetsFlutterBinding.ensureInitialized();
     _task = taskBuilder();
     _cacheManager = _task.cacheManager;
-    _backgroundChannel.setMethodCallHandler((MethodCall call) async {
+    final handler = (MethodCall call) async {
       try {
         switch (call.method) {
           case 'onLoadChildren':
@@ -1333,7 +1350,15 @@ class AudioServiceBackground {
         print('$stacktrace');
         throw PlatformException(code: '$e');
       }
-    });
+    };
+    // Mock method call handlers only work in one direction so we need to set up
+    // a separate channel for each direction when testing.
+    if (_testing) {
+      MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
+          .setMockMethodCallHandler(handler);
+    } else {
+      _backgroundChannel.setMethodCallHandler(handler);
+    }
     Map startParams = await _backgroundChannel.invokeMethod('ready');
     Duration fastForwardInterval =
         Duration(milliseconds: startParams['fastForwardInterval']);
@@ -1351,6 +1376,9 @@ class AudioServiceBackground {
       // For now, we return successfully from AudioService.start regardless of
       // whether an exception occurred in onStart.
       await _backgroundChannel.invokeMethod('started');
+      if (!AudioService.usesIsolate) {
+        AudioService._startedNonIsolate();
+      }
     }
   }
 
@@ -1624,7 +1652,8 @@ abstract class BackgroundAudioTask {
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
   BackgroundAudioTask({BaseCacheManager cacheManager})
-      : this.cacheManager = cacheManager ?? DefaultCacheManager();
+      : this.cacheManager =
+            cacheManager ?? (_testing ? null : DefaultCacheManager());
 
   /// The fast forward interval passed into [AudioService.start].
   Duration get fastForwardInterval => _fastForwardInterval;
@@ -1959,3 +1988,5 @@ class _AsyncTaskQueueEntry {
 }
 
 typedef _AsyncTask = Future<dynamic> Function();
+
+bool get _testing => HttpOverrides.current != null;
