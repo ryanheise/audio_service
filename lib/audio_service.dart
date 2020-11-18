@@ -353,7 +353,7 @@ class MediaItem {
     String displaySubtitle,
     String displayDescription,
     Rating rating,
-    Map extras,
+    Map<String, dynamic> extras,
   }) =>
       MediaItem(
         id: id ?? this.id,
