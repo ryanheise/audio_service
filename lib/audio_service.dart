@@ -764,7 +764,8 @@ class AudioService {
   /// background audio task as properties, and they represent the duration
   /// of audio that should be skipped in fast forward / rewind operations. On
   /// iOS, these values also configure the intervals for the skip forward and
-  /// skip backward buttons.
+  /// skip backward buttons. Note that both [fastForwardInterval] and
+  /// [rewindInterval] must be positive durations.
   ///
   /// [androidEnableQueue] enables queue support on the media session on
   /// Android. If your app will run on Android and has a queue, you should set
@@ -796,6 +797,9 @@ class AudioService {
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
+    assert(fastForwardInterval > Duration.zero,
+        "fastForwardDuration must be positive");
+    assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
     return await _asyncTaskQueue.schedule(() async {
       if (!_connected) throw Exception("Not connected");
       if (running) return false;
