@@ -1,7 +1,7 @@
 package com.ryanheise.audioservice;
 
 public enum MediaControl {
-	media,
-	next,
-	previous
+    media,
+    next,
+    previous
 }
