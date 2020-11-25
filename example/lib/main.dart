@@ -9,9 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
-void main() {
-  AudioService.init(
-    taskBuilder: () => AudioPlayerTask(),
+// You might want to provide this using dependency injection rather than a
+// global variable.
+AudioHandler _audioHandler;
+
+Future<void> main() async {
+  _audioHandler = await AudioService.init(
+    builder: () => AudioPlayerHandler(),
     config: AudioServiceConfig(
       androidNotificationChannelName: 'Audio Service Demo',
       // Enable this if you want the Android service to exit the foreground state on pause.
@@ -66,14 +70,14 @@ class MainScreen extends StatelessWidget {
                             iconSize: 64.0,
                             onPressed: mediaItem == queue.first
                                 ? null
-                                : AudioService.skipToPrevious,
+                                : _audioHandler.skipToPrevious,
                           ),
                           IconButton(
                             icon: Icon(Icons.skip_next),
                             iconSize: 64.0,
                             onPressed: mediaItem == queue.last
                                 ? null
-                                : AudioService.skipToNext,
+                                : _audioHandler.skipToNext,
                           ),
                         ],
                       ),
@@ -84,7 +88,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Play/pause/stop buttons.
             StreamBuilder<bool>(
-              stream: AudioService.playbackStateStream
+              stream: _audioHandler.playbackStateStream
                   .map((state) => state.playing)
                   .distinct(),
               builder: (context, snapshot) {
@@ -107,26 +111,26 @@ class MainScreen extends StatelessWidget {
                   duration: mediaState?.mediaItem?.duration ?? Duration.zero,
                   position: mediaState?.position ?? Duration.zero,
                   onChangeEnd: (newPosition) {
-                    AudioService.seekTo(newPosition);
+                    _audioHandler.seekTo(newPosition);
                   },
                 );
               },
             ),
             // Display the processing state.
             StreamBuilder<AudioProcessingState>(
-              stream: AudioService.playbackStateStream
+              stream: _audioHandler.playbackStateStream
                   .map((state) => state.processingState)
                   .distinct(),
               builder: (context, snapshot) {
                 final processingState =
-                    snapshot.data ?? AudioProcessingState.none;
+                    snapshot.data ?? AudioProcessingState.idle;
                 return Text(
                     "Processing state: ${describeEnum(processingState)}");
               },
             ),
             // Display the latest custom event.
             StreamBuilder(
-              stream: AudioService.customEventStream,
+              stream: _audioHandler.customEventStream,
               builder: (context, snapshot) {
                 return Text("custom event: ${snapshot.data}");
               },
@@ -150,44 +154,17 @@ class MainScreen extends StatelessWidget {
   /// current position.
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem, Duration, MediaState>(
-          AudioService.currentMediaItemStream,
-          AudioService.positionStream,
+          _audioHandler.mediaItemStream,
+          AudioService.getPositionStream(_audioHandler),
           (mediaItem, position) => MediaState(mediaItem, position));
 
   /// A stream reporting the combined state of the current queue and the current
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
       Rx.combineLatest2<List<MediaItem>, MediaItem, QueueState>(
-          AudioService.queueStream,
-          AudioService.currentMediaItemStream,
+          _audioHandler.queueStream,
+          _audioHandler.mediaItemStream,
           (queue, mediaItem) => QueueState(queue, mediaItem));
-
-  //RaisedButton audioPlayerButton() => startButton(
-  //      'AudioPlayer',
-  //      () {
-  //        AudioService.start(
-  //          backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
-  //          androidNotificationChannelName: 'Audio Service Demo',
-  //          // Enable this if you want the Android service to exit the foreground state on pause.
-  //          //androidStopForegroundOnPause: true,
-  //          androidNotificationColor: 0xFF2196f3,
-  //          androidNotificationIcon: 'mipmap/ic_launcher',
-  //          androidEnableQueue: true,
-  //        );
-  //      },
-  //    );
-
-  //RaisedButton textToSpeechButton() => startButton(
-  //      'TextToSpeech',
-  //      () {
-  //        AudioService.start(
-  //          backgroundTaskEntrypoint: _textToSpeechTaskEntrypoint,
-  //          androidNotificationChannelName: 'Audio Service Demo',
-  //          androidNotificationColor: 0xFF2196f3,
-  //          androidNotificationIcon: 'mipmap/ic_launcher',
-  //        );
-  //      },
-  //    );
 
   RaisedButton startButton(String label, VoidCallback onPressed) =>
       RaisedButton(
@@ -198,19 +175,19 @@ class MainScreen extends StatelessWidget {
   IconButton playButton() => IconButton(
         icon: Icon(Icons.play_arrow),
         iconSize: 64.0,
-        onPressed: AudioService.play,
+        onPressed: _audioHandler.play,
       );
 
   IconButton pauseButton() => IconButton(
         icon: Icon(Icons.pause),
         iconSize: 64.0,
-        onPressed: AudioService.pause,
+        onPressed: _audioHandler.pause,
       );
 
   IconButton stopButton() => IconButton(
         icon: Icon(Icons.stop),
         iconSize: 64.0,
-        onPressed: AudioService.stop,
+        onPressed: _audioHandler.stop,
       );
 }
 
@@ -298,18 +275,18 @@ class _SeekBarState extends State<SeekBar> {
 }
 
 /// This task defines logic for playing a list of podcast episodes.
-class AudioPlayerTask extends BackgroundAudioTask {
+class AudioPlayerHandler extends BaseAudioHandler
+    with QueueHandler, SeekHandler {
   final _mediaLibrary = MediaLibrary();
   AudioPlayer _player;
-  AudioProcessingState _skipState;
-  Seeker _seeker;
   StreamSubscription<PlaybackEvent> _eventSubscription;
 
-  List<MediaItem> get queue => _mediaLibrary.items;
-  int get index => _player.currentIndex;
+  int get index => _player?.currentIndex;
+
+  @override
   MediaItem get mediaItem => index == null ? null : queue[index];
 
-  AudioPlayerTask() {
+  AudioPlayerHandler() {
     _init();
   }
 
@@ -320,7 +297,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
-    AudioServiceBackground.setQueue(queue);
+    queueSubject.add(_mediaLibrary.items);
     _ensurePlayer();
   }
 
@@ -331,7 +308,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
       _player = AudioPlayer();
       // Broadcast media item changes.
       _player.currentIndexStream.listen((index) {
-        if (index != null) AudioServiceBackground.setMediaItem(queue[index]);
+        if (index != null) mediaItemSubject.add(queue[index]);
       });
       // Propagate all events from the audio player to AudioService clients.
       _eventSubscription = _player.playbackEventStream.listen((event) {
@@ -343,12 +320,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
         switch (state) {
           case ProcessingState.completed:
             // In this example, the service stops when reaching the end.
-            onStop();
-            break;
-          case ProcessingState.ready:
-            // If we just came from skipping between tracks, clear the skip
-            // state now that we're ready to play.
-            _skipState = null;
+            stop();
             break;
           default:
             break;
@@ -368,50 +340,29 @@ class AudioPlayerTask extends BackgroundAudioTask {
   }
 
   @override
-  Future<void> onSkipToQueueItem(String mediaId) async {
-    // Then default implementations of onSkipToNext and onSkipToPrevious will
+  Future<void> skipToQueueItem(String mediaId) async {
+    // Then default implementations of skipToNext and skipToPrevious will
     // delegate to this method.
     final newIndex = queue.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
-    // During a skip, the player may enter the buffering state. We could just
-    // propagate that state directly to AudioService clients but AudioService
-    // has some more specific states we could use for skipping to next and
-    // previous. This variable holds the preferred state to send instead of
-    // buffering during a skip, and it is cleared as soon as the player exits
-    // buffering (see the listener in onStart).
-    _skipState = newIndex > index
-        ? AudioProcessingState.skippingToNext
-        : AudioProcessingState.skippingToPrevious;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: newIndex);
   }
 
   @override
-  Future<void> onPlay() async {
+  Future<void> play() async {
     await _ensurePlayer();
     await _player.play();
   }
 
   @override
-  Future<void> onPause() => _player.pause();
+  Future<void> pause() => _player.pause();
 
   @override
-  Future<void> onSeekTo(Duration position) => _player.seek(position);
+  Future<void> seekTo(Duration position) => _player.seek(position);
 
   @override
-  Future<void> onFastForward(Duration interval) => _seekRelative(interval);
-
-  @override
-  Future<void> onRewind(Duration interval) => _seekRelative(-interval);
-
-  @override
-  Future<void> onSeekForward(bool begin) async => _seekContinuously(begin, 1);
-
-  @override
-  Future<void> onSeekBackward(bool begin) async => _seekContinuously(begin, -1);
-
-  @override
-  Future<void> onStop() async {
+  Future<void> stop() async {
     await _player.dispose();
     _player = null;
     print("onStop. _player = null");
@@ -421,67 +372,42 @@ class AudioPlayerTask extends BackgroundAudioTask {
     // the message gets sent to the UI.
     await _broadcastState();
     // Shut down this task
-    await super.onStop();
-  }
-
-  /// Jumps away from the current position by [offset].
-  Future<void> _seekRelative(Duration offset) async {
-    var newPosition = _player.position + offset;
-    // Make sure we don't jump out of bounds.
-    if (newPosition < Duration.zero) newPosition = Duration.zero;
-    if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
-    // Perform the jump via a seek.
-    await _player.seek(newPosition);
-  }
-
-  /// Begins or stops a continuous seek in [direction]. After it begins it will
-  /// continue seeking forward or backward by 10 seconds within the audio, at
-  /// intervals of 1 second in app time.
-  void _seekContinuously(bool begin, int direction) {
-    _seeker?.stop();
-    if (begin) {
-      _seeker = Seeker(_player, Duration(seconds: 10 * direction),
-          Duration(seconds: 1), mediaItem)
-        ..start();
-    }
+    await super.stop();
   }
 
   /// Broadcasts the current state to all clients.
   Future<void> _broadcastState() async {
-    await AudioServiceBackground.setState(
+    final playing = _player?.playing ?? false;
+    playbackStateSubject.add(playbackState.copyWith(
       controls: [
         MediaControl.skipToPrevious,
-        if (_player?.playing ?? false)
-          MediaControl.pause
-        else
-          MediaControl.play,
+        if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.stop,
         MediaControl.skipToNext,
       ],
-      systemActions: [
+      systemActions: {
         MediaAction.seekTo,
         MediaAction.seekForward,
         MediaAction.seekBackward,
-      ],
-      androidCompactActions: [0, 1, 3],
+      },
+      androidCompactActionIndices: [0, 1, 3],
       processingState: _getProcessingState(),
-      playing: _player?.playing ?? false,
-      position: _player?.position ?? Duration.zero,
+      playing: playing,
+      updatePosition: _player?.position ?? Duration.zero,
       bufferedPosition: _player?.bufferedPosition ?? Duration.zero,
       speed: _player?.speed ?? 1.0,
-    );
+    ));
   }
 
   /// Maps just_audio's processing state into into audio_service's playing
-  /// state. If we are in the middle of a skip, we use [_skipState] instead.
+  /// state.
   AudioProcessingState _getProcessingState() {
-    if (_skipState != null) return _skipState;
     switch (_player?.processingState ?? ProcessingState.none) {
       case ProcessingState.none:
         print("### just_audio state -> none");
-        return AudioProcessingState.stopped;
+        return AudioProcessingState.idle;
       case ProcessingState.loading:
-        return AudioProcessingState.connecting;
+        return AudioProcessingState.loading;
       case ProcessingState.buffering:
         return AudioProcessingState.buffering;
       case ProcessingState.ready:
@@ -519,36 +445,6 @@ class MediaLibrary {
   ];
 
   List<MediaItem> get items => _items;
-}
-
-class Seeker {
-  final AudioPlayer player;
-  final Duration positionInterval;
-  final Duration stepInterval;
-  final MediaItem mediaItem;
-  bool _running = false;
-
-  Seeker(
-    this.player,
-    this.positionInterval,
-    this.stepInterval,
-    this.mediaItem,
-  );
-
-  start() async {
-    _running = true;
-    while (_running) {
-      Duration newPosition = player.position + positionInterval;
-      if (newPosition < Duration.zero) newPosition = Duration.zero;
-      if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
-      player.seek(newPosition);
-      await Future.delayed(stepInterval);
-    }
-  }
-
-  stop() {
-    _running = false;
-  }
 }
 
 ///// This task defines logic for speaking a sequence of numbers using

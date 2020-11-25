@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:io' show HttpOverrides, Platform;
-import 'dart:isolate';
+import 'dart:io' show HttpOverrides;
 import 'dart:ui';
 
 import 'package:audio_session/audio_session.dart';
@@ -10,8 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// Name of port used to send custom events.
-const _CUSTOM_EVENT_PORT_NAME = 'customEventPort';
+// TODO:
+// - provide a way to manually connect/disconnect.
 
 /// The different buttons on a headset.
 enum MediaButton {
@@ -50,24 +49,18 @@ enum MediaAction {
 
 /// The different states during audio processing.
 enum AudioProcessingState {
-  none,
-  connecting,
-  ready,
+  idle,
+  loading,
   buffering,
-  fastForwarding,
-  rewinding,
-  skippingToPrevious,
-  skippingToNext,
-  skippingToQueueItem,
+  ready,
   completed,
-  stopped,
   error,
 }
 
-/// The playback state for the audio service which includes a [playing] boolean
-/// state, a processing state such as [AudioProcessingState.buffering], the
-/// playback position and the currently enabled actions to be shown in the
-/// Android notification or the iOS control center.
+/// The playback state which includes a [playing] boolean state, a processing
+/// state such as [AudioProcessingState.buffering], the playback position and
+/// the currently enabled actions to be shown in the Android notification or the
+/// iOS control center.
 class PlaybackState {
   /// The audio processing state e.g. [BasicPlaybackState.buffering].
   final AudioProcessingState processingState;
@@ -85,12 +78,52 @@ class PlaybackState {
   /// playing, or false to indicate that the seek was performed while paused.
   final bool playing;
 
-  /// The set of actions currently supported by the audio service e.g.
-  /// [MediaAction.play].
-  final Set<MediaAction> actions;
+  /// The list of currently enabled controls which should be shown in the media
+  /// notification. Each control represents a clickable button with a
+  /// [MediaAction] that must be one of:
+  ///
+  /// * [MediaAction.stop]
+  /// * [MediaAction.pause]
+  /// * [MediaAction.play]
+  /// * [MediaAction.rewind]
+  /// * [MediaAction.skipToPrevious]
+  /// * [MediaAction.skipToNext]
+  /// * [MediaAction.fastForward]
+  /// * [MediaAction.playPause]
+  final List<MediaControl> controls;
 
-  /// The playback position at the last update time.
-  final Duration position;
+  /// Up to 3 indices of the [controls] that should appear in Android's compact
+  /// media notification view. When the notification is expanded, all [controls]
+  /// will be shown.
+  final List<int> androidCompactActionIndices;
+
+  /// The set of system actions currently enabled. This is for specifying any
+  /// other [MediaAction]s that are not supported by [controls], because they do
+  /// not represent clickable buttons. For example:
+  ///
+  /// * [MediaAction.seekTo] (enable a seek bar)
+  /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
+  /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
+  ///
+  /// Note that specifying [MediaAction.seekTo] in [systemActions] will enable
+  /// a seek bar in both the Android notification and the iOS control center.
+  /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
+  /// behaviour on iOS in which if you have already enabled the
+  /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
+  /// additional actions will allow the user to press and hold the buttons to
+  /// activate the continuous seeking behaviour.
+  final Set<MediaAction> systemActions;
+
+  /// The playback position at [updateTime].
+  ///
+  /// For efficiency, the [updatePosition] should NOT be updated continuously in
+  /// real time. Instead, it should be updated only when the normal continuity
+  /// of time is disrupted, such as during a seek, buffering and seeking. When
+  /// broadcasting such a position change, the [updateTime] specifies the time
+  /// of that change, allowing clients to project the realtime value of the
+  /// position as `position + (DateTime.now() - updateTime)`. As a convenience,
+  /// this calculation is provided by the [position] getter.
+  final Duration updatePosition;
 
   /// The buffered position.
   final Duration bufferedPosition;
@@ -107,29 +140,68 @@ class PlaybackState {
   /// The current shuffle mode.
   final AudioServiceShuffleMode shuffleMode;
 
-  const PlaybackState({
-    @required this.processingState,
-    @required this.playing,
-    @required this.actions,
-    this.position,
+  PlaybackState({
+    this.processingState = AudioProcessingState.idle,
+    this.playing = false,
+    this.controls = const [],
+    this.androidCompactActionIndices,
+    this.systemActions = const {},
+    this.updatePosition = Duration.zero,
     this.bufferedPosition = Duration.zero,
-    this.speed,
-    this.updateTime,
+    this.speed = 1.0,
     this.repeatMode = AudioServiceRepeatMode.none,
     this.shuffleMode = AudioServiceShuffleMode.none,
-  });
+  }) : updateTime = DateTime.now() {
+    assert(processingState != null);
+    assert(playing != null);
+    assert(controls != null);
+    assert(androidCompactActionIndices == null ||
+        androidCompactActionIndices.length <= 3);
+    assert(systemActions != null);
+    assert(updatePosition != null);
+    assert(bufferedPosition != null);
+    assert(speed != null);
+    assert(repeatMode != null);
+    assert(shuffleMode != null);
+  }
+
+  PlaybackState copyWith({
+    AudioProcessingState processingState,
+    bool playing,
+    List<MediaControl> controls,
+    List<int> androidCompactActionIndices,
+    Set<MediaAction> systemActions,
+    Duration updatePosition,
+    Duration bufferedPosition,
+    double speed,
+    AudioServiceRepeatMode repeatMode,
+    AudioServiceShuffleMode shuffleMode,
+  }) =>
+      PlaybackState(
+        processingState: processingState ?? this.processingState,
+        playing: playing ?? this.playing,
+        controls: controls ?? this.controls,
+        androidCompactActionIndices:
+            androidCompactActionIndices ?? this.androidCompactActionIndices,
+        systemActions: systemActions ?? this.systemActions,
+        updatePosition: updatePosition ?? this.position,
+        bufferedPosition: bufferedPosition ?? this.bufferedPosition,
+        speed: speed ?? this.speed,
+        repeatMode: repeatMode ?? this.repeatMode,
+        shuffleMode: shuffleMode ?? this.shuffleMode,
+      );
 
   /// The current playback position.
-  Duration get currentPosition {
+  Duration get position {
     if (playing && processingState == AudioProcessingState.ready) {
       return Duration(
-          milliseconds: (position.inMilliseconds +
+          milliseconds: (updatePosition.inMilliseconds +
                   ((DateTime.now().millisecondsSinceEpoch -
                           updateTime.millisecondsSinceEpoch) *
                       (speed ?? 1.0)))
               .toInt());
     } else {
-      return position;
+      return updatePosition;
     }
   }
 }
@@ -509,6 +581,9 @@ class MediaControl {
 const MethodChannel _channel =
     const MethodChannel('ryanheise.com/audioService');
 
+const MethodChannel _backgroundChannel =
+    const MethodChannel('ryanheise.com/audioServiceBackground');
+
 const String _CUSTOM_PREFIX = 'custom_';
 
 /// Client API to connect with and communciate with the background audio task.
@@ -525,8 +600,8 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// connection exactly while it is visible. It is strongly recommended that you
 /// use [AudioServiceWidget] to manage this connection for you automatically.
 class AudioService {
-  /// True if the background task runs in its own isolate, false if it doesn't.
-  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !_testing;
+  /// The cache to use when loading artwork. Defaults to [DefaultCacheManager].
+  static BaseCacheManager cacheManager = DefaultCacheManager();
 
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -543,32 +618,6 @@ class AudioService {
   static List<MediaItem> get browseMediaChildren =>
       _browseMediaChildrenSubject.value;
 
-  static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
-
-  /// A stream that broadcasts the playback state.
-  static Stream<PlaybackState> get playbackStateStream =>
-      _playbackStateSubject.stream;
-
-  /// The current playback state.
-  static PlaybackState get playbackState => _playbackStateSubject.value;
-
-  static final _currentMediaItemSubject = BehaviorSubject<MediaItem>();
-
-  /// A stream that broadcasts the current [MediaItem].
-  static Stream<MediaItem> get currentMediaItemStream =>
-      _currentMediaItemSubject.stream;
-
-  /// The current [MediaItem].
-  static MediaItem get currentMediaItem => _currentMediaItemSubject.value;
-
-  static final _queueSubject = BehaviorSubject<List<MediaItem>>();
-
-  /// A stream that broadcasts the queue.
-  static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
-
-  /// The current queue.
-  static List<MediaItem> get queue => _queueSubject.value;
-
   static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
@@ -578,34 +627,13 @@ class AudioService {
   /// The status of the notificationClick event.
   static bool get notificationClickEvent => _notificationSubject.value;
 
-  static final _customEventSubject = PublishSubject<dynamic>();
-
-  /// A stream that broadcasts custom events sent from the background.
-  static Stream<dynamic> get customEventStream => _customEventSubject.stream;
-
   /// If a seek is in progress, this holds the position we are seeking to.
   static Duration _seekPos;
 
-  /// Receives custom events from the background audio task.
-  static ReceivePort _customEventReceivePort;
-  static StreamSubscription _customEventSubscription;
-
-  /// A queue of tasks to be processed serially. Tasks that are processed on
-  /// this queue:
-  ///
-  /// - [connect]
-  /// - [disconnect]
-  /// - [start]
-  ///
-  /// TODO: Queue other tasks? Note, only short-running tasks should be queued.
-  static final _asyncTaskQueue = _AsyncTaskQueue();
-
   static BehaviorSubject<Duration> _positionSubject;
 
-  static BackgroundAudioTask get _task => AudioServiceBackground._task;
-
-  static Future<void> init({
-    @required BackgroundAudioTask taskBuilder(),
+  static Future<AudioHandler> init({
+    @required AudioHandler builder(),
     AudioServiceConfig config = const AudioServiceConfig(),
   }) async {
     print("### AudioService.init");
@@ -613,40 +641,6 @@ class AudioService {
     final handler = (MethodCall call) async {
       print("### UI received ${call.method}");
       switch (call.method) {
-        case 'onChildrenLoaded':
-          final List<Map> args = List<Map>.from(call.arguments[0]);
-          _browseMediaChildrenSubject
-              .add(args.map((raw) => MediaItem.fromJson(raw)).toList());
-          break;
-        case 'onPlaybackStateChanged':
-          final List args = call.arguments;
-          int actionBits = args[2];
-          _playbackStateSubject.add(PlaybackState(
-            processingState: AudioProcessingState.values[args[0]],
-            playing: args[1],
-            actions: MediaAction.values
-                .where((action) => (actionBits & (1 << action.index)) != 0)
-                .toSet(),
-            position: Duration(milliseconds: args[3]),
-            bufferedPosition: Duration(milliseconds: args[4]),
-            speed: args[5],
-            updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
-            repeatMode: AudioServiceRepeatMode.values[args[7]],
-            shuffleMode: AudioServiceShuffleMode.values[args[8]],
-          ));
-          break;
-        case 'onMediaChanged':
-          _currentMediaItemSubject.add(call.arguments[0] != null
-              ? MediaItem.fromJson(call.arguments[0])
-              : null);
-          break;
-        case 'onQueueChanged':
-          final List<Map> args = call.arguments[0] != null
-              ? List<Map>.from(call.arguments[0])
-              : null;
-          _queueSubject
-              .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
-          break;
         case 'notificationClicked':
           _notificationSubject.add(call.arguments[0]);
           break;
@@ -658,21 +652,297 @@ class AudioService {
     } else {
       _channel.setMethodCallHandler(handler);
     }
-    if (usesIsolate) {
-      _customEventReceivePort = ReceivePort();
-      _customEventSubscription = _customEventReceivePort.listen((event) {
-        _customEventSubject.add(event);
-      });
-      IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
-      IsolateNameServer.registerPortWithName(
-          _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
-    }
-
     await _channel.invokeMethod('configure', config.toJson());
-    await AudioServiceBackground._register(
-      taskBuilder: taskBuilder,
+    final _impl = await _register(
+      builder: builder,
       config: config,
     );
+    final client = _ClientAudioHandler(_impl);
+    return client;
+  }
+
+  static AudioServiceConfig _config;
+  static AudioHandler _handler;
+
+  static AudioServiceConfig get config => _config;
+
+  /// Runs the background audio task within the background isolate.
+  ///
+  /// This must be the first method called by the entrypoint of your background
+  /// task that you passed into [AudioService.start]. The [AudioHandler]
+  /// returned by the [builder] parameter defines callbacks to handle the
+  /// initialization and distruction of the background audio task, as well as
+  /// any requests by the client to play, pause and otherwise control audio
+  /// playback.
+  static Future<AudioHandler> _register({
+    @required AudioHandler builder(),
+    AudioServiceConfig config = const AudioServiceConfig(),
+  }) async {
+    assert(_config == null && _handler == null);
+    print("### AudioServiceBackground._register");
+    _config = config;
+    _handler = builder();
+    final handler = (MethodCall call) async {
+      print('### background received ${call.method}');
+      try {
+        switch (call.method) {
+          case 'onLoadChildren':
+            final List args = call.arguments;
+            String parentMediaId = args[0];
+            final mediaItems = await _onLoadChildren(parentMediaId);
+            List<Map> rawMediaItems =
+                mediaItems.map((item) => item.toJson()).toList();
+            return rawMediaItems as dynamic;
+          case 'onClick':
+            final List args = call.arguments;
+            MediaButton button = MediaButton.values[args[0]];
+            await _handler.click(button);
+            break;
+          case 'onStop':
+            await _handler.stop();
+            break;
+          case 'onPause':
+            await _handler.pause();
+            break;
+          case 'onPrepare':
+            await _handler.prepare();
+            break;
+          case 'onPrepareFromMediaId':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _handler.prepareFromMediaId(mediaId);
+            break;
+          case 'onPlay':
+            await _handler.play();
+            break;
+          case 'onPlayFromMediaId':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _handler.playFromMediaId(mediaId);
+            break;
+          case 'onPlayMediaItem':
+            await _handler.playMediaItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onAddQueueItem':
+            await _handler.addQueueItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onAddQueueItemAt':
+            final List args = call.arguments;
+            MediaItem mediaItem = MediaItem.fromJson(args[0]);
+            int index = args[1];
+            await _handler.insertQueueItem(index, mediaItem);
+            break;
+          case 'onUpdateQueue':
+            final List args = call.arguments;
+            final List queue = args[0];
+            await _handler.updateQueue(
+                queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
+            break;
+          case 'onUpdateMediaItem':
+            await _handler
+                .updateMediaItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onRemoveQueueItem':
+            await _handler
+                .removeQueueItem(MediaItem.fromJson(call.arguments[0]));
+            break;
+          case 'onSkipToNext':
+            await _handler.skipToNext();
+            break;
+          case 'onSkipToPrevious':
+            await _handler.skipToPrevious();
+            break;
+          case 'onFastForward':
+            await _handler.fastForward(_config.fastForwardInterval);
+            break;
+          case 'onRewind':
+            await _handler.rewind(_config.rewindInterval);
+            break;
+          case 'onSkipToQueueItem':
+            final List args = call.arguments;
+            String mediaId = args[0];
+            await _handler.skipToQueueItem(mediaId);
+            break;
+          case 'onSeekTo':
+            final List args = call.arguments;
+            int positionMs = args[0];
+            Duration position = Duration(milliseconds: positionMs);
+            await _handler.seekTo(position);
+            break;
+          case 'onSetRepeatMode':
+            final List args = call.arguments;
+            await _handler
+                .setRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+            break;
+          case 'onSetShuffleMode':
+            final List args = call.arguments;
+            await _handler
+                .setShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+            break;
+          case 'onSetRating':
+            await _handler.setRating(
+                Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+            break;
+          case 'onSeekBackward':
+            final List args = call.arguments;
+            await _handler.seekBackward(args[0]);
+            break;
+          case 'onSeekForward':
+            final List args = call.arguments;
+            await _handler.seekForward(args[0]);
+            break;
+          case 'onSetSpeed':
+            final List args = call.arguments;
+            double speed = args[0];
+            await _handler.setSpeed(speed);
+            break;
+          case 'onTaskRemoved':
+            await _handler.onTaskRemoved();
+            break;
+          case 'onClose':
+            await _handler.onNotificationDeleted();
+            break;
+          default:
+            if (call.method.startsWith(_CUSTOM_PREFIX)) {
+              final result = await _handler.customAction(
+                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
+              return result;
+            }
+            break;
+        }
+      } catch (e, stacktrace) {
+        print('$stacktrace');
+        throw PlatformException(code: '$e');
+      }
+    };
+    // Mock method call handlers only work in one direction so we need to set up
+    // a separate channel for each direction when testing.
+    if (_testing) {
+      MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
+          .setMockMethodCallHandler(handler);
+    } else {
+      _backgroundChannel.setMethodCallHandler(handler);
+    }
+    _handler.mediaItemStream.listen((mediaItem) async {
+      if (mediaItem == null) return;
+      if (mediaItem.artUri != null) {
+        // We potentially need to fetch the art.
+        String filePath = _getLocalPath(mediaItem.artUri);
+        if (filePath == null) {
+          final fileInfo = cacheManager.getFileFromMemory(mediaItem.artUri);
+          filePath = fileInfo?.file?.path;
+          if (filePath == null) {
+            // We haven't fetched the art yet, so show the metadata now, and again
+            // after we load the art.
+            await _backgroundChannel.invokeMethod(
+                'setMediaItem', mediaItem.toJson());
+            // Load the art
+            filePath = await _loadArtwork(mediaItem);
+            // If we failed to download the art, abort.
+            if (filePath == null) return;
+          }
+        }
+        final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
+        extras['artCacheFile'] = filePath;
+        final platformMediaItem = mediaItem.copyWith(extras: extras);
+        // Show the media item after the art is loaded.
+        await _backgroundChannel.invokeMethod(
+            'setMediaItem', platformMediaItem.toJson());
+      } else {
+        await _backgroundChannel.invokeMethod(
+            'setMediaItem', mediaItem.toJson());
+      }
+    });
+    _handler.queueStream.listen((queue) async {
+      if (queue == null) return;
+      if (_config.preloadArtwork) {
+        _loadAllArtwork(queue);
+      }
+      await _backgroundChannel.invokeMethod(
+          'setQueue', queue.map((item) => item.toJson()).toList());
+    });
+    _handler.playbackStateStream.listen((playbackState) async {
+      List<Map> rawControls = playbackState.controls
+          .map((control) => {
+                'androidIcon': control.androidIcon,
+                'label': control.label,
+                'action': control.action.index,
+              })
+          .toList();
+      final rawSystemActions =
+          playbackState.systemActions.map((action) => action.index).toList();
+      // TODO: use playbackState.toJson()
+      await _backgroundChannel.invokeMethod('setState', [
+        rawControls,
+        rawSystemActions,
+        playbackState.processingState.index,
+        playbackState.playing,
+        playbackState.updatePosition.inMilliseconds,
+        playbackState.bufferedPosition.inMilliseconds,
+        playbackState.speed,
+        playbackState.updateTime?.millisecondsSinceEpoch,
+        playbackState.androidCompactActionIndices,
+        playbackState.repeatMode.index,
+        playbackState.shuffleMode.index,
+      ]);
+    });
+
+    return _handler;
+  }
+
+  /// Shuts down the background audio task within the background isolate.
+  static Future<void> _stop() async {
+    final audioSession = await AudioSession.instance;
+    try {
+      await audioSession.setActive(false);
+    } catch (e) {
+      print("While deactivating audio session: $e");
+    }
+    await _backgroundChannel.invokeMethod('stopService');
+  }
+
+  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
+    for (var mediaItem in queue) {
+      await _loadArtwork(mediaItem);
+    }
+  }
+
+  static Future<String> _loadArtwork(MediaItem mediaItem) async {
+    try {
+      final artUri = mediaItem.artUri;
+      if (artUri != null) {
+        String local = _getLocalPath(artUri);
+        if (local != null) {
+          return local;
+        } else {
+          final file = await cacheManager.getSingleFile(mediaItem.artUri);
+          return file.path;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  static String _getLocalPath(String artUri) {
+    const prefix = "file://";
+    if (artUri.toLowerCase().startsWith(prefix)) {
+      return artUri.substring(prefix.length);
+    }
+    return null;
+  }
+
+  static final _childrenStreams = <String, ValueStream<List<MediaItem>>>{};
+  static Future<List<MediaItem>> _onLoadChildren(String parentMediaId) async {
+    var childrenStream = _childrenStreams[parentMediaId];
+    if (childrenStream == null) {
+      childrenStream = _childrenStreams[parentMediaId] =
+          _handler.getChildrenStream(parentMediaId);
+      childrenStream.listen((children) {
+        // Notify clients that the children of [parentMediaId] have changed.
+        _backgroundChannel.invokeMethod('notifyChildrenChanged', parentMediaId);
+      });
+    }
+    return _childrenStreams[parentMediaId].value;
   }
 
   /// Starts a background audio task which will continue running even when the
@@ -726,10 +996,6 @@ class AudioService {
   /// notification. Note that while in this lower priority state, the operating
   /// system will also be able to kill your service at any time to reclaim
   /// resources.
-  ///
-  /// This method waits for [BackgroundAudioTask.onStart] to complete, and
-  /// completes with true if the task was successfully started, or false
-  /// otherwise.
   static Future<bool> configure({
     @required Function backgroundTaskEntrypoint,
     String androidNotificationChannelName = "Notifications",
@@ -777,212 +1043,6 @@ class AudioService {
     await _channel.invokeMethod('setBrowseMediaParent', parentMediaId);
   }
 
-  /// Sends a request to your background audio task to add an item to the
-  /// queue. This passes through to the `onAddQueueItem` method in your
-  /// background audio task.
-  static Future<void> addQueueItem(MediaItem mediaItem) async {
-    await _task.onAddQueueItem(mediaItem);
-  }
-
-  /// Sends a request to your background audio task to add a item to the queue
-  /// at a particular position. This passes through to the `onAddQueueItemAt`
-  /// method in your background audio task.
-  static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
-    await _task.onAddQueueItemAt(mediaItem, index);
-  }
-
-  /// Sends a request to your background audio task to remove an item from the
-  /// queue. This passes through to the `onRemoveQueueItem` method in your
-  /// background audio task.
-  static Future<void> removeQueueItem(MediaItem mediaItem) async {
-    await _task.onRemoveQueueItem(mediaItem);
-  }
-
-  /// Sends a request to your background audio task to add a list of item to the
-  /// queue. This passes through to the `onAddQueueItems` method in your
-  /// background audio task.
-  static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    await _task.onAddQueueItems(mediaItems);
-  }
-
-  /// Sends a request to your background audio task to replace the queue with a
-  /// new list of media items. This passes through to the `onUpdateQueue`
-  /// method in your background audio task.
-  static Future<void> updateQueue(List<MediaItem> queue) async {
-    await _task.onUpdateQueue(queue);
-  }
-
-  /// Sends a request to your background audio task to update the details of a
-  /// media item. This passes through to the 'onUpdateMediaItem' method in your
-  /// background audio task.
-  static Future<void> updateMediaItem(MediaItem mediaItem) async {
-    await _task.onUpdateMediaItem(mediaItem);
-  }
-
-  /// Programmatically simulates a click of a media button on the headset.
-  ///
-  /// This passes through to `onClick` in the background audio task.
-  static Future<void> click([MediaButton button = MediaButton.media]) async {
-    await _task.onClick(button);
-  }
-
-  /// Sends a request to your background audio task to prepare for audio
-  /// playback. This passes through to the `onPrepare` method in your
-  /// background audio task.
-  static Future<void> prepare() async {
-    await _task.onPrepare();
-  }
-
-  /// Sends a request to your background audio task to prepare for playing a
-  /// particular media item. This passes through to the `onPrepareFromMediaId`
-  /// method in your background audio task.
-  static Future<void> prepareFromMediaId(String mediaId) async {
-    await _task.onPrepareFromMediaId(mediaId);
-  }
-
-  //static Future<void> prepareFromSearch(String query, Bundle extras) async {}
-  //static Future<void> prepareFromUri(Uri uri, Bundle extras) async {}
-
-  /// Sends a request to your background audio task to play the current media
-  /// item. This passes through to 'onPlay' in your background audio task.
-  static Future<void> play() async {
-    await _task.onPlay();
-  }
-
-  /// Sends a request to your background audio task to play a particular media
-  /// item referenced by its media id. This passes through to the
-  /// 'onPlayFromMediaId' method in your background audio task.
-  static Future<void> playFromMediaId(String mediaId) async {
-    await _task.onPlayFromMediaId(mediaId);
-  }
-
-  /// Sends a request to your background audio task to play a particular media
-  /// item. This passes through to the 'onPlayMediaItem' method in your
-  /// background audio task.
-  static Future<void> playMediaItem(MediaItem mediaItem) async {
-    await _task.onPlayMediaItem(mediaItem);
-  }
-
-  //static Future<void> playFromSearch(String query, Bundle extras) async {}
-  //static Future<void> playFromUri(Uri uri, Bundle extras) async {}
-
-  /// Sends a request to your background audio task to skip to a particular
-  /// item in the queue. This passes through to the `onSkipToQueueItem` method
-  /// in your background audio task.
-  static Future<void> skipToQueueItem(String mediaId) async {
-    await _task.onSkipToQueueItem(mediaId);
-  }
-
-  /// Sends a request to your background audio task to pause playback. This
-  /// passes through to the `onPause` method in your background audio task.
-  static Future<void> pause() async {
-    await _task.onPause();
-  }
-
-  /// Sends a request to your background audio task to stop playback and shut
-  /// down the task. This passes through to the `onStop` method in your
-  /// background audio task.
-  static Future<void> stop() async {
-    await _task.onStop();
-  }
-
-  /// Sends a request to your background audio task to seek to a particular
-  /// position in the current media item. This passes through to the `onSeekTo`
-  /// method in your background audio task.
-  static Future<void> seekTo(Duration position) async {
-    _seekPos = position;
-    await _task.onSeekTo(position);
-    _seekPos = null;
-  }
-
-  /// Sends a request to your background audio task to skip to the next item in
-  /// the queue. This passes through to the `onSkipToNext` method in your
-  /// background audio task.
-  static Future<void> skipToNext() async {
-    await _task.onSkipToNext();
-  }
-
-  /// Sends a request to your background audio task to skip to the previous
-  /// item in the queue. This passes through to the `onSkipToPrevious` method
-  /// in your background audio task.
-  static Future<void> skipToPrevious() async {
-    await _task.onSkipToPrevious();
-  }
-
-  /// Sends a request to your background audio task to fast forward by the
-  /// interval passed into the [start] method. This passes through to the
-  /// `onFastForward` method in your background audio task.
-  static Future<void> fastForward() async {
-    await _task
-        .onFastForward(AudioServiceBackground._config.fastForwardInterval);
-  }
-
-  /// Sends a request to your background audio task to rewind by the interval
-  /// passed into the [start] method. This passes through to the `onRewind`
-  /// method in the background audio task.
-  static Future<void> rewind() async {
-    await _task.onRewind(AudioServiceBackground._config.rewindInterval);
-  }
-
-  //static Future<void> setCaptioningEnabled(boolean enabled) async {}
-
-  /// Sends a request to your background audio task to set the repeat mode.
-  /// This passes through to the `onSetRepeatMode` method in your background
-  /// audio task.
-  static Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
-    await _task.onSetRepeatMode(repeatMode);
-  }
-
-  /// Sends a request to your background audio task to set the shuffle mode.
-  /// This passes through to the `onSetShuffleMode` method in your background
-  /// audio task.
-  static Future<void> setShuffleMode(
-      AudioServiceShuffleMode shuffleMode) async {
-    await _task.onSetShuffleMode(shuffleMode);
-  }
-
-  /// Sends a request to your background audio task to set a rating on the
-  /// current media item. This passes through to the `onSetRating` method in
-  /// your background audio task. The extras map must *only* contain primitive
-  /// types!
-  static Future<void> setRating(Rating rating,
-      [Map<String, dynamic> extras]) async {
-    await _task.onSetRating(rating, extras);
-  }
-
-  /// Sends a request to your background audio task to set the audio playback
-  /// speed. This passes through to the `onSetSpeed` method in your background
-  /// audio task.
-  static Future<void> setSpeed(double speed) async {
-    await _task.onSetSpeed(speed);
-  }
-
-  /// Sends a request to your background audio task to begin or end seeking
-  /// backward. This method passes through to the `onSeekBackward` method in
-  /// your background audio task.
-  static Future<void> seekBackward(bool begin) async {
-    await _task.onSeekBackward(begin);
-  }
-
-  /// Sends a request to your background audio task to begin or end seek
-  /// forward. This method passes through to the `onSeekForward` method in your
-  /// background audio task.
-  static Future<void> seekForward(bool begin) async {
-    await _task.onSeekForward(begin);
-  }
-
-  //static Future<void> sendCustomAction(PlaybackStateCompat.CustomAction customAction,
-  //static Future<void> sendCustomAction(String action, Bundle args) async {}
-
-  /// Sends a custom request to your background audio task. This passes through
-  /// to the `onCustomAction` in your background audio task.
-  ///
-  /// This may be used for your own purposes. [arguments] can be any data that
-  /// is encodable by `StandardMessageCodec`.
-  static Future customAction(String name, [dynamic arguments]) async {
-    return await _task.onCustomAction(name, arguments);
-  }
-
   /// A stream tracking the current position, suitable for animating a seek bar.
   /// To ensure a smooth animation, this stream emits values more frequently on
   /// short media items where the seek bar moves more quickly, and less
@@ -992,10 +1052,11 @@ class AudioService {
   ///
   /// See [createPositionStream] for more control over the stream parameters.
   //static Stream<Duration> _positionStream;
-  static Stream<Duration> get positionStream {
+  static Stream<Duration> getPositionStream(AudioHandler handler) {
     if (_positionSubject == null) {
       _positionSubject = BehaviorSubject<Duration>(sync: true);
       _positionSubject.addStream(createPositionStream(
+          handler: handler,
           steps: 800,
           minPeriod: Duration(milliseconds: 16),
           maxPeriod: Duration(milliseconds: 200)));
@@ -1013,6 +1074,7 @@ class AudioService {
   /// intend to use this stream multiple times, you should hold a reference to
   /// the returned stream.
   static Stream<Duration> createPositionStream({
+    @required AudioHandler handler,
     int steps = 800,
     Duration minPeriod = const Duration(milliseconds: 200),
     Duration maxPeriod = const Duration(milliseconds: 200),
@@ -1025,7 +1087,7 @@ class AudioService {
     StreamSubscription<MediaItem> mediaItemSubscription;
     StreamSubscription<PlaybackState> playbackStateSubscription;
     Timer currentTimer;
-    Duration duration() => currentMediaItem?.duration ?? Duration.zero;
+    Duration duration() => handler.mediaItem?.duration ?? Duration.zero;
     Duration step() {
       var s = duration() ~/ steps;
       if (s < minPeriod) s = minPeriod;
@@ -1034,20 +1096,20 @@ class AudioService {
     }
 
     void yieldPosition(Timer timer) {
-      if (last != (_seekPos ?? playbackState?.currentPosition)) {
-        controller.add(last = (_seekPos ?? playbackState?.currentPosition));
+      if (last != (_seekPos ?? handler.playbackState?.position)) {
+        controller.add(last = (_seekPos ?? handler.playbackState?.position));
       }
     }
 
     controller = StreamController.broadcast(
       sync: true,
       onListen: () {
-        mediaItemSubscription = currentMediaItemStream.listen((mediaItem) {
+        mediaItemSubscription = handler.mediaItemStream.listen((mediaItem) {
           // Potentially a new duration
           currentTimer?.cancel();
           currentTimer = Timer.periodic(step(), yieldPosition);
         });
-        playbackStateSubscription = playbackStateStream.listen((state) {
+        playbackStateSubscription = handler.playbackStateStream.listen((state) {
           // Potentially a time discontinuity
           yieldPosition(currentTimer);
         });
@@ -1059,425 +1121,6 @@ class AudioService {
     );
 
     return controller.stream;
-  }
-}
-
-/// Background API to be used by your background audio task.
-///
-/// The entry point of your background task that you passed to
-/// [AudioService.start] is executed in an isolate that will run independently
-/// of the view. Aside from its primary job of playing audio, your background
-/// task should also use methods of this class to initialise the isolate,
-/// broadcast state changes to any UI that may be connected, and to also handle
-/// playback actions initiated by the UI.
-class AudioServiceBackground {
-  static final PlaybackState _noneState = PlaybackState(
-    processingState: AudioProcessingState.none,
-    playing: false,
-    actions: Set(),
-    position: Duration.zero,
-    bufferedPosition: Duration.zero,
-    speed: 1.0,
-    repeatMode: AudioServiceRepeatMode.none,
-    shuffleMode: AudioServiceShuffleMode.none,
-  );
-  static MethodChannel _backgroundChannel;
-  static PlaybackState _state = _noneState;
-  static List<MediaControl> _controls = [];
-  static List<MediaAction> _systemActions = [];
-  static MediaItem _mediaItem;
-  static List<MediaItem> _queue;
-
-  /// The cache to use when loading artwork. Defaults to [DefaultCacheManager].
-  static BaseCacheManager cacheManager = DefaultCacheManager();
-  static BackgroundAudioTask _task;
-  static AudioServiceConfig _config;
-
-  /// The current media playback state.
-  ///
-  /// This is the value most recently set via [setState].
-  static PlaybackState get state => _state;
-
-  /// The current media item.
-  ///
-  /// This is the value most recently set via [setMediaItem].
-  static MediaItem get mediaItem => _mediaItem;
-
-  /// The current queue.
-  ///
-  /// This is the value most recently set via [setQueue].
-  static List<MediaItem> get queue => _queue;
-
-  /// Runs the background audio task within the background isolate.
-  ///
-  /// This must be the first method called by the entrypoint of your background
-  /// task that you passed into [AudioService.start]. The [BackgroundAudioTask]
-  /// returned by the [taskBuilder] parameter defines callbacks to handle the
-  /// initialization and distruction of the background audio task, as well as
-  /// any requests by the client to play, pause and otherwise control audio
-  /// playback.
-  static Future<void> _register({
-    @required BackgroundAudioTask taskBuilder(),
-    AudioServiceConfig config = const AudioServiceConfig(),
-  }) async {
-    print("### AudioServiceBackground._register");
-    _task = taskBuilder();
-    _backgroundChannel =
-        const MethodChannel('ryanheise.com/audioServiceBackground');
-    final handler = (MethodCall call) async {
-      print('### background received ${call.method}');
-      try {
-        switch (call.method) {
-          case 'onLoadChildren':
-            final List args = call.arguments;
-            String parentMediaId = args[0];
-            List<MediaItem> mediaItems =
-                await _task.onLoadChildren(parentMediaId);
-            List<Map> rawMediaItems =
-                mediaItems.map((item) => item.toJson()).toList();
-            return rawMediaItems as dynamic;
-          case 'onClick':
-            final List args = call.arguments;
-            MediaButton button = MediaButton.values[args[0]];
-            await _task.onClick(button);
-            break;
-          case 'onStop':
-            await _task.onStop();
-            break;
-          case 'onPause':
-            await _task.onPause();
-            break;
-          case 'onPrepare':
-            await _task.onPrepare();
-            break;
-          case 'onPrepareFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onPrepareFromMediaId(mediaId);
-            break;
-          case 'onPlay':
-            await _task.onPlay();
-            break;
-          case 'onPlayFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onPlayFromMediaId(mediaId);
-            break;
-          case 'onPlayMediaItem':
-            await _task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onAddQueueItem':
-            await _task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onAddQueueItemAt':
-            final List args = call.arguments;
-            MediaItem mediaItem = MediaItem.fromJson(args[0]);
-            int index = args[1];
-            await _task.onAddQueueItemAt(mediaItem, index);
-            break;
-          case 'onUpdateQueue':
-            final List args = call.arguments;
-            final List queue = args[0];
-            await _task.onUpdateQueue(
-                queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
-            break;
-          case 'onUpdateMediaItem':
-            await _task
-                .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onRemoveQueueItem':
-            await _task
-                .onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onSkipToNext':
-            await _task.onSkipToNext();
-            break;
-          case 'onSkipToPrevious':
-            await _task.onSkipToPrevious();
-            break;
-          case 'onFastForward':
-            await _task.onFastForward(_config.fastForwardInterval);
-            break;
-          case 'onRewind':
-            await _task.onRewind(_config.rewindInterval);
-            break;
-          case 'onSkipToQueueItem':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onSkipToQueueItem(mediaId);
-            break;
-          case 'onSeekTo':
-            final List args = call.arguments;
-            int positionMs = args[0];
-            Duration position = Duration(milliseconds: positionMs);
-            await _task.onSeekTo(position);
-            break;
-          case 'onSetRepeatMode':
-            final List args = call.arguments;
-            await _task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
-            break;
-          case 'onSetShuffleMode':
-            final List args = call.arguments;
-            await _task
-                .onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
-            break;
-          case 'onSetRating':
-            await _task.onSetRating(
-                Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-            break;
-          case 'onSeekBackward':
-            final List args = call.arguments;
-            await _task.onSeekBackward(args[0]);
-            break;
-          case 'onSeekForward':
-            final List args = call.arguments;
-            await _task.onSeekForward(args[0]);
-            break;
-          case 'onSetSpeed':
-            final List args = call.arguments;
-            double speed = args[0];
-            await _task.onSetSpeed(speed);
-            break;
-          case 'onTaskRemoved':
-            await _task.onTaskRemoved();
-            break;
-          case 'onClose':
-            await _task.onClose();
-            break;
-          default:
-            if (call.method.startsWith(_CUSTOM_PREFIX)) {
-              final result = await _task.onCustomAction(
-                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
-              return result;
-            }
-            break;
-        }
-      } catch (e, stacktrace) {
-        print('$stacktrace');
-        throw PlatformException(code: '$e');
-      }
-    };
-    // Mock method call handlers only work in one direction so we need to set up
-    // a separate channel for each direction when testing.
-    if (_testing) {
-      MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
-          .setMockMethodCallHandler(handler);
-    } else {
-      _backgroundChannel.setMethodCallHandler(handler);
-    }
-  }
-
-  /// Shuts down the background audio task within the background isolate.
-  static Future<void> _stop() async {
-    final audioSession = await AudioSession.instance;
-    try {
-      await audioSession.setActive(false);
-    } catch (e) {
-      print("While deactivating audio session: $e");
-    }
-    await _backgroundChannel.invokeMethod('stopService');
-  }
-
-  /// Broadcasts to all clients the current state, including:
-  ///
-  /// * Whether media is playing or paused
-  /// * Whether media is buffering or skipping
-  /// * The current position, buffered position and speed
-  /// * The current set of media actions that should be enabled
-  ///
-  /// Connected clients will use this information to update their UI.
-  ///
-  /// You should use [controls] to specify the set of clickable buttons that
-  /// should currently be visible in the notification in the current state,
-  /// where each button is a [MediaControl] that triggers a different
-  /// [MediaAction]. Only the following actions can be enabled as
-  /// [MediaControl]s:
-  ///
-  /// * [MediaAction.stop]
-  /// * [MediaAction.pause]
-  /// * [MediaAction.play]
-  /// * [MediaAction.rewind]
-  /// * [MediaAction.skipToPrevious]
-  /// * [MediaAction.skipToNext]
-  /// * [MediaAction.fastForward]
-  /// * [MediaAction.playPause]
-  ///
-  /// Any other action you would like to enable for clients that is not a clickable
-  /// notification button should be specified in the [systemActions] parameter. For
-  /// example:
-  ///
-  /// * [MediaAction.seekTo] (enable a seek bar)
-  /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
-  /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
-  ///
-  /// In practice, iOS will treat all entries in [controls] and [systemActions]
-  /// in the same way since you cannot customise the icons of controls in the
-  /// Control Center. However, on Android, the distinction is important as clickable
-  /// buttons in the notification require you to specify your own icon.
-  ///
-  /// Note that specifying [MediaAction.seekTo] in [systemActions] will enable
-  /// a seek bar in both the Android notification and the iOS control center.
-  /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
-  /// behaviour on iOS in which if you have already enabled the
-  /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
-  /// additional actions will allow the user to press and hold the buttons to
-  /// activate the continuous seeking behaviour.
-  ///
-  /// On Android, a media notification has a compact and expanded form. In the
-  /// compact view, you can optionally specify the indices of up to 3 of your
-  /// [controls] that you would like to be shown via [androidCompactActions].
-  ///
-  /// The playback [position] should NOT be updated continuously in real time.
-  /// Instead, it should be updated only when the normal continuity of time is
-  /// disrupted, such as during a seek, buffering and seeking. When
-  /// broadcasting such a position change, the [updateTime] specifies the time
-  /// of that change, allowing clients to project the realtime value of the
-  /// position as `position + (DateTime.now() - updateTime)`. As a convenience,
-  /// this calculation is provided by [PlaybackState.currentPosition].
-  ///
-  /// The playback [speed] is given as a double where 1.0 means normal speed.
-  static Future<void> setState({
-    List<MediaControl> controls,
-    List<MediaAction> systemActions,
-    AudioProcessingState processingState,
-    bool playing,
-    Duration position,
-    Duration bufferedPosition,
-    double speed,
-    DateTime updateTime,
-    List<int> androidCompactActions,
-    AudioServiceRepeatMode repeatMode = AudioServiceRepeatMode.none,
-    AudioServiceShuffleMode shuffleMode = AudioServiceShuffleMode.none,
-  }) async {
-    controls ??= _controls;
-    systemActions ??= _systemActions;
-    processingState ??= _state.processingState;
-    playing ??= _state.playing;
-    position ??= _state.currentPosition;
-    updateTime ??= DateTime.now();
-    bufferedPosition ??= _state.bufferedPosition;
-    speed ??= _state.speed ?? 1.0;
-    repeatMode ??= AudioServiceRepeatMode.none;
-    shuffleMode ??= AudioServiceShuffleMode.none;
-    _controls = controls;
-    _systemActions = systemActions;
-    _state = PlaybackState(
-      processingState: processingState,
-      playing: playing,
-      actions: controls.map((control) => control.action).toSet(),
-      position: position,
-      bufferedPosition: bufferedPosition,
-      speed: speed,
-      updateTime: updateTime,
-      repeatMode: repeatMode,
-      shuffleMode: shuffleMode,
-    );
-    List<Map> rawControls = controls
-        .map((control) => {
-              'androidIcon': control.androidIcon,
-              'label': control.label,
-              'action': control.action.index,
-            })
-        .toList();
-    final rawSystemActions =
-        systemActions.map((action) => action.index).toList();
-    await _backgroundChannel.invokeMethod('setState', [
-      rawControls,
-      rawSystemActions,
-      processingState.index,
-      playing,
-      position.inMilliseconds,
-      bufferedPosition.inMilliseconds,
-      speed,
-      updateTime?.millisecondsSinceEpoch,
-      androidCompactActions,
-      repeatMode.index,
-      shuffleMode.index,
-    ]);
-  }
-
-  /// Sets the current queue and notifies all clients.
-  static Future<void> setQueue(List<MediaItem> queue,
-      {bool preloadArtwork = false}) async {
-    _queue = queue;
-    if (preloadArtwork) {
-      _loadAllArtwork(queue);
-    }
-    await _backgroundChannel.invokeMethod(
-        'setQueue', queue.map((item) => item.toJson()).toList());
-  }
-
-  /// Sets the currently playing media item and notifies all clients.
-  static Future<void> setMediaItem(MediaItem mediaItem) async {
-    _mediaItem = mediaItem;
-    if (mediaItem.artUri != null) {
-      // We potentially need to fetch the art.
-      String filePath = _getLocalPath(mediaItem.artUri);
-      if (filePath == null) {
-        final fileInfo = cacheManager.getFileFromMemory(mediaItem.artUri);
-        filePath = fileInfo?.file?.path;
-        if (filePath == null) {
-          // We haven't fetched the art yet, so show the metadata now, and again
-          // after we load the art.
-          await _backgroundChannel.invokeMethod(
-              'setMediaItem', mediaItem.toJson());
-          // Load the art
-          filePath = await _loadArtwork(mediaItem);
-          // If we failed to download the art, abort.
-          if (filePath == null) return;
-          // If we've already set a new media item, cancel this request.
-          if (mediaItem != _mediaItem) return;
-        }
-      }
-      final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
-      extras['artCacheFile'] = filePath;
-      final platformMediaItem = mediaItem.copyWith(extras: extras);
-      // Show the media item after the art is loaded.
-      await _backgroundChannel.invokeMethod(
-          'setMediaItem', platformMediaItem.toJson());
-    } else {
-      await _backgroundChannel.invokeMethod('setMediaItem', mediaItem.toJson());
-    }
-  }
-
-  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
-    for (var mediaItem in queue) {
-      await _loadArtwork(mediaItem);
-    }
-  }
-
-  static Future<String> _loadArtwork(MediaItem mediaItem) async {
-    try {
-      final artUri = mediaItem.artUri;
-      if (artUri != null) {
-        String local = _getLocalPath(artUri);
-        if (local != null) {
-          return local;
-        } else {
-          final file = await cacheManager.getSingleFile(mediaItem.artUri);
-          return file.path;
-        }
-      }
-    } catch (e) {}
-    return null;
-  }
-
-  static String _getLocalPath(String artUri) {
-    const prefix = "file://";
-    if (artUri.toLowerCase().startsWith(prefix)) {
-      return artUri.substring(prefix.length);
-    }
-    return null;
-  }
-
-  /// Notifies clients that the child media items of [parentMediaId] have
-  /// changed.
-  ///
-  /// If [parentMediaId] is unspecified, the root parent will be used.
-  static Future<void> notifyChildrenChanged(
-      [String parentMediaId = AudioService.MEDIA_ROOT_ID]) async {
-    await _backgroundChannel.invokeMethod(
-        'notifyChildrenChanged', parentMediaId);
   }
 
   /// In Android, forces media button events to be routed to your active media
@@ -1493,277 +1136,611 @@ class AudioServiceBackground {
   static Future<void> androidForceEnableMediaButtons() async {
     await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
   }
+}
 
-  /// Sends a custom event to the Flutter UI.
+// XXX: If one link in the chain calls on another method, how do we make it
+// enter at the head of the chain?
+// - chain in reverse. The actual implementation should be the inner-most child.
+// XXX: We don't want every link in the chain to have behavior subjects.
+abstract class AudioHandler {
+  AudioHandler._();
+
+  /// Prepare media items for playback.
+  Future<void> prepare();
+
+  /// Prepare a specific media item for playback.
+  Future<void> prepareFromMediaId(String mediaId);
+
+  /// Start or resume playback.
+  Future<void> play();
+
+  /// Play a specific media item.
+  Future<void> playFromMediaId(String mediaId);
+
+  /// Play a specific media item.
+  Future<void> playMediaItem(MediaItem mediaItem);
+
+  /// Pause playback.
+  Future<void> pause();
+
+  /// Process a headset button click, where [button] defaults to
+  /// [MediaButton.media].
+  Future<void> click([MediaButton button]);
+
+  /// Stop playback and release resources.
+  Future<void> stop();
+
+  /// Add [mediaItem] to the queue.
+  Future<void> addQueueItem(MediaItem mediaItem);
+
+  /// Add [mediaItems] to the queue.
+  Future<void> addQueueItems(List<MediaItem> mediaItems);
+
+  /// Insert [mediaItem] into the queue at position [index].
+  Future<void> insertQueueItem(int index, MediaItem mediaItem);
+
+  /// Update to the queue to [queue].
+  Future<void> updateQueue(List<MediaItem> queue);
+
+  /// Update the properties of [mediaItem].
+  Future<void> updateMediaItem(MediaItem mediaItem);
+
+  /// Remove [mediaItem] from the queue.
+  Future<void> removeQueueItem(MediaItem mediaItem);
+
+  /// Skip to the next item in the queue.
+  Future<void> skipToNext();
+
+  /// Skip to the previous item in the queue.
+  Future<void> skipToPrevious();
+
+  /// Jump forward by [interval], defaulting to
+  /// [AudioServiceConfig.fastForwardInterval].
+  Future<void> fastForward([Duration interval]);
+
+  /// Jump backward by [interval], defaulting to
+  /// [AudioServiceConfig.rewindInterval]. Note: this value must be positive.
+  Future<void> rewind([Duration interval]);
+
+  /// Skip to a media item.
+  Future<void> skipToQueueItem(String mediaId);
+
+  /// Seek to [position].
+  Future<void> seekTo(Duration position);
+
+  /// Set the rating.
+  Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras);
+
+  /// Set the repeat mode.
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode);
+
+  /// Set the shuffle mode.
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode);
+
+  /// Begin or end seeking backward continuously.
+  Future<void> seekBackward(bool begin);
+
+  /// Begin or end seeking forward continuously.
+  Future<void> seekForward(bool begin);
+
+  /// Set the playback speed.
+  Future<void> setSpeed(double speed);
+
+  /// A mechanism to support app-specific actions.
+  Future<dynamic> customAction(String name, dynamic arguments);
+
+  /// Handle the task being swiped away in the task manager (Android).
+  Future<void> onTaskRemoved();
+
+  /// Handle the notification being swiped away (Android).
+  Future<void> onNotificationDeleted();
+
+  /// Get the children of a parent media item.
+  Future<List<MediaItem>> getChildren(String parentMediaId);
+
+  /// Get a value stream of the children of a parent media item.
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId);
+
+  /// A value stream of playback states.
+  ValueStream<PlaybackState> get playbackStateStream;
+
+  /// The current playback state.
+  PlaybackState get playbackState => playbackStateStream.value;
+
+  /// A value stream of the current queue.
+  ValueStream<List<MediaItem>> get queueStream;
+
+  /// The current queue.
+  List<MediaItem> get queue => queueStream.value;
+
+  /// A value stream of the current media item.
+  ValueStream<MediaItem> get mediaItemStream;
+
+  /// The current media item.
+  MediaItem get mediaItem => mediaItemStream.value;
+
+  /// A stream of custom events.
+  Stream<dynamic> get customEventStream;
+}
+
+class _ClientAudioHandler extends CompositeAudioHandler {
+  _ClientAudioHandler(AudioHandler impl) : super(impl);
+
+  @override
+  Future<void> click([MediaButton button]) async {
+    await super.click(button ?? MediaButton.media);
+  }
+
+  @override
+  Future<void> fastForward([Duration interval]) async {
+    await super
+        .fastForward(interval ?? AudioService.config.fastForwardInterval);
+  }
+
+  @override
+  Future<void> rewind([Duration interval]) async {
+    await super.rewind(interval ?? AudioService.config.rewindInterval);
+  }
+}
+
+class CompositeAudioHandler extends AudioHandler {
+  AudioHandler _inner;
+
+  CompositeAudioHandler(AudioHandler inner)
+      : _inner = inner,
+        super._() {
+    assert(inner != null);
+  }
+
+  @mustCallSuper
+  Future<void> prepare() => _inner.prepare();
+
+  @mustCallSuper
+  Future<void> prepareFromMediaId(String mediaId) =>
+      _inner.prepareFromMediaId(mediaId);
+
+  @mustCallSuper
+  Future<void> play() => _inner.play();
+
+  @mustCallSuper
+  Future<void> playFromMediaId(String mediaId) =>
+      _inner.playFromMediaId(mediaId);
+
+  @mustCallSuper
+  Future<void> playMediaItem(MediaItem mediaItem) =>
+      _inner.playMediaItem(mediaItem);
+
+  @mustCallSuper
+  Future<void> pause() => _inner.pause();
+
+  @mustCallSuper
+  Future<void> click([MediaButton button]) => _inner.click(button);
+
+  @mustCallSuper
+  Future<void> stop() => _inner.stop();
+
+  @mustCallSuper
+  Future<void> addQueueItem(MediaItem mediaItem) =>
+      _inner.addQueueItem(mediaItem);
+
+  @mustCallSuper
+  Future<void> addQueueItems(List<MediaItem> mediaItems) =>
+      _inner.addQueueItems(mediaItems);
+
+  @mustCallSuper
+  Future<void> insertQueueItem(int index, MediaItem mediaItem) =>
+      _inner.insertQueueItem(index, mediaItem);
+
+  @mustCallSuper
+  Future<void> updateQueue(List<MediaItem> queue) => _inner.updateQueue(queue);
+
+  @mustCallSuper
+  Future<void> updateMediaItem(MediaItem mediaItem) =>
+      _inner.updateMediaItem(mediaItem);
+
+  @mustCallSuper
+  Future<void> removeQueueItem(MediaItem mediaItem) =>
+      _inner.removeQueueItem(mediaItem);
+
+  @mustCallSuper
+  Future<void> skipToNext() => _inner.skipToNext();
+
+  @mustCallSuper
+  Future<void> skipToPrevious() => _inner.skipToPrevious();
+
+  @mustCallSuper
+  Future<void> fastForward([Duration interval]) => _inner.fastForward(interval);
+
+  @mustCallSuper
+  Future<void> rewind([Duration interval]) => _inner.rewind();
+
+  @mustCallSuper
+  Future<void> skipToQueueItem(String mediaId) =>
+      _inner.skipToQueueItem(mediaId);
+
+  @mustCallSuper
+  Future<void> seekTo(Duration position) => _inner.seekTo(position);
+
+  @mustCallSuper
+  Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) =>
+      _inner.setRating(rating, extras);
+
+  @mustCallSuper
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
+      _inner.setRepeatMode(repeatMode);
+
+  @mustCallSuper
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
+      _inner.setShuffleMode(shuffleMode);
+
+  @mustCallSuper
+  Future<void> seekBackward(bool begin) => _inner.seekBackward(begin);
+
+  @mustCallSuper
+  Future<void> seekForward(bool begin) => _inner.seekForward(begin);
+
+  @mustCallSuper
+  Future<void> setSpeed(double speed) => _inner.setSpeed(speed);
+
+  @mustCallSuper
+  Future<dynamic> customAction(String name, dynamic arguments) =>
+      _inner.customAction(name, arguments);
+
+  @mustCallSuper
+  Future<void> onTaskRemoved() => _inner.onTaskRemoved();
+
+  @mustCallSuper
+  Future<void> onNotificationDeleted() => _inner.onNotificationDeleted();
+
+  @mustCallSuper
+  Future<List<MediaItem>> getChildren(String parentMediaId) =>
+      _inner.getChildren(parentMediaId);
+
+  @mustCallSuper
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId) =>
+      _inner.getChildrenStream(parentMediaId);
+
+  @mustCallSuper
+  ValueStream<PlaybackState> get playbackStateStream =>
+      _inner.playbackStateStream;
+
+  @mustCallSuper
+  PlaybackState get playbackState => _inner.playbackState;
+
+  @mustCallSuper
+  ValueStream<List<MediaItem>> get queueStream => _inner.queueStream;
+
+  @mustCallSuper
+  List<MediaItem> get queue => _inner.queue;
+
+  @mustCallSuper
+  ValueStream<MediaItem> get mediaItemStream => _inner.mediaItemStream;
+
+  @mustCallSuper
+  MediaItem get mediaItem => _inner.mediaItem;
+
+  @override
+  Stream<dynamic> get customEventStream => _inner.customEventStream;
+}
+
+abstract class BaseAudioHandler extends AudioHandler {
+  /// A controller for broadcasting the current [PlaybackState] to the app's UI,
+  /// media notification and other clients. Example usage:
   ///
-  /// The event parameter can contain any data permitted by Dart's
-  /// SendPort/ReceivePort API. Please consult the relevant documentation for
-  /// further information.
-  static void sendCustomEvent(dynamic event) {
-    if (!AudioService.usesIsolate) {
-      AudioService._customEventSubject.add(event);
-    } else {
-      SendPort sendPort =
-          IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
-      sendPort?.send(event);
+  /// ```dart
+  /// playbackStateSubject.add(playbackState.copyWith(playing: true));
+  /// ```
+  @protected
+  // ignore: close_sinks
+  final playbackStateSubject = BehaviorSubject.seeded(PlaybackState());
+
+  /// A controller for broadcasting the current queue to the app's UI, media
+  /// notification and other clients. Example usage:
+  ///
+  /// ```dart
+  /// queueSubject.add(queue + [additionalItem]);
+  /// ```
+  @protected
+  // ignore: close_sinks
+  final queueSubject = BehaviorSubject.seeded(<MediaItem>[]);
+
+  /// A controller for broadcasting the current media item to the app's UI,
+  /// media notification and other clients. Example usage:
+  ///
+  /// ```dart
+  /// mediaItemSubject.add(item);
+  /// ```
+  @protected
+  // ignore: close_sinks, unnecessary_cast
+  final mediaItemSubject = BehaviorSubject.seeded(null as MediaItem);
+
+  /// A controller for broadcasting a custom event to the app's UI. Example
+  /// usage:
+  ///
+  /// ```dart
+  /// customEventSubject.add(MyCustomEvent(arg: 3));
+  /// ```
+  @protected
+  // ignore: close_sinks
+  final customEventSubject = PublishSubject<dynamic>();
+
+  BaseAudioHandler() : super._();
+
+  @override
+  Future<void> prepare() async {}
+
+  @override
+  Future<void> prepareFromMediaId(String mediaId) async {}
+
+  @override
+  Future<void> play() async {}
+
+  @override
+  Future<void> playFromMediaId(String mediaId) async {}
+
+  @override
+  Future<void> playMediaItem(MediaItem mediaItem) async {}
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> click([MediaButton button]) async {
+    switch (button) {
+      case MediaButton.media:
+        if (playbackState?.playing == true) {
+          await pause();
+        } else {
+          await play();
+        }
+        break;
+      case MediaButton.next:
+        await skipToNext();
+        break;
+      case MediaButton.previous:
+        await skipToPrevious();
+        break;
+    }
+  }
+
+  @override
+  @mustCallSuper
+  Future<void> stop() async {
+    await AudioService._stop();
+  }
+
+  @override
+  Future<void> addQueueItem(MediaItem mediaItem) async {}
+
+  @override
+  Future<void> addQueueItems(List<MediaItem> mediaItems) async {}
+
+  @override
+  Future<void> insertQueueItem(int index, MediaItem mediaItem) async {}
+
+  @override
+  Future<void> updateQueue(List<MediaItem> queue) async {}
+
+  @override
+  Future<void> updateMediaItem(MediaItem mediaItem) async {}
+
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) async {}
+
+  @override
+  Future<void> skipToNext() async {}
+
+  @override
+  Future<void> skipToPrevious() async {}
+
+  @override
+  Future<void> fastForward([Duration interval]) async {}
+
+  @override
+  Future<void> rewind([Duration interval]) async {}
+
+  @override
+  Future<void> skipToQueueItem(String mediaId) async {}
+
+  @override
+  Future<void> seekTo(Duration position) async {}
+
+  @override
+  Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) async {}
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {}
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {}
+
+  @override
+  Future<void> seekBackward(bool begin) async {}
+
+  @override
+  Future<void> seekForward(bool begin) async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<dynamic> customAction(String name, dynamic arguments) async {}
+
+  @override
+  Future<void> onTaskRemoved() async {}
+
+  @override
+  Future<void> onNotificationDeleted() async {
+    await stop();
+  }
+
+  @override
+  Future<List<MediaItem>> getChildren(String parentMediaId) async => null;
+
+  @override
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId) => null;
+
+  @override
+  ValueStream<PlaybackState> get playbackStateStream =>
+      playbackStateSubject.stream;
+
+  @override
+  ValueStream<List<MediaItem>> get queueStream => queueSubject.stream;
+
+  @override
+  ValueStream<MediaItem> get mediaItemStream => mediaItemSubject.stream;
+
+  @override
+  Stream<dynamic> get customEventStream => customEventSubject.stream;
+}
+
+mixin SeekHandler on BaseAudioHandler {
+  _Seeker _seeker;
+
+  @override
+  Future<void> fastForward([Duration interval]) => _seekRelative(interval);
+
+  @override
+  Future<void> rewind([Duration interval]) => _seekRelative(-interval);
+
+  @override
+  Future<void> seekForward(bool begin) async => _seekContinuously(begin, 1);
+
+  @override
+  Future<void> seekBackward(bool begin) async => _seekContinuously(begin, -1);
+
+  /// Jumps away from the current position by [offset].
+  Future<void> _seekRelative(Duration offset) async {
+    var newPosition = playbackState.position + offset;
+    // Make sure we don't jump out of bounds.
+    if (newPosition < Duration.zero) newPosition = Duration.zero;
+    if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
+    // Perform the jump via a seek.
+    await seekTo(newPosition);
+  }
+
+  /// Begins or stops a continuous seek in [direction]. After it begins it will
+  /// continue seeking forward or backward by 10 seconds within the audio, at
+  /// intervals of 1 second in app time.
+  void _seekContinuously(bool begin, int direction) {
+    _seeker?.stop();
+    if (begin) {
+      _seeker = _Seeker(this, Duration(seconds: 10 * direction),
+          Duration(seconds: 1), mediaItem)
+        ..start();
     }
   }
 }
 
-/// An audio task that can run in the background and react to audio events.
-///
-/// You should subclass [BackgroundAudioTask] and override the callbacks for
-/// each type of event that your background task wishes to react to. At a
-/// minimum, you must override [onStart] and [onStop] to handle initialising
-/// and shutting down the audio task.
-abstract class BackgroundAudioTask {
-  /// Called when a client has requested to terminate this background audio
-  /// task, in response to [AudioService.stop]. You should implement this
-  /// method to stop playing audio and dispose of any resources used.
-  ///
-  /// If you override this, make sure your method ends with a call to `await
-  /// super.onStop()`. The isolate containing this task will shut down as soon
-  /// as this method completes.
-  @mustCallSuper
-  Future<void> onStop() async {
-    await AudioServiceBackground._stop();
-  }
+class _Seeker {
+  final AudioHandler handler;
+  final Duration positionInterval;
+  final Duration stepInterval;
+  final MediaItem mediaItem;
+  bool _running = false;
 
-  /// Called when a media browser client, such as Android Auto, wants to query
-  /// the available media items to display to the user.
-  Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
+  _Seeker(
+    this.handler,
+    this.positionInterval,
+    this.stepInterval,
+    this.mediaItem,
+  );
 
-  /// Called when the media button on the headset is pressed, or in response to
-  /// a call from [AudioService.click]. The default behaviour is:
-  ///
-  /// * On [MediaButton.media], toggle [onPlay] and [onPause].
-  /// * On [MediaButton.next], call [onSkipToNext].
-  /// * On [MediaButton.previous], call [onSkipToPrevious].
-  Future<void> onClick(MediaButton button) async {
-    print('onClick($button)');
-    switch (button) {
-      case MediaButton.media:
-        if (AudioServiceBackground.state?.playing == true) {
-          await onPause();
-        } else {
-          await onPlay();
-        }
-        break;
-      case MediaButton.next:
-        await onSkipToNext();
-        break;
-      case MediaButton.previous:
-        await onSkipToPrevious();
-        break;
+  start() async {
+    _running = true;
+    while (_running) {
+      Duration newPosition = handler.playbackState.position + positionInterval;
+      if (newPosition < Duration.zero) newPosition = Duration.zero;
+      if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
+      handler.seekTo(newPosition);
+      await Future.delayed(stepInterval);
     }
   }
 
-  /// Called when a client has requested to pause audio playback, such as via a
-  /// call to [AudioService.pause]. You should implement this method to pause
-  /// audio playback and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
-  Future<void> onPause() async {}
+  stop() {
+    _running = false;
+  }
+}
 
-  /// Called when a client has requested to prepare audio for playback, such as
-  /// via a call to [AudioService.prepare].
-  Future<void> onPrepare() async {}
+mixin QueueHandler on BaseAudioHandler {
+  @override
+  Future<void> addQueueItem(MediaItem mediaItem) async {
+    queueSubject.add(queue..add(mediaItem));
+    return super.addQueueItem(mediaItem);
+  }
 
-  /// Called when a client has requested to prepare a specific media item for
-  /// audio playback, such as via a call to [AudioService.prepareFromMediaId].
-  Future<void> onPrepareFromMediaId(String mediaId) async {}
+  @override
+  Future<void> addQueueItems(List<MediaItem> mediaItems) async {
+    queueSubject.add(queue..addAll(mediaItems));
+    return super.addQueueItems(mediaItems);
+  }
 
-  /// Called when a client has requested to resume audio playback, such as via
-  /// a call to [AudioService.play]. You should implement this method to play
-  /// audio and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
-  Future<void> onPlay() async {}
+  @override
+  Future<void> insertQueueItem(int index, MediaItem mediaItem) async {
+    queueSubject.add(queue..insert(index, mediaItem));
+    return super.insertQueueItem(index, mediaItem);
+  }
 
-  /// Called when a client has requested to play a media item by its ID, such
-  /// as via a call to [AudioService.playFromMediaId]. You should implement
-  /// this method to play audio and also broadcast the appropriate state change
-  /// via [AudioServiceBackground.setState].
-  Future<void> onPlayFromMediaId(String mediaId) async {}
+  @override
+  Future<void> updateQueue(List<MediaItem> queue) async {
+    queueSubject.add(this.queue..replaceRange(0, this.queue.length, queue));
+    return super.updateQueue(queue);
+  }
 
-  /// Called when the Flutter UI has requested to play a given media item via a
-  /// call to [AudioService.playMediaItem]. You should implement this method to
-  /// play audio and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
-  ///
-  /// Note: This method can only be triggered by your Flutter UI. Peripheral
-  /// devices such as Android Auto will instead trigger
-  /// [AudioService.onPlayFromMediaId].
-  Future<void> onPlayMediaItem(MediaItem mediaItem) async {}
+  @override
+  Future<void> updateMediaItem(MediaItem mediaItem) async {
+    queueSubject.add(this.queue..[this.queue.indexOf(mediaItem)] = mediaItem);
+    return super.updateMediaItem(mediaItem);
+  }
 
-  /// Called when a client has requested to add a media item to the queue, such
-  /// as via a call to [AudioService.addQueueItem].
-  Future<void> onAddQueueItem(MediaItem mediaItem) async {}
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) async {
+    queueSubject.add(this.queue..remove(mediaItem));
+    return super.removeQueueItem(mediaItem);
+  }
 
-  /// Called when a client has requested to add a list of media items to the
-  /// queue.
-  Future<void> onAddQueueItems(List<MediaItem> mediaItems) async {}
+  @override
+  Future<void> skipToNext() async {
+    await _skip(1);
+    return super.skipToNext();
+  }
 
-  /// Called when the Flutter UI has requested to set a new queue.
-  ///
-  /// If you use a queue, your implementation of this method should call
-  /// [AudioServiceBackground.setQueue] to notify all clients that the queue
-  /// has changed.
-  Future<void> onUpdateQueue(List<MediaItem> queue) async {}
+  @override
+  Future<void> skipToPrevious() async {
+    await _skip(-1);
+    return super.skipToPrevious();
+  }
 
-  /// Called when the Flutter UI has requested to update the details of
-  /// a media item.
-  Future<void> onUpdateMediaItem(MediaItem mediaItem) async {}
-
-  /// Called when a client has requested to add a media item to the queue at a
-  /// specified position, such as via a request to
-  /// [AudioService.addQueueItemAt].
-  Future<void> onAddQueueItemAt(MediaItem mediaItem, int index) async {}
-
-  /// Called when a client has requested to remove a media item from the queue,
-  /// such as via a request to [AudioService.removeQueueItem].
-  Future<void> onRemoveQueueItem(MediaItem mediaItem) async {}
-
-  /// Called when a client has requested to skip to the next item in the queue,
-  /// such as via a request to [AudioService.skipToNext].
-  ///
-  /// By default, calls [onSkipToQueueItem] with the queue item after
-  /// [AudioServiceBackground.mediaItem] if it exists.
-  Future<void> onSkipToNext() => _skip(1);
-
-  /// Called when a client has requested to skip to the previous item in the
-  /// queue, such as via a request to [AudioService.skipToPrevious].
-  ///
-  /// By default, calls [onSkipToQueueItem] with the queue item before
-  /// [AudioServiceBackground.mediaItem] if it exists.
-  Future<void> onSkipToPrevious() => _skip(-1);
-
-  /// Called when a client has requested to fast forward, such as via a request
-  /// to [AudioService.fastForward]. An implementation of this callback can use
-  /// [interval] to determine how much audio to skip.
-  Future<void> onFastForward(Duration interval) async {}
-
-  /// Called when a client has requested to rewind, such as via a request to
-  /// [AudioService.rewind]. An implementation of this callback can use
-  /// [interval] to determine how much audio to skip.
-  Future<void> onRewind(Duration interval) async {}
-
-  /// Called when a client has requested to skip to a specific item in the
-  /// queue, such as via a call to [AudioService.skipToQueueItem].
-  Future<void> onSkipToQueueItem(String mediaId) async {}
-
-  /// Called when a client has requested to seek to a position, such as via a
-  /// call to [AudioService.seekTo]. If your implementation of seeking causes
-  /// buffering to occur, consider broadcasting a buffering state via
-  /// [AudioServiceBackground.setState] while the seek is in progress.
-  Future<void> onSeekTo(Duration position) async {}
-
-  /// Called when a client has requested to rate the current media item, such as
-  /// via a call to [AudioService.setRating].
-  Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
-
-  /// Called when a client has requested to change the current repeat mode.
-  Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {}
-
-  /// Called when a client has requested to change the current shuffle mode.
-  Future<void> onSetShuffleMode(AudioServiceShuffleMode shuffleMode) async {}
-
-  /// Called when a client has requested to either begin or end seeking
-  /// backward.
-  Future<void> onSeekBackward(bool begin) async {}
-
-  /// Called when a client has requested to either begin or end seeking
-  /// forward.
-  Future<void> onSeekForward(bool begin) async {}
-
-  /// Called when the Flutter UI has requested to set the speed of audio
-  /// playback. An implementation of this callback should change the audio
-  /// speed and broadcast the speed change to all clients via
-  /// [AudioServiceBackground.setState].
-  Future<void> onSetSpeed(double speed) async {}
-
-  /// Called when a custom action has been sent by the client via
-  /// [AudioService.customAction]. The result of this method will be returned
-  /// to the client.
-  Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
-
-  /// Called on Android when the user swipes away your app's task in the task
-  /// manager. Note that if you use the `androidStopForegroundOnPause` option to
-  /// [AudioService.start], then when your audio is paused, the operating
-  /// system moves your service to a lower priority level where it can be
-  /// destroyed at any time to reclaim memory. If the user swipes away your
-  /// task under these conditions, the operating system will destroy your
-  /// service, and you may override this method to do any cleanup. For example:
-  ///
-  /// ```dart
-  /// Future<void> onTaskRemoved() {
-  ///   if (!AudioServiceBackground.state.playing) {
-  ///     await onStop();
-  ///   }
-  /// }
-  /// ```
-  Future<void> onTaskRemoved() async {}
-
-  /// Called on Android when the user swipes away the notification. The default
-  /// implementation (which you may override) calls [onStop]. Note that by
-  /// default, the service runs in the foreground state which (despite the name)
-  /// allows the service to run at a high priority in the background without the
-  /// operating system killing it. While in the foreground state, the
-  /// notification cannot be swiped away. You can pass a parameter value of
-  /// `true` for `androidStopForegroundOnPause` in the [AudioService.start]
-  /// method if you would like the service to exit the foreground state when
-  /// playback is paused. This will allow the user to swipe the notification
-  /// away while playback is paused (but it will also allow the operating system
-  /// to kill your service at any time to free up resources).
-  Future<void> onClose() => onStop();
+  Future<void> skipToQueueItem(String mediaId) async {
+    final mediaItem = queue.firstWhere((mediaItem) => mediaItem.id == mediaId);
+    mediaItemSubject.add(mediaItem);
+  }
 
   Future<void> _skip(int offset) async {
-    final mediaItem = AudioServiceBackground.mediaItem;
     if (mediaItem == null) return;
-    final queue = AudioServiceBackground.queue ?? [];
     int i = queue.indexOf(mediaItem);
     if (i == -1) return;
     int newIndex = i + offset;
-    if (newIndex >= 0 && newIndex < queue.length)
-      await onSkipToQueueItem(queue[newIndex]?.id);
+    if (newIndex >= 0 && newIndex < queue.length) {
+      await skipToQueueItem(queue[newIndex]?.id);
+    }
   }
+}
+
+class MyAudioHandler extends BaseAudioHandler with QueueHandler {
+  @override
+  // TODO: implement playbackStateStream
+  ValueStream<PlaybackState> get playbackStateStream =>
+      throw UnimplementedError();
+
+  @override
+  // TODO: implement mediaItemStream
+  ValueStream<MediaItem> get mediaItemStream => throw UnimplementedError();
 }
 
 enum AudioServiceShuffleMode { none, all, group }
 
 enum AudioServiceRepeatMode { none, one, all, group }
-
-class _AsyncTaskQueue {
-  final _queuedAsyncTaskController = StreamController<_AsyncTaskQueueEntry>();
-
-  _AsyncTaskQueue() {
-    _process();
-  }
-
-  Future<void> _process() async {
-    await for (var entry in _queuedAsyncTaskController.stream) {
-      try {
-        final result = await entry.asyncTask();
-        entry.completer.complete(result);
-      } catch (e, stacktrace) {
-        entry.completer.completeError(e, stacktrace);
-      }
-    }
-  }
-
-  Future<dynamic> schedule(_AsyncTask asyncTask) async {
-    final completer = Completer<dynamic>();
-    _queuedAsyncTaskController.add(_AsyncTaskQueueEntry(asyncTask, completer));
-    return completer.future;
-  }
-}
-
-class _AsyncTaskQueueEntry {
-  final _AsyncTask asyncTask;
-  final Completer completer;
-
-  _AsyncTaskQueueEntry(this.asyncTask, this.completer);
-}
-
-typedef _AsyncTask = Future<dynamic> Function();
 
 bool get _testing => HttpOverrides.current != null;
 
@@ -1782,6 +1759,7 @@ class AudioServiceConfig {
   final Duration fastForwardInterval;
   final Duration rewindInterval;
   final bool androidEnableQueue;
+  final bool preloadArtwork;
 
   const AudioServiceConfig({
     this.androidResumeOnClick = true,
@@ -1798,6 +1776,7 @@ class AudioServiceConfig {
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
     this.androidEnableQueue = false,
+    this.preloadArtwork = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -1817,5 +1796,6 @@ class AudioServiceConfig {
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
         'androidEnableQueue': androidEnableQueue,
+        'preloadArtwork': preloadArtwork,
       };
 }

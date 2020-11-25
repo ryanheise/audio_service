@@ -425,14 +425,15 @@ public class AudioService extends MediaBrowserServiceCompat {
         for (NotificationCompat.Action action : actions) {
             builder.addAction(action);
         }
-        builder.setStyle(new MediaStyle()
-                .setMediaSession(mediaSession.getSessionToken())
-                .setShowActionsInCompactView(compactActionIndices)
-                .setShowCancelButton(true)
-                .setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP))
-        );
-        if (config.androidNotificationOngoing)
+        final MediaStyle style = new MediaStyle()
+            .setMediaSession(mediaSession.getSessionToken())
+            .setShowActionsInCompactView(compactActionIndices);
+        if (config.androidNotificationOngoing) {
+            style.setShowCancelButton(true);
+            style.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP));
             builder.setOngoing(true);
+        }
+        builder.setStyle(style);
         Notification notification = builder.build();
         return notification;
     }
