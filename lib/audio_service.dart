@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io' show HttpOverrides, Platform;
 import 'dart:isolate';
-import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:audio_session/audio_session.dart';
@@ -9,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Name of port used to send custom events.
@@ -588,18 +586,9 @@ class AudioService {
   /// If a seek is in progress, this holds the position we are seeking to.
   static Duration _seekPos;
 
-  /// True after service stopped and !running.
-  static bool _afterStop = false;
-
   /// Receives custom events from the background audio task.
   static ReceivePort _customEventReceivePort;
   static StreamSubscription _customEventSubscription;
-
-  static Completer<void> _startNonIsolateCompleter;
-
-  static void _startedNonIsolate() {
-    _startNonIsolateCompleter?.complete();
-  }
 
   /// A queue of tasks to be processed serially. Tasks that are processed on
   /// this queue:
@@ -613,117 +602,78 @@ class AudioService {
 
   static BehaviorSubject<Duration> _positionSubject;
 
-  /// Connects to the service from your UI so that audio playback can be
-  /// controlled.
-  ///
-  /// This method should be called when your UI becomes visible, and
-  /// [disconnect] should be called when your UI is no longer visible. All
-  /// other methods in this class will work only while connected.
-  ///
-  /// Use [AudioServiceWidget] to handle this automatically.
-  static Future<void> connect() => _asyncTaskQueue.schedule(() async {
-        if (_connected) return;
-        final handler = (MethodCall call) async {
-          switch (call.method) {
-            case 'onChildrenLoaded':
-              final List<Map> args = List<Map>.from(call.arguments[0]);
-              _browseMediaChildrenSubject
-                  .add(args.map((raw) => MediaItem.fromJson(raw)).toList());
-              break;
-            case 'onPlaybackStateChanged':
-              // If this event arrives too late, ignore it.
-              if (_afterStop) return;
-              final List args = call.arguments;
-              int actionBits = args[2];
-              _playbackStateSubject.add(PlaybackState(
-                processingState: AudioProcessingState.values[args[0]],
-                playing: args[1],
-                actions: MediaAction.values
-                    .where((action) => (actionBits & (1 << action.index)) != 0)
-                    .toSet(),
-                position: Duration(milliseconds: args[3]),
-                bufferedPosition: Duration(milliseconds: args[4]),
-                speed: args[5],
-                updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
-                repeatMode: AudioServiceRepeatMode.values[args[7]],
-                shuffleMode: AudioServiceShuffleMode.values[args[8]],
-              ));
-              break;
-            case 'onMediaChanged':
-              _currentMediaItemSubject.add(call.arguments[0] != null
-                  ? MediaItem.fromJson(call.arguments[0])
-                  : null);
-              break;
-            case 'onQueueChanged':
-              final List<Map> args = call.arguments[0] != null
-                  ? List<Map>.from(call.arguments[0])
-                  : null;
-              _queueSubject
-                  .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
-              break;
-            case 'onStopped':
-              _browseMediaChildrenSubject.add(null);
-              _playbackStateSubject.add(null);
-              _currentMediaItemSubject.add(null);
-              _queueSubject.add(null);
-              _notificationSubject.add(false);
-              _runningSubject.add(false);
-              _afterStop = true;
-              break;
-            case 'notificationClicked':
-              _notificationSubject.add(call.arguments[0]);
-              break;
-          }
-        };
-        if (_testing) {
-          MethodChannel('ryanheise.com/audioServiceInverse')
-              .setMockMethodCallHandler(handler);
-        } else {
-          _channel.setMethodCallHandler(handler);
-        }
-        if (AudioService.usesIsolate) {
-          _customEventReceivePort = ReceivePort();
-          _customEventSubscription = _customEventReceivePort.listen((event) {
-            _customEventSubject.add(event);
-          });
-          IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
-          IsolateNameServer.registerPortWithName(
-              _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
-        }
-        await _channel.invokeMethod("connect");
-        final running = await _channel.invokeMethod("isRunning");
-        if (running != AudioService.running) {
-          _runningSubject.add(running);
-        }
-        _connected = true;
+  static BackgroundAudioTask get _task => AudioServiceBackground._task;
+
+  static Future<void> init({
+    @required BackgroundAudioTask taskBuilder(),
+    AudioServiceConfig config = const AudioServiceConfig(),
+  }) async {
+    print("### AudioService.init");
+    WidgetsFlutterBinding.ensureInitialized();
+    final handler = (MethodCall call) async {
+      print("### UI received ${call.method}");
+      switch (call.method) {
+        case 'onChildrenLoaded':
+          final List<Map> args = List<Map>.from(call.arguments[0]);
+          _browseMediaChildrenSubject
+              .add(args.map((raw) => MediaItem.fromJson(raw)).toList());
+          break;
+        case 'onPlaybackStateChanged':
+          final List args = call.arguments;
+          int actionBits = args[2];
+          _playbackStateSubject.add(PlaybackState(
+            processingState: AudioProcessingState.values[args[0]],
+            playing: args[1],
+            actions: MediaAction.values
+                .where((action) => (actionBits & (1 << action.index)) != 0)
+                .toSet(),
+            position: Duration(milliseconds: args[3]),
+            bufferedPosition: Duration(milliseconds: args[4]),
+            speed: args[5],
+            updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
+            repeatMode: AudioServiceRepeatMode.values[args[7]],
+            shuffleMode: AudioServiceShuffleMode.values[args[8]],
+          ));
+          break;
+        case 'onMediaChanged':
+          _currentMediaItemSubject.add(call.arguments[0] != null
+              ? MediaItem.fromJson(call.arguments[0])
+              : null);
+          break;
+        case 'onQueueChanged':
+          final List<Map> args = call.arguments[0] != null
+              ? List<Map>.from(call.arguments[0])
+              : null;
+          _queueSubject
+              .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
+          break;
+        case 'notificationClicked':
+          _notificationSubject.add(call.arguments[0]);
+          break;
+      }
+    };
+    if (_testing) {
+      MethodChannel('ryanheise.com/audioServiceInverse')
+          .setMockMethodCallHandler(handler);
+    } else {
+      _channel.setMethodCallHandler(handler);
+    }
+    if (usesIsolate) {
+      _customEventReceivePort = ReceivePort();
+      _customEventSubscription = _customEventReceivePort.listen((event) {
+        _customEventSubject.add(event);
       });
+      IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
+      IsolateNameServer.registerPortWithName(
+          _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
+    }
 
-  /// Disconnects your UI from the service.
-  ///
-  /// This method should be called when the UI is no longer visible.
-  ///
-  /// Use [AudioServiceWidget] to handle this automatically.
-  static Future<void> disconnect() => _asyncTaskQueue.schedule(() async {
-        if (!_connected) return;
-        _channel.setMethodCallHandler(null);
-        _customEventSubscription?.cancel();
-        _customEventSubscription = null;
-        _customEventReceivePort = null;
-        await _channel.invokeMethod("disconnect");
-        _connected = false;
-      });
-
-  /// True if the UI is connected.
-  static bool get connected => _connected;
-  static bool _connected = false;
-
-  static final _runningSubject = BehaviorSubject<bool>();
-
-  /// A stream indicating when the [running] state changes.
-  static get runningStream => _runningSubject.stream;
-
-  /// True if the background audio task is running.
-  static bool get running => _runningSubject.value;
+    await _channel.invokeMethod('configure', config.toJson());
+    await AudioServiceBackground._register(
+      taskBuilder: taskBuilder,
+      config: config,
+    );
+  }
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off. Only one background audio task
@@ -780,9 +730,8 @@ class AudioService {
   /// This method waits for [BackgroundAudioTask.onStart] to complete, and
   /// completes with true if the task was successfully started, or false
   /// otherwise.
-  static Future<bool> start({
+  static Future<bool> configure({
     @required Function backgroundTaskEntrypoint,
-    Map<String, dynamic> params,
     String androidNotificationChannelName = "Notifications",
     String androidNotificationChannelDescription,
     int androidNotificationColor,
@@ -794,76 +743,31 @@ class AudioService {
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
     Size androidArtDownscaleSize,
-    Duration fastForwardInterval = const Duration(seconds: 10),
-    Duration rewindInterval = const Duration(seconds: 10),
+    //Duration fastForwardInterval = const Duration(seconds: 10),
+    //Duration rewindInterval = const Duration(seconds: 10),
   }) async {
-    assert(fastForwardInterval > Duration.zero,
-        "fastForwardDuration must be positive");
-    assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
-    return await _asyncTaskQueue.schedule(() async {
-      if (!_connected) throw Exception("Not connected");
-      if (running) return false;
-      _runningSubject.add(true);
-      _afterStop = false;
-      ui.CallbackHandle handle;
-      if (AudioService.usesIsolate) {
-        handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
-        if (handle == null) {
-          return false;
-        }
-      }
+    //assert(fastForwardInterval > Duration.zero,
+    //    "fastForwardDuration must be positive");
+    //assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
 
-      var callbackHandle = handle?.toRawHandle();
-      if (kIsWeb) {
-        // Platform throws runtime exceptions on web
-      } else if (Platform.isIOS) {
-        // NOTE: to maintain compatibility between the Android and iOS
-        // implementations, we ensure that the iOS background task also runs in
-        // an isolate. Currently, the standard Isolate API does not allow
-        // isolates to invoke methods on method channels. That may be fixed in
-        // the future, but until then, we use the flutter_isolate plugin which
-        // creates a FlutterNativeView for us, similar to what the Android
-        // implementation does.
-        // TODO: remove dependency on flutter_isolate by either using the
-        // FlutterNativeView API directly or by waiting until Flutter allows
-        // regular isolates to use method channels.
-        await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
-      }
-      final success = await _channel.invokeMethod('start', {
-        'callbackHandle': callbackHandle,
-        'params': params,
-        'androidNotificationChannelName': androidNotificationChannelName,
-        'androidNotificationChannelDescription':
-            androidNotificationChannelDescription,
-        'androidNotificationColor': androidNotificationColor,
-        'androidNotificationIcon': androidNotificationIcon,
-        'androidShowNotificationBadge': androidShowNotificationBadge,
-        'androidNotificationClickStartsActivity':
-            androidNotificationClickStartsActivity,
-        'androidNotificationOngoing': androidNotificationOngoing,
-        'androidResumeOnClick': androidResumeOnClick,
-        'androidStopForegroundOnPause': androidStopForegroundOnPause,
-        'androidEnableQueue': androidEnableQueue,
-        'androidArtDownscaleSize': androidArtDownscaleSize != null
-            ? {
-                'width': androidArtDownscaleSize.width,
-                'height': androidArtDownscaleSize.height
-              }
-            : null,
-        'fastForwardInterval': fastForwardInterval.inMilliseconds,
-        'rewindInterval': rewindInterval.inMilliseconds,
-      });
-      if (!AudioService.usesIsolate) {
-        _startNonIsolateCompleter = Completer();
-        backgroundTaskEntrypoint();
-        await _startNonIsolateCompleter?.future;
-        _startNonIsolateCompleter = null;
-      }
-      if (!success) {
-        _runningSubject.add(false);
-      }
-      return success;
+    final success = await _channel.invokeMethod('configure', {
+      'androidNotificationChannelName': androidNotificationChannelName,
+      'androidNotificationChannelDescription':
+          androidNotificationChannelDescription,
+      'androidNotificationColor': androidNotificationColor,
+      'androidNotificationIcon': androidNotificationIcon,
+      'androidShowNotificationBadge': androidShowNotificationBadge,
+      'androidNotificationClickStartsActivity':
+          androidNotificationClickStartsActivity,
+      'androidNotificationOngoing': androidNotificationOngoing,
+      'androidResumeOnClick': androidResumeOnClick,
+      'androidStopForegroundOnPause': androidStopForegroundOnPause,
+      'androidEnableQueue': androidEnableQueue,
+      'artDownscaleWidth': androidArtDownscaleSize?.width?.round(),
+      'artDownscaleHeight': androidArtDownscaleSize?.height?.round(),
     });
+    backgroundTaskEntrypoint();
+    return success;
   }
 
   /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
@@ -877,67 +781,63 @@ class AudioService {
   /// queue. This passes through to the `onAddQueueItem` method in your
   /// background audio task.
   static Future<void> addQueueItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('addQueueItem', mediaItem.toJson());
+    await _task.onAddQueueItem(mediaItem);
   }
 
   /// Sends a request to your background audio task to add a item to the queue
   /// at a particular position. This passes through to the `onAddQueueItemAt`
   /// method in your background audio task.
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
-    await _channel.invokeMethod('addQueueItemAt', [mediaItem.toJson(), index]);
+    await _task.onAddQueueItemAt(mediaItem, index);
   }
 
   /// Sends a request to your background audio task to remove an item from the
   /// queue. This passes through to the `onRemoveQueueItem` method in your
   /// background audio task.
   static Future<void> removeQueueItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('removeQueueItem', mediaItem.toJson());
+    await _task.onRemoveQueueItem(mediaItem);
   }
 
-  /// A convenience method calls [addQueueItem] for each media item in the
-  /// given list. Note that this will be inefficient if you are adding a lot
-  /// of media items at once. If possible, you should use [updateQueue]
-  /// instead.
+  /// Sends a request to your background audio task to add a list of item to the
+  /// queue. This passes through to the `onAddQueueItems` method in your
+  /// background audio task.
   static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    for (var mediaItem in mediaItems) {
-      await addQueueItem(mediaItem);
-    }
+    await _task.onAddQueueItems(mediaItems);
   }
 
   /// Sends a request to your background audio task to replace the queue with a
   /// new list of media items. This passes through to the `onUpdateQueue`
   /// method in your background audio task.
   static Future<void> updateQueue(List<MediaItem> queue) async {
-    await _channel.invokeMethod(
-        'updateQueue', queue.map((item) => item.toJson()).toList());
+    await _task.onUpdateQueue(queue);
   }
 
   /// Sends a request to your background audio task to update the details of a
   /// media item. This passes through to the 'onUpdateMediaItem' method in your
   /// background audio task.
   static Future<void> updateMediaItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('updateMediaItem', mediaItem.toJson());
+    await _task.onUpdateMediaItem(mediaItem);
   }
 
   /// Programmatically simulates a click of a media button on the headset.
   ///
   /// This passes through to `onClick` in the background audio task.
   static Future<void> click([MediaButton button = MediaButton.media]) async {
-    await _channel.invokeMethod('click', button.index);
+    await _task.onClick(button);
   }
 
   /// Sends a request to your background audio task to prepare for audio
   /// playback. This passes through to the `onPrepare` method in your
   /// background audio task.
   static Future<void> prepare() async {
-    await _channel.invokeMethod('prepare');
+    await _task.onPrepare();
   }
 
   /// Sends a request to your background audio task to prepare for playing a
   /// particular media item. This passes through to the `onPrepareFromMediaId`
   /// method in your background audio task.
   static Future<void> prepareFromMediaId(String mediaId) async {
-    await _channel.invokeMethod('prepareFromMediaId', mediaId);
+    await _task.onPrepareFromMediaId(mediaId);
   }
 
   //static Future<void> prepareFromSearch(String query, Bundle extras) async {}
@@ -946,21 +846,21 @@ class AudioService {
   /// Sends a request to your background audio task to play the current media
   /// item. This passes through to 'onPlay' in your background audio task.
   static Future<void> play() async {
-    await _channel.invokeMethod('play');
+    await _task.onPlay();
   }
 
   /// Sends a request to your background audio task to play a particular media
   /// item referenced by its media id. This passes through to the
   /// 'onPlayFromMediaId' method in your background audio task.
   static Future<void> playFromMediaId(String mediaId) async {
-    await _channel.invokeMethod('playFromMediaId', mediaId);
+    await _task.onPlayFromMediaId(mediaId);
   }
 
   /// Sends a request to your background audio task to play a particular media
   /// item. This passes through to the 'onPlayMediaItem' method in your
   /// background audio task.
   static Future<void> playMediaItem(MediaItem mediaItem) async {
-    await _channel.invokeMethod('playMediaItem', mediaItem.toJson());
+    await _task.onPlayMediaItem(mediaItem);
   }
 
   //static Future<void> playFromSearch(String query, Bundle extras) async {}
@@ -970,20 +870,20 @@ class AudioService {
   /// item in the queue. This passes through to the `onSkipToQueueItem` method
   /// in your background audio task.
   static Future<void> skipToQueueItem(String mediaId) async {
-    await _channel.invokeMethod('skipToQueueItem', mediaId);
+    await _task.onSkipToQueueItem(mediaId);
   }
 
   /// Sends a request to your background audio task to pause playback. This
   /// passes through to the `onPause` method in your background audio task.
   static Future<void> pause() async {
-    await _channel.invokeMethod('pause');
+    await _task.onPause();
   }
 
   /// Sends a request to your background audio task to stop playback and shut
   /// down the task. This passes through to the `onStop` method in your
   /// background audio task.
   static Future<void> stop() async {
-    await _channel.invokeMethod('stop');
+    await _task.onStop();
   }
 
   /// Sends a request to your background audio task to seek to a particular
@@ -991,7 +891,7 @@ class AudioService {
   /// method in your background audio task.
   static Future<void> seekTo(Duration position) async {
     _seekPos = position;
-    await _channel.invokeMethod('seekTo', position.inMilliseconds);
+    await _task.onSeekTo(position);
     _seekPos = null;
   }
 
@@ -999,28 +899,29 @@ class AudioService {
   /// the queue. This passes through to the `onSkipToNext` method in your
   /// background audio task.
   static Future<void> skipToNext() async {
-    await _channel.invokeMethod('skipToNext');
+    await _task.onSkipToNext();
   }
 
   /// Sends a request to your background audio task to skip to the previous
   /// item in the queue. This passes through to the `onSkipToPrevious` method
   /// in your background audio task.
   static Future<void> skipToPrevious() async {
-    await _channel.invokeMethod('skipToPrevious');
+    await _task.onSkipToPrevious();
   }
 
   /// Sends a request to your background audio task to fast forward by the
   /// interval passed into the [start] method. This passes through to the
   /// `onFastForward` method in your background audio task.
   static Future<void> fastForward() async {
-    await _channel.invokeMethod('fastForward');
+    await _task
+        .onFastForward(AudioServiceBackground._config.fastForwardInterval);
   }
 
   /// Sends a request to your background audio task to rewind by the interval
   /// passed into the [start] method. This passes through to the `onRewind`
   /// method in the background audio task.
   static Future<void> rewind() async {
-    await _channel.invokeMethod('rewind');
+    await _task.onRewind(AudioServiceBackground._config.rewindInterval);
   }
 
   //static Future<void> setCaptioningEnabled(boolean enabled) async {}
@@ -1029,7 +930,7 @@ class AudioService {
   /// This passes through to the `onSetRepeatMode` method in your background
   /// audio task.
   static Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
-    await _channel.invokeMethod('setRepeatMode', repeatMode.index);
+    await _task.onSetRepeatMode(repeatMode);
   }
 
   /// Sends a request to your background audio task to set the shuffle mode.
@@ -1037,7 +938,7 @@ class AudioService {
   /// audio task.
   static Future<void> setShuffleMode(
       AudioServiceShuffleMode shuffleMode) async {
-    await _channel.invokeMethod('setShuffleMode', shuffleMode.index);
+    await _task.onSetShuffleMode(shuffleMode);
   }
 
   /// Sends a request to your background audio task to set a rating on the
@@ -1046,31 +947,28 @@ class AudioService {
   /// types!
   static Future<void> setRating(Rating rating,
       [Map<String, dynamic> extras]) async {
-    await _channel.invokeMethod('setRating', {
-      "rating": rating._toRaw(),
-      "extras": extras,
-    });
+    await _task.onSetRating(rating, extras);
   }
 
   /// Sends a request to your background audio task to set the audio playback
   /// speed. This passes through to the `onSetSpeed` method in your background
   /// audio task.
   static Future<void> setSpeed(double speed) async {
-    await _channel.invokeMethod('setSpeed', speed);
+    await _task.onSetSpeed(speed);
   }
 
   /// Sends a request to your background audio task to begin or end seeking
   /// backward. This method passes through to the `onSeekBackward` method in
   /// your background audio task.
   static Future<void> seekBackward(bool begin) async {
-    await _channel.invokeMethod('seekBackward', begin);
+    await _task.onSeekBackward(begin);
   }
 
   /// Sends a request to your background audio task to begin or end seek
   /// forward. This method passes through to the `onSeekForward` method in your
   /// background audio task.
   static Future<void> seekForward(bool begin) async {
-    await _channel.invokeMethod('seekForward', begin);
+    await _task.onSeekForward(begin);
   }
 
   //static Future<void> sendCustomAction(PlaybackStateCompat.CustomAction customAction,
@@ -1082,7 +980,7 @@ class AudioService {
   /// This may be used for your own purposes. [arguments] can be any data that
   /// is encodable by `StandardMessageCodec`.
   static Future customAction(String name, [dynamic arguments]) async {
-    return await _channel.invokeMethod('$_CUSTOM_PREFIX$name', arguments);
+    return await _task.onCustomAction(name, arguments);
   }
 
   /// A stream tracking the current position, suitable for animating a seek bar.
@@ -1189,9 +1087,11 @@ class AudioServiceBackground {
   static List<MediaAction> _systemActions = [];
   static MediaItem _mediaItem;
   static List<MediaItem> _queue;
-  static BaseCacheManager _cacheManager;
+
+  /// The cache to use when loading artwork. Defaults to [DefaultCacheManager].
+  static BaseCacheManager cacheManager = DefaultCacheManager();
   static BackgroundAudioTask _task;
-  static bool _running = false;
+  static AudioServiceConfig _config;
 
   /// The current media playback state.
   ///
@@ -1216,14 +1116,16 @@ class AudioServiceBackground {
   /// initialization and distruction of the background audio task, as well as
   /// any requests by the client to play, pause and otherwise control audio
   /// playback.
-  static Future<void> run(BackgroundAudioTask taskBuilder()) async {
-    _running = true;
+  static Future<void> _register({
+    @required BackgroundAudioTask taskBuilder(),
+    AudioServiceConfig config = const AudioServiceConfig(),
+  }) async {
+    print("### AudioServiceBackground._register");
+    _task = taskBuilder();
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
-    WidgetsFlutterBinding.ensureInitialized();
-    _task = taskBuilder();
-    _cacheManager = _task.cacheManager;
     final handler = (MethodCall call) async {
+      print('### background received ${call.method}');
       try {
         switch (call.method) {
           case 'onLoadChildren':
@@ -1294,10 +1196,10 @@ class AudioServiceBackground {
             await _task.onSkipToPrevious();
             break;
           case 'onFastForward':
-            await _task.onFastForward();
+            await _task.onFastForward(_config.fastForwardInterval);
             break;
           case 'onRewind':
-            await _task.onRewind();
+            await _task.onRewind(_config.rewindInterval);
             break;
           case 'onSkipToQueueItem':
             final List args = call.arguments;
@@ -1363,51 +1265,17 @@ class AudioServiceBackground {
     } else {
       _backgroundChannel.setMethodCallHandler(handler);
     }
-    Map startParams = await _backgroundChannel.invokeMethod('ready');
-    Duration fastForwardInterval =
-        Duration(milliseconds: startParams['fastForwardInterval']);
-    Duration rewindInterval =
-        Duration(milliseconds: startParams['rewindInterval']);
-    Map<String, dynamic> params =
-        startParams['params']?.cast<String, dynamic>();
-    _task._setParams(
-      fastForwardInterval: fastForwardInterval,
-      rewindInterval: rewindInterval,
-    );
-    try {
-      await _task.onStart(params);
-    } catch (e) {} finally {
-      // For now, we return successfully from AudioService.start regardless of
-      // whether an exception occurred in onStart.
-      await _backgroundChannel.invokeMethod('started');
-      if (!AudioService.usesIsolate) {
-        AudioService._startedNonIsolate();
-      }
-    }
   }
 
   /// Shuts down the background audio task within the background isolate.
-  static Future<void> _shutdown() async {
-    if (!_running) return;
-    // Set this to false immediately so that if duplicate shutdown requests come
-    // through, they are ignored.
-    _running = false;
+  static Future<void> _stop() async {
     final audioSession = await AudioSession.instance;
     try {
       await audioSession.setActive(false);
     } catch (e) {
       print("While deactivating audio session: $e");
     }
-    _state = _noneState;
-    _controls = [];
-    _systemActions = [];
-    _queue = [];
-    await _backgroundChannel.invokeMethod('stopped');
-    if (kIsWeb) {
-    } else if (Platform.isIOS) {
-      FlutterIsolate.current?.kill();
-    }
-    _backgroundChannel.setMethodCallHandler(null);
+    await _backgroundChannel.invokeMethod('stopService');
   }
 
   /// Broadcasts to all clients the current state, including:
@@ -1546,7 +1414,7 @@ class AudioServiceBackground {
       // We potentially need to fetch the art.
       String filePath = _getLocalPath(mediaItem.artUri);
       if (filePath == null) {
-        final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
+        final fileInfo = cacheManager.getFileFromMemory(mediaItem.artUri);
         filePath = fileInfo?.file?.path;
         if (filePath == null) {
           // We haven't fetched the art yet, so show the metadata now, and again
@@ -1586,7 +1454,7 @@ class AudioServiceBackground {
         if (local != null) {
           return local;
         } else {
-          final file = await _cacheManager.getSingleFile(mediaItem.artUri);
+          final file = await cacheManager.getSingleFile(mediaItem.artUri);
           return file.path;
         }
       }
@@ -1649,28 +1517,6 @@ class AudioServiceBackground {
 /// minimum, you must override [onStart] and [onStop] to handle initialising
 /// and shutting down the audio task.
 abstract class BackgroundAudioTask {
-  final BaseCacheManager cacheManager;
-  Duration _fastForwardInterval;
-  Duration _rewindInterval;
-
-  /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
-  /// or an instance of [DefaultCacheManager] will be used by default.
-  BackgroundAudioTask({BaseCacheManager cacheManager})
-      : this.cacheManager =
-            cacheManager ?? (_testing ? null : DefaultCacheManager());
-
-  /// The fast forward interval passed into [AudioService.start].
-  Duration get fastForwardInterval => _fastForwardInterval;
-
-  /// The rewind interval passed into [AudioService.start].
-  Duration get rewindInterval => _rewindInterval;
-
-  /// Called once when this audio task is first started and ready to play
-  /// audio, in response to [AudioService.start]. [params] will contain any
-  /// params passed into [AudioService.start] when starting this background
-  /// audio task.
-  Future<void> onStart(Map<String, dynamic> params) async {}
-
   /// Called when a client has requested to terminate this background audio
   /// task, in response to [AudioService.stop]. You should implement this
   /// method to stop playing audio and dispose of any resources used.
@@ -1680,7 +1526,7 @@ abstract class BackgroundAudioTask {
   /// as this method completes.
   @mustCallSuper
   Future<void> onStop() async {
-    await AudioServiceBackground._shutdown();
+    await AudioServiceBackground._stop();
   }
 
   /// Called when a media browser client, such as Android Auto, wants to query
@@ -1694,6 +1540,7 @@ abstract class BackgroundAudioTask {
   /// * On [MediaButton.next], call [onSkipToNext].
   /// * On [MediaButton.previous], call [onSkipToPrevious].
   Future<void> onClick(MediaButton button) async {
+    print('onClick($button)');
     switch (button) {
       case MediaButton.media:
         if (AudioServiceBackground.state?.playing == true) {
@@ -1751,6 +1598,10 @@ abstract class BackgroundAudioTask {
   /// as via a call to [AudioService.addQueueItem].
   Future<void> onAddQueueItem(MediaItem mediaItem) async {}
 
+  /// Called when a client has requested to add a list of media items to the
+  /// queue.
+  Future<void> onAddQueueItems(List<MediaItem> mediaItems) async {}
+
   /// Called when the Flutter UI has requested to set a new queue.
   ///
   /// If you use a queue, your implementation of this method should call
@@ -1785,16 +1636,15 @@ abstract class BackgroundAudioTask {
   /// [AudioServiceBackground.mediaItem] if it exists.
   Future<void> onSkipToPrevious() => _skip(-1);
 
-  /// Called when a client has requested to fast forward, such as via a
-  /// request to [AudioService.fastForward]. An implementation of this callback
-  /// can use the [fastForwardInterval] property to determine how much audio
-  /// to skip.
-  Future<void> onFastForward() async {}
+  /// Called when a client has requested to fast forward, such as via a request
+  /// to [AudioService.fastForward]. An implementation of this callback can use
+  /// [interval] to determine how much audio to skip.
+  Future<void> onFastForward(Duration interval) async {}
 
   /// Called when a client has requested to rewind, such as via a request to
-  /// [AudioService.rewind]. An implementation of this callback can use the
-  /// [rewindInterval] property to determine how much audio to skip.
-  Future<void> onRewind() async {}
+  /// [AudioService.rewind]. An implementation of this callback can use
+  /// [interval] to determine how much audio to skip.
+  Future<void> onRewind(Duration interval) async {}
 
   /// Called when a client has requested to skip to a specific item in the
   /// queue, such as via a call to [AudioService.skipToQueueItem].
@@ -1865,14 +1715,6 @@ abstract class BackgroundAudioTask {
   /// to kill your service at any time to free up resources).
   Future<void> onClose() => onStop();
 
-  void _setParams({
-    Duration fastForwardInterval,
-    Duration rewindInterval,
-  }) {
-    _fastForwardInterval = fastForwardInterval;
-    _rewindInterval = rewindInterval;
-  }
-
   Future<void> _skip(int offset) async {
     final mediaItem = AudioServiceBackground.mediaItem;
     if (mediaItem == null) return;
@@ -1882,76 +1724,6 @@ abstract class BackgroundAudioTask {
     int newIndex = i + offset;
     if (newIndex >= 0 && newIndex < queue.length)
       await onSkipToQueueItem(queue[newIndex]?.id);
-  }
-}
-
-_iosIsolateEntrypoint(int rawHandle) async {
-  ui.CallbackHandle handle = ui.CallbackHandle.fromRawHandle(rawHandle);
-  Function backgroundTask = ui.PluginUtilities.getCallbackFromHandle(handle);
-  backgroundTask();
-}
-
-/// A widget that maintains a connection to [AudioService].
-///
-/// Insert this widget at the top of your `/` route's widget tree to maintain
-/// the connection across all routes. e.g.
-///
-/// ```
-/// return MaterialApp(
-///   home: AudioServiceWidget(MainScreen()),
-/// );
-/// ```
-///
-/// Note that this widget will not work if it wraps around [MateriaApp] itself,
-/// you must place it in the widget tree within your route.
-class AudioServiceWidget extends StatefulWidget {
-  final Widget child;
-
-  AudioServiceWidget({@required this.child});
-
-  @override
-  _AudioServiceWidgetState createState() => _AudioServiceWidgetState();
-}
-
-class _AudioServiceWidgetState extends State<AudioServiceWidget>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    AudioService.connect();
-  }
-
-  @override
-  void dispose() {
-    AudioService.disconnect();
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        AudioService.connect();
-        break;
-      case AppLifecycleState.paused:
-        AudioService.disconnect();
-        break;
-      default:
-        break;
-    }
-  }
-
-  @override
-  Future<bool> didPopRoute() async {
-    AudioService.disconnect();
-    return false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return widget.child;
   }
 }
 
@@ -1994,3 +1766,56 @@ class _AsyncTaskQueueEntry {
 typedef _AsyncTask = Future<dynamic> Function();
 
 bool get _testing => HttpOverrides.current != null;
+
+class AudioServiceConfig {
+  final bool androidResumeOnClick;
+  final String androidNotificationChannelName;
+  final String androidNotificationChannelDescription;
+  final int notificationColor;
+  final String androidNotificationIcon;
+  final bool androidShowNotificationBadge;
+  final bool androidNotificationClickStartsActivity;
+  final bool androidNotificationOngoing;
+  final bool androidStopForegroundOnPause;
+  final int artDownscaleWidth;
+  final int artDownscaleHeight;
+  final Duration fastForwardInterval;
+  final Duration rewindInterval;
+  final bool androidEnableQueue;
+
+  const AudioServiceConfig({
+    this.androidResumeOnClick = true,
+    this.androidNotificationChannelName = "Notifications",
+    this.androidNotificationChannelDescription,
+    this.notificationColor,
+    this.androidNotificationIcon = 'mipmap/ic_launcher',
+    this.androidShowNotificationBadge = false,
+    this.androidNotificationClickStartsActivity = true,
+    this.androidNotificationOngoing = false,
+    this.androidStopForegroundOnPause = false,
+    this.artDownscaleWidth,
+    this.artDownscaleHeight,
+    this.fastForwardInterval = const Duration(seconds: 10),
+    this.rewindInterval = const Duration(seconds: 10),
+    this.androidEnableQueue = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'androidResumeOnClick': androidResumeOnClick,
+        'androidNotificationChannelName': androidNotificationChannelName,
+        'androidNotificationChannelDescription':
+            androidNotificationChannelDescription,
+        'notificationColor': notificationColor,
+        'androidNotificationIcon': androidNotificationIcon,
+        'androidShowNotificationBadge': androidShowNotificationBadge,
+        'androidNotificationClickStartsActivity':
+            androidNotificationClickStartsActivity,
+        'androidNotificationOngoing': androidNotificationOngoing,
+        'androidStopForegroundOnPause': androidStopForegroundOnPause,
+        'artDownscaleWidth': artDownscaleWidth,
+        'artDownscaleHeight': artDownscaleHeight,
+        'fastForwardInterval': fastForwardInterval.inMilliseconds,
+        'rewindInterval': rewindInterval.inMilliseconds,
+        'androidEnableQueue': androidEnableQueue,
+      };
+}
