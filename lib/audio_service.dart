@@ -65,10 +65,9 @@ class PlaybackState {
   /// The audio processing state e.g. [BasicPlaybackState.buffering].
   final AudioProcessingState processingState;
 
-  /// Whether audio is either playing, or will play as soon as
-  /// [processingState] is [AudioProcessingState.ready]. A true value should
-  /// be broadcast whenever it would be appropriate for UIs to display a pause
-  /// or stop button.
+  /// Whether audio is either playing, or will play as soon as [processingState]
+  /// is [AudioProcessingState.ready]. A true value should be broadcast whenever
+  /// it would be appropriate for UIs to display a pause or stop button.
   ///
   /// Since [playing] and [processingState] can vary independently, it is
   /// possible distinguish a particular audio processing state while audio is
@@ -140,6 +139,8 @@ class PlaybackState {
   /// The current shuffle mode.
   final AudioServiceShuffleMode shuffleMode;
 
+  /// Creates a [PlaybackState] with given field values, and with [updateTime]
+  /// set to [DateTime.now()].
   PlaybackState({
     this.processingState = AudioProcessingState.idle,
     this.playing = false,
@@ -164,6 +165,9 @@ class PlaybackState {
         assert(shuffleMode != null),
         updateTime = DateTime.now();
 
+  /// Creates a copy of this state with given fields replaced by new values,
+  /// with [updateTime] set to [DateTime.now()], and unless otherwise replaced,
+  /// with [updatePosition] set to [this.position].
   PlaybackState copyWith({
     AudioProcessingState processingState,
     bool playing,
@@ -240,17 +244,17 @@ class Rating {
 
   const Rating._internal(this._type, this._value);
 
-  /// Create a new heart rating.
+  /// Creates a new heart rating.
   const Rating.newHeartRating(bool hasHeart)
       : this._internal(RatingStyle.heart, hasHeart);
 
-  /// Create a new percentage rating.
+  /// Creates a new percentage rating.
   factory Rating.newPercentageRating(double percent) {
     if (percent < 0 || percent > 100) throw ArgumentError();
     return Rating._internal(RatingStyle.percentage, percent);
   }
 
-  /// Create a new star rating.
+  /// Creates a new star rating.
   factory Rating.newStarRating(RatingStyle starRatingStyle, int starRating) {
     if (starRatingStyle != RatingStyle.range3stars &&
         starRatingStyle != RatingStyle.range4stars &&
@@ -262,11 +266,11 @@ class Rating {
     return Rating._internal(starRatingStyle, starRating);
   }
 
-  /// Create a new thumb rating.
+  /// Creates a new thumb rating.
   const Rating.newThumbRating(bool isThumbsUp)
       : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
 
-  /// Create a new unrated rating.
+  /// Creates a new unrated rating.
   const Rating.newUnratedRating(RatingStyle ratingStyle)
       : this._internal(ratingStyle, null);
 
@@ -407,8 +411,8 @@ class MediaItem {
         extras: _raw2extras(raw['extras']),
       );
 
-  /// Creates a copy of this [MediaItem] but with with the given fields
-  /// replaced by new values.
+  /// Creates a copy of this [MediaItem] with with the given fields replaced by
+  /// new values.
   MediaItem copyWith({
     String id,
     String album,
@@ -585,22 +589,19 @@ const MethodChannel _backgroundChannel =
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-/// Client API to connect with and communciate with the background audio task.
-///
-/// You may use this API from your UI to send start/pause/play/stop/etc messages
-/// to your background audio task, and to listen to state changes broadcast by
-/// your background audio task. You may also use this API from other background
-/// isolates (e.g. android_alarm_manager) to communicate with the background
-/// audio task.
-///
-/// A client must [connect] to the service before it will be able to send
-/// messages to the background audio task, and must [disconnect] when
-/// communication is no longer required. In practice, a UI should maintain a
-/// connection exactly while it is visible. It is strongly recommended that you
-/// use [AudioServiceWidget] to manage this connection for you automatically.
+/// Provides an API to manage the app's [AudioHandler]. An app must call [init]
+/// during initialisation to register the [AudioHandler] that will service all
+/// requests to play audio.
 class AudioService {
   /// The cache to use when loading artwork. Defaults to [DefaultCacheManager].
-  static BaseCacheManager cacheManager = DefaultCacheManager();
+  static BaseCacheManager get cacheManager => _cacheManager;
+  static BaseCacheManager _cacheManager;
+
+  static AudioServiceConfig _config;
+  static AudioHandler _handler;
+
+  /// The current configuration.
+  static AudioServiceConfig get config => _config;
 
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -617,11 +618,22 @@ class AudioService {
 
   static BehaviorSubject<Duration> _positionSubject;
 
+  /// Register the app's [AudioHandler] with configuration options. This must be
+  /// called during the app's initialisation so that it is prepared to handle
+  /// audio requests immediately after a cold restart (e.g. if the user clicks
+  /// on the play button in the media notification while your app is not running
+  /// and your app needs to be woken up).
+  ///
+  /// You may optionally specify a [cacheManager] to use when loading artwork to
+  /// display in the media notification and lock screen. This defaults to
+  /// [DefaultCacheManager].
   static Future<AudioHandler> init({
     @required AudioHandler builder(),
     AudioServiceConfig config,
+    BaseCacheManager cacheManager,
   }) async {
     config ??= AudioServiceConfig();
+    _cacheManager = cacheManager ?? DefaultCacheManager();
     print("### AudioService.init");
     WidgetsFlutterBinding.ensureInitialized();
     final methodHandler = (MethodCall call) async {
@@ -647,19 +659,6 @@ class AudioService {
     return client;
   }
 
-  static AudioServiceConfig _config;
-  static AudioHandler _handler;
-
-  static AudioServiceConfig get config => _config;
-
-  /// Runs the background audio task within the background isolate.
-  ///
-  /// This must be the first method called by the entrypoint of your background
-  /// task that you passed into [AudioService.start]. The [AudioHandler]
-  /// returned by the [builder] parameter defines callbacks to handle the
-  /// initialization and distruction of the background audio task, as well as
-  /// any requests by the client to play, pause and otherwise control audio
-  /// playback.
   static Future<AudioHandler> _register({
     @required AudioHandler builder(),
     AudioServiceConfig config,
@@ -877,6 +876,99 @@ class AudioService {
     return _handler;
   }
 
+  /// A stream tracking the current position, suitable for animating a seek bar.
+  /// To ensure a smooth animation, this stream emits values more frequently on
+  /// short media items where the seek bar moves more quickly, and less
+  /// frequenly on long media items where the seek bar moves more slowly. The
+  /// interval between each update will be no quicker than once every 16ms and
+  /// no slower than once every 200ms.
+  ///
+  /// See [createPositionStream] for more control over the stream parameters.
+  //static Stream<Duration> _positionStream;
+  static Stream<Duration> getPositionStream() {
+    if (_positionSubject == null) {
+      _positionSubject = BehaviorSubject<Duration>(sync: true);
+      _positionSubject.addStream(createPositionStream(
+          steps: 800,
+          minPeriod: Duration(milliseconds: 16),
+          maxPeriod: Duration(milliseconds: 200)));
+    }
+    return _positionSubject.stream;
+  }
+
+  /// Creates a new stream periodically tracking the current position. The
+  /// stream will aim to emit [steps] position updates at intervals of
+  /// [duration] / [steps]. This interval will be clipped between [minPeriod]
+  /// and [maxPeriod]. This stream will not emit values while audio playback is
+  /// paused or stalled.
+  ///
+  /// Note: each time this method is called, a new stream is created. If you
+  /// intend to use this stream multiple times, you should hold a reference to
+  /// the returned stream.
+  static Stream<Duration> createPositionStream({
+    int steps = 800,
+    Duration minPeriod = const Duration(milliseconds: 200),
+    Duration maxPeriod = const Duration(milliseconds: 200),
+  }) {
+    assert(minPeriod <= maxPeriod);
+    assert(minPeriod > Duration.zero);
+    Duration last;
+    // ignore: close_sinks
+    StreamController<Duration> controller;
+    StreamSubscription<MediaItem> mediaItemSubscription;
+    StreamSubscription<PlaybackState> playbackStateSubscription;
+    Timer currentTimer;
+    Duration duration() => _handler.mediaItem?.duration ?? Duration.zero;
+    Duration step() {
+      var s = duration() ~/ steps;
+      if (s < minPeriod) s = minPeriod;
+      if (s > maxPeriod) s = maxPeriod;
+      return s;
+    }
+
+    void yieldPosition(Timer timer) {
+      if (last != _handler.playbackState?.position) {
+        controller.add(last = _handler.playbackState?.position);
+      }
+    }
+
+    controller = StreamController.broadcast(
+      sync: true,
+      onListen: () {
+        mediaItemSubscription = _handler.mediaItemStream.listen((mediaItem) {
+          // Potentially a new duration
+          currentTimer?.cancel();
+          currentTimer = Timer.periodic(step(), yieldPosition);
+        });
+        playbackStateSubscription =
+            _handler.playbackStateStream.listen((state) {
+          // Potentially a time discontinuity
+          yieldPosition(currentTimer);
+        });
+      },
+      onCancel: () {
+        mediaItemSubscription.cancel();
+        playbackStateSubscription.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  /// In Android, forces media button events to be routed to your active media
+  /// session.
+  ///
+  /// This is necessary if you want to play TextToSpeech in the background and
+  /// still respond to media button events. You should call it just before
+  /// playing TextToSpeech.
+  ///
+  /// This is not necessary if you are playing normal audio in the background
+  /// such as music because this kind of "normal" audio playback will
+  /// automatically qualify your app to receive media button events.
+  static Future<void> androidForceEnableMediaButtons() async {
+    await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
+  }
+
   /// Shuts down the background audio task within the background isolate.
   static Future<void> _stop() async {
     final audioSession = await AudioSession.instance;
@@ -931,106 +1023,16 @@ class AudioService {
     }
     return _childrenStreams[parentMediaId].value;
   }
-
-  /// A stream tracking the current position, suitable for animating a seek bar.
-  /// To ensure a smooth animation, this stream emits values more frequently on
-  /// short media items where the seek bar moves more quickly, and less
-  /// frequenly on long media items where the seek bar moves more slowly. The
-  /// interval between each update will be no quicker than once every 16ms and
-  /// no slower than once every 200ms.
-  ///
-  /// See [createPositionStream] for more control over the stream parameters.
-  //static Stream<Duration> _positionStream;
-  static Stream<Duration> getPositionStream(AudioHandler handler) {
-    if (_positionSubject == null) {
-      _positionSubject = BehaviorSubject<Duration>(sync: true);
-      _positionSubject.addStream(createPositionStream(
-          handler: handler,
-          steps: 800,
-          minPeriod: Duration(milliseconds: 16),
-          maxPeriod: Duration(milliseconds: 200)));
-    }
-    return _positionSubject.stream;
-  }
-
-  /// Creates a new stream periodically tracking the current position. The
-  /// stream will aim to emit [steps] position updates at intervals of
-  /// [duration] / [steps]. This interval will be clipped between [minPeriod]
-  /// and [maxPeriod]. This stream will not emit values while audio playback is
-  /// paused or stalled.
-  ///
-  /// Note: each time this method is called, a new stream is created. If you
-  /// intend to use this stream multiple times, you should hold a reference to
-  /// the returned stream.
-  static Stream<Duration> createPositionStream({
-    @required AudioHandler handler,
-    int steps = 800,
-    Duration minPeriod = const Duration(milliseconds: 200),
-    Duration maxPeriod = const Duration(milliseconds: 200),
-  }) {
-    assert(minPeriod <= maxPeriod);
-    assert(minPeriod > Duration.zero);
-    Duration last;
-    // ignore: close_sinks
-    StreamController<Duration> controller;
-    StreamSubscription<MediaItem> mediaItemSubscription;
-    StreamSubscription<PlaybackState> playbackStateSubscription;
-    Timer currentTimer;
-    Duration duration() => handler.mediaItem?.duration ?? Duration.zero;
-    Duration step() {
-      var s = duration() ~/ steps;
-      if (s < minPeriod) s = minPeriod;
-      if (s > maxPeriod) s = maxPeriod;
-      return s;
-    }
-
-    void yieldPosition(Timer timer) {
-      if (last != handler.playbackState?.position) {
-        controller.add(last = handler.playbackState?.position);
-      }
-    }
-
-    controller = StreamController.broadcast(
-      sync: true,
-      onListen: () {
-        mediaItemSubscription = handler.mediaItemStream.listen((mediaItem) {
-          // Potentially a new duration
-          currentTimer?.cancel();
-          currentTimer = Timer.periodic(step(), yieldPosition);
-        });
-        playbackStateSubscription = handler.playbackStateStream.listen((state) {
-          // Potentially a time discontinuity
-          yieldPosition(currentTimer);
-        });
-      },
-      onCancel: () {
-        mediaItemSubscription.cancel();
-        playbackStateSubscription.cancel();
-      },
-    );
-
-    return controller.stream;
-  }
-
-  /// In Android, forces media button events to be routed to your active media
-  /// session.
-  ///
-  /// This is necessary if you want to play TextToSpeech in the background and
-  /// still respond to media button events. You should call it just before
-  /// playing TextToSpeech.
-  ///
-  /// This is not necessary if you are playing normal audio in the background
-  /// such as music because this kind of "normal" audio playback will
-  /// automatically qualify your app to receive media button events.
-  static Future<void> androidForceEnableMediaButtons() async {
-    await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
-  }
 }
 
-// XXX: If one link in the chain calls on another method, how do we make it
-// enter at the head of the chain?
-// - chain in reverse. The actual implementation should be the inner-most child.
-// XXX: We don't want every link in the chain to have behavior subjects.
+/// An [AudioHandler] plays audio, provides state updates and query results to
+/// clients. It implements standard protocols that allow it to be remotely
+/// controlled by the lock screen, media notifications, the iOS control center,
+/// headsets, smart watches, car audio systems, and other compatible agents.
+///
+/// This class cannot be subclassed directly. Implementations should subclass
+/// [BaseAudioHandler], and composite behaviours should be defined as subclasses
+/// of [CompositeAudioHandler].
 abstract class AudioHandler {
   AudioHandler._();
 
@@ -1152,6 +1154,8 @@ abstract class AudioHandler {
   Stream<dynamic> get customEventStream;
 }
 
+/// The implementation of [AudioHandler] that is provided to the app. It inserts
+/// default parameter values for [click], [fastForward] and [rewind].
 class _ClientAudioHandler extends CompositeAudioHandler {
   _ClientAudioHandler(AudioHandler impl) : super(impl);
 
@@ -1172,9 +1176,14 @@ class _ClientAudioHandler extends CompositeAudioHandler {
   }
 }
 
+/// A [CompositeAudioHandler] wraps another [AudioHandler] and adds additional
+/// behaviour to it. Each method will by default pass through to the
+/// corresponding method of the wrapped handler. If you override a method, it
+/// must call super in addition to any "additional" functionality you add.
 class CompositeAudioHandler extends AudioHandler {
   AudioHandler _inner;
 
+  /// Create the [CompositeAudioHandler] with the given wrapped handler.
   CompositeAudioHandler(AudioHandler inner)
       : assert(inner != null),
         _inner = inner,

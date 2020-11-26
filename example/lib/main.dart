@@ -151,7 +151,7 @@ class MainScreen extends StatelessWidget {
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem, Duration, MediaState>(
           _audioHandler.mediaItemStream,
-          AudioService.getPositionStream(_audioHandler),
+          AudioService.getPositionStream(),
           (mediaItem, position) => MediaState(mediaItem, position));
 
   /// A stream reporting the combined state of the current queue and the current
