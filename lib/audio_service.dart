@@ -151,19 +151,18 @@ class PlaybackState {
     this.speed = 1.0,
     this.repeatMode = AudioServiceRepeatMode.none,
     this.shuffleMode = AudioServiceShuffleMode.none,
-  }) : updateTime = DateTime.now() {
-    assert(processingState != null);
-    assert(playing != null);
-    assert(controls != null);
-    assert(androidCompactActionIndices == null ||
-        androidCompactActionIndices.length <= 3);
-    assert(systemActions != null);
-    assert(updatePosition != null);
-    assert(bufferedPosition != null);
-    assert(speed != null);
-    assert(repeatMode != null);
-    assert(shuffleMode != null);
-  }
+  })  : assert(processingState != null),
+        assert(playing != null),
+        assert(controls != null),
+        assert(androidCompactActionIndices == null ||
+            androidCompactActionIndices.length <= 3),
+        assert(systemActions != null),
+        assert(updatePosition != null),
+        assert(bufferedPosition != null),
+        assert(speed != null),
+        assert(repeatMode != null),
+        assert(shuffleMode != null),
+        updateTime = DateTime.now();
 
   PlaybackState copyWith({
     AudioProcessingState processingState,
@@ -607,17 +606,6 @@ class AudioService {
   /// task.
   static const String MEDIA_ROOT_ID = "root";
 
-  static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
-
-  /// A stream that broadcasts the children of the current browse
-  /// media parent.
-  static Stream<List<MediaItem>> get browseMediaChildrenStream =>
-      _browseMediaChildrenSubject.stream;
-
-  /// The children of the current browse media parent.
-  static List<MediaItem> get browseMediaChildren =>
-      _browseMediaChildrenSubject.value;
-
   static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
@@ -627,18 +615,16 @@ class AudioService {
   /// The status of the notificationClick event.
   static bool get notificationClickEvent => _notificationSubject.value;
 
-  /// If a seek is in progress, this holds the position we are seeking to.
-  static Duration _seekPos;
-
   static BehaviorSubject<Duration> _positionSubject;
 
   static Future<AudioHandler> init({
     @required AudioHandler builder(),
-    AudioServiceConfig config = const AudioServiceConfig(),
+    AudioServiceConfig config,
   }) async {
+    config ??= AudioServiceConfig();
     print("### AudioService.init");
     WidgetsFlutterBinding.ensureInitialized();
-    final handler = (MethodCall call) async {
+    final methodHandler = (MethodCall call) async {
       print("### UI received ${call.method}");
       switch (call.method) {
         case 'notificationClicked':
@@ -648,9 +634,9 @@ class AudioService {
     };
     if (_testing) {
       MethodChannel('ryanheise.com/audioServiceInverse')
-          .setMockMethodCallHandler(handler);
+          .setMockMethodCallHandler(methodHandler);
     } else {
-      _channel.setMethodCallHandler(handler);
+      _channel.setMethodCallHandler(methodHandler);
     }
     await _channel.invokeMethod('configure', config.toJson());
     final _impl = await _register(
@@ -676,13 +662,14 @@ class AudioService {
   /// playback.
   static Future<AudioHandler> _register({
     @required AudioHandler builder(),
-    AudioServiceConfig config = const AudioServiceConfig(),
+    AudioServiceConfig config,
   }) async {
+    config ??= AudioServiceConfig();
     assert(_config == null && _handler == null);
     print("### AudioServiceBackground._register");
     _config = config;
     _handler = builder();
-    final handler = (MethodCall call) async {
+    final methodHandler = (MethodCall call) async {
       print('### background received ${call.method}');
       try {
         switch (call.method) {
@@ -819,9 +806,9 @@ class AudioService {
     // a separate channel for each direction when testing.
     if (_testing) {
       MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
-          .setMockMethodCallHandler(handler);
+          .setMockMethodCallHandler(methodHandler);
     } else {
-      _backgroundChannel.setMethodCallHandler(handler);
+      _backgroundChannel.setMethodCallHandler(methodHandler);
     }
     _handler.mediaItemStream.listen((mediaItem) async {
       if (mediaItem == null) return;
@@ -945,104 +932,6 @@ class AudioService {
     return _childrenStreams[parentMediaId].value;
   }
 
-  /// Starts a background audio task which will continue running even when the
-  /// UI is not visible or the screen is turned off. Only one background audio task
-  /// may be running at a time.
-  ///
-  /// While the background task is running, it will display a system
-  /// notification showing information about the current media item being
-  /// played (see [AudioServiceBackground.setMediaItem]) along with any media
-  /// controls to perform any media actions that you want to support (see
-  /// [AudioServiceBackground.setState]).
-  ///
-  /// The background task is specified by [backgroundTaskEntrypoint] which will
-  /// be run within a background isolate. This function must be a top-level
-  /// function, and it must initiate execution by calling
-  /// [AudioServiceBackground.run]. Because the background task runs in an
-  /// isolate, no memory is shared between the background isolate and your main
-  /// UI isolate and so all communication between the background task and your
-  /// UI is achieved through message passing.
-  ///
-  /// The [androidNotificationIcon] is specified like an XML resource reference
-  /// and defaults to `"mipmap/ic_launcher"`.
-  ///
-  /// [androidShowNotificationBadge] enable notification badges (also known as notification dots)
-  /// to appear on a launcher icon when the app has an active notification.
-  ///
-  /// If specified, [androidArtDownscaleSize] causes artwork to be downscaled
-  /// to the given resolution in pixels before being displayed in the
-  /// notification and lock screen. If not specified, no downscaling will be
-  /// performed. If the resolution of your artwork is particularly high,
-  /// downscaling can help to conserve memory.
-  ///
-  /// [params] provides a way to pass custom parameters through to the
-  /// `onStart` method of your background audio task. If specified, this must
-  /// be a map consisting of keys/values that can be encoded via Flutter's
-  /// `StandardMessageCodec`.
-  ///
-  /// [fastForwardInterval] and [rewindInterval] are passed through to your
-  /// background audio task as properties, and they represent the duration
-  /// of audio that should be skipped in fast forward / rewind operations. On
-  /// iOS, these values also configure the intervals for the skip forward and
-  /// skip backward buttons. Note that both [fastForwardInterval] and
-  /// [rewindInterval] must be positive durations.
-  ///
-  /// [androidEnableQueue] enables queue support on the media session on
-  /// Android. If your app will run on Android and has a queue, you should set
-  /// this to true.
-  ///
-  /// [androidStopForegroundOnPause] will switch the Android service to a lower
-  /// priority state when playback is paused allowing the user to swipe away the
-  /// notification. Note that while in this lower priority state, the operating
-  /// system will also be able to kill your service at any time to reclaim
-  /// resources.
-  static Future<bool> configure({
-    @required Function backgroundTaskEntrypoint,
-    String androidNotificationChannelName = "Notifications",
-    String androidNotificationChannelDescription,
-    int androidNotificationColor,
-    String androidNotificationIcon = 'mipmap/ic_launcher',
-    bool androidShowNotificationBadge = false,
-    bool androidNotificationClickStartsActivity = true,
-    bool androidNotificationOngoing = false,
-    bool androidResumeOnClick = true,
-    bool androidStopForegroundOnPause = false,
-    bool androidEnableQueue = false,
-    Size androidArtDownscaleSize,
-    //Duration fastForwardInterval = const Duration(seconds: 10),
-    //Duration rewindInterval = const Duration(seconds: 10),
-  }) async {
-    //assert(fastForwardInterval > Duration.zero,
-    //    "fastForwardDuration must be positive");
-    //assert(rewindInterval > Duration.zero, "rewindInterval must be positive");
-
-    final success = await _channel.invokeMethod('configure', {
-      'androidNotificationChannelName': androidNotificationChannelName,
-      'androidNotificationChannelDescription':
-          androidNotificationChannelDescription,
-      'androidNotificationColor': androidNotificationColor,
-      'androidNotificationIcon': androidNotificationIcon,
-      'androidShowNotificationBadge': androidShowNotificationBadge,
-      'androidNotificationClickStartsActivity':
-          androidNotificationClickStartsActivity,
-      'androidNotificationOngoing': androidNotificationOngoing,
-      'androidResumeOnClick': androidResumeOnClick,
-      'androidStopForegroundOnPause': androidStopForegroundOnPause,
-      'androidEnableQueue': androidEnableQueue,
-      'artDownscaleWidth': androidArtDownscaleSize?.width?.round(),
-      'artDownscaleHeight': androidArtDownscaleSize?.height?.round(),
-    });
-    backgroundTaskEntrypoint();
-    return success;
-  }
-
-  /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
-  /// If unspecified, the root parent will be used.
-  static Future<void> setBrowseMediaParent(
-      [String parentMediaId = MEDIA_ROOT_ID]) async {
-    await _channel.invokeMethod('setBrowseMediaParent', parentMediaId);
-  }
-
   /// A stream tracking the current position, suitable for animating a seek bar.
   /// To ensure a smooth animation, this stream emits values more frequently on
   /// short media items where the seek bar moves more quickly, and less
@@ -1096,8 +985,8 @@ class AudioService {
     }
 
     void yieldPosition(Timer timer) {
-      if (last != (_seekPos ?? handler.playbackState?.position)) {
-        controller.add(last = (_seekPos ?? handler.playbackState?.position));
+      if (last != handler.playbackState?.position) {
+        controller.add(last = handler.playbackState?.position);
       }
     }
 
@@ -1287,10 +1176,9 @@ class CompositeAudioHandler extends AudioHandler {
   AudioHandler _inner;
 
   CompositeAudioHandler(AudioHandler inner)
-      : _inner = inner,
-        super._() {
-    assert(inner != null);
-  }
+      : assert(inner != null),
+        _inner = inner,
+        super._();
 
   @mustCallSuper
   Future<void> prepare() => _inner.prepare();
@@ -1749,19 +1637,52 @@ class AudioServiceConfig {
   final String androidNotificationChannelName;
   final String androidNotificationChannelDescription;
   final int notificationColor;
+
+  /// The icon resource to be used in the Android media notification, specified
+  /// like an XML resource reference. This defaults to `"mipmap/ic_launcher"`.
   final String androidNotificationIcon;
+
+  /// Whether notification badges (also known as notification dots) should
+  /// appear on a launcher icon when the app has an active notification.
   final bool androidShowNotificationBadge;
   final bool androidNotificationClickStartsActivity;
   final bool androidNotificationOngoing;
+
+  /// Whether the Android service should switch to a lower priority state when
+  /// playback is paused allowing the user to swipe away the notification. Note
+  /// that while in this lower priority state, the operating system will also be
+  /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
+
+  /// If not null, causes the artwork specified by [MediaItem.artUri] to be
+  /// downscaled to this maximum pixel width. If the resolution of your artwork
+  /// is particularly high, this can help to conserve memory. If specified,
+  /// [artDownscaleHeight] must also be specified.
   final int artDownscaleWidth;
+
+  /// If not null, causes the artwork specified by [MediaItem.artUri] to be
+  /// downscaled to this maximum pixel height. If the resolution of your artwork
+  /// is particularly high, this can help to conserve memory. If specified,
+  /// [artDownscaleWidth] must also be specified.
   final int artDownscaleHeight;
+
+  /// The interval to be used in [AudioHandler.fastForward] by default. This
+  /// value will also be used on iOS to render the skip-forward button. This
+  /// value must be positive.
   final Duration fastForwardInterval;
+
+  /// The interval to be used in [AudioHandler.rewind] by default. This value
+  /// will also be used on iOS to render the skip-backward button. This value
+  /// must be positive.
   final Duration rewindInterval;
+
+  /// Whether queue support should be enabled on the media session on Android.
+  /// If your app will run on Android and has a queue, you should set this to
+  /// true.
   final bool androidEnableQueue;
   final bool preloadArtwork;
 
-  const AudioServiceConfig({
+  AudioServiceConfig({
     this.androidResumeOnClick = true,
     this.androidNotificationChannelName = "Notifications",
     this.androidNotificationChannelDescription,
@@ -1770,14 +1691,16 @@ class AudioServiceConfig {
     this.androidShowNotificationBadge = false,
     this.androidNotificationClickStartsActivity = true,
     this.androidNotificationOngoing = false,
-    this.androidStopForegroundOnPause = false,
+    this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
     this.androidEnableQueue = false,
     this.preloadArtwork = false,
-  });
+  })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
+        assert(fastForwardInterval > Duration.zero),
+        assert(rewindInterval > Duration.zero);
 
   Map<String, dynamic> toJson() => {
         'androidResumeOnClick': androidResumeOnClick,

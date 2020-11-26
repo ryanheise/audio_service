@@ -42,7 +42,7 @@ public class AudioServiceConfig {
         androidShowNotificationBadge = preferences.getBoolean(KEY_ANDROID_SHOW_NOTIFICATION_BADGE, false);
         androidNotificationClickStartsActivity = preferences.getBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, true);
         androidNotificationOngoing = preferences.getBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, false);
-        androidStopForegroundOnPause = preferences.getBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, false);
+        androidStopForegroundOnPause = preferences.getBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, true);
         artDownscaleWidth = preferences.getInt(KEY_ART_DOWNSCALE_WIDTH, -1);
         artDownscaleHeight = preferences.getInt(KEY_ART_DOWNSCALE_HEIGHT, -1);
         activityClassName = preferences.getString(KEY_ACTIVITY_CLASS_NAME, null);

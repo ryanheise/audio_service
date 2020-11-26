@@ -77,7 +77,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine == null) {
             System.out.println("### Creating new FlutterEngine");
-            new Exception().printStackTrace();
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
             flutterEngine = new FlutterEngine(context.getApplicationContext());
@@ -110,8 +109,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static Map<String, Integer> queueItemIds = new HashMap<String, Integer>();
     private static volatile Result startResult;
     private static volatile Result stopResult;
-    private static String subscribedParentMediaId;
     private static long bootTime;
+    private static Result configureResult;
 
     static {
         bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
@@ -162,6 +161,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 MediaMetadataCompat metadata = mediaController.getMetadata();
                 controllerCallback.onQueueChanged(mediaController.getQueue());
                 controllerCallback.onMetadataChanged(metadata);
+                if (configureResult != null) {
+                    configureResult.success(null);
+                    configureResult = null;
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException(e);
@@ -358,10 +361,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             mediaController.unregisterCallback(controllerCallback);
             mediaController = null;
         }
-        if (subscribedParentMediaId != null) {
-            mediaBrowser.unsubscribe(subscribedParentMediaId);
-            subscribedParentMediaId = null;
-        }
         if (mediaBrowser != null) {
             mediaBrowser.disconnect();
             mediaBrowser = null;
@@ -463,29 +462,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         // so update BackgroundHandler to connect to it.
                         backgroundHandler.switchToMessenger(messenger);
                     }
-                    result.success(null);
+                    if (mediaController != null) {
+                        result.success(null);
+                    } else {
+                        configureResult = result;
+                    }
                     break;
                 }
-                case "setBrowseMediaParent":
-                    String parentMediaId = (String)call.arguments;
-                    // If the ID has changed, unsubscribe from the old one
-                    if (subscribedParentMediaId != null && !subscribedParentMediaId.equals(parentMediaId)) {
-                        mediaBrowser.unsubscribe(subscribedParentMediaId);
-                        subscribedParentMediaId = null;
-                    }
-                    // Subscribe to the new one.
-                    // Don't subscribe if we're still holding onto the old one
-                    // Don't subscribe if the new ID is null.
-                    if (subscribedParentMediaId == null && parentMediaId != null) {
-                        subscribedParentMediaId = parentMediaId;
-                        mediaBrowser.subscribe(parentMediaId, subscriptionCallback);
-                    }
-                    // If the new ID is null, send clients an empty list
-                    if (subscribedParentMediaId == null) {
-                        subscriptionCallback.onChildrenLoaded(subscribedParentMediaId, new ArrayList<MediaBrowserCompat.MediaItem>());
-                    }
-                    result.success(true);
-                    break;
                 default:
                     backgroundHandler().channel.invokeMethod(call.method, call.arguments, result);
                     break;
@@ -690,8 +673,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 // started, process the pending request.
                 // TODO: It should be possible to browse children before
                 // starting.
-                if (subscribedParentMediaId != null)
-                    AudioService.instance.notifyChildrenChanged(subscribedParentMediaId);
                 result.success(true);
                 break;
             case "setMediaItem":

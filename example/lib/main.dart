@@ -18,8 +18,7 @@ Future<void> main() async {
     builder: () => AudioPlayerHandler(),
     config: AudioServiceConfig(
       androidNotificationChannelName: 'Audio Service Demo',
-      // Enable this if you want the Android service to exit the foreground state on pause.
-      //androidStopForegroundOnPause: true,
+      androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),
   );
@@ -48,9 +47,6 @@ class MainScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            //// UI to show when we're not running, i.e. a menu.
-            //audioPlayerButton(),
-            //if (kIsWeb || !Platform.isMacOS) textToSpeechButton(),
             // Queue display/controls.
             StreamBuilder<QueueState>(
               stream: _queueStateStream,
@@ -314,20 +310,16 @@ class AudioPlayerHandler extends BaseAudioHandler
       _eventSubscription = _player.playbackEventStream.listen((event) {
         _broadcastState();
       });
-      // Special processing for state transitions.
+      // In this example, the service stops when reaching the end.
       _player.processingStateStream.listen((state) {
-        print("just_audio state: $state");
-        switch (state) {
-          case ProcessingState.completed:
-            // In this example, the service stops when reaching the end.
-            stop();
-            break;
-          default:
-            break;
-        }
+        if (state == ProcessingState.completed) stop();
       });
       try {
         print("### _player.load");
+        // After a cold restart (on Android), _player.load jumps straight from
+        // the loading state to the completed state. Inserting a delay makes it
+        // work. Not sure why!
+        //await Future.delayed(Duration(seconds: 2)); // magic delay
         await _player.load(ConcatenatingAudioSource(
           children:
               queue.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
@@ -341,8 +333,8 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToQueueItem(String mediaId) async {
-    // Then default implementations of skipToNext and skipToPrevious will
-    // delegate to this method.
+    // Then default implementations of skipToNext and skipToPrevious provided by
+    // the [QueueHandler] mixin will delegate to this method.
     final newIndex = queue.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
@@ -363,20 +355,17 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
-    await _player.dispose();
+    await _player?.dispose();
     _player = null;
-    print("onStop. _player = null");
+    print("stop. _player = null");
     _eventSubscription.cancel();
-    // It is important to wait for this state to be broadcast before we shut
-    // down the task. If we don't, the background task will be destroyed before
-    // the message gets sent to the UI.
-    await _broadcastState();
+    _broadcastState();
     // Shut down this task
     await super.stop();
   }
 
   /// Broadcasts the current state to all clients.
-  Future<void> _broadcastState() async {
+  void _broadcastState() {
     final playing = _player?.playing ?? false;
     playbackStateSubject.add(playbackState.copyWith(
       controls: [
@@ -391,32 +380,18 @@ class AudioPlayerHandler extends BaseAudioHandler
         MediaAction.seekBackward,
       },
       androidCompactActionIndices: [0, 1, 3],
-      processingState: _getProcessingState(),
+      processingState: {
+        ProcessingState.none: AudioProcessingState.idle,
+        ProcessingState.loading: AudioProcessingState.loading,
+        ProcessingState.buffering: AudioProcessingState.buffering,
+        ProcessingState.ready: AudioProcessingState.ready,
+        ProcessingState.completed: AudioProcessingState.completed,
+      }[_player?.processingState ?? ProcessingState.none],
       playing: playing,
       updatePosition: _player?.position ?? Duration.zero,
       bufferedPosition: _player?.bufferedPosition ?? Duration.zero,
       speed: _player?.speed ?? 1.0,
     ));
-  }
-
-  /// Maps just_audio's processing state into into audio_service's playing
-  /// state.
-  AudioProcessingState _getProcessingState() {
-    switch (_player?.processingState ?? ProcessingState.none) {
-      case ProcessingState.none:
-        print("### just_audio state -> none");
-        return AudioProcessingState.idle;
-      case ProcessingState.loading:
-        return AudioProcessingState.loading;
-      case ProcessingState.buffering:
-        return AudioProcessingState.buffering;
-      case ProcessingState.ready:
-        return AudioProcessingState.ready;
-      case ProcessingState.completed:
-        return AudioProcessingState.completed;
-      default:
-        throw Exception("Invalid state: ${_player?.processingState}");
-    }
   }
 }
 
