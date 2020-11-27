@@ -29,7 +29,7 @@ enum MediaAction {
   skipToNext,
   fastForward,
   setRating,
-  seekTo,
+  seek,
   playPause,
   playFromMediaId,
   playFromSearch,
@@ -100,11 +100,11 @@ class PlaybackState {
   /// other [MediaAction]s that are not supported by [controls], because they do
   /// not represent clickable buttons. For example:
   ///
-  /// * [MediaAction.seekTo] (enable a seek bar)
+  /// * [MediaAction.seek] (enable a seek bar)
   /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
   /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
   ///
-  /// Note that specifying [MediaAction.seekTo] in [systemActions] will enable
+  /// Note that specifying [MediaAction.seek] in [systemActions] will enable
   /// a seek bar in both the Android notification and the iOS control center.
   /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
   /// behaviour on iOS in which if you have already enabled the
@@ -587,8 +587,6 @@ const MethodChannel _channel =
 const MethodChannel _backgroundChannel =
     const MethodChannel('ryanheise.com/audioServiceBackground');
 
-const String _CUSTOM_PREFIX = 'custom_';
-
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
 /// during initialisation to register the [AudioHandler] that will service all
 /// requests to play audio.
@@ -605,7 +603,7 @@ class AudioService {
 
   /// The root media ID for browsing media provided by the background
   /// task.
-  static const String MEDIA_ROOT_ID = "root";
+  static const String MEDIA_ROOT_ID = 'root';
 
   static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
 
@@ -633,9 +631,9 @@ class AudioService {
     BaseCacheManager cacheManager,
   }) async {
     config ??= AudioServiceConfig();
-    _cacheManager = cacheManager ?? DefaultCacheManager();
     print("### AudioService.init");
     WidgetsFlutterBinding.ensureInitialized();
+    _cacheManager = cacheManager ?? DefaultCacheManager();
     final methodHandler = (MethodCall call) async {
       print("### UI received ${call.method}");
       switch (call.method) {
@@ -673,128 +671,102 @@ class AudioService {
       try {
         switch (call.method) {
           case 'onLoadChildren':
-            final List args = call.arguments;
-            String parentMediaId = args[0];
-            final mediaItems = await _onLoadChildren(parentMediaId);
+            final mediaItems = await _onLoadChildren(call.arguments[0]);
             List<Map> rawMediaItems =
                 mediaItems.map((item) => item.toJson()).toList();
             return rawMediaItems as dynamic;
+          case 'onLoadItem':
+            return (await _handler.getMediaItem(call.arguments[0])).toJson();
           case 'onClick':
-            final List args = call.arguments;
-            MediaButton button = MediaButton.values[args[0]];
-            await _handler.click(button);
-            break;
+            return _handler.click(MediaButton.values[call.arguments[0]]);
           case 'onStop':
-            await _handler.stop();
-            break;
+            return _handler.stop();
           case 'onPause':
-            await _handler.pause();
-            break;
+            return _handler.pause();
           case 'onPrepare':
-            await _handler.prepare();
-            break;
+            return _handler.prepare();
           case 'onPrepareFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _handler.prepareFromMediaId(mediaId);
-            break;
+            return _handler.prepareFromMediaId(
+                call.arguments[0], _castMap(call.arguments[1]));
+          case 'onPrepareFromSearch':
+            return _handler.prepareFromSearch(
+                call.arguments[0], _castMap(call.arguments[1]));
+          case 'onPrepareFromUri':
+            return _handler.prepareFromUri(
+                Uri.parse(call.arguments[0]), _castMap(call.arguments[1]));
           case 'onPlay':
-            await _handler.play();
-            break;
+            return _handler.play();
           case 'onPlayFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _handler.playFromMediaId(mediaId);
-            break;
+            return _handler.playFromMediaId(
+                call.arguments[0], _castMap(call.arguments[1]));
+          case 'onPlayFromSearch':
+            return _handler.playFromSearch(
+                call.arguments[0], _castMap(call.arguments[1]));
+          case 'onPlayFromUri':
+            return _handler.playFromUri(
+                Uri.parse(call.arguments[0]), _castMap(call.arguments[1]));
           case 'onPlayMediaItem':
-            await _handler.playMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
+            return _handler
+                .playMediaItem(MediaItem.fromJson(call.arguments[0]));
           case 'onAddQueueItem':
-            await _handler.addQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
+            return _handler.addQueueItem(MediaItem.fromJson(call.arguments[0]));
           case 'onAddQueueItemAt':
             final List args = call.arguments;
             MediaItem mediaItem = MediaItem.fromJson(args[0]);
             int index = args[1];
-            await _handler.insertQueueItem(index, mediaItem);
-            break;
+            return _handler.insertQueueItem(index, mediaItem);
           case 'onUpdateQueue':
             final List args = call.arguments;
             final List queue = args[0];
-            await _handler.updateQueue(
+            return _handler.updateQueue(
                 queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
-            break;
           case 'onUpdateMediaItem':
-            await _handler
+            return _handler
                 .updateMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
           case 'onRemoveQueueItem':
-            await _handler
+            return _handler
                 .removeQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
+          case 'onRemoveQueueItemAt':
+            return _handler.removeQueueItemAt(call.arguments[0]);
           case 'onSkipToNext':
-            await _handler.skipToNext();
-            break;
+            return _handler.skipToNext();
           case 'onSkipToPrevious':
-            await _handler.skipToPrevious();
-            break;
+            return _handler.skipToPrevious();
           case 'onFastForward':
-            await _handler.fastForward(_config.fastForwardInterval);
-            break;
+            return _handler.fastForward(_config.fastForwardInterval);
           case 'onRewind':
-            await _handler.rewind(_config.rewindInterval);
-            break;
+            return _handler.rewind(_config.rewindInterval);
           case 'onSkipToQueueItem':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _handler.skipToQueueItem(mediaId);
-            break;
+            return _handler.skipToQueueItem(call.arguments[0]);
           case 'onSeekTo':
-            final List args = call.arguments;
-            int positionMs = args[0];
-            Duration position = Duration(milliseconds: positionMs);
-            await _handler.seekTo(position);
-            break;
+            return _handler.seek(Duration(milliseconds: call.arguments[0]));
           case 'onSetRepeatMode':
-            final List args = call.arguments;
-            await _handler
-                .setRepeatMode(AudioServiceRepeatMode.values[args[0]]);
-            break;
+            return _handler.setRepeatMode(
+                AudioServiceRepeatMode.values[call.arguments[0]]);
           case 'onSetShuffleMode':
-            final List args = call.arguments;
-            await _handler
-                .setShuffleMode(AudioServiceShuffleMode.values[args[0]]);
-            break;
+            return _handler.setShuffleMode(
+                AudioServiceShuffleMode.values[call.arguments[0]]);
           case 'onSetRating':
-            await _handler.setRating(
+            return _handler.setRating(
                 Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-            break;
+          case 'onSetCaptioningEnabled':
+            return _handler.setCaptioningEnabled(call.arguments[0]);
           case 'onSeekBackward':
-            final List args = call.arguments;
-            await _handler.seekBackward(args[0]);
-            break;
+            return _handler.seekBackward(call.arguments[0]);
           case 'onSeekForward':
-            final List args = call.arguments;
-            await _handler.seekForward(args[0]);
-            break;
+            return _handler.seekForward(call.arguments[0]);
           case 'onSetSpeed':
-            final List args = call.arguments;
-            double speed = args[0];
-            await _handler.setSpeed(speed);
-            break;
+            return _handler.setSpeed(call.arguments[0]);
           case 'onTaskRemoved':
-            await _handler.onTaskRemoved();
-            break;
+            return _handler.onTaskRemoved();
           case 'onClose':
-            await _handler.onNotificationDeleted();
-            break;
+            return _handler.onNotificationDeleted();
+          case 'onCustomAction':
+            final map = <int, int>{};
+            return _handler.customAction(
+                call.arguments[0], _castMap(call.arguments[1]));
           default:
-            if (call.method.startsWith(_CUSTOM_PREFIX)) {
-              final result = await _handler.customAction(
-                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
-              return result;
-            }
-            break;
+            throw PlatformException(code: 'Unimplemented');
         }
       } catch (e, stacktrace) {
         print('$stacktrace');
@@ -1040,13 +1012,26 @@ abstract class AudioHandler {
   Future<void> prepare();
 
   /// Prepare a specific media item for playback.
-  Future<void> prepareFromMediaId(String mediaId);
+  Future<void> prepareFromMediaId(String mediaId,
+      [Map<String, dynamic> extras]);
+
+  /// Prepare playback from a search query.
+  Future<void> prepareFromSearch(String query, [Map<String, dynamic> extras]);
+
+  /// Prepare a media item represented by a Uri for playback.
+  Future<void> prepareFromUri(Uri uri, [Map<String, dynamic> extras]);
 
   /// Start or resume playback.
   Future<void> play();
 
   /// Play a specific media item.
-  Future<void> playFromMediaId(String mediaId);
+  Future<void> playFromMediaId(String mediaId, [Map<String, dynamic> extras]);
+
+  /// Begin playback from a search query.
+  Future<void> playFromSearch(String query, [Map<String, dynamic> extras]);
+
+  /// Play a media item represented by a Uri.
+  Future<void> playFromUri(Uri uri, [Map<String, dynamic> extras]);
 
   /// Play a specific media item.
   Future<void> playMediaItem(MediaItem mediaItem);
@@ -1079,6 +1064,9 @@ abstract class AudioHandler {
   /// Remove [mediaItem] from the queue.
   Future<void> removeQueueItem(MediaItem mediaItem);
 
+  /// Remove at media item from the queue at the specified [index].
+  Future<void> removeQueueItemAt(int index);
+
   /// Skip to the next item in the queue.
   Future<void> skipToNext();
 
@@ -1097,10 +1085,12 @@ abstract class AudioHandler {
   Future<void> skipToQueueItem(String mediaId);
 
   /// Seek to [position].
-  Future<void> seekTo(Duration position);
+  Future<void> seek(Duration position);
 
   /// Set the rating.
   Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras);
+
+  Future<void> setCaptioningEnabled(bool enabled);
 
   /// Set the repeat mode.
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode);
@@ -1118,7 +1108,7 @@ abstract class AudioHandler {
   Future<void> setSpeed(double speed);
 
   /// A mechanism to support app-specific actions.
-  Future<dynamic> customAction(String name, dynamic arguments);
+  Future<dynamic> customAction(String name, Map<String, dynamic> extras);
 
   /// Handle the task being swiped away in the task manager (Android).
   Future<void> onTaskRemoved();
@@ -1127,10 +1117,18 @@ abstract class AudioHandler {
   Future<void> onNotificationDeleted();
 
   /// Get the children of a parent media item.
-  Future<List<MediaItem>> getChildren(String parentMediaId);
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+      [Map<String, dynamic> options]);
 
   /// Get a value stream of the children of a parent media item.
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId);
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
+      [Map<String, dynamic> options]);
+
+  /// Get a particular media item.
+  Future<MediaItem> getMediaItem(String mediaId);
+
+  /// Search for media items.
+  Future<List<MediaItem>> search(String query, [Map<String, dynamic> extras]);
 
   /// A value stream of playback states.
   ValueStream<PlaybackState> get playbackStateStream;
@@ -1189,134 +1187,214 @@ class CompositeAudioHandler extends AudioHandler {
         _inner = inner,
         super._();
 
+  @override
   @mustCallSuper
   Future<void> prepare() => _inner.prepare();
 
+  @override
   @mustCallSuper
-  Future<void> prepareFromMediaId(String mediaId) =>
-      _inner.prepareFromMediaId(mediaId);
+  Future<void> prepareFromMediaId(String mediaId,
+          [Map<String, dynamic> extras]) =>
+      _inner.prepareFromMediaId(mediaId, extras);
 
+  @override
+  @mustCallSuper
+  Future<void> prepareFromSearch(String query, [Map<String, dynamic> extras]) =>
+      _inner.prepareFromSearch(query, extras);
+
+  @override
+  @mustCallSuper
+  Future<void> prepareFromUri(Uri uri, [Map<String, dynamic> extras]) =>
+      _inner.prepareFromUri(uri, extras);
+
+  @override
   @mustCallSuper
   Future<void> play() => _inner.play();
 
+  @override
   @mustCallSuper
-  Future<void> playFromMediaId(String mediaId) =>
-      _inner.playFromMediaId(mediaId);
+  Future<void> playFromMediaId(String mediaId, [Map<String, dynamic> extras]) =>
+      _inner.playFromMediaId(mediaId, extras);
 
+  @override
+  @mustCallSuper
+  Future<void> playFromSearch(String query, [Map<String, dynamic> extras]) =>
+      _inner.playFromSearch(query, extras);
+
+  @override
+  @mustCallSuper
+  Future<void> playFromUri(Uri uri, [Map<String, dynamic> extras]) =>
+      _inner.playFromUri(uri, extras);
+
+  @override
   @mustCallSuper
   Future<void> playMediaItem(MediaItem mediaItem) =>
       _inner.playMediaItem(mediaItem);
 
+  @override
   @mustCallSuper
   Future<void> pause() => _inner.pause();
 
+  @override
   @mustCallSuper
   Future<void> click([MediaButton button]) => _inner.click(button);
 
+  @override
   @mustCallSuper
   Future<void> stop() => _inner.stop();
 
+  @override
   @mustCallSuper
   Future<void> addQueueItem(MediaItem mediaItem) =>
       _inner.addQueueItem(mediaItem);
 
+  @override
   @mustCallSuper
   Future<void> addQueueItems(List<MediaItem> mediaItems) =>
       _inner.addQueueItems(mediaItems);
 
+  @override
   @mustCallSuper
   Future<void> insertQueueItem(int index, MediaItem mediaItem) =>
       _inner.insertQueueItem(index, mediaItem);
 
+  @override
   @mustCallSuper
   Future<void> updateQueue(List<MediaItem> queue) => _inner.updateQueue(queue);
 
+  @override
   @mustCallSuper
   Future<void> updateMediaItem(MediaItem mediaItem) =>
       _inner.updateMediaItem(mediaItem);
 
+  @override
   @mustCallSuper
   Future<void> removeQueueItem(MediaItem mediaItem) =>
       _inner.removeQueueItem(mediaItem);
 
+  @override
+  @mustCallSuper
+  Future<void> removeQueueItemAt(int index) => _inner.removeQueueItemAt(index);
+
+  @override
   @mustCallSuper
   Future<void> skipToNext() => _inner.skipToNext();
 
+  @override
   @mustCallSuper
   Future<void> skipToPrevious() => _inner.skipToPrevious();
 
+  @override
   @mustCallSuper
   Future<void> fastForward([Duration interval]) => _inner.fastForward(interval);
 
+  @override
   @mustCallSuper
   Future<void> rewind([Duration interval]) => _inner.rewind();
 
+  @override
   @mustCallSuper
   Future<void> skipToQueueItem(String mediaId) =>
       _inner.skipToQueueItem(mediaId);
 
+  @override
   @mustCallSuper
-  Future<void> seekTo(Duration position) => _inner.seekTo(position);
+  Future<void> seek(Duration position) => _inner.seek(position);
 
+  @override
   @mustCallSuper
   Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) =>
       _inner.setRating(rating, extras);
 
+  @override
+  @override
+  Future<void> setCaptioningEnabled(bool enabled) =>
+      _inner.setCaptioningEnabled(enabled);
+
+  @override
   @mustCallSuper
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
       _inner.setRepeatMode(repeatMode);
 
+  @override
   @mustCallSuper
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
       _inner.setShuffleMode(shuffleMode);
 
+  @override
   @mustCallSuper
   Future<void> seekBackward(bool begin) => _inner.seekBackward(begin);
 
+  @override
   @mustCallSuper
   Future<void> seekForward(bool begin) => _inner.seekForward(begin);
 
+  @override
   @mustCallSuper
   Future<void> setSpeed(double speed) => _inner.setSpeed(speed);
 
+  @override
   @mustCallSuper
-  Future<dynamic> customAction(String name, dynamic arguments) =>
-      _inner.customAction(name, arguments);
+  Future<dynamic> customAction(String name, Map<String, dynamic> extras) =>
+      _inner.customAction(name, extras);
 
+  @override
   @mustCallSuper
   Future<void> onTaskRemoved() => _inner.onTaskRemoved();
 
+  @override
   @mustCallSuper
   Future<void> onNotificationDeleted() => _inner.onNotificationDeleted();
 
+  @override
   @mustCallSuper
-  Future<List<MediaItem>> getChildren(String parentMediaId) =>
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+          [Map<String, dynamic> options]) =>
       _inner.getChildren(parentMediaId);
 
+  @override
   @mustCallSuper
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId) =>
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
+          [Map<String, dynamic> options]) =>
       _inner.getChildrenStream(parentMediaId);
 
+  @override
+  @mustCallSuper
+  Future<MediaItem> getMediaItem(String mediaId) =>
+      _inner.getMediaItem(mediaId);
+
+  @override
+  @mustCallSuper
+  Future<List<MediaItem>> search(String query, [Map<String, dynamic> extras]) =>
+      _inner.search(query, extras);
+
+  @override
   @mustCallSuper
   ValueStream<PlaybackState> get playbackStateStream =>
       _inner.playbackStateStream;
 
+  @override
   @mustCallSuper
   PlaybackState get playbackState => _inner.playbackState;
 
+  @override
   @mustCallSuper
   ValueStream<List<MediaItem>> get queueStream => _inner.queueStream;
 
+  @override
   @mustCallSuper
   List<MediaItem> get queue => _inner.queue;
 
+  @override
   @mustCallSuper
   ValueStream<MediaItem> get mediaItemStream => _inner.mediaItemStream;
 
+  @override
   @mustCallSuper
   MediaItem get mediaItem => _inner.mediaItem;
 
   @override
+  @mustCallSuper
   Stream<dynamic> get customEventStream => _inner.customEventStream;
 }
 
@@ -1371,7 +1449,7 @@ class CompositeAudioHandler extends AudioHandler {
 /// If the service needs to be created when the app is not already running, your
 /// app's `main` entrypoint will be called in the background which should
 /// initialise your [AudioHandler].
-abstract class BaseAudioHandler extends AudioHandler {
+class BaseAudioHandler extends AudioHandler {
   /// A controller for broadcasting the current [PlaybackState] to the app's UI,
   /// media notification and other clients. Example usage:
   ///
@@ -1418,13 +1496,29 @@ abstract class BaseAudioHandler extends AudioHandler {
   Future<void> prepare() async {}
 
   @override
-  Future<void> prepareFromMediaId(String mediaId) async {}
+  Future<void> prepareFromMediaId(String mediaId,
+      [Map<String, dynamic> extras]) async {}
+
+  @override
+  Future<void> prepareFromSearch(String query,
+      [Map<String, dynamic> extras]) async {}
+
+  @override
+  Future<void> prepareFromUri(Uri uri, [Map<String, dynamic> extras]) async {}
 
   @override
   Future<void> play() async {}
 
   @override
-  Future<void> playFromMediaId(String mediaId) async {}
+  Future<void> playFromMediaId(String mediaId,
+      [Map<String, dynamic> extras]) async {}
+
+  @override
+  Future<void> playFromSearch(String query,
+      [Map<String, dynamic> extras]) async {}
+
+  @override
+  Future<void> playFromUri(Uri uri, [Map<String, dynamic> extras]) async {}
 
   @override
   Future<void> playMediaItem(MediaItem mediaItem) async {}
@@ -1476,6 +1570,9 @@ abstract class BaseAudioHandler extends AudioHandler {
   Future<void> removeQueueItem(MediaItem mediaItem) async {}
 
   @override
+  Future<void> removeQueueItemAt(int index) async {}
+
+  @override
   Future<void> skipToNext() async {}
 
   @override
@@ -1491,10 +1588,13 @@ abstract class BaseAudioHandler extends AudioHandler {
   Future<void> skipToQueueItem(String mediaId) async {}
 
   @override
-  Future<void> seekTo(Duration position) async {}
+  Future<void> seek(Duration position) async {}
 
   @override
   Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) async {}
+
+  @override
+  Future<void> setCaptioningEnabled(bool enabled) async {}
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {}
@@ -1512,7 +1612,8 @@ abstract class BaseAudioHandler extends AudioHandler {
   Future<void> setSpeed(double speed) async {}
 
   @override
-  Future<dynamic> customAction(String name, dynamic arguments) async {}
+  Future<dynamic> customAction(
+      String name, Map<String, dynamic> arguments) async {}
 
   @override
   Future<void> onTaskRemoved() async {}
@@ -1523,10 +1624,21 @@ abstract class BaseAudioHandler extends AudioHandler {
   }
 
   @override
-  Future<List<MediaItem>> getChildren(String parentMediaId) async => null;
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+          [Map<String, dynamic> options]) async =>
+      null;
 
   @override
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId) => null;
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
+          [Map<String, dynamic> options]) =>
+      null;
+
+  @override
+  Future<MediaItem> getMediaItem(String mediaId) => null;
+
+  @override
+  Future<List<MediaItem>> search(String query, [Map<String, dynamic> extras]) =>
+      null;
 
   @override
   ValueStream<PlaybackState> get playbackStateStream =>
@@ -1544,7 +1656,7 @@ abstract class BaseAudioHandler extends AudioHandler {
 
 /// This mixin provides default implementations of [fastForward], [rewind],
 /// [seekForward] and [seekBackward] which are all defined in terms of your own
-/// implementation of [seekTo].
+/// implementation of [seek].
 mixin SeekHandler on BaseAudioHandler {
   _Seeker _seeker;
 
@@ -1567,7 +1679,7 @@ mixin SeekHandler on BaseAudioHandler {
     if (newPosition < Duration.zero) newPosition = Duration.zero;
     if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
     // Perform the jump via a seek.
-    await seekTo(newPosition);
+    await seek(newPosition);
   }
 
   /// Begins or stops a continuous seek in [direction]. After it begins it will
@@ -1603,7 +1715,7 @@ class _Seeker {
       Duration newPosition = handler.playbackState.position + positionInterval;
       if (newPosition < Duration.zero) newPosition = Duration.zero;
       if (newPosition > mediaItem.duration) newPosition = mediaItem.duration;
-      handler.seekTo(newPosition);
+      handler.seek(newPosition);
       await Future.delayed(stepInterval);
     }
   }
@@ -1702,7 +1814,7 @@ class AudioServiceConfig {
   final bool androidResumeOnClick;
   final String androidNotificationChannelName;
   final String androidNotificationChannelDescription;
-  final int notificationColor;
+  final Color notificationColor;
 
   /// The icon resource to be used in the Android media notification, specified
   /// like an XML resource reference. This defaults to `"mipmap/ic_launcher"`.
@@ -1773,7 +1885,7 @@ class AudioServiceConfig {
         'androidNotificationChannelName': androidNotificationChannelName,
         'androidNotificationChannelDescription':
             androidNotificationChannelDescription,
-        'notificationColor': notificationColor,
+        'notificationColor': notificationColor?.value,
         'androidNotificationIcon': androidNotificationIcon,
         'androidShowNotificationBadge': androidShowNotificationBadge,
         'androidNotificationClickStartsActivity':
@@ -1788,3 +1900,5 @@ class AudioServiceConfig {
         'preloadArtwork': preloadArtwork,
       };
 }
+
+_castMap(Map map) => map?.cast<String, dynamic>();

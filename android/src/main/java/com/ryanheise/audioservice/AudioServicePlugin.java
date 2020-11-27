@@ -59,6 +59,7 @@ import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterRunArguments;
 
+import android.net.Uri;
 import android.content.res.AssetManager;
 
 /**
@@ -504,11 +505,71 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
-        public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
-            ArrayList<Object> list = new ArrayList<Object>();
-            list.add(parentMediaId);
+        public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
             if (backgroundHandler != null) {
-                backgroundHandler.channel.invokeMethod("onLoadChildren", list, new MethodChannel.Result() {
+                ArrayList<Object> args = new ArrayList<Object>();
+                args.add(parentMediaId);
+                backgroundHandler.channel.invokeMethod("onLoadChildren", args, new MethodChannel.Result() {
+                    @Override
+                    public void error(String errorCode, String errorMessage, Object errorDetails) {
+                        result.sendError(new Bundle());
+                    }
+
+                    @Override
+                    public void notImplemented() {
+                        result.sendError(new Bundle());
+                    }
+
+                    @Override
+                    public void success(Object obj) {
+                        List<Map<?, ?>> rawMediaItems = (List<Map<?, ?>>)obj;
+                        List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
+                        for (Map<?, ?> rawMediaItem : rawMediaItems) {
+                            MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                            mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+                        }
+                        result.sendResult(mediaItems);
+                    }
+                });
+            }
+            result.detach();
+        }
+
+        @Override
+        public void onLoadItem(String itemId, final MediaBrowserServiceCompat.Result<MediaBrowserCompat.MediaItem> result) {
+            if (backgroundHandler != null) {
+                ArrayList<Object> args = new ArrayList<Object>();
+                args.add(itemId);
+                backgroundHandler.channel.invokeMethod("onLoadItem", args, new MethodChannel.Result() {
+                    @Override
+                    public void error(String errorCode, String errorMessage, Object errorDetails) {
+                        result.sendError(new Bundle());
+                    }
+
+                    @Override
+                    public void notImplemented() {
+                        result.sendError(new Bundle());
+                    }
+
+                    @Override
+                    public void success(Object obj) {
+                        Map<?, ?> rawMediaItem = (Map<?, ?>)obj;
+                        MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                        MediaBrowserCompat.MediaItem mediaItem = new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE);
+                        result.sendResult(mediaItem);
+                    }
+                });
+            }
+            result.detach();
+        }
+
+        @Override
+        public void onSearch(String query, Bundle extras, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
+            if (backgroundHandler != null) {
+                ArrayList<Object> args = new ArrayList<Object>();
+                args.add(query);
+                args.add(bundleToMap(extras));
+                backgroundHandler.channel.invokeMethod("onSearch", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -550,8 +611,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
-        public void onPrepareFromMediaId(String mediaId) {
-            invokeMethod("onPrepareFromMediaId", mediaId);
+        public void onPrepareFromMediaId(String mediaId, Bundle extras) {
+            invokeMethod("onPrepareFromMediaId", mediaId, bundleToMap(extras));
+        }
+
+        @Override
+        public void onPrepareFromSearch(String query, Bundle extras) {
+            invokeMethod("onPrepareFromSearch", query, bundleToMap(extras));
+        }
+
+        @Override
+        public void onPrepareFromUri(Uri uri, Bundle extras) {
+            invokeMethod("onPrepareFromUri", uri.toString(), bundleToMap(extras));
         }
 
         @Override
@@ -560,8 +631,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
-        public void onPlayFromMediaId(String mediaId) {
-            invokeMethod("onPlayFromMediaId", mediaId);
+        public void onPlayFromMediaId(String mediaId, Bundle extras) {
+            invokeMethod("onPlayFromMediaId", mediaId, bundleToMap(extras));
+        }
+
+        @Override
+        public void onPlayFromSearch(String query, Bundle extras) {
+            invokeMethod("onPlayFromSearch", query, bundleToMap(extras));
+        }
+
+        @Override
+        public void onPlayFromUri(Uri uri, Bundle extras) {
+            invokeMethod("onPlayFromUri", uri.toString(), bundleToMap(extras));
         }
 
         @Override
@@ -587,6 +668,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onRemoveQueueItem(MediaMetadataCompat metadata) {
             invokeMethod("onRemoveQueueItem", mediaMetadata2raw(metadata));
+        }
+
+        @Override
+        public void onRemoveQueueItemAt(int index) {
+            invokeMethod("onRemoveQueueItemAt", index);
         }
 
         @Override
@@ -621,6 +707,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
+        public void onSetCaptioningEnabled(boolean enabled) {
+            invokeMethod("onSetCaptioningEnabled", enabled);
+        }
+
+        @Override
         public void onSetRepeatMode(int repeatMode) {
             invokeMethod("onSetRepeatMode", repeatMode);
         }
@@ -628,6 +719,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onSetShuffleMode(int shuffleMode) {
             invokeMethod("onSetShuffleMode", shuffleMode);
+        }
+
+        @Override
+        public void onCustomAction(String action, Bundle extras) {
+            invokeMethod("onCustomAction", bundleToMap(extras));
         }
 
         @Override
@@ -936,5 +1032,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     public static Integer getInt(Object o) {
         return (o == null || o instanceof Integer) ? (Integer)o : new Integer((int)((Long)o).longValue());
+    }
+
+    static Map<String, Object> bundleToMap(Bundle bundle) {
+        if (bundle == null) return null;
+        Map<String, Object> map = new HashMap<String, Object>();
+        for (String key : bundle.keySet()) {
+            // No way to detect the type of each value;
+            Object value = bundle.getString(key);
+            if (value != null) {
+                map.put(key, value);
+            }
+        }
+        return map;
     }
 }

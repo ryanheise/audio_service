@@ -64,10 +64,10 @@ class MyAudioHandler extends BaseAudioHandler
     await super.stop();
   }
   
-  customAction(String name, dynamic arguments) async {
+  customAction(String name, Map<String, dynamic> arguments) async {
     switch (name) {
       case 'setVolume':
-        _player.setVolume(arguments);
+        _player.setVolume(arguments['volume']);
         break;
       case 'saveBookmark':
         // app-specific code
@@ -133,7 +133,7 @@ _audioHandler.setShuffleMode(AudioServiceShuffleMode.all); // none/all/group
 Custom actions:
 
 ```dart
-_audioHandler.customAction('setVolume', 0.8);
+_audioHandler.customAction('setVolume', {'volume': 0.8});
 _audioHandler.customAction('saveBookmark');
 ```
 

@@ -44,6 +44,7 @@ import java.util.Set;
 
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
+import android.net.Uri;
 import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class AudioService extends MediaBrowserServiceCompat {
@@ -538,15 +539,42 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
         return new BrowserRoot(MEDIA_ROOT_ID, null);
+        // The response must be given synchronously, and we can't get a
+        // synchronous response from the Dart layer. For now, we hardcode
+        // the root to "root". This may improve in media2.
+        //return listener.onGetRoot(clientPackageName, clientUid, rootHints);
     }
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
+        onLoadChildren(parentMediaId, result, null);
+    }
+
+    @Override
+    public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
         if (listener == null) {
             result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
             return;
         }
-        listener.onLoadChildren(parentMediaId, result);
+        listener.onLoadChildren(parentMediaId, result, options);
+    }
+
+    @Override
+    public void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result) {
+        if (listener == null) {
+            result.sendResult(null);
+            return;
+        }
+        listener.onLoadItem(itemId, result);
+    }
+
+    @Override
+    public void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result) {
+        if (listener == null) {
+            result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
+            return;
+        }
+        listener.onSearch(query, extras, result);
     }
 
     @Override
@@ -577,12 +605,42 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
 
         @Override
+        public void onRemoveQueueItemAt(int index) {
+            if (listener == null) return;
+            listener.onRemoveQueueItemAt(index);
+        }
+
+        @Override
         public void onPrepare() {
             System.out.println("### onPrepare. listener: " + listener);
             if (listener == null) return;
             if (!mediaSession.isActive())
                 mediaSession.setActive(true);
             listener.onPrepare();
+        }
+
+        @Override
+        public void onPrepareFromMediaId(String mediaId, Bundle extras) {
+            if (listener == null) return;
+            if (!mediaSession.isActive())
+                mediaSession.setActive(true);
+            listener.onPrepareFromMediaId(mediaId, extras);
+        }
+
+        @Override
+        public void onPrepareFromSearch(String query, Bundle extras) {
+            if (listener == null) return;
+            if (!mediaSession.isActive())
+                mediaSession.setActive(true);
+            listener.onPrepareFromSearch(query, extras);
+        }
+
+        @Override
+        public void onPrepareFromUri(Uri uri, Bundle extras) {
+            if (listener == null) return;
+            if (!mediaSession.isActive())
+                mediaSession.setActive(true);
+            listener.onPrepareFromUri(uri, extras);
         }
 
         @Override
@@ -593,17 +651,21 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
 
         @Override
-        public void onPrepareFromMediaId(String mediaId, Bundle extras) {
+        public void onPlayFromMediaId(final String mediaId, final Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
-            listener.onPrepareFromMediaId(mediaId);
+            listener.onPlayFromMediaId(mediaId, extras);
         }
 
         @Override
-        public void onPlayFromMediaId(final String mediaId, final Bundle extras) {
+        public void onPlayFromSearch(final String query, final Bundle extras) {
             if (listener == null) return;
-            listener.onPlayFromMediaId(mediaId);
+            listener.onPlayFromSearch(query, extras);
+        }
+
+        @Override
+        public void onPlayFromUri(final Uri uri, final Bundle extras) {
+            if (listener == null) return;
+            listener.onPlayFromUri(uri, extras);
         }
 
         @Override
@@ -725,6 +787,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
 
         @Override
+        public void onSetCaptioningEnabled(boolean enabled) {
+            if (listener == null) return;
+            listener.onSetCaptioningEnabled(enabled);
+        }
+
+        @Override
         public void onSetRepeatMode(int repeatMode) {
             if (listener == null) return;
             listener.onSetRepeatMode(repeatMode);
@@ -734,6 +802,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         public void onSetShuffleMode(int shuffleMode) {
             if (listener == null) return;
             listener.onSetShuffleMode(shuffleMode);
+        }
+
+        @Override
+        public void onCustomAction(String action, Bundle extras) {
+            if (listener == null) return;
+            listener.onCustomAction(action, extras);
         }
 
         @Override
@@ -753,55 +827,38 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public static interface ServiceListener {
-        void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result);
-
+        //BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints);
+        void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options);
+        void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result);
+        void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result);
         void onClick(MediaControl mediaControl);
-
         void onPrepare();
-
-        void onPrepareFromMediaId(String mediaId);
-
-        //void onPrepareFromSearch(String query);
-        //void onPrepareFromUri(String uri);
+        void onPrepareFromMediaId(String mediaId, Bundle extras);
+        void onPrepareFromSearch(String query, Bundle extras);
+        void onPrepareFromUri(Uri uri, Bundle extras);
         void onPlay();
-
-        void onPlayFromMediaId(String mediaId);
-
-        //void onPlayFromSearch(String query, Map<?,?> extras);
-        //void onPlayFromUri(String uri, Map<?,?> extras);
+        void onPlayFromMediaId(String mediaId, Bundle extras);
+        void onPlayFromSearch(String query, Bundle extras);
+        void onPlayFromUri(Uri uri, Bundle extras);
         void onSkipToQueueItem(long id);
-
         void onPause();
-
         void onSkipToNext();
-
         void onSkipToPrevious();
-
         void onFastForward();
-
         void onRewind();
-
         void onStop();
-
         void onSeekTo(long pos);
-
         void onSetRating(RatingCompat rating);
-
         void onSetRating(RatingCompat rating, Bundle extras);
-
         void onSetRepeatMode(int repeatMode);
-
         //void onSetShuffleModeEnabled(boolean enabled);
-
         void onSetShuffleMode(int shuffleMode);
-
-        //void onCustomAction(String action, Bundle extras);
-
+        void onCustomAction(String action, Bundle extras);
         void onAddQueueItem(MediaMetadataCompat metadata);
-
         void onAddQueueItemAt(MediaMetadataCompat metadata, int index);
-
         void onRemoveQueueItem(MediaMetadataCompat metadata);
+        void onRemoveQueueItemAt(int index);
+        void onSetCaptioningEnabled(boolean enabled);
 
         //
         // NON-STANDARD METHODS

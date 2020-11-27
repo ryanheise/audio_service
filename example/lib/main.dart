@@ -107,7 +107,7 @@ class MainScreen extends StatelessWidget {
                   duration: mediaState?.mediaItem?.duration ?? Duration.zero,
                   position: mediaState?.position ?? Duration.zero,
                   onChangeEnd: (newPosition) {
-                    _audioHandler.seekTo(newPosition);
+                    _audioHandler.seek(newPosition);
                   },
                 );
               },
@@ -351,7 +351,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> pause() => _player.pause();
 
   @override
-  Future<void> seekTo(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) => _player.seek(position);
 
   @override
   Future<void> stop() async {
@@ -375,7 +375,7 @@ class AudioPlayerHandler extends BaseAudioHandler
         MediaControl.skipToNext,
       ],
       systemActions: {
-        MediaAction.seekTo,
+        MediaAction.seek,
         MediaAction.seekForward,
         MediaAction.seekBackward,
       },
