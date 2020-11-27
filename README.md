@@ -114,7 +114,7 @@ var item = MediaItem(
   title: 'Track title',
 );
 _audioHandler.addQueueItem(item);
-_audioHandler.addQueueItemAt(item, 1);
+_audioHandler.insertQueueItem(1, item);
 _audioHandler.removeQueueItem(item);
 _audioHandler.updateQueue([item, ...]);
 _audioHandler.skipToNext();
