@@ -1320,6 +1320,57 @@ class CompositeAudioHandler extends AudioHandler {
   Stream<dynamic> get customEventStream => _inner.customEventStream;
 }
 
+/// Base class for implementations of [AudioHandler]. It provides default
+/// implementations of all methods and provides controllers for emitting stream
+/// events:
+///
+/// * [playbackStateSubject] is a [BehaviorSubject] that emits events to
+/// [playbackStateStream].
+/// * [queueSubject] is a [BehaviorSubject] that emits events to [queueStream].
+/// * [mediaItemSubject] is a [BehaviorSubject] that emits events to
+/// [mediaItemStream].
+/// * [customEventSubject] is a [PublishSubject] that emits events to
+/// [customEventStream].
+///
+/// You can choose to implement all methods yourself, or you may leverage some
+/// mixins to provide default implementations of certain behaviours:
+///
+/// * [QueueHandler] provides default implementations of methods for updating
+/// and navigating the queue.
+/// * [SeekHandler] provides default implementations of methods for seeking
+/// forwards and backwards.
+///
+/// ## Android service lifecycle and state transitions
+///
+/// On Android, the [AudioHandler] runs inside an Android service. This allows
+/// the audio logic to continue running in the background, and also an app that
+/// had previously been terminated to wake up and resume playing audio when the
+/// user click on the play button in a media notification or headset.
+///
+/// ### Foreground/background transitions
+///
+/// The underlying Android service enters the `foreground` state whenever
+/// [PlaybackState.playing] becomes `true`, and enters the `background` state
+/// whenever [PlaybackState.playing] becomes `false`.
+///
+/// ### Start/stop transitions
+///
+/// The underlying Android service enters the `started` state whenever
+/// [PlaybackState.playing] becomes `true`, and enters the `stopped` state
+/// whenever [stop] is called. If you override [stop], you must call `super` to
+/// ensure that the service is stopped.
+///
+/// ### Create/destroy lifecycle
+///
+/// The underlying service is created either when a client binds to it, or when
+/// it is started, and it is destroyed when no clients are bound to it AND it is
+/// stopped. When the Flutter UI is attached to an Android Activity, this will
+/// also bind to the service, and it will unbind from the service when the
+/// Activity is destroyed. A media notification will also bind to the service.
+///
+/// If the service needs to be created when the app is not already running, your
+/// app's `main` entrypoint will be called in the background which should
+/// initialise your [AudioHandler].
 abstract class BaseAudioHandler extends AudioHandler {
   /// A controller for broadcasting the current [PlaybackState] to the app's UI,
   /// media notification and other clients. Example usage:
@@ -1491,6 +1542,9 @@ abstract class BaseAudioHandler extends AudioHandler {
   Stream<dynamic> get customEventStream => customEventSubject.stream;
 }
 
+/// This mixin provides default implementations of [fastForward], [rewind],
+/// [seekForward] and [seekBackward] which are all defined in terms of your own
+/// implementation of [seekTo].
 mixin SeekHandler on BaseAudioHandler {
   _Seeker _seeker;
 
@@ -1559,58 +1613,69 @@ class _Seeker {
   }
 }
 
+/// This mixin provides default implementations of methods for updating and
+/// navigating the queue. The [skipToNext] and [skipToPrevious] default
+/// implementations are defined in terms of your own implementation of
+/// [skipToQueueItem].
 mixin QueueHandler on BaseAudioHandler {
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
     queueSubject.add(queue..add(mediaItem));
-    return super.addQueueItem(mediaItem);
+    await super.addQueueItem(mediaItem);
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     queueSubject.add(queue..addAll(mediaItems));
-    return super.addQueueItems(mediaItems);
+    await super.addQueueItems(mediaItems);
   }
 
   @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) async {
     queueSubject.add(queue..insert(index, mediaItem));
-    return super.insertQueueItem(index, mediaItem);
+    await super.insertQueueItem(index, mediaItem);
   }
 
   @override
   Future<void> updateQueue(List<MediaItem> queue) async {
     queueSubject.add(this.queue..replaceRange(0, this.queue.length, queue));
-    return super.updateQueue(queue);
+    await super.updateQueue(queue);
   }
 
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) async {
     queueSubject.add(this.queue..[this.queue.indexOf(mediaItem)] = mediaItem);
-    return super.updateMediaItem(mediaItem);
+    await super.updateMediaItem(mediaItem);
   }
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) async {
     queueSubject.add(this.queue..remove(mediaItem));
-    return super.removeQueueItem(mediaItem);
+    await super.removeQueueItem(mediaItem);
   }
 
   @override
   Future<void> skipToNext() async {
     await _skip(1);
-    return super.skipToNext();
+    await super.skipToNext();
   }
 
   @override
   Future<void> skipToPrevious() async {
     await _skip(-1);
-    return super.skipToPrevious();
+    await super.skipToPrevious();
   }
 
+  /// This should be overridden to instruct how to skip to the media item
+  /// identified by [mediaId]. By default, this will find the [MediaItem]
+  /// identified by [mediaId] and broadcast this on the [mediaItemStream]. Your
+  /// implementation may call super to reuse this default implementation, or
+  /// else provide equivalent behaviour.
+  @override
   Future<void> skipToQueueItem(String mediaId) async {
     final mediaItem = queue.firstWhere((mediaItem) => mediaItem.id == mediaId);
     mediaItemSubject.add(mediaItem);
+    await super.skipToQueueItem(mediaId);
   }
 
   Future<void> _skip(int offset) async {
@@ -1624,23 +1689,15 @@ mixin QueueHandler on BaseAudioHandler {
   }
 }
 
-class MyAudioHandler extends BaseAudioHandler with QueueHandler {
-  @override
-  // TODO: implement playbackStateStream
-  ValueStream<PlaybackState> get playbackStateStream =>
-      throw UnimplementedError();
-
-  @override
-  // TODO: implement mediaItemStream
-  ValueStream<MediaItem> get mediaItemStream => throw UnimplementedError();
-}
-
+/// The available shuffle modes for the queue.
 enum AudioServiceShuffleMode { none, all, group }
 
+/// The available repeat modes.
 enum AudioServiceRepeatMode { none, one, all, group }
 
 bool get _testing => HttpOverrides.current != null;
 
+/// The configuration options to use when registering an [AudioHandler].
 class AudioServiceConfig {
   final bool androidResumeOnClick;
   final String androidNotificationChannelName;
