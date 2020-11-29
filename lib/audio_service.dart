@@ -625,8 +625,8 @@ class AudioService {
   /// You may optionally specify a [cacheManager] to use when loading artwork to
   /// display in the media notification and lock screen. This defaults to
   /// [DefaultCacheManager].
-  static Future<AudioHandler> init({
-    @required AudioHandler builder(),
+  static Future<T> init<T extends AudioHandler>({
+    @required T builder(),
     AudioServiceConfig config,
     BaseCacheManager cacheManager,
   }) async {
