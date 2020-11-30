@@ -762,7 +762,6 @@ class AudioService {
           case 'onClose':
             return _handler.onNotificationDeleted();
           case 'onCustomAction':
-            final map = <int, int>{};
             return _handler.customAction(
                 call.arguments[0], _castMap(call.arguments[1]));
           default:
