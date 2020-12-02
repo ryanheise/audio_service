@@ -447,6 +447,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     config.androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
                     config.artDownscaleWidth = arguments.get("artDownscaleWidth") != null ? (Integer)arguments.get("artDownscaleWidth") : -1;
                     config.artDownscaleHeight = arguments.get("artDownscaleHeight") != null ? (Integer)arguments.get("artDownscaleHeight") : -1;
+                    config.setBrowsableRootExtras((Map<?,?>)arguments.get("androidBrowsableRootExtras"));
                     if (activity != null) {
                         config.activityClassName = activity.getClass().getName();
                     }
@@ -737,6 +738,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
+        public void onSetVolumeTo(int volumeIndex) {
+            invokeMethod("onSetVolumeTo", volumeIndex);
+        }
+
+        @Override
+        public void onAdjustVolume(int direction) {
+            invokeMethod("onAdjustVolume", direction);
+        }
+
+        @Override
         public void onTaskRemoved() {
             invokeMethod("onTaskRemoved");
         }
@@ -784,18 +795,21 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 result.success(true);
                 break;
             case "setState":
-                List<Object> args = (List<Object>)call.arguments;
-                List<Map<?, ?>> rawControls = (List<Map<?, ?>>)args.get(0);
-                List<Integer> rawSystemActions = (List<Integer>)args.get(1);
-                AudioProcessingState processingState = AudioProcessingState.values()[(Integer)args.get(2)];
-                boolean playing = (Boolean)args.get(3);
-                long position = getLong(args.get(4));
-                long bufferedPosition = getLong(args.get(5));
-                float speed = (float)((double)((Double)args.get(6)));
-                long updateTimeSinceEpoch = args.get(7) == null ? System.currentTimeMillis() : getLong(args.get(7));
-                List<Object> compactActionIndexList = (List<Object>)args.get(8);
-                int repeatMode = (Integer)args.get(9);
-                int shuffleMode = (Integer)args.get(10);
+                Map<?, ?> args = (Map<?, ?>)call.arguments;
+                AudioProcessingState processingState = AudioProcessingState.values()[(Integer)args.get("processingState")];
+                boolean playing = (Boolean)args.get("playing");
+                List<Map<?, ?>> rawControls = (List<Map<?, ?>>)args.get("controls");
+                List<Object> compactActionIndexList = (List<Object>)args.get("androidCompactActionIndices");
+                List<Integer> rawSystemActions = (List<Integer>)args.get("systemActions");
+                long position = getLong(args.get("updatePosition"));
+                long bufferedPosition = getLong(args.get("bufferedPosition"));
+                float speed = (float)((double)((Double)args.get("speed")));
+                long updateTimeSinceEpoch = args.get("updateTime") == null ? System.currentTimeMillis() : getLong(args.get("updateTime"));
+                Integer errorCode = (Integer)args.get("errorCode");
+                String errorMessage = (String)args.get("errorMessage");
+                int repeatMode = (Integer)args.get("repeatMode");
+                int shuffleMode = (Integer)args.get("shuffleMode");
+                boolean captioningEnabled = (Boolean)args.get("captioningEnabled");
 
                 // On the flutter side, we represent the update time relative to the epoch.
                 // On the native side, we must represent the update time relative to the boot time.
@@ -819,8 +833,30 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     for (int i = 0; i < compactActionIndices.length; i++)
                         compactActionIndices[i] = (Integer)compactActionIndexList.get(i);
                 }
-                AudioService.instance.setState(actions, actionBits, compactActionIndices, processingState, playing, position, bufferedPosition, speed, updateTimeSinceBoot, repeatMode, shuffleMode);
+                AudioService.instance.setState(
+                        actions,
+                        actionBits,
+                        compactActionIndices,
+                        processingState,
+                        playing,
+                        position,
+                        bufferedPosition,
+                        speed,
+                        updateTimeSinceBoot,
+                        errorCode,
+                        errorMessage,
+                        repeatMode,
+                        shuffleMode,
+                        captioningEnabled);
                 result.success(true);
+                break;
+            case "setPlaybackInfo":
+                Map<?, ?> playbackInfo = (Map<?, ?>)call.arguments;
+                final int playbackType = (Integer)playbackInfo.get("playbackType");
+                final int volumeControlType = (Integer)playbackInfo.get("volumeControlType");
+                final int maxVolume = (Integer)playbackInfo.get("maxVolume");
+                final int volume = (Integer)playbackInfo.get("volume");
+                AudioService.instance.setPlaybackInfo(playbackType, volumeControlType, maxVolume, volume);
                 break;
             case "notifyChildrenChanged":
                 String parentMediaId = (String)call.arguments;
@@ -970,22 +1006,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_RATING)) {
             raw.put("rating", rating2raw(mediaMetadata.getRating(MediaMetadataCompat.METADATA_KEY_RATING)));
         }
-        Map<String, Object> extras = new HashMap<>();
-        for (String key : mediaMetadata.keySet()) {
-            if (key.startsWith("extra_long_")) {
-                String rawKey = key.substring("extra_long_".length());
-                extras.put(rawKey, mediaMetadata.getLong(key));
-            } else if (key.startsWith("extra_string_")) {
-                String rawKey = key.substring("extra_string_".length());
-                extras.put(rawKey, mediaMetadata.getString(key));
-            } else if (key.startsWith("extra_boolean_")) {
-                String rawKey = key.substring("extra_boolean_".length());
-                extras.put(rawKey, mediaMetadata.getLong(key) != 0);
-            } else if (key.startsWith("extra_double_")) {
-                String rawKey = key.substring("extra_double_".length());
-                extras.put(rawKey, new Double(mediaMetadata.getString(key)));
-            }
-        }
+        Map<String, Object> extras = bundleToMap(mediaMetadata.getBundle());
         if (extras.size() > 0) {
             raw.put("extras", extras);
         }
@@ -1038,9 +1059,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         if (bundle == null) return null;
         Map<String, Object> map = new HashMap<String, Object>();
         for (String key : bundle.keySet()) {
-            // No way to detect the type of each value;
-            Object value = bundle.getString(key);
-            if (value != null) {
+            Object value = bundle.get(key);
+            if (value instanceof Integer
+                    || value instanceof Long
+                    || value instanceof Double
+                    || value instanceof Float
+                    || value instanceof Boolean
+                    || value instanceof String) {
                 map.put(key, value);
             }
         }

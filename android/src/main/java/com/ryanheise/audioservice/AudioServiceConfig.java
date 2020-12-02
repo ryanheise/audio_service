@@ -2,6 +2,10 @@ package com.ryanheise.audioservice;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Bundle;
+import java.util.Iterator;
+import java.util.Map;
+import org.json.JSONObject;
 
 public class AudioServiceConfig {
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
@@ -17,6 +21,7 @@ public class AudioServiceConfig {
     private static final String KEY_ART_DOWNSCALE_WIDTH = "artDownscaleWidth";
     private static final String KEY_ART_DOWNSCALE_HEIGHT = "artDownscaleHeight";
     private static final String KEY_ACTIVITY_CLASS_NAME = "activityClassName";
+    private static final String KEY_BROWSABLE_ROOT_EXTRAS = "browsableRootExtras";
 
     private SharedPreferences preferences;
     public boolean androidResumeOnClick;
@@ -31,6 +36,7 @@ public class AudioServiceConfig {
     public int artDownscaleWidth;
     public int artDownscaleHeight;
     public String activityClassName;
+    public String browsableRootExtras;
 
     public AudioServiceConfig(Context context) {
         preferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -46,6 +52,48 @@ public class AudioServiceConfig {
         artDownscaleWidth = preferences.getInt(KEY_ART_DOWNSCALE_WIDTH, -1);
         artDownscaleHeight = preferences.getInt(KEY_ART_DOWNSCALE_HEIGHT, -1);
         activityClassName = preferences.getString(KEY_ACTIVITY_CLASS_NAME, null);
+        browsableRootExtras = preferences.getString(KEY_BROWSABLE_ROOT_EXTRAS, null);
+    }
+
+    public void setBrowsableRootExtras(Map<?,?> map) {
+        if (map != null) {
+            JSONObject json = new JSONObject(map);
+            browsableRootExtras = json.toString();
+        } else {
+            browsableRootExtras = null;
+        }
+    }
+
+    public Bundle getBrowsableRootExtras() {
+        if (browsableRootExtras == null) return null;
+        try {
+            JSONObject json = new JSONObject(browsableRootExtras);
+            Bundle extras = new Bundle();
+            for (Iterator<String> it = json.keys(); it.hasNext();) {
+                String key = it.next();
+                try {
+                    extras.putInt(key, json.getInt(key));
+                } catch (Exception e1) {
+                    try {
+                        extras.putBoolean(key, json.getBoolean(key));
+                    } catch (Exception e2) {
+                        try {
+                            extras.putDouble(key, json.getDouble(key));
+                        } catch (Exception e3) {
+                            try {
+                                extras.putString(key, json.getString(key));
+                            } catch (Exception e4) {
+                                System.out.println("Unsupported extras value for key " + key);
+                            }
+                        }
+                    }
+                }
+            }
+            return extras;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public void save() {
@@ -62,6 +110,7 @@ public class AudioServiceConfig {
             .putInt(KEY_ART_DOWNSCALE_WIDTH, artDownscaleWidth)
             .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
             .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)
+            .putString(KEY_BROWSABLE_ROOT_EXTRAS, browsableRootExtras)
             .commit();
     }
 }

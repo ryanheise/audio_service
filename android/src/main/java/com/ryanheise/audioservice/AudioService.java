@@ -33,6 +33,8 @@ import android.view.KeyEvent;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
+import androidx.media.MediaBrowserServiceCompat.BrowserRoot;
+import androidx.media.VolumeProviderCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 
 import java.util.ArrayList;
@@ -48,12 +50,21 @@ import android.net.Uri;
 import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class AudioService extends MediaBrowserServiceCompat {
+    public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
+    public static final String CONTENT_STYLE_PLAYABLE_HINT = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT";
+    public static final String CONTENT_STYLE_BROWSABLE_HINT = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
+    public static final int CONTENT_STYLE_LIST_ITEM_HINT_VALUE = 1;
+    public static final int CONTENT_STYLE_GRID_ITEM_HINT_VALUE = 2;
+    public static final int CONTENT_STYLE_CATEGORY_LIST_ITEM_HINT_VALUE = 3;
+    public static final int CONTENT_STYLE_CATEGORY_GRID_ITEM_HINT_VALUE = 4;
+
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
 
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
-    private static final String MEDIA_ROOT_ID = "root";
+    private static final String BROWSABLE_ROOT_ID = "root";
+    private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
     // We hijack KEYCODE_MUTE and KEYCODE_MEDIA_RECORD since the media session subsystem
     // considers these keycodes relevant to media playback and will pass them on to us.
@@ -124,15 +135,15 @@ public class AudioService extends MediaBrowserServiceCompat {
                 String key = (String)o;
                 Object value = extras.get(key);
                 if (value instanceof Long) {
-                    builder.putLong("extra_long_" + key, (Long)value);
+                    builder.putLong(key, (Long)value);
                 } else if (value instanceof Integer) {
-                    builder.putLong("extra_long_" + key, (Integer)value);
+                    builder.putLong(key, (long)((Integer)value));
                 } else if (value instanceof String) {
-                    builder.putString("extra_string_" + key, (String)value);
+                    builder.putString(key, (String)value);
                 } else if (value instanceof Boolean) {
-                    builder.putLong("extra_boolean_" + key, (Boolean)value ? 1 : 0);
+                    builder.putLong(key, (Boolean)value ? 1 : 0);
                 } else if (value instanceof Double) {
-                    builder.putString("extra_double_" + key, value.toString());
+                    builder.putString(key, value.toString());
                 }
             }
         }
@@ -353,7 +364,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return PendingIntent.getBroadcast(this, 0, intent, 0);
     }
 
-    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, int repeatMode, int shuffleMode) {
+    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled) {
         this.actions = actions;
         this.compactActionIndices = compactActionIndices;
         boolean wasPlaying = this.playing;
@@ -367,7 +378,14 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
                 .setState(getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
+        if (errorCode != null && errorMessage != null)
+            stateBuilder.setErrorMessage(errorCode, errorMessage);
+        else if (errorMessage != null)
+            stateBuilder.setErrorMessage(errorMessage);
         mediaSession.setPlaybackState(stateBuilder.build());
+        mediaSession.setRepeatMode(repeatMode);
+        mediaSession.setShuffleMode(shuffleMode);
+        mediaSession.setCaptioningEnabled(captioningEnabled);
 
         if (!wasPlaying && playing) {
             enterPlayingState();
@@ -381,6 +399,35 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
 
         updateNotification();
+    }
+
+    private VolumeProviderCompat volumeProvider;
+    public void setPlaybackInfo(int playbackType, int volumeControlType, int maxVolume, int volume) {
+        if (playbackType == MediaControllerCompat.PlaybackInfo.PLAYBACK_TYPE_LOCAL) {
+            // We have to wait 'til media2 before we can use AudioAttributes.
+            mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC);
+            volumeProvider = null;
+        } else if (playbackType == MediaControllerCompat.PlaybackInfo.PLAYBACK_TYPE_REMOTE) {
+            if (volumeProvider == null || volumeControlType != volumeProvider.getVolumeControl() || maxVolume != volumeProvider.getMaxVolume()) {
+                volumeProvider = new VolumeProviderCompat(volumeControlType, maxVolume, volume) {
+                    @Override
+                    public void onSetVolumeTo(int volumeIndex) {
+                        if (listener == null) return;
+                        listener.onSetVolumeTo(volumeIndex);
+                    }
+                    @Override
+                    public void onAdjustVolume(int direction) {
+                        if (listener == null) return;
+                        listener.onAdjustVolume(direction);
+                    }
+                };
+            } else {
+                volumeProvider.setCurrentVolume(volume);
+            }
+            mediaSession.setPlaybackToRemote(volumeProvider);
+        } else {
+            // silently ignore
+        }
     }
 
     public int getPlaybackState() {
@@ -538,7 +585,10 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        return new BrowserRoot(MEDIA_ROOT_ID, null);
+        Boolean isRecentRequest = (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
+        if (isRecentRequest == null) isRecentRequest = false;
+        Bundle extras = config.getBrowsableRootExtras();
+        return new BrowserRoot(isRecentRequest ? RECENT_ROOT_ID : BROWSABLE_ROOT_ID, extras);
         // The response must be given synchronously, and we can't get a
         // synchronous response from the Dart layer. For now, we hardcode
         // the root to "root". This may improve in media2.
@@ -859,6 +909,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         void onRemoveQueueItem(MediaMetadataCompat metadata);
         void onRemoveQueueItemAt(int index);
         void onSetCaptioningEnabled(boolean enabled);
+        void onSetVolumeTo(int volumeIndex);
+        void onAdjustVolume(int direction);
 
         //
         // NON-STANDARD METHODS

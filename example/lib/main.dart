@@ -84,7 +84,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Play/pause/stop buttons.
             StreamBuilder<bool>(
-              stream: _audioHandler.playbackStateStream
+              stream: _audioHandler.playbackState.stream
                   .map((state) => state.playing)
                   .distinct(),
               builder: (context, snapshot) {
@@ -114,7 +114,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Display the processing state.
             StreamBuilder<AudioProcessingState>(
-              stream: _audioHandler.playbackStateStream
+              stream: _audioHandler.playbackState.stream
                   .map((state) => state.processingState)
                   .distinct(),
               builder: (context, snapshot) {
@@ -150,7 +150,7 @@ class MainScreen extends StatelessWidget {
   /// current position.
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem, Duration, MediaState>(
-          _audioHandler.mediaItemStream,
+          _audioHandler.mediaItem.stream,
           AudioService.getPositionStream(),
           (mediaItem, position) => MediaState(mediaItem, position));
 
@@ -158,8 +158,8 @@ class MainScreen extends StatelessWidget {
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
       Rx.combineLatest2<List<MediaItem>, MediaItem, QueueState>(
-          _audioHandler.queueStream,
-          _audioHandler.mediaItemStream,
+          _audioHandler.queue.stream,
+          _audioHandler.mediaItem.stream,
           (queue, mediaItem) => QueueState(queue, mediaItem));
 
   RaisedButton startButton(String label, VoidCallback onPressed) =>
@@ -279,9 +279,6 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   int get index => _player?.currentIndex;
 
-  @override
-  MediaItem get mediaItem => index == null ? null : queue[index];
-
   AudioPlayerHandler() {
     _init();
   }
@@ -304,7 +301,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       _player = AudioPlayer();
       // Broadcast media item changes.
       _player.currentIndexStream.listen((index) {
-        if (index != null) mediaItemSubject.add(queue[index]);
+        if (index != null) mediaItemSubject.add(queue.value[index]);
       });
       // Propagate all events from the audio player to AudioService clients.
       _eventSubscription = _player.playbackEventStream.listen((event) {
@@ -321,8 +318,9 @@ class AudioPlayerHandler extends BaseAudioHandler
         // work. Not sure why!
         //await Future.delayed(Duration(seconds: 2)); // magic delay
         await _player.load(ConcatenatingAudioSource(
-          children:
-              queue.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
+          children: queue.value
+              .map((item) => AudioSource.uri(Uri.parse(item.id)))
+              .toList(),
         ));
         print("### loaded");
       } catch (e) {
@@ -335,7 +333,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> skipToQueueItem(String mediaId) async {
     // Then default implementations of skipToNext and skipToPrevious provided by
     // the [QueueHandler] mixin will delegate to this method.
-    final newIndex = queue.indexWhere((item) => item.id == mediaId);
+    final newIndex = queue.value.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: newIndex);
@@ -367,7 +365,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// Broadcasts the current state to all clients.
   void _broadcastState() {
     final playing = _player?.playing ?? false;
-    playbackStateSubject.add(playbackState.copyWith(
+    playbackStateSubject.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
