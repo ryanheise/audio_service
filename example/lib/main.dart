@@ -421,6 +421,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
     await super.onStop();
   }
 
+  @override
+  Future<void> onBookmark() async => print('BOOKMARK FROM FLUTTER!');
+
   /// Jumps away from the current position by [offset].
   Future<void> _seekRelative(Duration offset) async {
     var newPosition = _player.position + offset;
@@ -447,14 +450,14 @@ class AudioPlayerTask extends BackgroundAudioTask {
   Future<void> _broadcastState() async {
     await AudioServiceBackground.setState(
       controls: [
-        MediaControl.skipToPrevious,
         if (_player.playing) MediaControl.pause else MediaControl.play,
-        MediaControl.stop,
-        MediaControl.skipToNext,
+        if (_player.playing)
+          MediaControl.bookmark
+        else
+          MediaControl.skipToPrevious,
       ],
       systemActions: [
         MediaAction.seekTo,
-        MediaAction.seekForward,
         MediaAction.seekBackward,
       ],
       androidCompactActions: [0, 1, 3],
@@ -598,6 +601,9 @@ class TextPlayerTask extends BackgroundAudioTask {
   }
 
   @override
+  Future<void> onBookmark() async => print('BOOKMARK FROM FLUTTER!');
+
+  @override
   Future<void> onPlay() => _playPause();
 
   @override
@@ -625,7 +631,10 @@ class TextPlayerTask extends BackgroundAudioTask {
     if (_playing) {
       _interrupted = false;
       await AudioServiceBackground.setState(
-        controls: [MediaControl.play, MediaControl.stop],
+        controls: [
+          MediaControl.play,
+          MediaControl.bookmark,
+        ],
         processingState: AudioProcessingState.ready,
         playing: false,
       );
@@ -640,7 +649,11 @@ class TextPlayerTask extends BackgroundAudioTask {
         // If we successfully activated the session, set the state to playing
         // and resume playback.
         await AudioServiceBackground.setState(
-          controls: [MediaControl.pause, MediaControl.stop],
+          controls: [
+            MediaControl.pause,
+            MediaControl.stop,
+            MediaControl.bookmark,
+          ],
           processingState: AudioProcessingState.ready,
           playing: true,
         );
