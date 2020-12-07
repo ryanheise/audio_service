@@ -212,7 +212,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private Handler handler = new Handler(Looper.getMainLooper());
     private LruCache<String, Bitmap> artBitmapCache;
     private boolean playing = false;
-    private AudioProcessingState processingState = AudioProcessingState.none;
+    private AudioProcessingState processingState = AudioProcessingState.idle;
     private int repeatMode;
     private int shuffleMode;
     private boolean notificationCreated;
@@ -256,7 +256,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         shuffleMode = 0;
         notificationCreated = false;
         playing = false;
-        processingState = AudioProcessingState.none;
+        processingState = AudioProcessingState.idle;
 
         mediaSession = new MediaSessionCompat(this, "media-session");
         if (!config.androidResumeOnClick) {
@@ -393,7 +393,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             exitPlayingState();
         }
 
-        if (oldProcessingState != AudioProcessingState.stopped && processingState == AudioProcessingState.stopped) {
+        if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
             stopSelf();
         }
@@ -432,17 +432,11 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public int getPlaybackState() {
         switch (processingState) {
-        case none: return PlaybackStateCompat.STATE_NONE;
-        case connecting: return PlaybackStateCompat.STATE_CONNECTING;
-        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+        case idle: return PlaybackStateCompat.STATE_NONE;
+        case loading: return PlaybackStateCompat.STATE_CONNECTING;
         case buffering: return PlaybackStateCompat.STATE_BUFFERING;
-        case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
-        case rewinding: return PlaybackStateCompat.STATE_REWINDING;
-        case skippingToPrevious: return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
-        case skippingToNext: return PlaybackStateCompat.STATE_SKIPPING_TO_NEXT;
-        case skippingToQueueItem: return PlaybackStateCompat.STATE_SKIPPING_TO_QUEUE_ITEM;
+        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case stopped: return PlaybackStateCompat.STATE_STOPPED;
         case error: return PlaybackStateCompat.STATE_ERROR;
         default: return PlaybackStateCompat.STATE_NONE;
         }

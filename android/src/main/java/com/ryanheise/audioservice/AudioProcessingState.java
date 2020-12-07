@@ -1,16 +1,10 @@
 package com.ryanheise.audioservice;
 
 public enum AudioProcessingState {
-    none,
-    connecting,
-    ready,
+    idle,
+    loading,
     buffering,
-    fastForwarding,
-    rewinding,
-    skippingToPrevious,
-    skippingToNext,
-    skippingToQueueItem,
+    ready,
     completed,
-    stopped,
     error,
 }
