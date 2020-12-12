@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show HttpOverrides;
+import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:audio_session/audio_session.dart';
@@ -8,9 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
-
-// TODO:
-// - provide a way to manually connect/disconnect.
 
 /// The different buttons on a headset.
 enum MediaButton {
@@ -149,7 +147,7 @@ class PlaybackState {
   final bool captioningEnabled;
 
   /// Creates a [PlaybackState] with given field values, and with [updateTime]
-  /// set to [DateTime.now()].
+  /// defaulting to [DateTime.now()].
   PlaybackState({
     this.processingState = AudioProcessingState.idle,
     this.playing = false,
@@ -159,6 +157,7 @@ class PlaybackState {
     this.updatePosition = Duration.zero,
     this.bufferedPosition = Duration.zero,
     this.speed = 1.0,
+    DateTime updateTime,
     this.errorCode,
     this.errorMessage,
     this.repeatMode = AudioServiceRepeatMode.none,
@@ -176,7 +175,7 @@ class PlaybackState {
         assert(repeatMode != null),
         assert(shuffleMode != null),
         assert(captioningEnabled != null),
-        updateTime = DateTime.now();
+        this.updateTime = updateTime ?? DateTime.now();
 
   /// Creates a copy of this state with given fields replaced by new values,
   /// with [updateTime] set to [DateTime.now()], and unless otherwise replaced,
@@ -668,6 +667,15 @@ class AudioService {
 
   static BehaviorSubject<Duration> _positionSubject;
 
+  static ReceivePort _customEventReceivePort;
+
+  /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
+  /// must have been initialised via [init] prior to connecting.
+  static Future<AudioHandler> connectFromIsolate() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    return _ClientAudioHandler(_IsolateAudioHandler());
+  }
+
   /// Register the app's [AudioHandler] with configuration options. This must be
   /// called during the app's initialisation so that it is prepared to handle
   /// audio requests immediately after a cold restart (e.g. if the user clicks
@@ -837,6 +845,20 @@ class AudioService {
     } else {
       _backgroundChannel.setMethodCallHandler(methodHandler);
     }
+    // This port listens to connections from other isolates.
+    _customEventReceivePort = ReceivePort();
+    _customEventReceivePort.listen((event) async {
+      final request = event as _IsolateRequest;
+      switch (request.method) {
+        case 'play':
+          await _handler.play();
+          request.sendPort.send(null);
+          break;
+      }
+    });
+    //IsolateNameServer.removePortNameMapping(_isolatePortName);
+    IsolateNameServer.registerPortWithName(
+        _customEventReceivePort.sendPort, _isolatePortName);
     _handler.mediaItem.stream.listen((mediaItem) async {
       if (mediaItem == null) return;
       if (mediaItem.artUri != null) {
@@ -1430,6 +1452,260 @@ class CompositeAudioHandler extends AudioHandler {
   @override
   @mustCallSuper
   Stream<dynamic> get customEventStream => _inner.customEventStream;
+}
+
+class _IsolateRequest {
+  /// The send port for sending the response of this request.
+  final SendPort sendPort;
+  final String method;
+  final List<dynamic> arguments;
+
+  _IsolateRequest(this.sendPort, this.method, [this.arguments]);
+}
+
+const _isolatePortName = 'com.ryanheise.audioservice.port';
+
+class _IsolateAudioHandler extends AudioHandler {
+  final _playbackStateSubject = StreamableValueSubject.seeded(PlaybackState());
+  final _queueSubject = StreamableValueSubject.seeded(<MediaItem>[]);
+  // TODO
+  final _queueTitleSubject = StreamableValueSubject.seeded('');
+  // ignore: unnecessary_cast
+  final _mediaItemSubject = StreamableValueSubject.seeded(null as MediaItem);
+  // TODO
+  final _androidPlaybackInfoSubject =
+      StreamableValueSubject<AndroidPlaybackInfo>();
+  // TODO
+  final _ratingStyleSubject = StreamableValueSubject<RatingStyle>();
+  // TODO
+  // ignore: close_sinks
+  final _customEventSubject = PublishSubject<dynamic>();
+
+  _IsolateAudioHandler() : super._() {
+    final methodHandler = (MethodCall call) async {
+      print("### client received ${call.method}");
+      final List args = call.arguments;
+      switch (call.method) {
+        case 'onPlaybackStateChanged':
+          int actionBits = args[2];
+          _playbackStateSubject.add(PlaybackState(
+            processingState: AudioProcessingState.values[args[0]],
+            playing: args[1],
+            // We can't determine whether they are controls.
+            systemActions: MediaAction.values
+                .where((action) => (actionBits & (1 << action.index)) != 0)
+                .toSet(),
+            updatePosition: Duration(milliseconds: args[3]),
+            bufferedPosition: Duration(milliseconds: args[4]),
+            speed: args[5],
+            updateTime: DateTime.fromMillisecondsSinceEpoch(args[6]),
+            repeatMode: AudioServiceRepeatMode.values[args[7]],
+            shuffleMode: AudioServiceShuffleMode.values[args[8]],
+          ));
+          break;
+        case 'onMediaChanged':
+          _mediaItemSubject
+              .add(args[0] != null ? MediaItem.fromJson(args[0]) : null);
+          break;
+        case 'onQueueChanged':
+          final List<Map> args = call.arguments[0] != null
+              ? List<Map>.from(call.arguments[0])
+              : null;
+          _queueSubject
+              .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
+          break;
+      }
+    };
+    _channel.setMethodCallHandler(methodHandler);
+  }
+
+  @override
+  Future<void> prepare() => _send('prepare');
+
+  @override
+  Future<void> prepareFromMediaId(String mediaId,
+          [Map<String, dynamic> extras]) =>
+      _send('prepareFromMediaId', [mediaId, extras]);
+
+  @override
+  Future<void> prepareFromSearch(String query, [Map<String, dynamic> extras]) =>
+      _send('prepareFromSearch', [query, extras]);
+
+  @override
+  Future<void> prepareFromUri(Uri uri, [Map<String, dynamic> extras]) =>
+      _send('prepareFromUri', [uri, extras]);
+
+  @override
+  Future<void> play() => _send('play');
+
+  @override
+  Future<void> playFromMediaId(String mediaId, [Map<String, dynamic> extras]) =>
+      _send('playFromMediaId', [mediaId, extras]);
+
+  @override
+  Future<void> playFromSearch(String query, [Map<String, dynamic> extras]) =>
+      _send('playFromSearch', [query, extras]);
+
+  @override
+  Future<void> playFromUri(Uri uri, [Map<String, dynamic> extras]) =>
+      _send('playFromUri', [uri, extras]);
+
+  @override
+  Future<void> playMediaItem(MediaItem mediaItem) =>
+      _send('playMediaItem', [mediaItem]);
+
+  @override
+  Future<void> pause() => _send('pause');
+
+  @override
+  Future<void> click([MediaButton button]) => _send('click', [button]);
+
+  @override
+  @mustCallSuper
+  Future<void> stop() => _send('stop');
+
+  @override
+  Future<void> addQueueItem(MediaItem mediaItem) =>
+      _send('addQueueItem', [mediaItem]);
+
+  @override
+  Future<void> addQueueItems(List<MediaItem> mediaItems) =>
+      _send('addQueueItems', [mediaItems]);
+
+  @override
+  Future<void> insertQueueItem(int index, MediaItem mediaItem) =>
+      _send('insertQueueItem', [index, mediaItem]);
+
+  @override
+  Future<void> updateQueue(List<MediaItem> queue) =>
+      _send('updateQueue', [queue]);
+
+  @override
+  Future<void> updateMediaItem(MediaItem mediaItem) =>
+      _send('updateMediaItem', [mediaItem]);
+
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) =>
+      _send('removeQueueItem', [mediaItem]);
+
+  @override
+  Future<void> removeQueueItemAt(int index) =>
+      _send('removeQueueItemAt', [index]);
+
+  @override
+  Future<void> skipToNext() => _send('skipToNext');
+
+  @override
+  Future<void> skipToPrevious() => _send('skipToPrevious');
+
+  @override
+  Future<void> fastForward([Duration interval]) =>
+      _send('fastForward', [interval]);
+
+  @override
+  Future<void> rewind([Duration interval]) => _send('rewind', [interval]);
+
+  @override
+  Future<void> skipToQueueItem(String mediaId) =>
+      _send('skipToQueueItem', [mediaId]);
+
+  @override
+  Future<void> seek(Duration position) => _send('seek', [position]);
+
+  @override
+  Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) =>
+      _send('setRating', [rating, extras]);
+
+  @override
+  Future<void> setCaptioningEnabled(bool enabled) =>
+      _send('setCaptioningEnabled', [enabled]);
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
+      _send('setRepeatMode', [repeatMode]);
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
+      _send('setShuffleMode', [shuffleMode]);
+
+  @override
+  Future<void> seekBackward(bool begin) => _send('seekBackward', [begin]);
+
+  @override
+  Future<void> seekForward(bool begin) => _send('seekForward', [begin]);
+
+  @override
+  Future<void> setSpeed(double speed) => _send('setSpeed', [speed]);
+
+  @override
+  Future<dynamic> customAction(String name, Map<String, dynamic> arguments) =>
+      _send('customAction', [name, arguments]);
+
+  @override
+  Future<void> onTaskRemoved() => _send('onTaskRemoved');
+
+  @override
+  Future<void> onNotificationDeleted() => _send('onNotificationDeleted');
+
+  @override
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+          [Map<String, dynamic> options]) =>
+      _send('getChildren', [parentMediaId, options]);
+
+  // Not supported yet.
+  @override
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
+          [Map<String, dynamic> options]) =>
+      null;
+
+  @override
+  Future<MediaItem> getMediaItem(String mediaId) =>
+      _send('getMediaItem', [mediaId]);
+
+  @override
+  Future<List<MediaItem>> search(String query, [Map<String, dynamic> extras]) =>
+      _send('search', [query, extras]);
+
+  @override
+  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
+      _send('androidAdjustRemoteVolume', [direction]);
+
+  @override
+  Future<void> androidSetRemoteVolume(int volumeIndex) =>
+      _send('androidSetRemoteVolume', [volumeIndex]);
+
+  @override
+  StreamableValue<PlaybackState> get playbackState => _playbackStateSubject;
+
+  @override
+  StreamableValue<List<MediaItem>> get queue => _queueSubject;
+
+  @override
+  StreamableValue<String> get queueTitle => _queueTitleSubject;
+
+  @override
+  StreamableValue<MediaItem> get mediaItem => _mediaItemSubject;
+
+  @override
+  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
+      _androidPlaybackInfoSubject;
+
+  @override
+  StreamableValue<RatingStyle> get ratingStyle => _ratingStyleSubject;
+
+  @override
+  Stream<dynamic> get customEventStream => _customEventSubject.stream;
+
+  Future<dynamic> _send(String method, [List<dynamic> arguments]) async {
+    final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
+    if (sendPort == null) return null;
+    final receivePort = ReceivePort();
+    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
+    final result = await receivePort.first;
+    print("isolate result received: $result");
+    receivePort.close();
+    return result;
+  }
 }
 
 /// The implementation of [AudioHandler] that is provided to the app. It inserts

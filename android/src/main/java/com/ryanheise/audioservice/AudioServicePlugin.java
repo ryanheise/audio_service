@@ -460,7 +460,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         backgroundHandler = new BackgroundHandler(messenger, true /*androidEnableQueue*/);
                         AudioService.init(backgroundHandler);
                     } else if (backgroundHandler.messenger != messenger) {
-                        // We've detected this is the real engine hosting the BackgroundAudioTask,
+                        // We've detected this is the real engine hosting the AudioHandler,
                         // so update BackgroundHandler to connect to it.
                         backgroundHandler.switchToMessenger(messenger);
                     }
