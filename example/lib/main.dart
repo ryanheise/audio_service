@@ -401,7 +401,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     final newIndex = queue.value.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
-    _player.seek(Duration.zero, index: newIndex);
+    _player?.seek(Duration.zero, index: newIndex);
   }
 
   @override
@@ -411,10 +411,10 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() => _player?.pause();
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) => _player?.seek(position);
 
   @override
   Future<void> stop() async {
