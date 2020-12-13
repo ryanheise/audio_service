@@ -313,7 +313,9 @@ class CustomEvent {
 
 class MainSwitchHandler extends SwitchAudioHandler {
   final List<AudioHandler> handlers;
-  final _customStateSubject = StreamableValueSubject.seeded(CustomEvent(0));
+  @override
+  StreamableValueSubject<dynamic> customState =
+      StreamableValueSubject.seeded(CustomEvent(0));
 
   MainSwitchHandler(this.handlers) : super(handlers.first);
 
@@ -324,15 +326,12 @@ class MainSwitchHandler extends SwitchAudioHandler {
         await stop();
         final int index = extras['index'];
         inner = handlers[index];
-        _customStateSubject.add(CustomEvent(index));
+        customState.add(CustomEvent(index));
         return null;
       default:
         return super.customAction(name, extras);
     }
   }
-
-  @override
-  StreamableValue<dynamic> get customState => _customStateSubject;
 }
 
 /// An [AudioHandler] for playing a list of podcast episodes.
@@ -355,7 +354,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
-    queueSubject.add(_mediaLibrary.items);
+    queue.add(_mediaLibrary.items);
     _ensurePlayer();
   }
 
@@ -366,7 +365,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       _player = AudioPlayer();
       // Broadcast media item changes.
       _player.currentIndexStream.listen((index) {
-        if (index != null) mediaItemSubject.add(queue.value[index]);
+        if (index != null) mediaItem.add(queue.value[index]);
       });
       // Propagate all events from the audio player to AudioService clients.
       _eventSubscription = _player.playbackEventStream.listen((event) {
@@ -430,7 +429,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// Broadcasts the current state to all clients.
   void _broadcastState() {
     final playing = _player?.playing ?? false;
-    playbackStateSubject.add(playbackState.value.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
@@ -533,7 +532,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     session.becomingNoisyEventStream.listen((_) {
       if (_playing) pause();
     });
-    queueSubject.add(List.generate(
+    queue.add(List.generate(
         10,
         (i) => MediaItem(
               id: 'tts_${i + 1}',
@@ -551,8 +550,8 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     while (_running) {
       try {
         if (playbackState.value.playing) {
-          mediaItemSubject.add(queue.value[_index]);
-          playbackStateSubject.add(playbackState.value.copyWith(
+          mediaItem.add(queue.value[_index]);
+          playbackState.add(playbackState.value.copyWith(
             updatePosition: Duration.zero,
           ));
           await Future.wait([
@@ -570,8 +569,8 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
       } on SleeperInterruptedException {} on TtsInterruptedException {}
     }
     _index = 0;
-    mediaItemSubject.add(queue.value[_index]);
-    playbackStateSubject.add(playbackState.value.copyWith(
+    mediaItem.add(queue.value[_index]);
+    playbackState.add(playbackState.value.copyWith(
       updatePosition: Duration.zero,
     ));
     if (playbackState.value.processingState != AudioProcessingState.idle) {
@@ -597,7 +596,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     if (await session.setActive(true)) {
       // If we successfully activated the session, set the state to playing
       // and resume playback.
-      playbackStateSubject.add(playbackState.value.copyWith(
+      playbackState.add(playbackState.value.copyWith(
         controls: [MediaControl.pause, MediaControl.stop],
         processingState: AudioProcessingState.ready,
         playing: true,
@@ -613,7 +612,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   @override
   Future<void> pause() async {
     _interrupted = false;
-    playbackStateSubject.add(playbackState.value.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [MediaControl.play, MediaControl.stop],
       processingState: AudioProcessingState.ready,
       playing: false,
@@ -623,7 +622,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
 
   @override
   Future<void> stop() async {
-    playbackStateSubject.add(playbackState.value.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [],
       processingState: AudioProcessingState.idle,
       playing: false,

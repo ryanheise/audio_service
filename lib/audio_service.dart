@@ -1226,16 +1226,26 @@ abstract class AudioHandler {
 /// A [SwitchAudioHandler] wraps another [AudioHandler] that may be switched for
 /// another at any time by setting [inner].
 class SwitchAudioHandler extends CompositeAudioHandler {
-  final _playbackStateSubject = StreamableValueSubject<PlaybackState>();
-  final _queueSubject = StreamableValueSubject<List<MediaItem>>();
-  final _queueTitleSubject = StreamableValueSubject<String>();
-  final _mediaItemSubject = StreamableValueSubject<MediaItem>();
-  final _androidPlaybackInfoSubject =
-      StreamableValueSubject<AndroidPlaybackInfo>();
-  final _ratingStyleSubject = StreamableValueSubject<RatingStyle>();
+  @override
+  final StreamableValueSubject<PlaybackState> playbackState =
+      StreamableValueSubject();
+  @override
+  final StreamableValueSubject<List<MediaItem>> queue =
+      StreamableValueSubject();
+  @override
+  final StreamableValueSubject<String> queueTitle = StreamableValueSubject();
+  @override
+  final StreamableValueSubject<MediaItem> mediaItem = StreamableValueSubject();
+  @override
+  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      StreamableValueSubject();
+  @override
+  final StreamableValueSubject<RatingStyle> ratingStyle =
+      StreamableValueSubject();
   // ignore: close_sinks
   final _customEventSubject = PublishSubject<dynamic>();
-  final _customStateSubject = StreamableValueSubject<dynamic>();
+  @override
+  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
 
   StreamSubscription<PlaybackState> playbackStateSubscription;
   StreamSubscription<List<MediaItem>> queueSubscription;
@@ -1266,46 +1276,20 @@ class SwitchAudioHandler extends CompositeAudioHandler {
     customStateSubscription?.cancel();
     _inner = newInner;
     playbackStateSubscription =
-        inner.playbackState.stream.listen(_playbackStateSubject.add);
-    queueSubscription = inner.queue.stream.listen(_queueSubject.add);
-    queueTitleSubscription =
-        inner.queueTitle.stream.listen(_queueTitleSubject.add);
-    mediaItemSubscription =
-        inner.mediaItem.stream.listen(_mediaItemSubject.add);
-    androidPlaybackInfoSubscription = inner.androidPlaybackInfo.stream
-        .listen(_androidPlaybackInfoSubject.add);
-    ratingStyleSubscription =
-        inner.ratingStyle.stream.listen(_ratingStyleSubject.add);
+        inner.playbackState.stream.listen(playbackState.add);
+    queueSubscription = inner.queue.stream.listen(queue.add);
+    queueTitleSubscription = inner.queueTitle.stream.listen(queueTitle.add);
+    mediaItemSubscription = inner.mediaItem.stream.listen(mediaItem.add);
+    androidPlaybackInfoSubscription =
+        inner.androidPlaybackInfo.stream.listen(androidPlaybackInfo.add);
+    ratingStyleSubscription = inner.ratingStyle.stream.listen(ratingStyle.add);
     customEventSubscription =
         inner.customEventStream.listen(_customEventSubject.add);
-    customStateSubscription =
-        inner.customState.stream.listen(_customStateSubject.add);
+    customStateSubscription = inner.customState.stream.listen(customState.add);
   }
 
   @override
-  StreamableValue<PlaybackState> get playbackState => _playbackStateSubject;
-
-  @override
-  StreamableValue<List<MediaItem>> get queue => _queueSubject;
-
-  @override
-  StreamableValue<String> get queueTitle => _queueTitleSubject;
-
-  @override
-  StreamableValue<MediaItem> get mediaItem => _mediaItemSubject;
-
-  @override
-  StreamableValue<RatingStyle> get ratingStyle => _ratingStyleSubject;
-
-  @override
-  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
-      _androidPlaybackInfoSubject;
-
-  @override
   Stream<dynamic> get customEventStream => _customEventSubject;
-
-  @override
-  StreamableValue<dynamic> get customState => _customStateSubject;
 }
 
 /// A [CompositeAudioHandler] wraps another [AudioHandler] and adds additional
@@ -1550,22 +1534,33 @@ class _IsolateRequest {
 const _isolatePortName = 'com.ryanheise.audioservice.port';
 
 class _IsolateAudioHandler extends AudioHandler {
-  final _playbackStateSubject = StreamableValueSubject.seeded(PlaybackState());
-  final _queueSubject = StreamableValueSubject.seeded(<MediaItem>[]);
+  @override
+  final StreamableValueSubject<PlaybackState> playbackState =
+      StreamableValueSubject.seeded(PlaybackState());
+  @override
+  final StreamableValueSubject<List<MediaItem>> queue =
+      StreamableValueSubject.seeded(<MediaItem>[]);
+  @override
   // TODO
-  final _queueTitleSubject = StreamableValueSubject.seeded('');
-  // ignore: unnecessary_cast
-  final _mediaItemSubject = StreamableValueSubject.seeded(null as MediaItem);
+  final StreamableValueSubject<String> queueTitle =
+      StreamableValueSubject.seeded('');
+  @override
+  final StreamableValueSubject<MediaItem> mediaItem =
+      StreamableValueSubject.seeded(null);
+  @override
   // TODO
-  final _androidPlaybackInfoSubject =
-      StreamableValueSubject<AndroidPlaybackInfo>();
+  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      StreamableValueSubject();
+  @override
   // TODO
-  final _ratingStyleSubject = StreamableValueSubject<RatingStyle>();
+  final StreamableValueSubject<RatingStyle> ratingStyle =
+      StreamableValueSubject();
   // TODO
   // ignore: close_sinks
   final _customEventSubject = PublishSubject<dynamic>();
+  @override
   // TODO
-  final _customStateSubject = StreamableValueSubject<dynamic>();
+  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
 
   _IsolateAudioHandler() : super._() {
     final methodHandler = (MethodCall call) async {
@@ -1574,7 +1569,7 @@ class _IsolateAudioHandler extends AudioHandler {
       switch (call.method) {
         case 'onPlaybackStateChanged':
           int actionBits = args[2];
-          _playbackStateSubject.add(PlaybackState(
+          playbackState.add(PlaybackState(
             processingState: AudioProcessingState.values[args[0]],
             playing: args[1],
             // We can't determine whether they are controls.
@@ -1590,15 +1585,13 @@ class _IsolateAudioHandler extends AudioHandler {
           ));
           break;
         case 'onMediaChanged':
-          _mediaItemSubject
-              .add(args[0] != null ? MediaItem.fromJson(args[0]) : null);
+          mediaItem.add(args[0] != null ? MediaItem.fromJson(args[0]) : null);
           break;
         case 'onQueueChanged':
           final List<Map> args = call.arguments[0] != null
               ? List<Map>.from(call.arguments[0])
               : null;
-          _queueSubject
-              .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
+          queue.add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
           break;
       }
     };
@@ -1761,29 +1754,7 @@ class _IsolateAudioHandler extends AudioHandler {
       _send('androidSetRemoteVolume', [volumeIndex]);
 
   @override
-  StreamableValue<PlaybackState> get playbackState => _playbackStateSubject;
-
-  @override
-  StreamableValue<List<MediaItem>> get queue => _queueSubject;
-
-  @override
-  StreamableValue<String> get queueTitle => _queueTitleSubject;
-
-  @override
-  StreamableValue<MediaItem> get mediaItem => _mediaItemSubject;
-
-  @override
-  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
-      _androidPlaybackInfoSubject;
-
-  @override
-  StreamableValue<RatingStyle> get ratingStyle => _ratingStyleSubject;
-
-  @override
   Stream<dynamic> get customEventStream => _customEventSubject.stream;
-
-  @override
-  StreamableValue<dynamic> get customState => _customStateSubject;
 
   Future<dynamic> _send(String method, [List<dynamic> arguments]) async {
     final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
@@ -1875,57 +1846,61 @@ class BaseAudioHandler extends AudioHandler {
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// playbackStateSubject.add(playbackState.copyWith(playing: true));
+  /// playbackState.add(playbackState.copyWith(playing: true));
   /// ```
-  @protected
-  final playbackStateSubject = StreamableValueSubject.seeded(PlaybackState());
+  @override
+  final StreamableValueSubject<PlaybackState> playbackState =
+      StreamableValueSubject.seeded(PlaybackState());
 
   /// A controller for broadcasting the current queue to the app's UI, media
   /// notification and other clients. Example usage:
   ///
   /// ```dart
-  /// queueSubject.add(queue + [additionalItem]);
+  /// queue.add(queue + [additionalItem]);
   /// ```
-  @protected
-  final queueSubject = StreamableValueSubject.seeded(<MediaItem>[]);
+  @override
+  final StreamableValueSubject<List<MediaItem>> queue =
+      StreamableValueSubject.seeded(<MediaItem>[]);
 
   /// A controller for broadcasting the current queue title to the app's UI, media
   /// notification and other clients. Example usage:
   ///
   /// ```dart
-  /// queueTitleSubject.add(newTitle);
+  /// queueTitle.add(newTitle);
   /// ```
-  @protected
-  final queueTitleSubject = StreamableValueSubject.seeded('');
+  @override
+  final StreamableValueSubject<String> queueTitle =
+      StreamableValueSubject.seeded('');
 
   /// A controller for broadcasting the current media item to the app's UI,
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// mediaItemSubject.add(item);
+  /// mediaItem.add(item);
   /// ```
-  @protected
-  // ignore: unnecessary_cast
-  final mediaItemSubject = StreamableValueSubject.seeded(null as MediaItem);
+  @override
+  final StreamableValueSubject<MediaItem> mediaItem =
+      StreamableValueSubject.seeded(null);
 
   /// A controller for broadcasting the current [AndroidPlaybackInfo] to the app's UI,
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// androidPlaybackInfoSubject.add(newPlaybackInfo);
+  /// androidPlaybackInfo.add(newPlaybackInfo);
   /// ```
-  @protected
-  final androidPlaybackInfoSubject =
-      StreamableValueSubject<AndroidPlaybackInfo>();
+  @override
+  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      StreamableValueSubject();
 
   /// A controller for broadcasting the current rating style to the app's UI,
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// ratingStyleSubject.add(item);
+  /// ratingStyle.add(item);
   /// ```
-  @protected
-  final ratingStyleSubject = StreamableValueSubject<RatingStyle>();
+  @override
+  final StreamableValueSubject<RatingStyle> ratingStyle =
+      StreamableValueSubject();
 
   /// A controller for broadcasting a custom event to the app's UI. Example
   /// usage:
@@ -1941,10 +1916,10 @@ class BaseAudioHandler extends AudioHandler {
   /// Example usage:
   ///
   /// ```dart
-  /// customStateSubject.add(MyCustomState(...));
+  /// customState.add(MyCustomState(...));
   /// ```
-  @protected
-  final customStateSubject = StreamableValueSubject<dynamic>();
+  @override
+  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
 
   BaseAudioHandler() : super._();
 
@@ -2104,29 +2079,7 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> androidSetRemoteVolume(int volumeIndex) async {}
 
   @override
-  StreamableValue<PlaybackState> get playbackState => playbackStateSubject;
-
-  @override
-  StreamableValue<List<MediaItem>> get queue => queueSubject;
-
-  @override
-  StreamableValue<String> get queueTitle => queueTitleSubject;
-
-  @override
-  StreamableValue<MediaItem> get mediaItem => mediaItemSubject;
-
-  @override
-  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
-      androidPlaybackInfoSubject;
-
-  @override
-  StreamableValue<RatingStyle> get ratingStyle => ratingStyleSubject;
-
-  @override
   Stream<dynamic> get customEventStream => customEventSubject.stream;
-
-  @override
-  StreamableValue<dynamic> get customState => customStateSubject;
 }
 
 /// This mixin provides default implementations of [fastForward], [rewind],
@@ -2212,39 +2165,40 @@ class _Seeker {
 mixin QueueHandler on BaseAudioHandler {
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
-    queueSubject.add(queue.value..add(mediaItem));
+    queue.add(queue.value..add(mediaItem));
     await super.addQueueItem(mediaItem);
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    queueSubject.add(queue.value..addAll(mediaItems));
+    queue.add(queue.value..addAll(mediaItems));
     await super.addQueueItems(mediaItems);
   }
 
   @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) async {
-    queueSubject.add(queue.value..insert(index, mediaItem));
+    queue.add(queue.value..insert(index, mediaItem));
     await super.insertQueueItem(index, mediaItem);
   }
 
   @override
   Future<void> updateQueue(List<MediaItem> queue) async {
-    queueSubject
+    this
+        .queue
         .add(this.queue.value..replaceRange(0, this.queue.value.length, queue));
     await super.updateQueue(queue);
   }
 
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) async {
-    queueSubject.add(
+    this.queue.add(
         this.queue.value..[this.queue.value.indexOf(mediaItem)] = mediaItem);
     await super.updateMediaItem(mediaItem);
   }
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) async {
-    queueSubject.add(this.queue.value..remove(mediaItem));
+    queue.add(this.queue.value..remove(mediaItem));
     await super.removeQueueItem(mediaItem);
   }
 
@@ -2269,7 +2223,7 @@ mixin QueueHandler on BaseAudioHandler {
   Future<void> skipToQueueItem(String mediaId) async {
     final mediaItem =
         queue.value.firstWhere((mediaItem) => mediaItem.id == mediaId);
-    mediaItemSubject.add(mediaItem);
+    this.mediaItem.add(mediaItem);
     await super.skipToQueueItem(mediaId);
   }
 
