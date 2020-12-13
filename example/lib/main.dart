@@ -604,8 +604,9 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
       ));
       if (_completer == null) {
         run();
+      } else {
+        _sleeper.interrupt();
       }
-      _sleeper.interrupt();
     }
   }
 
