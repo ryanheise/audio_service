@@ -1,21 +1,33 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-//import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+
+final _isTtsSupported = kIsWeb || !Platform.isMacOS;
 
 // You might want to provide this using dependency injection rather than a
 // global variable.
 AudioHandler _audioHandler;
 
+/// Extension methods for our custom actions.
+extension DemoAudioHandler on AudioHandler {
+  Future<void> switchToHandler(int index) =>
+      _audioHandler.customAction('switchToHandler', {'index': index});
+}
+
 Future<void> main() async {
   _audioHandler = await AudioService.init(
-    builder: () => AudioPlayerHandler(),
+    builder: () => MainSwitchHandler([
+      AudioPlayerHandler(),
+      if (_isTtsSupported) TextPlayerHandler(),
+    ]),
     config: AudioServiceConfig(
       androidNotificationChannelName: 'Audio Service Demo',
       androidNotificationOngoing: true,
@@ -37,6 +49,11 @@ class MyApp extends StatelessWidget {
 }
 
 class MainScreen extends StatelessWidget {
+  static final handlerNames = [
+    'Audio Player',
+    if (_isTtsSupported) 'Text-To-Speech',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,6 +74,24 @@ class MainScreen extends StatelessWidget {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    StreamBuilder<dynamic>(
+                      stream: _audioHandler.customState.stream,
+                      builder: (context, snapshot) {
+                        final handlerIndex = snapshot.data?.handlerIndex ?? 0;
+                        return DropdownButton<int>(
+                          iconSize: 0.0,
+                          value: handlerIndex,
+                          items: [
+                            for (var i = 0; i < handlerNames.length; i++)
+                              DropdownMenuItem<int>(
+                                value: i,
+                                child: Text(handlerNames[i]),
+                              ),
+                          ],
+                          onChanged: _audioHandler.switchToHandler,
+                        );
+                      },
+                    ),
                     if (queue != null && queue.isNotEmpty)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -270,7 +305,37 @@ class _SeekBarState extends State<SeekBar> {
   Duration get _remaining => widget.duration - widget.position;
 }
 
-/// This task defines logic for playing a list of podcast episodes.
+class CustomEvent {
+  final int handlerIndex;
+
+  CustomEvent(this.handlerIndex);
+}
+
+class MainSwitchHandler extends SwitchAudioHandler {
+  final List<AudioHandler> handlers;
+  final _customStateSubject = StreamableValueSubject.seeded(CustomEvent(0));
+
+  MainSwitchHandler(this.handlers) : super(handlers.first);
+
+  @override
+  Future<dynamic> customAction(String name, Map<String, dynamic> extras) async {
+    switch (name) {
+      case 'switchToHandler':
+        await stop();
+        final int index = extras['index'];
+        inner = handlers[index];
+        _customStateSubject.add(CustomEvent(index));
+        return null;
+      default:
+        return super.customAction(name, extras);
+    }
+  }
+
+  @override
+  StreamableValue<dynamic> get customState => _customStateSubject;
+}
+
+/// An [AudioHandler] for playing a list of podcast episodes.
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   final _mediaLibrary = MediaLibrary();
@@ -420,211 +485,236 @@ class MediaLibrary {
   List<MediaItem> get items => _items;
 }
 
-///// This task defines logic for speaking a sequence of numbers using
-///// text-to-speech.
-//class TextPlayerTask extends BackgroundAudioTask {
-//  Tts _tts = Tts();
-//  bool _finished = false;
-//  Sleeper _sleeper = Sleeper();
-//  Completer _completer = Completer();
-//  bool _interrupted = false;
-//
-//  bool get _playing => AudioServiceBackground.state.playing;
-//
-//  @override
-//  Future<void> onStart(Map<String, dynamic> params) async {
-//    // flutter_tts resets the AVAudioSession category to playAndRecord and the
-//    // options to defaultToSpeaker whenever this background isolate is loaded,
-//    // so we need to set our preferred audio session configuration here after
-//    // that has happened.
-//    final session = await AudioSession.instance;
-//    await session.configure(AudioSessionConfiguration.speech());
-//    // Handle audio interruptions.
-//    session.interruptionEventStream.listen((event) {
-//      if (event.begin) {
-//        if (_playing) {
-//          onPause();
-//          _interrupted = true;
-//        }
-//      } else {
-//        switch (event.type) {
-//          case AudioInterruptionType.pause:
-//          case AudioInterruptionType.duck:
-//            if (!_playing && _interrupted) {
-//              onPlay();
-//            }
-//            break;
-//          case AudioInterruptionType.unknown:
-//            break;
-//        }
-//        _interrupted = false;
-//      }
-//    });
-//    // Handle unplugged headphones.
-//    session.becomingNoisyEventStream.listen((_) {
-//      if (_playing) onPause();
-//    });
-//
-//    // Start playing.
-//    await _playPause();
-//    for (var i = 1; i <= 10 && !_finished;) {
-//      AudioServiceBackground.setMediaItem(mediaItem(i));
-//      AudioServiceBackground.androidForceEnableMediaButtons();
-//      try {
-//        await _tts.speak('$i');
-//        i++;
-//        await _sleeper.sleep(Duration(milliseconds: 300));
-//      } catch (e) {
-//        // Speech was interrupted
-//      }
-//      // If we were just paused
-//      if (!_finished && !_playing) {
-//        try {
-//          // Wait to be unpaused
-//          await _sleeper.sleep();
-//        } catch (e) {
-//          // unpaused
-//        }
-//      }
-//    }
-//    await AudioServiceBackground.setState(
-//      controls: [],
-//      processingState: AudioProcessingState.stopped,
-//      playing: false,
-//    );
-//    if (!_finished) {
-//      onStop();
-//    }
-//    _completer.complete();
-//  }
-//
-//  @override
-//  Future<void> onPlay() => _playPause();
-//
-//  @override
-//  Future<void> onPause() => _playPause();
-//
-//  @override
-//  Future<void> onStop() async {
-//    // Signal the speech to stop
-//    _finished = true;
-//    _sleeper.interrupt();
-//    _tts.interrupt();
-//    // Wait for the speech to stop
-//    await _completer.future;
-//    // Shut down this task
-//    await super.onStop();
-//  }
-//
-//  MediaItem mediaItem(int number) => MediaItem(
-//      id: 'tts_$number',
-//      album: 'Numbers',
-//      title: 'Number $number',
-//      artist: 'Sample Artist');
-//
-//  Future<void> _playPause() async {
-//    if (_playing) {
-//      _interrupted = false;
-//      await AudioServiceBackground.setState(
-//        controls: [MediaControl.play, MediaControl.stop],
-//        processingState: AudioProcessingState.ready,
-//        playing: false,
-//      );
-//      _sleeper.interrupt();
-//      _tts.interrupt();
-//    } else {
-//      final session = await AudioSession.instance;
-//      // flutter_tts doesn't activate the session, so we do it here. This
-//      // allows the app to stop other apps from playing audio while we are
-//      // playing audio.
-//      if (await session.setActive(true)) {
-//        // If we successfully activated the session, set the state to playing
-//        // and resume playback.
-//        await AudioServiceBackground.setState(
-//          controls: [MediaControl.pause, MediaControl.stop],
-//          processingState: AudioProcessingState.ready,
-//          playing: true,
-//        );
-//        _sleeper.interrupt();
-//      }
-//    }
-//  }
-//}
-//
-///// An object that performs interruptable sleep.
-//class Sleeper {
-//  Completer _blockingCompleter;
-//
-//  /// Sleep for a duration. If sleep is interrupted, a
-//  /// [SleeperInterruptedException] will be thrown.
-//  Future<void> sleep([Duration duration]) async {
-//    _blockingCompleter = Completer();
-//    if (duration != null) {
-//      await Future.any([Future.delayed(duration), _blockingCompleter.future]);
-//    } else {
-//      await _blockingCompleter.future;
-//    }
-//    final interrupted = _blockingCompleter.isCompleted;
-//    _blockingCompleter = null;
-//    if (interrupted) {
-//      throw SleeperInterruptedException();
-//    }
-//  }
-//
-//  /// Interrupt any sleep that's underway.
-//  void interrupt() {
-//    if (_blockingCompleter?.isCompleted == false) {
-//      _blockingCompleter.complete();
-//    }
-//  }
-//}
-//
-//class SleeperInterruptedException {}
-//
-///// A wrapper around FlutterTts that makes it easier to wait for speech to
-///// complete.
-//class Tts {
-//  final FlutterTts _flutterTts = new FlutterTts();
-//  Completer _speechCompleter;
-//  bool _interruptRequested = false;
-//  bool _playing = false;
-//
-//  Tts() {
-//    _flutterTts.setCompletionHandler(() {
-//      _speechCompleter?.complete();
-//    });
-//  }
-//
-//  bool get playing => _playing;
-//
-//  Future<void> speak(String text) async {
-//    _playing = true;
-//    if (!_interruptRequested) {
-//      _speechCompleter = Completer();
-//      await _flutterTts.speak(text);
-//      await _speechCompleter.future;
-//      _speechCompleter = null;
-//    }
-//    _playing = false;
-//    if (_interruptRequested) {
-//      _interruptRequested = false;
-//      throw TtsInterruptedException();
-//    }
-//  }
-//
-//  Future<void> stop() async {
-//    if (_playing) {
-//      await _flutterTts.stop();
-//      _speechCompleter?.complete();
-//    }
-//  }
-//
-//  void interrupt() {
-//    if (_playing) {
-//      _interruptRequested = true;
-//      stop();
-//    }
-//  }
-//}
-//
-//class TtsInterruptedException {}
+/// This task defines logic for speaking a sequence of numbers using
+/// text-to-speech.
+class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
+  final _tts = Tts();
+  final _sleeper = Sleeper();
+  Completer _completer;
+  var _index = 0;
+  bool _interrupted = false;
+  var _running = false;
+
+  bool get _playing => playbackState.value.playing;
+
+  TextPlayerHandler() {
+    _init();
+  }
+
+  Future<void> _init() async {
+    // flutter_tts resets the AVAudioSession category to playAndRecord and the
+    // options to defaultToSpeaker whenever this background isolate is loaded,
+    // so we need to set our preferred audio session configuration here after
+    // that has happened.
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration.speech());
+    // Handle audio interruptions.
+    session.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        if (_playing) {
+          pause();
+          _interrupted = true;
+        }
+      } else {
+        switch (event.type) {
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.duck:
+            if (!_playing && _interrupted) {
+              play();
+            }
+            break;
+          case AudioInterruptionType.unknown:
+            break;
+        }
+        _interrupted = false;
+      }
+    });
+    // Handle unplugged headphones.
+    session.becomingNoisyEventStream.listen((_) {
+      if (_playing) pause();
+    });
+    queueSubject.add(List.generate(
+        10,
+        (i) => MediaItem(
+              id: 'tts_${i + 1}',
+              album: 'Numbers',
+              title: 'Number ${i + 1}',
+              artist: 'Sample Artist',
+              extras: {'number': i + 1},
+              duration: Duration(seconds: 1),
+            )));
+  }
+
+  Future<void> run() async {
+    _completer = Completer();
+    _running = true;
+    while (_running) {
+      try {
+        if (playbackState.value.playing) {
+          mediaItemSubject.add(queue.value[_index]);
+          playbackStateSubject.add(playbackState.value.copyWith(
+            updatePosition: Duration.zero,
+          ));
+          await Future.wait([
+            _tts.speak('${mediaItem.value.extras["number"]}'),
+            _sleeper.sleep(Duration(seconds: 1)),
+          ]);
+          if (_index + 1 < queue.value.length) {
+            _index++;
+          } else {
+            _running = false;
+          }
+        } else {
+          await _sleeper.sleep();
+        }
+      } on SleeperInterruptedException {} on TtsInterruptedException {}
+    }
+    _index = 0;
+    mediaItemSubject.add(queue.value[_index]);
+    playbackStateSubject.add(playbackState.value.copyWith(
+      updatePosition: Duration.zero,
+    ));
+    if (playbackState.value.processingState != AudioProcessingState.idle) {
+      stop();
+    }
+    _completer.complete();
+    _completer = null;
+  }
+
+  @override
+  Future<void> skipToQueueItem(String mediaId) async {
+    _index = queue.value.indexWhere((item) => item.id == mediaId);
+    _signal();
+  }
+
+  @override
+  Future<void> play() async {
+    if (playbackState.value.playing) return;
+    final session = await AudioSession.instance;
+    // flutter_tts doesn't activate the session, so we do it here. This
+    // allows the app to stop other apps from playing audio while we are
+    // playing audio.
+    if (await session.setActive(true)) {
+      // If we successfully activated the session, set the state to playing
+      // and resume playback.
+      playbackStateSubject.add(playbackState.value.copyWith(
+        controls: [MediaControl.pause, MediaControl.stop],
+        processingState: AudioProcessingState.ready,
+        playing: true,
+      ));
+      if (_completer == null) {
+        run();
+      }
+      _sleeper.interrupt();
+    }
+  }
+
+  @override
+  Future<void> pause() async {
+    _interrupted = false;
+    playbackStateSubject.add(playbackState.value.copyWith(
+      controls: [MediaControl.play, MediaControl.stop],
+      processingState: AudioProcessingState.ready,
+      playing: false,
+    ));
+    _signal();
+  }
+
+  @override
+  Future<void> stop() async {
+    playbackStateSubject.add(playbackState.value.copyWith(
+      controls: [],
+      processingState: AudioProcessingState.idle,
+      playing: false,
+    ));
+    _running = false;
+    _signal();
+    // Wait for the speech to stop
+    await _completer?.future;
+    // Shut down this task
+    await super.stop();
+  }
+
+  void _signal() {
+    _sleeper.interrupt();
+    _tts.interrupt();
+  }
+}
+
+/// An object that performs interruptable sleep.
+class Sleeper {
+  Completer _blockingCompleter;
+
+  /// Sleep for a duration. If sleep is interrupted, a
+  /// [SleeperInterruptedException] will be thrown.
+  Future<void> sleep([Duration duration]) async {
+    _blockingCompleter = Completer();
+    if (duration != null) {
+      await Future.any([Future.delayed(duration), _blockingCompleter.future]);
+    } else {
+      await _blockingCompleter.future;
+    }
+    final interrupted = _blockingCompleter.isCompleted;
+    _blockingCompleter = null;
+    if (interrupted) {
+      throw SleeperInterruptedException();
+    }
+  }
+
+  /// Interrupt any sleep that's underway.
+  void interrupt() {
+    if (_blockingCompleter?.isCompleted == false) {
+      _blockingCompleter.complete();
+    }
+  }
+}
+
+class SleeperInterruptedException {}
+
+/// A wrapper around FlutterTts that makes it easier to wait for speech to
+/// complete.
+class Tts {
+  final FlutterTts _flutterTts = new FlutterTts();
+  Completer _speechCompleter;
+  bool _interruptRequested = false;
+  bool _playing = false;
+
+  Tts() {
+    _flutterTts.setCompletionHandler(() {
+      _speechCompleter?.complete();
+    });
+  }
+
+  bool get playing => _playing;
+
+  Future<void> speak(String text) async {
+    _playing = true;
+    if (!_interruptRequested) {
+      _speechCompleter = Completer();
+      await _flutterTts.speak(text);
+      await _speechCompleter.future;
+      _speechCompleter = null;
+    }
+    _playing = false;
+    if (_interruptRequested) {
+      _interruptRequested = false;
+      throw TtsInterruptedException();
+    }
+  }
+
+  Future<void> stop() async {
+    if (_playing) {
+      await _flutterTts.stop();
+      _speechCompleter?.complete();
+    }
+  }
+
+  void interrupt() {
+    if (_playing) {
+      _interruptRequested = true;
+      stop();
+    }
+  }
+}
+
+class TtsInterruptedException {}
