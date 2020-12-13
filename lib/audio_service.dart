@@ -1001,7 +1001,7 @@ class AudioService {
     await _backgroundChannel.invokeMethod('androidForceEnableMediaButtons');
   }
 
-  /// Shuts down the background audio task within the background isolate.
+  /// Stops the service.
   static Future<void> _stop() async {
     final audioSession = await AudioSession.instance;
     try {
@@ -1218,6 +1218,94 @@ abstract class AudioHandler {
 
   /// A stream of custom events.
   Stream<dynamic> get customEventStream;
+
+  /// A stream of custom states.
+  StreamableValue<dynamic> get customState;
+}
+
+/// A [SwitchAudioHandler] wraps another [AudioHandler] that may be switched for
+/// another at any time by setting [inner].
+class SwitchAudioHandler extends CompositeAudioHandler {
+  final _playbackStateSubject = StreamableValueSubject<PlaybackState>();
+  final _queueSubject = StreamableValueSubject<List<MediaItem>>();
+  final _queueTitleSubject = StreamableValueSubject<String>();
+  final _mediaItemSubject = StreamableValueSubject<MediaItem>();
+  final _androidPlaybackInfoSubject =
+      StreamableValueSubject<AndroidPlaybackInfo>();
+  final _ratingStyleSubject = StreamableValueSubject<RatingStyle>();
+  // ignore: close_sinks
+  final _customEventSubject = PublishSubject<dynamic>();
+  final _customStateSubject = StreamableValueSubject<dynamic>();
+
+  StreamSubscription<PlaybackState> playbackStateSubscription;
+  StreamSubscription<List<MediaItem>> queueSubscription;
+  StreamSubscription<String> queueTitleSubscription;
+  StreamSubscription<MediaItem> mediaItemSubscription;
+  StreamSubscription<AndroidPlaybackInfo> androidPlaybackInfoSubscription;
+  StreamSubscription<RatingStyle> ratingStyleSubscription;
+  StreamSubscription<dynamic> customEventSubscription;
+  StreamSubscription<dynamic> customStateSubscription;
+
+  SwitchAudioHandler(AudioHandler inner) : super(inner) {
+    this.inner = inner;
+  }
+
+  /// The current inner [AudioHandler] that this [SwitchAudioHandler] will
+  /// delegate to.
+  AudioHandler get inner => _inner;
+
+  set inner(AudioHandler newInner) {
+    assert(newInner != null && newInner != this);
+    playbackStateSubscription?.cancel();
+    queueSubscription?.cancel();
+    queueTitleSubscription?.cancel();
+    mediaItemSubscription?.cancel();
+    androidPlaybackInfoSubscription?.cancel();
+    ratingStyleSubscription?.cancel();
+    customEventSubscription?.cancel();
+    customStateSubscription?.cancel();
+    _inner = newInner;
+    playbackStateSubscription =
+        inner.playbackState.stream.listen(_playbackStateSubject.add);
+    queueSubscription = inner.queue.stream.listen(_queueSubject.add);
+    queueTitleSubscription =
+        inner.queueTitle.stream.listen(_queueTitleSubject.add);
+    mediaItemSubscription =
+        inner.mediaItem.stream.listen(_mediaItemSubject.add);
+    androidPlaybackInfoSubscription = inner.androidPlaybackInfo.stream
+        .listen(_androidPlaybackInfoSubject.add);
+    ratingStyleSubscription =
+        inner.ratingStyle.stream.listen(_ratingStyleSubject.add);
+    customEventSubscription =
+        inner.customEventStream.listen(_customEventSubject.add);
+    customStateSubscription =
+        inner.customState.stream.listen(_customStateSubject.add);
+  }
+
+  @override
+  StreamableValue<PlaybackState> get playbackState => _playbackStateSubject;
+
+  @override
+  StreamableValue<List<MediaItem>> get queue => _queueSubject;
+
+  @override
+  StreamableValue<String> get queueTitle => _queueTitleSubject;
+
+  @override
+  StreamableValue<MediaItem> get mediaItem => _mediaItemSubject;
+
+  @override
+  StreamableValue<RatingStyle> get ratingStyle => _ratingStyleSubject;
+
+  @override
+  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
+      _androidPlaybackInfoSubject;
+
+  @override
+  Stream<dynamic> get customEventStream => _customEventSubject;
+
+  @override
+  StreamableValue<dynamic> get customState => _customStateSubject;
 }
 
 /// A [CompositeAudioHandler] wraps another [AudioHandler] and adds additional
@@ -1425,33 +1513,29 @@ class CompositeAudioHandler extends AudioHandler {
       _inner.androidAdjustRemoteVolume(direction);
 
   @override
-  @mustCallSuper
   StreamableValue<PlaybackState> get playbackState => _inner.playbackState;
 
   @override
-  @mustCallSuper
   StreamableValue<List<MediaItem>> get queue => _inner.queue;
 
   @override
-  @mustCallSuper
   StreamableValue<String> get queueTitle => _inner.queueTitle;
 
   @override
-  @mustCallSuper
   StreamableValue<MediaItem> get mediaItem => _inner.mediaItem;
 
   @override
-  @mustCallSuper
   StreamableValue<RatingStyle> get ratingStyle => _inner.ratingStyle;
 
   @override
-  @mustCallSuper
   StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
       _inner.androidPlaybackInfo;
 
   @override
-  @mustCallSuper
   Stream<dynamic> get customEventStream => _inner.customEventStream;
+
+  @override
+  StreamableValue<dynamic> get customState => _inner.customState;
 }
 
 class _IsolateRequest {
@@ -1480,6 +1564,8 @@ class _IsolateAudioHandler extends AudioHandler {
   // TODO
   // ignore: close_sinks
   final _customEventSubject = PublishSubject<dynamic>();
+  // TODO
+  final _customStateSubject = StreamableValueSubject<dynamic>();
 
   _IsolateAudioHandler() : super._() {
     final methodHandler = (MethodCall call) async {
@@ -1696,6 +1782,9 @@ class _IsolateAudioHandler extends AudioHandler {
   @override
   Stream<dynamic> get customEventStream => _customEventSubject.stream;
 
+  @override
+  StreamableValue<dynamic> get customState => _customStateSubject;
+
   Future<dynamic> _send(String method, [List<dynamic> arguments]) async {
     final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
     if (sendPort == null) return null;
@@ -1847,6 +1936,15 @@ class BaseAudioHandler extends AudioHandler {
   @protected
   // ignore: close_sinks
   final customEventSubject = PublishSubject<dynamic>();
+
+  /// A controller for broadcasting the current custom state to the app's UI.
+  /// Example usage:
+  ///
+  /// ```dart
+  /// customStateSubject.add(MyCustomState(...));
+  /// ```
+  @protected
+  final customStateSubject = StreamableValueSubject<dynamic>();
 
   BaseAudioHandler() : super._();
 
@@ -2026,6 +2124,9 @@ class BaseAudioHandler extends AudioHandler {
 
   @override
   Stream<dynamic> get customEventStream => customEventSubject.stream;
+
+  @override
+  StreamableValue<dynamic> get customState => customStateSubject;
 }
 
 /// This mixin provides default implementations of [fastForward], [rewind],
