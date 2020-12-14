@@ -1959,7 +1959,7 @@ enum AudioServiceShuffleMode { none, all, group }
 
 /// How media items should repeat when the current one is finished.
 enum AudioServiceRepeatMode { 
-  /// When the current media item finishes, playback will stop.
+  /// The current media item or queue will not repeat.
   none, 
   
   /// The current media item will repeat.
