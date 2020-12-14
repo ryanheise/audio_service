@@ -2242,7 +2242,23 @@ mixin QueueHandler on BaseAudioHandler {
 enum AudioServiceShuffleMode { none, all, group }
 
 /// The available repeat modes.
-enum AudioServiceRepeatMode { none, one, all, group }
+///
+/// This defines how media items should repeat when the current one is finished.
+enum AudioServiceRepeatMode { 
+  /// The current media item or queue will not repeat.
+  none, 
+  
+  /// The current media item will repeat.
+  one, 
+  
+  /// Playback will continue looping through all media items in the current list.
+  all, 
+  
+  /// [Unimplemented] This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
+  ///
+  /// This could represent a playlist that is a smaller subset of all media items.
+  group, 
+}
 
 bool get _testing => HttpOverrides.current != null;
 
