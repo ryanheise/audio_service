@@ -1957,7 +1957,22 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
 
 enum AudioServiceShuffleMode { none, all, group }
 
-enum AudioServiceRepeatMode { none, one, all, group }
+/// How media items should repeat when the current one is finished.
+enum AudioServiceRepeatMode { 
+  /// When the current media item finishes, playback will stop.
+  none, 
+  
+  /// The current media item will repeat.
+  one, 
+  
+  /// Playback will continue looping through all media items in the current list.
+  all, 
+  
+  /// [Unimplemented] This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
+  ///
+  /// This could represent a playlist that is a smaller subset of all media items.
+  group, 
+}
 
 class _AsyncTaskQueue {
   final _queuedAsyncTaskController = StreamController<_AsyncTaskQueueEntry>();
