@@ -338,10 +338,9 @@ class MainSwitchHandler extends SwitchAudioHandler {
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   final _mediaLibrary = MediaLibrary();
-  AudioPlayer _player;
-  StreamSubscription<PlaybackEvent> _eventSubscription;
+  final _player = AudioPlayer();
 
-  int get index => _player?.currentIndex;
+  int get index => _player.currentIndex;
 
   AudioPlayerHandler() {
     _init();
@@ -355,41 +354,30 @@ class AudioPlayerHandler extends BaseAudioHandler
     await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
     queue.add(_mediaLibrary.items);
-    _ensurePlayer();
-  }
-
-  Future<void> _ensurePlayer() async {
-    print("### _ensurePlayer");
-    if (_player == null) {
-      print("### new AudioPlayer()");
-      _player = AudioPlayer();
-      // Broadcast media item changes.
-      _player.currentIndexStream.listen((index) {
-        if (index != null) mediaItem.add(queue.value[index]);
-      });
-      // Propagate all events from the audio player to AudioService clients.
-      _eventSubscription = _player.playbackEventStream.listen((event) {
-        _broadcastState();
-      });
-      // In this example, the service stops when reaching the end.
-      _player.processingStateStream.listen((state) {
-        if (state == ProcessingState.completed) stop();
-      });
-      try {
-        print("### _player.load");
-        // After a cold restart (on Android), _player.load jumps straight from
-        // the loading state to the completed state. Inserting a delay makes it
-        // work. Not sure why!
-        //await Future.delayed(Duration(seconds: 2)); // magic delay
-        await _player.load(ConcatenatingAudioSource(
-          children: queue.value
-              .map((item) => AudioSource.uri(Uri.parse(item.id)))
-              .toList(),
-        ));
-        print("### loaded");
-      } catch (e) {
-        print("Error: $e");
-      }
+    // Broadcast media item changes.
+    _player.currentIndexStream.listen((index) {
+      if (index != null) mediaItem.add(queue.value[index]);
+    });
+    // Propagate all events from the audio player to AudioService clients.
+    _player.playbackEventStream.listen(_broadcastState);
+    // In this example, the service stops when reaching the end.
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) stop();
+    });
+    try {
+      print("### _player.load");
+      // After a cold restart (on Android), _player.load jumps straight from
+      // the loading state to the completed state. Inserting a delay makes it
+      // work. Not sure why!
+      //await Future.delayed(Duration(seconds: 2)); // magic delay
+      await _player.setAudioSource(ConcatenatingAudioSource(
+        children: queue.value
+            .map((item) => AudioSource.uri(Uri.parse(item.id)))
+            .toList(),
+      ));
+      print("### loaded");
+    } catch (e) {
+      print("Error: $e");
     }
   }
 
@@ -400,35 +388,27 @@ class AudioPlayerHandler extends BaseAudioHandler
     final newIndex = queue.value.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
-    _player?.seek(Duration.zero, index: newIndex);
+    _player.seek(Duration.zero, index: newIndex);
   }
 
   @override
-  Future<void> play() async {
-    await _ensurePlayer();
-    await _player.play();
-  }
+  Future<void> play() => _player.play();
 
   @override
-  Future<void> pause() => _player?.pause();
+  Future<void> pause() => _player.pause();
 
   @override
-  Future<void> seek(Duration position) => _player?.seek(position);
+  Future<void> seek(Duration position) => _player.seek(position);
 
   @override
   Future<void> stop() async {
-    await _player?.dispose();
-    _player = null;
-    print("stop. _player = null");
-    _eventSubscription.cancel();
-    _broadcastState();
-    // Shut down this task
+    await _player.stop();
     await super.stop();
   }
 
   /// Broadcasts the current state to all clients.
-  void _broadcastState() {
-    final playing = _player?.playing ?? false;
+  void _broadcastState(PlaybackEvent event) {
+    final playing = _player.playing ?? false;
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
@@ -443,16 +423,16 @@ class AudioPlayerHandler extends BaseAudioHandler
       },
       androidCompactActionIndices: [0, 1, 3],
       processingState: {
-        ProcessingState.none: AudioProcessingState.idle,
+        ProcessingState.idle: AudioProcessingState.idle,
         ProcessingState.loading: AudioProcessingState.loading,
         ProcessingState.buffering: AudioProcessingState.buffering,
         ProcessingState.ready: AudioProcessingState.ready,
         ProcessingState.completed: AudioProcessingState.completed,
-      }[_player?.processingState ?? ProcessingState.none],
+      }[_player.processingState ?? ProcessingState.idle],
       playing: playing,
-      updatePosition: _player?.position ?? Duration.zero,
-      bufferedPosition: _player?.bufferedPosition ?? Duration.zero,
-      speed: _player?.speed ?? 1.0,
+      updatePosition: _player.position ?? Duration.zero,
+      bufferedPosition: _player.bufferedPosition ?? Duration.zero,
+      speed: _player.speed ?? 1.0,
     ));
   }
 }
