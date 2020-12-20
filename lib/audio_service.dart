@@ -1048,12 +1048,12 @@ class AudioService {
     if (childrenStream == null) {
       childrenStream = _childrenStreams[parentMediaId] =
           _handler.getChildrenStream(parentMediaId);
-      childrenStream.listen((children) {
+      childrenStream?.listen((children) {
         // Notify clients that the children of [parentMediaId] have changed.
         _backgroundChannel.invokeMethod('notifyChildrenChanged', parentMediaId);
       });
     }
-    return _childrenStreams[parentMediaId].value;
+    return childrenStream?.value ?? [];
   }
 }
 
@@ -1199,53 +1199,57 @@ abstract class AudioHandler {
   Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction);
 
   /// A value stream of playback states.
-  StreamableValue<PlaybackState> get playbackState;
+  ValueStream<PlaybackState> get playbackState;
 
   /// A value stream of the current queue.
-  StreamableValue<List<MediaItem>> get queue;
+  ValueStream<List<MediaItem>> get queue;
 
   /// A value stream of the current queueTitle.
-  StreamableValue<String> get queueTitle;
+  ValueStream<String> get queueTitle;
 
   /// A value stream of the current media item.
-  StreamableValue<MediaItem> get mediaItem;
+  ValueStream<MediaItem> get mediaItem;
 
   /// A value stream of the current rating style.
-  StreamableValue<RatingStyle> get ratingStyle;
+  ValueStream<RatingStyle> get ratingStyle;
 
   /// A value stream of the current [AndroidPlaybackInfo].
-  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo;
+  ValueStream<AndroidPlaybackInfo> get androidPlaybackInfo;
 
   /// A stream of custom events.
   Stream<dynamic> get customEventStream;
 
   /// A stream of custom states.
-  StreamableValue<dynamic> get customState;
+  ValueStream<dynamic> get customState;
 }
 
 /// A [SwitchAudioHandler] wraps another [AudioHandler] that may be switched for
 /// another at any time by setting [inner].
 class SwitchAudioHandler extends CompositeAudioHandler {
   @override
-  final StreamableValueSubject<PlaybackState> playbackState =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
   @override
-  final StreamableValueSubject<List<MediaItem>> queue =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<List<MediaItem>> queue = BehaviorSubject();
   @override
-  final StreamableValueSubject<String> queueTitle = StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<String> queueTitle = BehaviorSubject();
   @override
-  final StreamableValueSubject<MediaItem> mediaItem = StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<MediaItem> mediaItem = BehaviorSubject();
   @override
-  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      BehaviorSubject();
   @override
-  final StreamableValueSubject<RatingStyle> ratingStyle =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
   // ignore: close_sinks
   final _customEventSubject = PublishSubject<dynamic>();
   @override
-  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<dynamic> customState = BehaviorSubject();
 
   StreamSubscription<PlaybackState> playbackStateSubscription;
   StreamSubscription<List<MediaItem>> queueSubscription;
@@ -1497,29 +1501,29 @@ class CompositeAudioHandler extends AudioHandler {
       _inner.androidAdjustRemoteVolume(direction);
 
   @override
-  StreamableValue<PlaybackState> get playbackState => _inner.playbackState;
+  ValueStream<PlaybackState> get playbackState => _inner.playbackState;
 
   @override
-  StreamableValue<List<MediaItem>> get queue => _inner.queue;
+  ValueStream<List<MediaItem>> get queue => _inner.queue;
 
   @override
-  StreamableValue<String> get queueTitle => _inner.queueTitle;
+  ValueStream<String> get queueTitle => _inner.queueTitle;
 
   @override
-  StreamableValue<MediaItem> get mediaItem => _inner.mediaItem;
+  ValueStream<MediaItem> get mediaItem => _inner.mediaItem;
 
   @override
-  StreamableValue<RatingStyle> get ratingStyle => _inner.ratingStyle;
+  ValueStream<RatingStyle> get ratingStyle => _inner.ratingStyle;
 
   @override
-  StreamableValue<AndroidPlaybackInfo> get androidPlaybackInfo =>
+  ValueStream<AndroidPlaybackInfo> get androidPlaybackInfo =>
       _inner.androidPlaybackInfo;
 
   @override
   Stream<dynamic> get customEventStream => _inner.customEventStream;
 
   @override
-  StreamableValue<dynamic> get customState => _inner.customState;
+  ValueStream<dynamic> get customState => _inner.customState;
 }
 
 class _IsolateRequest {
@@ -1535,32 +1539,33 @@ const _isolatePortName = 'com.ryanheise.audioservice.port';
 
 class _IsolateAudioHandler extends AudioHandler {
   @override
-  final StreamableValueSubject<PlaybackState> playbackState =
-      StreamableValueSubject.seeded(PlaybackState());
+  final BehaviorSubject<PlaybackState> playbackState =
+      BehaviorSubject.seeded(PlaybackState());
   @override
-  final StreamableValueSubject<List<MediaItem>> queue =
-      StreamableValueSubject.seeded(<MediaItem>[]);
-  @override
-  // TODO
-  final StreamableValueSubject<String> queueTitle =
-      StreamableValueSubject.seeded('');
-  @override
-  final StreamableValueSubject<MediaItem> mediaItem =
-      StreamableValueSubject.seeded(null);
+  final BehaviorSubject<List<MediaItem>> queue =
+      BehaviorSubject.seeded(<MediaItem>[]);
   @override
   // TODO
-  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
+  @override
+  final BehaviorSubject<MediaItem> mediaItem = BehaviorSubject.seeded(null);
   @override
   // TODO
-  final StreamableValueSubject<RatingStyle> ratingStyle =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      BehaviorSubject();
+  @override
+  // TODO
+  // ignore: close_sinks
+  final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
   // TODO
   // ignore: close_sinks
   final _customEventSubject = PublishSubject<dynamic>();
   @override
   // TODO
-  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<dynamic> customState = BehaviorSubject();
 
   _IsolateAudioHandler() : super._() {
     final methodHandler = (MethodCall call) async {
@@ -1849,8 +1854,9 @@ class BaseAudioHandler extends AudioHandler {
   /// playbackState.add(playbackState.copyWith(playing: true));
   /// ```
   @override
-  final StreamableValueSubject<PlaybackState> playbackState =
-      StreamableValueSubject.seeded(PlaybackState());
+  // ignore: close_sinks
+  final BehaviorSubject<PlaybackState> playbackState =
+      BehaviorSubject.seeded(PlaybackState());
 
   /// A controller for broadcasting the current queue to the app's UI, media
   /// notification and other clients. Example usage:
@@ -1859,8 +1865,8 @@ class BaseAudioHandler extends AudioHandler {
   /// queue.add(queue + [additionalItem]);
   /// ```
   @override
-  final StreamableValueSubject<List<MediaItem>> queue =
-      StreamableValueSubject.seeded(<MediaItem>[]);
+  final BehaviorSubject<List<MediaItem>> queue =
+      BehaviorSubject.seeded(<MediaItem>[]);
 
   /// A controller for broadcasting the current queue title to the app's UI, media
   /// notification and other clients. Example usage:
@@ -1869,8 +1875,8 @@ class BaseAudioHandler extends AudioHandler {
   /// queueTitle.add(newTitle);
   /// ```
   @override
-  final StreamableValueSubject<String> queueTitle =
-      StreamableValueSubject.seeded('');
+  // ignore: close_sinks
+  final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
 
   /// A controller for broadcasting the current media item to the app's UI,
   /// media notification and other clients. Example usage:
@@ -1879,8 +1885,8 @@ class BaseAudioHandler extends AudioHandler {
   /// mediaItem.add(item);
   /// ```
   @override
-  final StreamableValueSubject<MediaItem> mediaItem =
-      StreamableValueSubject.seeded(null);
+  // ignore: close_sinks
+  final BehaviorSubject<MediaItem> mediaItem = BehaviorSubject.seeded(null);
 
   /// A controller for broadcasting the current [AndroidPlaybackInfo] to the app's UI,
   /// media notification and other clients. Example usage:
@@ -1889,8 +1895,9 @@ class BaseAudioHandler extends AudioHandler {
   /// androidPlaybackInfo.add(newPlaybackInfo);
   /// ```
   @override
-  final StreamableValueSubject<AndroidPlaybackInfo> androidPlaybackInfo =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
+      BehaviorSubject();
 
   /// A controller for broadcasting the current rating style to the app's UI,
   /// media notification and other clients. Example usage:
@@ -1899,8 +1906,8 @@ class BaseAudioHandler extends AudioHandler {
   /// ratingStyle.add(item);
   /// ```
   @override
-  final StreamableValueSubject<RatingStyle> ratingStyle =
-      StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
   /// A controller for broadcasting a custom event to the app's UI. Example
   /// usage:
@@ -1919,7 +1926,8 @@ class BaseAudioHandler extends AudioHandler {
   /// customState.add(MyCustomState(...));
   /// ```
   @override
-  final StreamableValueSubject<dynamic> customState = StreamableValueSubject();
+  // ignore: close_sinks
+  final BehaviorSubject<dynamic> customState = BehaviorSubject();
 
   BaseAudioHandler() : super._();
 
@@ -2244,20 +2252,20 @@ enum AudioServiceShuffleMode { none, all, group }
 /// The available repeat modes.
 ///
 /// This defines how media items should repeat when the current one is finished.
-enum AudioServiceRepeatMode { 
+enum AudioServiceRepeatMode {
   /// The current media item or queue will not repeat.
-  none, 
-  
+  none,
+
   /// The current media item will repeat.
-  one, 
-  
+  one,
+
   /// Playback will continue looping through all media items in the current list.
-  all, 
-  
+  all,
+
   /// [Unimplemented] This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
   ///
   /// This could represent a playlist that is a smaller subset of all media items.
-  group, 
+  group,
 }
 
 bool get _testing => HttpOverrides.current != null;
@@ -2394,22 +2402,9 @@ class AndroidContentStyle {
   static final categoryGridItemHintValue = 4;
 }
 
-abstract class StreamableValue<T> {
-  ValueStream<T> get stream;
-  T get value => stream.value;
-}
-
-class StreamableValueSubject<T> extends StreamableValue<T> {
-  // ignore: close_sinks
-  final BehaviorSubject<T> _subject;
-  StreamableValueSubject._(BehaviorSubject<T> subject) : _subject = subject;
-  StreamableValueSubject() : this._(BehaviorSubject<T>());
-  StreamableValueSubject.seeded(T initialValue)
-      : this._(BehaviorSubject.seeded(initialValue));
-
-  ValueStream<T> get stream => _subject.stream;
-
-  void add(T event) => _subject.add(event);
+/// (Maybe) temporary.
+extension AudioServiceValueStream<T> on ValueStream<T> {
+  ValueStream<T> get stream => this;
 }
 
 class AndroidVolumeDirection {

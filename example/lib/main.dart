@@ -314,8 +314,7 @@ class CustomEvent {
 class MainSwitchHandler extends SwitchAudioHandler {
   final List<AudioHandler> handlers;
   @override
-  StreamableValueSubject<dynamic> customState =
-      StreamableValueSubject.seeded(CustomEvent(0));
+  BehaviorSubject<dynamic> customState = BehaviorSubject.seeded(CustomEvent(0));
 
   MainSwitchHandler(this.handlers) : super(handlers.first);
 
