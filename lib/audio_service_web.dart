@@ -297,7 +297,7 @@ class BackgroundHandler {
       // Dart also doesn't expose setPositionState
       if (mediaItem != null) {
         print(
-            'Setting positionState Duration(${mediaItem.duration.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4]).inSeconds})');
+            'Setting positionState Duration(${mediaItem.duration?.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4])?.inSeconds})');
 
         // Chrome looks for seconds for some reason
         setPositionState(PositionState(
