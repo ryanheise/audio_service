@@ -1546,7 +1546,18 @@ class AudioServiceBackground {
       // We potentially need to fetch the art.
       String filePath = _getLocalPath(mediaItem.artUri);
       if (filePath == null) {
-        final fileInfo = _cacheManager.getFileFromMemory(mediaItem.artUri);
+        // flutter_cache_manager 1.x returns FileInfo,
+        // flutter_cache_manager 2.x returns Future<FileInfo>
+        final dynamic fileInfoResult =
+            _cacheManager.getFileFromMemory(mediaItem.artUri);
+        FileInfo fileInfo;
+        if (fileInfoResult == null) {
+          fileInfo = null;
+        } else if (fileInfoResult is Future<FileInfo>) {
+          fileInfo = await fileInfoResult;
+        } else {
+          fileInfo = fileInfoResult;
+        }
         filePath = fileInfo?.file?.path;
         if (filePath == null) {
           // We haven't fetched the art yet, so show the metadata now, and again
