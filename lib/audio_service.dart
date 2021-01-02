@@ -528,8 +528,7 @@ const String _CUSTOM_PREFIX = 'custom_';
 /// use [AudioServiceWidget] to manage this connection for you automatically.
 class AudioService {
   /// True if the background task runs in its own isolate, false if it doesn't.
-  static bool get usesIsolate =>
-      !(kIsWeb || Platform.isMacOS) && !audioServiceTestMode;
+  static bool get usesIsolate => !(kIsWeb || Platform.isMacOS) && !_testMode;
 
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -676,7 +675,7 @@ class AudioService {
               break;
           }
         };
-        if (audioServiceTestMode) {
+        if (_testMode) {
           MethodChannel('ryanheise.com/audioServiceInverse')
               .setMockMethodCallHandler(handler);
         } else {
@@ -1358,7 +1357,7 @@ class AudioServiceBackground {
     };
     // Mock method call handlers only work in one direction so we need to set up
     // a separate channel for each direction when testing.
-    if (audioServiceTestMode) {
+    if (_testMode) {
       MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
           .setMockMethodCallHandler(handler);
     } else {
@@ -1668,8 +1667,8 @@ abstract class BackgroundAudioTask {
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
   BackgroundAudioTask({BaseCacheManager cacheManager})
-      : this.cacheManager = cacheManager ??
-            (audioServiceTestMode ? null : DefaultCacheManager());
+      : this.cacheManager =
+            cacheManager ?? (_testMode ? null : DefaultCacheManager());
 
   /// The fast forward interval passed into [AudioService.start].
   Duration get fastForwardInterval => _fastForwardInterval;
@@ -2005,5 +2004,4 @@ class _AsyncTaskQueueEntry {
 
 typedef _AsyncTask = Future<dynamic> Function();
 
-/// (Private API) `true` when running audio_service unit tests.
-bool audioServiceTestMode = false;
+bool get _testMode => Platform.environment.containsKey('FLUTTER_TEST');
