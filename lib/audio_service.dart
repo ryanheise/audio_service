@@ -2004,4 +2004,4 @@ class _AsyncTaskQueueEntry {
 
 typedef _AsyncTask = Future<dynamic> Function();
 
-bool get _testMode => Platform.environment.containsKey('FLUTTER_TEST');
+bool get _testMode => Platform.environment['FLUTTER_TEST'] == 'true';
