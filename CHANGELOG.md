@@ -1,3 +1,7 @@
+## 0.16.1
+
+* Fix bug in start() when using HttpOverrides.
+
 ## 0.16.0
 
 * setState parameters default to previous state.
