@@ -390,7 +390,7 @@ static MPMediaItemArtwork* artwork = nil;
         }
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithInt:([position intValue] / 1000)];
     }
-    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = [NSNumber numberWithDouble: playing ? 1.0 : 0.0];
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = playing ? speed: [NSNumber numberWithDouble: 0.0];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
