@@ -10,10 +10,11 @@ dependencies:
     sdk: flutter
 
   path_provider: ^1.6.10
-  audio_session: ^0.0.9
-  just_audio: ^0.6.2
+  audio_session: ^0.0.10
+  just_audio: ^0.6.4
   flutter_tts: ^0.8.5
-  rxdart: ">= 0.24.1 < 0.26.0"
+  rxdart: "0.25.0"
+  # rxdart: ">= 0.24.1 < 0.26.0"
   audio_service:
     path: ../
 

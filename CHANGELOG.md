@@ -1,3 +1,17 @@
+## 0.16.1
+
+* Fix bug in start() when using HttpOverrides.
+
+## 0.16.0
+
+* setState parameters default to previous state.
+* Change updateTime from Duration to DateTime.
+* Rename newStartRating to newStarRating.
+* Declare type of MediaItem.extras (@hacker1024).
+* Unit tests.
+* Fix compile error on macOS.
+* Update dependencies.
+
 ## 0.15.3
 
 * Add positionStream and runningStream.

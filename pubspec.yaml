@@ -1,6 +1,6 @@
 name: audio_service
 description: Flutter plugin to play audio in the background while the screen is off.
-version: 0.15.3
+version: 0.16.1
 homepage: https://github.com/ryanheise/audio_service
 
 environment:
@@ -8,9 +8,12 @@ environment:
   flutter: ">=1.12.13+hotfix.5"
 
 dependencies:
-  audio_session: ^0.0.9
+  audio_session: ^0.0.10
   rxdart: ">= 0.24.1 < 0.26.0"
-  flutter_cache_manager: ^1.4.0
+  flutter_cache_manager: ">= 1.4.0 < 3.0.0"
+  # This sqflite constraint is needed to make the >= 2.0.0 versions of
+  # flutter_cache_manager compile.
+  sqflite: ^1.3.2+1
   js: ^0.6.2
   flutter:
     sdk: flutter

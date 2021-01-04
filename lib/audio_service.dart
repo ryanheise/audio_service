@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show HttpOverrides;
+import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:ui';
 
@@ -702,7 +702,7 @@ class AudioService {
           break;
       }
     };
-    if (_testing) {
+    if (_testMode) {
       MethodChannel('ryanheise.com/audioServiceInverse')
           .setMockMethodCallHandler(methodHandler);
     } else {
@@ -839,7 +839,7 @@ class AudioService {
     };
     // Mock method call handlers only work in one direction so we need to set up
     // a separate channel for each direction when testing.
-    if (_testing) {
+    if (_testMode) {
       MethodChannel('ryanheise.com/audioServiceBackgroundInverse')
           .setMockMethodCallHandler(methodHandler);
     } else {
@@ -865,7 +865,16 @@ class AudioService {
         // We potentially need to fetch the art.
         String filePath = _getLocalPath(mediaItem.artUri);
         if (filePath == null) {
-          final fileInfo = cacheManager.getFileFromMemory(mediaItem.artUri);
+          final dynamic fileInfoResult =
+              cacheManager.getFileFromMemory(mediaItem.artUri);
+          FileInfo fileInfo;
+          if (fileInfoResult == null) {
+            fileInfo = null;
+          } else if (fileInfoResult is Future<FileInfo>) {
+            fileInfo = await fileInfoResult;
+          } else {
+            fileInfo = fileInfoResult;
+          }
           filePath = fileInfo?.file?.path;
           if (filePath == null) {
             // We haven't fetched the art yet, so show the metadata now, and again
@@ -2268,7 +2277,7 @@ enum AudioServiceRepeatMode {
   group,
 }
 
-bool get _testing => HttpOverrides.current != null;
+bool get _testMode => !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
 
 /// The configuration options to use when registering an [AudioHandler].
 class AudioServiceConfig {
