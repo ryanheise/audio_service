@@ -1351,8 +1351,7 @@ class AudioServiceBackground {
             break;
         }
       } catch (e, stacktrace) {
-        print('$stacktrace');
-        throw PlatformException(code: '$e');
+        throw PlatformException(code: '$e', stacktrace: stacktrace?.toString());
       }
     };
     // Mock method call handlers only work in one direction so we need to set up
