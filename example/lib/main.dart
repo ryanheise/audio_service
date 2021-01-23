@@ -333,6 +333,11 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _player.currentIndexStream.listen((index) {
       if (index != null) AudioServiceBackground.setMediaItem(queue[index]);
     });
+    _player.durationStream.listen((duration) {
+      if (index != null && duration != null) {
+        AudioServiceBackground.setMediaItem(queue[index].copyWith(duration: duration));
+      }
+    });
     // Propagate all events from the audio player to AudioService clients.
     _eventSubscription = _player.playbackEventStream.listen((event) {
       _broadcastState();
@@ -492,22 +497,18 @@ class AudioPlayerTask extends BackgroundAudioTask {
 class MediaLibrary {
   final _items = <MediaItem>[
     MediaItem(
-      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-      album: "Science Friday",
-      title: "A Salute To Head-Scratching Science",
-      artist: "Science Friday and WNYC Studios",
-      duration: Duration(milliseconds: 5739820),
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+      id: "https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-FLAC-File.flac",
+      album: "album 1",
+      title: "title 1",
+      artist: "artist 1",
+      //duration: Duration(milliseconds: 5739820),
     ),
     MediaItem(
-      id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
-      album: "Science Friday",
-      title: "From Cat Rheology To Operatic Incompetence",
-      artist: "Science Friday and WNYC Studios",
-      duration: Duration(milliseconds: 2856950),
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+      id: "https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.flac",
+      album: "album 2",
+      title: "title 2",
+      artist: "artist 2",
+      //duration: Duration(milliseconds: 5739820),
     ),
   ];
 
