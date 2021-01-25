@@ -1,8 +1,9 @@
 @JS('navigator.mediaSession')
 library media_session_web;
 
+import 'dart:html' as html;
+
 import 'package:js/js.dart';
-import 'media_metadata.dart';
 
 @JS('setActionHandler')
 external void setActionHandler(String action, Function(ActionResult) callback);
@@ -33,4 +34,4 @@ class PositionState {
 }
 
 @JS('metadata')
-external set metadata(MediaMetadata metadata);
+external set metadata(html.MediaMetadata metadata);
