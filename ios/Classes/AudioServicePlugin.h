@@ -1,21 +1,18 @@
 #import <Flutter/Flutter.h>
 
 @interface AudioServicePlugin : NSObject<FlutterPlugin>
+
+@property (readonly, nonatomic) FlutterMethodChannel *channel;
+
 @end
 
 enum AudioProcessingState {
-    none,
-    connecting,
-    ready,
-    buffering,
-    fastForwarding,
-    rewinding,
-    skippingToPrevious,
-    skippingToNext,
-    skippingToQueueItem,
-    completed,
-    stopped,
-    error
+    as_idle,
+    as_loading,
+    as_buffering,
+    as_ready,
+    as_completed,
+    as_error
 };
 
 enum AudioInterruption {

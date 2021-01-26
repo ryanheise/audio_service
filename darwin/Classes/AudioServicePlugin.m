@@ -8,19 +8,17 @@
 // all things iOS if you'd like to discuss approaches or ask for input. Thank
 // you for your support!
 
-@implementation AudioServicePlugin
-
+static NSHashTable<AudioServicePlugin *> *plugins = nil;
 static FlutterMethodChannel *channel = nil;
 static FlutterMethodChannel *backgroundChannel = nil;
-static BOOL _running = NO;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
 static NSArray *queue = nil;
 static NSMutableDictionary *mediaItem = nil;
-static long actionBits;
-static NSArray *commands;
+static long actionBits = 0;
+static NSMutableArray *commands;
 static BOOL _controlsUpdated = NO;
-static enum AudioProcessingState processingState = none;
+static enum AudioProcessingState processingState = as_idle;
 static BOOL playing = NO;
 static NSNumber *position = nil;
 static NSNumber *bufferedPosition = nil;
@@ -33,42 +31,112 @@ static NSNumber *rewindInterval = nil;
 static NSMutableDictionary *params = nil;
 static MPMediaItemArtwork* artwork = nil;
 
+@implementation AudioServicePlugin {
+    FlutterMethodChannel *_channel;
+}
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
     @synchronized(self) {
-        // TODO: Need a reliable way to detect whether this is the client
-        // or background.
-        // TODO: Handle multiple clients.
-        // As no separate isolate is used on macOS, add both handlers to the one registrar.
-#if TARGET_OS_IPHONE
-        if (channel == nil) {
-#endif
-            AudioServicePlugin *instance = [[AudioServicePlugin alloc] init:registrar];
-            channel = [FlutterMethodChannel
-                methodChannelWithName:@"ryanheise.com/audioService"
-                      binaryMessenger:[registrar messenger]];
-            [registrar addMethodCallDelegate:instance channel:channel];
-#if TARGET_OS_IPHONE
-        } else {
-            AudioServicePlugin *instance = [[AudioServicePlugin alloc] init:registrar];
-#endif
+        if (!plugins) {
+            plugins = [NSHashTable weakObjectsHashTable];
+        }
+        // TODO: Need a reliable way to detect whether this is a client
+        // or the background.
+        AudioServicePlugin *instance = [[AudioServicePlugin alloc] initWithRegistrar:registrar];
+        [registrar addMethodCallDelegate:instance channel:instance.channel];
+        [plugins addObject:instance];
+        if (!backgroundChannel) {
+            position = @(0);
+            bufferedPosition = @(0);
+            long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
+            updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
+            speed = [NSNumber numberWithDouble: 1.0];
+            repeatMode = @(0);
+            shuffleMode = @(0);
             backgroundChannel = [FlutterMethodChannel
                 methodChannelWithName:@"ryanheise.com/audioServiceBackground"
                       binaryMessenger:[registrar messenger]];
             [registrar addMethodCallDelegate:instance channel:backgroundChannel];
-#if TARGET_OS_IPHONE
         }
-#endif
     }
 }
 
-- (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar {
+- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
     self = [super init];
     NSAssert(self, @"super init cannot be nil");
+    _channel = [FlutterMethodChannel
+        methodChannelWithName:@"ryanheise.com/audioService"
+              binaryMessenger:[registrar messenger]];
     return self;
 }
 
+- (FlutterMethodChannel *)channel {
+    return _channel;
+}
+
+- (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments {
+    for (AudioServicePlugin *plugin in plugins) {
+        [plugin.channel invokeMethod:method arguments:arguments];
+    }
+}
+
+- (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments result:(FlutterResult)result {
+    for (AudioServicePlugin *plugin in plugins) {
+        [plugin.channel invokeMethod:method arguments:arguments result:result];
+    }
+}
+
+- (void)activateCommandCenter {
+    commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+    commands = [NSMutableArray new];
+    [commands addObjectsFromArray:@[
+        commandCenter.stopCommand,
+        commandCenter.pauseCommand,
+        commandCenter.playCommand,
+        commandCenter.skipBackwardCommand,
+        commandCenter.previousTrackCommand,
+        commandCenter.nextTrackCommand,
+        commandCenter.skipForwardCommand,
+        [NSNull null],
+        [NSNull null], //commandCenter.changePlaybackPositionCommand,
+        commandCenter.togglePlayPauseCommand,
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        [NSNull null],
+        commandCenter.changeRepeatModeCommand,
+        [NSNull null],
+        [NSNull null],
+        commandCenter.changeShuffleModeCommand,
+        commandCenter.seekBackwardCommand,
+        commandCenter.seekForwardCommand,
+    ]];
+    if (@available(iOS 9.1, macOS 10.12.2, *)) {
+        commands[8] = commandCenter.changePlaybackPositionCommand;
+    }
+    [commandCenter.changePlaybackRateCommand setEnabled:YES];
+    [commandCenter.togglePlayPauseCommand setEnabled:YES];
+    [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause:)];
+    // TODO: enable more commands
+    // Language options
+    if (@available(iOS 9.0, macOS 10.12.2, *)) {
+        [commandCenter.enableLanguageOptionCommand setEnabled:NO];
+        [commandCenter.disableLanguageOptionCommand setEnabled:NO];
+    }
+    // Rating
+    [commandCenter.ratingCommand setEnabled:NO];
+    // Feedback
+    [commandCenter.likeCommand setEnabled:NO];
+    [commandCenter.dislikeCommand setEnabled:NO];
+    [commandCenter.bookmarkCommand setEnabled:NO];
+}
+
 - (void)broadcastPlaybackState {
-    [channel invokeMethod:@"onPlaybackStateChanged" arguments:@[
+    [self invokeMethod:@"onPlaybackStateChanged" arguments:@[
         // processingState
         @(processingState),
         // playing
@@ -91,240 +159,59 @@ static MPMediaItemArtwork* artwork = nil;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    // TODO:
-    // - Restructure this so that we have a separate method call delegate
-    //     for the client instance and the background instance so that methods
-    //     can't be called on the wrong instance.
-    if ([@"connect" isEqualToString:call.method]) {
-        long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
-        if (position == nil) {
-            position = @(0);
-            bufferedPosition = @(0);
-            updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
-            speed = [NSNumber numberWithDouble: 1.0];
-            repeatMode = @(0);
-            shuffleMode = @(0);
-        }
-        // Notify client of state on subscribing.
-        [self broadcastPlaybackState];
-        [channel invokeMethod:@"onMediaChanged" arguments:@[mediaItem ? mediaItem : [NSNull null]]];
-        [channel invokeMethod:@"onQueueChanged" arguments:@[queue ? queue : [NSNull null]]];
-
-        result(nil);
-    } else if ([@"disconnect" isEqualToString:call.method]) {
-        result(nil);
-    } else if ([@"start" isEqualToString:call.method]) {
-        if (_running) {
-            result(@NO);
-            return;
-        }
-        _running = YES;
-        // The result will be sent after the background task actually starts.
-        // See the "ready" case below.
-        startResult = result;
-
-#if TARGET_OS_IPHONE
-        [AVAudioSession sharedInstance];
-#endif
-
-        // Set callbacks on MPRemoteCommandCenter
+    if ([@"configure" isEqualToString:call.method]) {
         fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
         rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
-        commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
-        commands = @[
-            commandCenter.stopCommand,
-            commandCenter.pauseCommand,
-            commandCenter.playCommand,
-            commandCenter.skipBackwardCommand,
-            commandCenter.previousTrackCommand,
-            commandCenter.nextTrackCommand,
-            commandCenter.skipForwardCommand,
-            [NSNull null],
-            commandCenter.changePlaybackPositionCommand,
-            commandCenter.togglePlayPauseCommand,
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            [NSNull null],
-            commandCenter.changeRepeatModeCommand,
-            [NSNull null],
-            [NSNull null],
-            commandCenter.changeShuffleModeCommand,
-            commandCenter.seekBackwardCommand,
-            commandCenter.seekForwardCommand,
-        ];
-        [commandCenter.changePlaybackRateCommand setEnabled:YES];
-        [commandCenter.togglePlayPauseCommand setEnabled:YES];
-        [commandCenter.togglePlayPauseCommand addTarget:self action:@selector(togglePlayPause:)];
-        // TODO: enable more commands
-        // Language options
-        if (@available(iOS 9.0, macOS 10.12.2, *)) {
-            [commandCenter.enableLanguageOptionCommand setEnabled:NO];
-            [commandCenter.disableLanguageOptionCommand setEnabled:NO];
-        }
-        // Rating
-        [commandCenter.ratingCommand setEnabled:NO];
-        // Feedback
-        [commandCenter.likeCommand setEnabled:NO];
-        [commandCenter.dislikeCommand setEnabled:NO];
-        [commandCenter.bookmarkCommand setEnabled:NO];
-        [self updateControls];
-
-        // Params
-        params = [call.arguments objectForKey:@"params"];
-
-#if TARGET_OS_OSX
-        // No isolate can be used for macOS until https://github.com/flutter/flutter/issues/65222 is resolved.
-        // We send a result here, and then the Dart code continues in the main isolate.
         result(@YES);
-#endif
-    } else if ([@"ready" isEqualToString:call.method]) {
-        NSMutableDictionary *startParams = [NSMutableDictionary new];
-        startParams[@"fastForwardInterval"] = fastForwardInterval;
-        startParams[@"rewindInterval"] = rewindInterval;
-        startParams[@"params"] = params;
-        result(startParams);
-    } else if ([@"started" isEqualToString:call.method]) {
-#if TARGET_OS_IPHONE
-        if (startResult) {
-            startResult(@YES);
-            startResult = nil;
-        }
-#endif
-        result(@YES);
-    } else if ([@"stopped" isEqualToString:call.method]) {
-        _running = NO;
-        [channel invokeMethod:@"onStopped" arguments:nil];
-        [commandCenter.changePlaybackRateCommand setEnabled:NO];
-        [commandCenter.togglePlayPauseCommand setEnabled:NO];
-        [commandCenter.togglePlayPauseCommand removeTarget:nil];
-        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
-        processingState = none;
-        playing = NO;
-        position = nil;
-        bufferedPosition = nil;
-        updateTime = nil;
-        speed = nil;
-        artwork = nil;
-        mediaItem = nil;
-        repeatMode = @(0);
-        shuffleMode = @(0);
-        actionBits = 0;
-        [self updateControls];
-        _controlsUpdated = NO;
-        queue = nil;
-        startResult = nil;
-        fastForwardInterval = nil;
-        rewindInterval = nil;
-        params = nil;
-        commandCenter = nil;
-        result(@YES);
-    } else if ([@"isRunning" isEqualToString:call.method]) {
-        if (_running) {
-            result(@YES);
-        } else {
-            result(@NO);
-        }
-    } else if ([@"setBrowseMediaParent" isEqualToString:call.method]) {
-        result(@YES);
-    } else if ([@"addQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onAddQueueItem" arguments:@[call.arguments] result: result];
-    } else if ([@"addQueueItemAt" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onAddQueueItemAt" arguments:call.arguments result: result];
-    } else if ([@"removeQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onRemoveQueueItem" arguments:@[call.arguments] result: result];
-    } else if ([@"updateQueue" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onUpdateQueue" arguments:@[call.arguments] result: result];
-    } else if ([@"updateMediaItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onUpdateMediaItem" arguments:@[call.arguments] result: result];
-    } else if ([@"click" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onClick" arguments:@[call.arguments] result: result];
-    } else if ([@"prepare" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPrepare" arguments:nil result: result];
-    } else if ([@"prepareFromMediaId" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPrepareFromMediaId" arguments:@[call.arguments] result: result];
-    } else if ([@"play" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPlay" arguments:nil result: result];
-    } else if ([@"playFromMediaId" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPlayFromMediaId" arguments:@[call.arguments] result: result];
-    } else if ([@"playMediaItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPlayMediaItem" arguments:@[call.arguments] result: result];
-    } else if ([@"skipToQueueItem" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToQueueItem" arguments:@[call.arguments] result: result];
-    } else if ([@"pause" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onPause" arguments:nil result: result];
-    } else if ([@"stop" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onStop" arguments:nil result: result];
-    } else if ([@"seekTo" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekTo" arguments:@[call.arguments] result: result];
-    } else if ([@"skipToNext" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil result: result];
-    } else if ([@"skipToPrevious" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil result: result];
-    } else if ([@"fastForward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onFastForward" arguments:nil result: result];
-    } else if ([@"rewind" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onRewind" arguments:nil result: result];
-    } else if ([@"setRepeatMode" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetRepeatMode" arguments:@[call.arguments] result: result];
-    } else if ([@"setShuffleMode" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetShuffleMode" arguments:@[call.arguments] result: result];
-    } else if ([@"setRating" isEqualToString:call.method]) {
-        NSDictionary *args = (NSDictionary *)call.arguments;
-        [backgroundChannel invokeMethod:@"onSetRating" arguments:@[args[@"rating"], args[@"extras"]] result: result];
-    } else if ([@"setSpeed" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSetSpeed" arguments:@[call.arguments] result: result];
-    } else if ([@"seekForward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekForward" arguments:@[call.arguments] result: result];
-    } else if ([@"seekBackward" isEqualToString:call.method]) {
-        [backgroundChannel invokeMethod:@"onSeekBackward" arguments:@[call.arguments] result: result];
     } else if ([@"setState" isEqualToString:call.method]) {
         long long msSinceEpoch;
-        if (call.arguments[7] != [NSNull null]) {
-            msSinceEpoch = [call.arguments[7] longLongValue];
+        if (call.arguments[@"updateTime"] != [NSNull null]) {
+            msSinceEpoch = [call.arguments[@"updateTime"] longLongValue];
         } else {
             msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
         }
         actionBits = 0;
-        NSArray *controlsArray = call.arguments[0];
+        NSArray *controlsArray = call.arguments[@"controls"];
         for (int i = 0; i < controlsArray.count; i++) {
             NSDictionary *control = (NSDictionary *)controlsArray[i];
             NSNumber *actionIndex = (NSNumber *)control[@"action"];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        NSArray *systemActionsArray = call.arguments[1];
+        NSArray *systemActionsArray = call.arguments[@"systemActions"];
         for (int i = 0; i < systemActionsArray.count; i++) {
             NSNumber *actionIndex = (NSNumber *)systemActionsArray[i];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        processingState = [call.arguments[2] intValue];
-        playing = [call.arguments[3] boolValue];
-        position = call.arguments[4];
-        bufferedPosition = call.arguments[5];
-        speed = call.arguments[6];
-        repeatMode = call.arguments[9];
-        shuffleMode = call.arguments[10];
+        processingState = [call.arguments[@"processingState"] intValue];
+        playing = [call.arguments[@"playing"] boolValue];
+        position = call.arguments[@"updatePosition"];
+        bufferedPosition = call.arguments[@"bufferedPosition"];
+        speed = call.arguments[@"speed"];
+        repeatMode = call.arguments[@"repeatMode"];
+        shuffleMode = call.arguments[@"shuffleMode"];
         updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
+        if (playing && !commandCenter) {
+#if TARGET_OS_IPHONE
+            [AVAudioSession sharedInstance];
+#endif
+            [self activateCommandCenter];
+        }
         [self broadcastPlaybackState];
         [self updateControls];
         [self updateNowPlayingInfo];
         result(@(YES));
     } else if ([@"setQueue" isEqualToString:call.method]) {
         queue = call.arguments;
-        [channel invokeMethod:@"onQueueChanged" arguments:@[queue]];
+        [self invokeMethod:@"onQueueChanged" arguments:@[queue]];
         result(@YES);
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
         mediaItem = call.arguments;
         NSString* artUri = mediaItem[@"artUri"];
         artwork = nil;
         if (![artUri isEqual: [NSNull null]]) {
-            NSString* artCacheFilePath = [NSNull null];
+            NSString* artCacheFilePath = (NSString *)[NSNull null];
             NSDictionary* extras = mediaItem[@"extras"];
             if (![extras isEqual: [NSNull null]]) {
                 artCacheFilePath = extras[@"artCacheFile"];
@@ -347,16 +234,42 @@ static MPMediaItemArtwork* artwork = nil;
             }
         }
         [self updateNowPlayingInfo];
-        [channel invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
+        [self invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
         result(@(YES));
+    } else if ([@"setPlaybackInfo" isEqualToString:call.method]) {
+        result(@YES);
     } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
         result(@YES);
     } else if ([@"androidForceEnableMediaButtons" isEqualToString:call.method]) {
         result(@YES);
+    } else if ([@"stopService" isEqualToString:call.method]) {
+        [commandCenter.changePlaybackRateCommand setEnabled:NO];
+        [commandCenter.togglePlayPauseCommand setEnabled:NO];
+        [commandCenter.togglePlayPauseCommand removeTarget:nil];
+        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+        processingState = as_idle;
+        playing = NO;
+        position = nil;
+        bufferedPosition = nil;
+        updateTime = nil;
+        speed = nil;
+        artwork = nil;
+        mediaItem = nil;
+        repeatMode = @(0);
+        shuffleMode = @(0);
+        actionBits = 0;
+        [self updateControls];
+        _controlsUpdated = NO;
+        queue = nil;
+        startResult = nil;
+        fastForwardInterval = nil;
+        rewindInterval = nil;
+        params = nil;
+        commandCenter = nil;
+        result(@YES);
     } else {
-        // TODO: Check if this implementation is correct.
-        // Can I just pass on the result as the last argument?
-        [backgroundChannel invokeMethod:call.method arguments:call.arguments result: result];
+        // TODO: Check if needed anymore.
+        [self invokeMethod:call.method arguments:call.arguments result:result];
     }
 }
 
@@ -403,7 +316,7 @@ static MPMediaItemArtwork* artwork = nil;
 
 - (void) updateControl:(enum MediaAction)action {
     MPRemoteCommand *command = commands[action];
-    if (command == [NSNull null]) return;
+    if (command == (id)[NSNull null]) return;
     // Shift the actionBits right until the least significant bit is the tested action bit, and AND that with a 1 at the same position.
     // All bytes become 0, other than the tested action bit, which will be 0 or 1 according to its status in the actionBits long.
     BOOL enable = ((actionBits >> action) & 1);
@@ -513,6 +426,8 @@ static MPMediaItemArtwork* artwork = nil;
             } else {
                 [commandCenter.seekForwardCommand removeTarget:nil];
             }
+            break;
+        default:
             break;
     }
 }
