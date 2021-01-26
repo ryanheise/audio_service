@@ -172,31 +172,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             }
             System.out.println("### onConnected returned");
         }
-        // XXX: Delete this method
-        /* case "start": { */
-        /*     if (startResult != null) { */
-        /*         sendStartResult(false); */
-        /*         break; */
-        /*     } */
-        /*     startResult = result; // The result will be sent after the background task actually starts. */
-        /*     if (activity == null) { */
-        /*         System.out.println("AudioService can only be started from an activity"); */
-        /*         sendStartResult(false); */
-        /*         break; */
-        /*     } */
-        /*     Map<?, ?> arguments = (Map<?, ?>)call.arguments; */
-        /*     final long callbackHandle = getLong(arguments.get("callbackHandle")); */
-        /*     params = (Map<String, Object>)arguments.get("params"); */
-        /*     final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue"); */
-        /*     fastForwardInterval = getLong(arguments.get("fastForwardInterval")); */
-        /*     rewindInterval = getLong(arguments.get("rewindInterval")); */
-
-        /*     final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext()); */
-        /*     backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue); */
-        /*     AudioService.init(activity, backgroundHandler); */
-
-        /*     break; */
-        /* } */
 
         @Override
         public void onConnectionSuspended() {
@@ -767,21 +742,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             System.out.println("### BackgroundHandler message: " + call.method);
             Context context = AudioService.instance;
             switch (call.method) {
-            case "ready":
-                Map<String, Object> startParams = new HashMap<String, Object>();
-                startParams.put("fastForwardInterval", mainClientHandler.fastForwardInterval);
-                startParams.put("rewindInterval", mainClientHandler.rewindInterval);
-                startParams.put("params", mainClientHandler.params);
-                result.success(startParams);
-                break;
-            case "started":
-                sendStartResult(true);
-                // If the client subscribed to browse children before we
-                // started, process the pending request.
-                // TODO: It should be possible to browse children before
-                // starting.
-                result.success(true);
-                break;
             case "setMediaItem":
                 Map<?, ?> rawMediaItem = (Map<?, ?>)call.arguments;
                 MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
