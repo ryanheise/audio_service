@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
-import 'package:audio_service/js/media_metadata.dart';
 
 import 'js/media_session_web.dart';
 
@@ -330,17 +329,17 @@ class BackgroundHandler {
         mediaItem.artUri;
 
     try {
-      metadata = MediaMetadata(MetadataLiteral(
-        album: mediaItem.album,
-        title: mediaItem.title,
-        artist: mediaItem.artist,
-        artwork: [
-          MetadataArtwork(
-            src: artUri,
-            sizes: '512x512',
-          )
+      metadata = html.MediaMetadata({
+        'album': mediaItem.album,
+        'title': mediaItem.title,
+        'artist': mediaItem.artist,
+        'artwork': [
+          {
+            'src': artUri,
+            'sizes': '512x512',
+          }
         ],
-      ));
+      });
     } catch (e) {
       print('Metadata failed $e');
     }
