@@ -991,8 +991,11 @@ class AudioService {
   /// method in your background audio task.
   static Future<void> seekTo(Duration position) async {
     _seekPos = position;
-    await _channel.invokeMethod('seekTo', position.inMilliseconds);
-    _seekPos = null;
+    try {
+      await _channel.invokeMethod('seekTo', position.inMilliseconds);
+    } finally {
+      _seekPos = null;
+    }
   }
 
   /// Sends a request to your background audio task to skip to the next item in
@@ -1193,6 +1196,15 @@ class AudioServiceBackground {
   static BackgroundAudioTask _task;
   static bool _running = false;
 
+  /// Completes when the task is shut down.
+  static Completer<dynamic> _taskCompleter = Completer();
+
+  /// Completes when the last method call (other than onStop) in progress has
+  /// completed.
+  static Completer<dynamic> _inProgressCompleter = Completer();
+
+  static int _inProgressMethodCount = 0;
+
   /// The current media playback state.
   ///
   /// This is the value most recently set via [setState].
@@ -1224,131 +1236,27 @@ class AudioServiceBackground {
     _task = taskBuilder();
     _cacheManager = _task.cacheManager;
     final handler = (MethodCall call) async {
+      if (!_running) return;
       try {
-        switch (call.method) {
-          case 'onLoadChildren':
-            final List args = call.arguments;
-            String parentMediaId = args[0];
-            List<MediaItem> mediaItems =
-                await _task.onLoadChildren(parentMediaId);
-            List<Map> rawMediaItems =
-                mediaItems.map((item) => item.toJson()).toList();
-            return rawMediaItems as dynamic;
-          case 'onClick':
-            final List args = call.arguments;
-            MediaButton button = MediaButton.values[args[0]];
-            await _task.onClick(button);
-            break;
-          case 'onStop':
-            await _task.onStop();
-            break;
-          case 'onPause':
-            await _task.onPause();
-            break;
-          case 'onPrepare':
-            await _task.onPrepare();
-            break;
-          case 'onPrepareFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onPrepareFromMediaId(mediaId);
-            break;
-          case 'onPlay':
-            await _task.onPlay();
-            break;
-          case 'onPlayFromMediaId':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onPlayFromMediaId(mediaId);
-            break;
-          case 'onPlayMediaItem':
-            await _task.onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onAddQueueItem':
-            await _task.onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onAddQueueItemAt':
-            final List args = call.arguments;
-            MediaItem mediaItem = MediaItem.fromJson(args[0]);
-            int index = args[1];
-            await _task.onAddQueueItemAt(mediaItem, index);
-            break;
-          case 'onUpdateQueue':
-            final List args = call.arguments;
-            final List queue = args[0];
-            await _task.onUpdateQueue(
-                queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
-            break;
-          case 'onUpdateMediaItem':
-            await _task
-                .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onRemoveQueueItem':
-            await _task
-                .onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
-            break;
-          case 'onSkipToNext':
-            await _task.onSkipToNext();
-            break;
-          case 'onSkipToPrevious':
-            await _task.onSkipToPrevious();
-            break;
-          case 'onFastForward':
-            await _task.onFastForward();
-            break;
-          case 'onRewind':
-            await _task.onRewind();
-            break;
-          case 'onSkipToQueueItem':
-            final List args = call.arguments;
-            String mediaId = args[0];
-            await _task.onSkipToQueueItem(mediaId);
-            break;
-          case 'onSeekTo':
-            final List args = call.arguments;
-            int positionMs = args[0];
-            Duration position = Duration(milliseconds: positionMs);
-            await _task.onSeekTo(position);
-            break;
-          case 'onSetRepeatMode':
-            final List args = call.arguments;
-            await _task.onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
-            break;
-          case 'onSetShuffleMode':
-            final List args = call.arguments;
-            await _task
-                .onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
-            break;
-          case 'onSetRating':
-            await _task.onSetRating(
-                Rating._fromRaw(call.arguments[0]), call.arguments[1]);
-            break;
-          case 'onSeekBackward':
-            final List args = call.arguments;
-            await _task.onSeekBackward(args[0]);
-            break;
-          case 'onSeekForward':
-            final List args = call.arguments;
-            await _task.onSeekForward(args[0]);
-            break;
-          case 'onSetSpeed':
-            final List args = call.arguments;
-            double speed = args[0];
-            await _task.onSetSpeed(speed);
-            break;
-          case 'onTaskRemoved':
-            await _task.onTaskRemoved();
-            break;
-          case 'onClose':
-            await _task.onClose();
-            break;
-          default:
-            if (call.method.startsWith(_CUSTOM_PREFIX)) {
-              final result = await _task.onCustomAction(
-                  call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
-              return result;
+        if (call.method == 'onStop') {
+          return await _task.onStop();
+        } else {
+          _inProgressMethodCount++;
+          try {
+            final result = await Future.any<dynamic>([
+              _taskCompleter.future,
+              _handleNonStopMethod(call),
+            ]);
+            return result;
+          } finally {
+            _inProgressMethodCount--;
+            // Note: Since we check !_running here, it is important that the
+            // listener of _inProgressCompleter set _running to false before
+            // listening. See _shutdown.
+            if (!_running && _inProgressMethodCount <= 0) {
+              _inProgressCompleter.complete();
             }
-            break;
+          }
         }
       } catch (e, stacktrace) {
         throw PlatformException(code: '$e', stacktrace: stacktrace?.toString());
@@ -1385,12 +1293,123 @@ class AudioServiceBackground {
     }
   }
 
+  /// Handle methods other than onStop.
+  static Future<dynamic> _handleNonStopMethod(MethodCall call) async {
+    switch (call.method) {
+      case 'onLoadChildren':
+        final List args = call.arguments;
+        String parentMediaId = args[0];
+        List<MediaItem> mediaItems = await _task.onLoadChildren(parentMediaId);
+        List<Map> rawMediaItems =
+            mediaItems.map((item) => item.toJson()).toList();
+        return rawMediaItems as dynamic;
+      case 'onClick':
+        final List args = call.arguments;
+        MediaButton button = MediaButton.values[args[0]];
+        return await _task.onClick(button);
+      case 'onPause':
+        return await _task.onPause();
+      case 'onPrepare':
+        return await _task.onPrepare();
+      case 'onPrepareFromMediaId':
+        final List args = call.arguments;
+        String mediaId = args[0];
+        return await _task.onPrepareFromMediaId(mediaId);
+      case 'onPlay':
+        return await _task.onPlay();
+      case 'onPlayFromMediaId':
+        final List args = call.arguments;
+        String mediaId = args[0];
+        return await _task.onPlayFromMediaId(mediaId);
+      case 'onPlayMediaItem':
+        return await _task
+            .onPlayMediaItem(MediaItem.fromJson(call.arguments[0]));
+      case 'onAddQueueItem':
+        return await _task
+            .onAddQueueItem(MediaItem.fromJson(call.arguments[0]));
+      case 'onAddQueueItemAt':
+        final List args = call.arguments;
+        MediaItem mediaItem = MediaItem.fromJson(args[0]);
+        int index = args[1];
+        return await _task.onAddQueueItemAt(mediaItem, index);
+      case 'onUpdateQueue':
+        final List args = call.arguments;
+        final List queue = args[0];
+        return await _task.onUpdateQueue(
+            queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
+      case 'onUpdateMediaItem':
+        return await _task
+            .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
+      case 'onRemoveQueueItem':
+        return await _task
+            .onRemoveQueueItem(MediaItem.fromJson(call.arguments[0]));
+      case 'onSkipToNext':
+        return await _task.onSkipToNext();
+      case 'onSkipToPrevious':
+        return await _task.onSkipToPrevious();
+      case 'onFastForward':
+        return await _task.onFastForward();
+      case 'onRewind':
+        return await _task.onRewind();
+      case 'onSkipToQueueItem':
+        final List args = call.arguments;
+        String mediaId = args[0];
+        return await _task.onSkipToQueueItem(mediaId);
+      case 'onSeekTo':
+        final List args = call.arguments;
+        int positionMs = args[0];
+        Duration position = Duration(milliseconds: positionMs);
+        return await _task.onSeekTo(position);
+      case 'onSetRepeatMode':
+        final List args = call.arguments;
+        return await _task
+            .onSetRepeatMode(AudioServiceRepeatMode.values[args[0]]);
+      case 'onSetShuffleMode':
+        final List args = call.arguments;
+        return await _task
+            .onSetShuffleMode(AudioServiceShuffleMode.values[args[0]]);
+      case 'onSetRating':
+        return await _task.onSetRating(
+            Rating._fromRaw(call.arguments[0]), call.arguments[1]);
+      case 'onSeekBackward':
+        final List args = call.arguments;
+        return await _task.onSeekBackward(args[0]);
+      case 'onSeekForward':
+        final List args = call.arguments;
+        return await _task.onSeekForward(args[0]);
+      case 'onSetSpeed':
+        final List args = call.arguments;
+        double speed = args[0];
+        return await _task.onSetSpeed(speed);
+      case 'onTaskRemoved':
+        return await _task.onTaskRemoved();
+      case 'onClose':
+        return await _task.onClose();
+      default:
+        if (call.method.startsWith(_CUSTOM_PREFIX)) {
+          final result = await _task.onCustomAction(
+              call.method.substring(_CUSTOM_PREFIX.length), call.arguments);
+          return result;
+        }
+        return null;
+    }
+  }
+
+  /// Wait for methods (other than onStop) in progress.
+  static Future<void> _waitForMethodsInProgress() async {
+    if (_inProgressMethodCount > 0) {
+      await _inProgressCompleter.future;
+    }
+  }
+
   /// Shuts down the background audio task within the background isolate.
   static Future<void> _shutdown() async {
     if (!_running) return;
     // Set this to false immediately so that if duplicate shutdown requests come
     // through, they are ignored.
     _running = false;
+    // Interrupt any client method calls in progress.
+    _taskCompleter.complete();
     final audioSession = await AudioSession.instance;
     try {
       await audioSession.setActive(false);
@@ -1401,6 +1420,10 @@ class AudioServiceBackground {
     _controls = [];
     _systemActions = [];
     _queue = [];
+    // Before shutting down the engine, ensure that any methods in progress are
+    // interrupted and return results to the client.
+    await _waitForMethodsInProgress();
+    // Shut down the engine
     await _backgroundChannel.invokeMethod('stopped');
     if (kIsWeb) {
     } else if (Platform.isIOS) {
