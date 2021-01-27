@@ -386,6 +386,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
         : AudioProcessingState.skippingToPrevious;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: newIndex);
+    // Demonstrate custom events.
+    AudioServiceBackground.sendCustomEvent('skip to $newIndex');
   }
 
   @override
