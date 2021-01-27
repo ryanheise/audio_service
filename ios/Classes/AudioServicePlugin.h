@@ -7,12 +7,12 @@
 @end
 
 enum AudioProcessingState {
-    as_idle,
-    as_loading,
-    as_buffering,
-    as_ready,
-    as_completed,
-    as_error
+    ApsIdle,
+    ApsLoading,
+    ApsBuffering,
+    ApsReady,
+    ApsCompleted,
+    ApsError
 };
 
 enum AudioInterruption {

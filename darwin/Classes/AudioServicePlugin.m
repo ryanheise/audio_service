@@ -18,7 +18,7 @@ static NSMutableDictionary *mediaItem = nil;
 static long actionBits = 0;
 static NSMutableArray *commands;
 static BOOL _controlsUpdated = NO;
-static enum AudioProcessingState processingState = as_idle;
+static enum AudioProcessingState processingState = ApsIdle;
 static BOOL playing = NO;
 static NSNumber *position = nil;
 static NSNumber *bufferedPosition = nil;
@@ -46,6 +46,7 @@ static MPMediaItemArtwork* artwork = nil;
         [registrar addMethodCallDelegate:instance channel:instance.channel];
         [plugins addObject:instance];
         if (!backgroundChannel) {
+            processingState = ApsIdle;
             position = @(0);
             bufferedPosition = @(0);
             long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
@@ -160,37 +161,39 @@ static MPMediaItemArtwork* artwork = nil;
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     if ([@"configure" isEqualToString:call.method]) {
-        fastForwardInterval = [call.arguments objectForKey:@"fastForwardInterval"];
-        rewindInterval = [call.arguments objectForKey:@"rewindInterval"];
+        NSDictionary *args = (NSDictionary *)call.arguments;
+        fastForwardInterval = [args objectForKey:@"fastForwardInterval"];
+        rewindInterval = [args objectForKey:@"rewindInterval"];
         result(@YES);
     } else if ([@"setState" isEqualToString:call.method]) {
+        NSDictionary *args = (NSDictionary *)call.arguments;
         long long msSinceEpoch;
-        if (call.arguments[@"updateTime"] != [NSNull null]) {
-            msSinceEpoch = [call.arguments[@"updateTime"] longLongValue];
+        if (args[@"updateTime"] != [NSNull null]) {
+            msSinceEpoch = [args[@"updateTime"] longLongValue];
         } else {
             msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
         }
         actionBits = 0;
-        NSArray *controlsArray = call.arguments[@"controls"];
+        NSArray *controlsArray = args[@"controls"];
         for (int i = 0; i < controlsArray.count; i++) {
             NSDictionary *control = (NSDictionary *)controlsArray[i];
             NSNumber *actionIndex = (NSNumber *)control[@"action"];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        NSArray *systemActionsArray = call.arguments[@"systemActions"];
+        NSArray *systemActionsArray = args[@"systemActions"];
         for (int i = 0; i < systemActionsArray.count; i++) {
             NSNumber *actionIndex = (NSNumber *)systemActionsArray[i];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        processingState = [call.arguments[@"processingState"] intValue];
-        playing = [call.arguments[@"playing"] boolValue];
-        position = call.arguments[@"updatePosition"];
-        bufferedPosition = call.arguments[@"bufferedPosition"];
-        speed = call.arguments[@"speed"];
-        repeatMode = call.arguments[@"repeatMode"];
-        shuffleMode = call.arguments[@"shuffleMode"];
+        processingState = [args[@"processingState"] intValue];
+        playing = [args[@"playing"] boolValue];
+        position = args[@"updatePosition"];
+        bufferedPosition = args[@"bufferedPosition"];
+        speed = args[@"speed"];
+        repeatMode = args[@"repeatMode"];
+        shuffleMode = args[@"shuffleMode"];
         updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
         if (playing && !commandCenter) {
 #if TARGET_OS_IPHONE
@@ -247,7 +250,7 @@ static MPMediaItemArtwork* artwork = nil;
         [commandCenter.togglePlayPauseCommand setEnabled:NO];
         [commandCenter.togglePlayPauseCommand removeTarget:nil];
         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
-        processingState = as_idle;
+        processingState = ApsIdle;
         playing = NO;
         position = nil;
         bufferedPosition = nil;

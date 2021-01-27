@@ -1,21 +1,18 @@
 #import <FlutterMacOS/FlutterMacOS.h>
 
 @interface AudioServicePlugin : NSObject<FlutterPlugin>
+
+@property (readonly, nonatomic) FlutterMethodChannel *channel;
+
 @end
 
 enum AudioProcessingState {
-    none,
-    connecting,
-    ready,
-    buffering,
-    fastForwarding,
-    rewinding,
-    skippingToPrevious,
-    skippingToNext,
-    skippingToQueueItem,
-    completed,
-    stopped,
-    error
+    ApsIdle,
+    ApsLoading,
+    ApsBuffering,
+    ApsReady,
+    ApsCompleted,
+    ApsError
 };
 
 enum AudioInterruption {
