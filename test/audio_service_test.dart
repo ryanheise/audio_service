@@ -410,6 +410,24 @@ void main() {
     await AudioService.stop();
     await AudioService.disconnect();
   });
+
+  test('customEventStream', () async {
+    await AudioService.connect();
+    await AudioService.start(backgroundTaskEntrypoint: task1);
+    Duration position;
+    final subscription = AudioService.customEventStream.listen((event) {
+      position = event;
+    });
+    for (var seconds in [47, 123]) {
+      final testPosition = Duration(seconds: seconds);
+      await AudioService.seekTo(testPosition);
+      await Future.delayed(Duration(milliseconds: 100));
+      expect(position, equals(testPosition));
+    }
+    await AudioService.stop();
+    await AudioService.disconnect();
+    subscription.cancel();
+  });
 }
 
 final _singleItem = MediaItem(
@@ -443,34 +461,42 @@ class Task1 extends BackgroundAudioTask {
     await AudioServiceBackground.setMediaItem(mediaItem);
   }
 
+  @override
   Future<void> onPause() async {
     AudioServiceBackground.setState(playing: false);
   }
 
+  @override
   Future<void> onPrepare() async {}
 
+  @override
   Future<void> onPrepareFromMediaId(String mediaId) async {}
 
+  @override
   Future<void> onPlay() async {
     await AudioServiceBackground.setState(playing: true);
   }
 
+  @override
   Future<void> onPlayFromMediaId(String mediaId) async {
     _index = _queue.indexWhere((item) => item.id == mediaId);
     await AudioServiceBackground.setState(playing: true);
     await AudioServiceBackground.setMediaItem(mediaItem);
   }
 
+  @override
   Future<void> onPlayMediaItem(MediaItem mediaItem) async {
     AudioServiceBackground.setState(playing: true);
     await AudioServiceBackground.setMediaItem(mediaItem);
   }
 
+  @override
   Future<void> onAddQueueItem(MediaItem mediaItem) async {
     _queue.add(mediaItem);
     await AudioServiceBackground.setQueue(_queue);
   }
 
+  @override
   Future<void> onUpdateQueue(List<MediaItem> queue) async {
     final oldMediaItem = mediaItem;
     _queue.replaceRange(0, _queue.length, queue);
@@ -480,6 +506,7 @@ class Task1 extends BackgroundAudioTask {
     }
   }
 
+  @override
   Future<void> onUpdateMediaItem(MediaItem mediaItem) async {
     final index = _queue.indexOf(mediaItem);
     if (index != -1) {
@@ -488,6 +515,7 @@ class Task1 extends BackgroundAudioTask {
     }
   }
 
+  @override
   Future<void> onAddQueueItemAt(MediaItem mediaItem, int index) async {
     final oldMediaItem = this.mediaItem;
     _queue.insert(index, mediaItem);
@@ -497,6 +525,7 @@ class Task1 extends BackgroundAudioTask {
     }
   }
 
+  @override
   Future<void> onRemoveQueueItem(MediaItem mediaItem) async {
     final oldMediaItem = this.mediaItem;
     _queue.remove(mediaItem);
@@ -509,37 +538,49 @@ class Task1 extends BackgroundAudioTask {
     }
   }
 
+  @override
   Future<void> onFastForward() async {}
 
+  @override
   Future<void> onRewind() async {}
 
+  @override
   Future<void> onSkipToQueueItem(String mediaId) async {
     final mediaItem = _queue.firstWhere((item) => item.id == mediaId);
     await AudioServiceBackground.setMediaItem(mediaItem);
   }
 
+  @override
   Future<void> onSeekTo(Duration position) async {
     await AudioServiceBackground.setState(position: position);
+    AudioServiceBackground.sendCustomEvent(position);
   }
 
+  @override
   Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
 
+  @override
   Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {
     await AudioServiceBackground.setState(repeatMode: repeatMode);
   }
 
+  @override
   Future<void> onSetShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     await AudioServiceBackground.setState(shuffleMode: shuffleMode);
   }
 
+  @override
   Future<void> onSeekBackward(bool begin) async {}
 
+  @override
   Future<void> onSeekForward(bool begin) async {}
 
+  @override
   Future<void> onSetSpeed(double speed) async {
     await AudioServiceBackground.setState(speed: speed);
   }
 
+  @override
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {
     switch (name) {
       case 'getParams':
@@ -553,6 +594,7 @@ class Task1 extends BackgroundAudioTask {
     }
   }
 
+  @override
   Future<void> onTaskRemoved() async {
     await onStop();
   }
