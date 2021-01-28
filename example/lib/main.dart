@@ -388,6 +388,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: newIndex);
+    // Demonstrate custom events.
+    customEventSubject.add('skip to $newIndex');
   }
 
   @override
