@@ -1,3 +1,9 @@
+## 0.16.2
+
+* Fix positionStream bug when seek is interrupted by onStop.
+* Fix JS name clash for MediaMetadata.
+* Update NowPlayingInfo speed correctly on iOS (@ryotayama).
+
 ## 0.16.1
 
 * Fix bug in start() when using HttpOverrides.
