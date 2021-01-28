@@ -1197,11 +1197,11 @@ class AudioServiceBackground {
   static bool _running = false;
 
   /// Completes when the task is shut down.
-  static Completer<dynamic> _taskCompleter = Completer();
+  static Completer<dynamic> _taskCompleter;
 
   /// Completes when the last method call (other than onStop) in progress has
   /// completed.
-  static Completer<dynamic> _inProgressCompleter = Completer();
+  static Completer<dynamic> _inProgressCompleter;
 
   static int _inProgressMethodCount = 0;
 
@@ -1230,6 +1230,8 @@ class AudioServiceBackground {
   /// playback.
   static Future<void> run(BackgroundAudioTask taskBuilder()) async {
     _running = true;
+    _taskCompleter = Completer();
+    _inProgressCompleter = Completer();
     _backgroundChannel =
         const MethodChannel('ryanheise.com/audioServiceBackground');
     WidgetsFlutterBinding.ensureInitialized();
