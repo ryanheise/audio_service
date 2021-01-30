@@ -170,7 +170,7 @@ class MainScreen extends StatelessWidget {
           AudioService.currentMediaItemStream,
           (queue, mediaItem) => QueueState(queue, mediaItem));
 
-  RaisedButton audioPlayerButton() => startButton(
+  ElevatedButton audioPlayerButton() => startButton(
         'AudioPlayer',
         () {
           AudioService.start(
@@ -185,7 +185,7 @@ class MainScreen extends StatelessWidget {
         },
       );
 
-  RaisedButton textToSpeechButton() => startButton(
+  ElevatedButton textToSpeechButton() => startButton(
         'TextToSpeech',
         () {
           AudioService.start(
@@ -197,8 +197,8 @@ class MainScreen extends StatelessWidget {
         },
       );
 
-  RaisedButton startButton(String label, VoidCallback onPressed) =>
-      RaisedButton(
+  ElevatedButton startButton(String label, VoidCallback onPressed) =>
+      ElevatedButton(
         child: Text(label),
         onPressed: onPressed,
       );
