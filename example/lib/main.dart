@@ -336,6 +336,8 @@ class MainSwitchHandler extends SwitchAudioHandler {
 /// An [AudioHandler] for playing a list of podcast episodes.
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
+  // ignore: close_sinks
+  final _recentSubject = BehaviorSubject<List<MediaItem>>();
   final _mediaLibrary = MediaLibrary();
   final _player = AudioPlayer();
 
@@ -353,6 +355,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
     queue.add(_mediaLibrary.items);
+    // For Android 11, record the most recent item so it can be resumed.
+    mediaItem.listen((item) => _recentSubject.add([item]));
     // Broadcast media item changes.
     _player.currentIndexStream.listen((index) {
       if (index != null) mediaItem.add(queue.value[index]);
@@ -377,6 +381,24 @@ class AudioPlayerHandler extends BaseAudioHandler
       print("### loaded");
     } catch (e) {
       print("Error: $e");
+    }
+  }
+
+  @override
+  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
+      [Map<String, dynamic> options]) {
+    switch (parentMediaId) {
+      case AudioService.recentRootId:
+        // When the user resumes a media session, tell the system what the most
+        // recently played item was.
+        print("### get recent children: ${_recentSubject.value}:");
+        return _recentSubject;
+      case AudioService.browsableRootId:
+        // Allow Android Auto to browse available items.
+        print("### get root children: ${queue.value}:");
+        return queue;
+      default:
+        return null;
     }
   }
 
