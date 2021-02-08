@@ -485,6 +485,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             if (backgroundHandler != null) {
                 ArrayList<Object> args = new ArrayList<Object>();
                 args.add(parentMediaId);
+                args.add(bundleToMap(options));
                 backgroundHandler.channel.invokeMethod("onLoadChildren", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {

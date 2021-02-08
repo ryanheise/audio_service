@@ -731,7 +731,8 @@ class AudioService {
       try {
         switch (call.method) {
           case 'onLoadChildren':
-            final mediaItems = await _onLoadChildren(call.arguments[0]);
+            final mediaItems = await _onLoadChildren(
+                call.arguments[0], _castMap(call.arguments[1]));
             List<Map> rawMediaItems =
                 mediaItems.map((item) => item.toJson()).toList();
             return rawMediaItems as dynamic;
@@ -1052,7 +1053,9 @@ class AudioService {
   }
 
   static final _childrenStreams = <String, ValueStream<List<MediaItem>>>{};
-  static Future<List<MediaItem>> _onLoadChildren(String parentMediaId) async {
+  static Future<List<MediaItem>> _onLoadChildren(
+      String parentMediaId, Map<String, dynamic> options) async {
+    // TODO: Use [options] parameter.
     var childrenStream = _childrenStreams[parentMediaId];
     if (childrenStream == null) {
       childrenStream = _childrenStreams[parentMediaId] =
