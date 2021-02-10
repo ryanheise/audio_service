@@ -1424,7 +1424,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> rewind([Duration interval]) => _inner.rewind();
+  Future<void> rewind([Duration interval]) => _inner.rewind(interval);
 
   @override
   @mustCallSuper
