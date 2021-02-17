@@ -385,18 +385,30 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   @override
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
-      [Map<String, dynamic> options]) {
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+      [Map<String, dynamic> options]) async {
     switch (parentMediaId) {
       case AudioService.recentRootId:
         // When the user resumes a media session, tell the system what the most
         // recently played item was.
         print("### get recent children: ${_recentSubject.value}:");
-        return _recentSubject;
+        return _recentSubject.value;
       case AudioService.browsableRootId:
         // Allow Android Auto to browse available items.
         print("### get root children: ${queue.value}:");
-        return queue;
+        return queue.value;
+      default:
+        return null;
+    }
+  }
+
+  @override
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
+    switch (parentMediaId) {
+      case AudioService.recentRootId:
+        return _recentSubject.map((_) => {});
+      case AudioService.browsableRootId:
+        return queue.map((_) => {});
       default:
         return null;
     }

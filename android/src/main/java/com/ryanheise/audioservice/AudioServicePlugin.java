@@ -820,8 +820,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 AudioService.instance.setPlaybackInfo(playbackType, volumeControlType, maxVolume, volume);
                 break;
             case "notifyChildrenChanged":
-                String parentMediaId = (String)call.arguments;
-                AudioService.instance.notifyChildrenChanged(parentMediaId);
+                Map<?, ?> notificationInfo = (Map<?, ?>)call.arguments;
+                String parentMediaId = (String)notificationInfo.get("parentMediaId");
+                Map<?, ?> options = (Map<?, ?>)notificationInfo.get("options");
+                AudioService.instance.notifyChildrenChanged(parentMediaId, mapToBundle(options));
                 result.success(true);
                 break;
             case "androidForceEnableMediaButtons":
@@ -1031,5 +1033,20 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             }
         }
         return map;
+    }
+
+    static Bundle mapToBundle(Map<?, ?> map) {
+        if (map == null) return null;
+        final Bundle bundle = new Bundle();
+        for (Object key : map.keySet()) {
+            String skey = (String)key;
+            Object value = map.get(skey);
+            if (value instanceof Integer) bundle.putInt(skey, (Integer)value);
+            else if (value instanceof Long) bundle.putLong(skey, (Long)value);
+            else if (value instanceof Double) bundle.putDouble(skey, (Double)value);
+            else if (value instanceof Boolean) bundle.putBoolean(skey, (Boolean)value);
+            else if (value instanceof String) bundle.putString(skey, (String)value);
+        }
+        return bundle;
     }
 }

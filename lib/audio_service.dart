@@ -1052,20 +1052,23 @@ class AudioService {
     return null;
   }
 
-  static final _childrenStreams = <String, ValueStream<List<MediaItem>>>{};
+  static final _childrenSubscriptions =
+      <String, ValueStream<Map<String, dynamic>>>{};
   static Future<List<MediaItem>> _onLoadChildren(
       String parentMediaId, Map<String, dynamic> options) async {
-    // TODO: Use [options] parameter.
-    var childrenStream = _childrenStreams[parentMediaId];
-    if (childrenStream == null) {
-      childrenStream = _childrenStreams[parentMediaId] =
-          _handler.getChildrenStream(parentMediaId);
-      childrenStream?.listen((children) {
+    var childrenSubscription = _childrenSubscriptions[parentMediaId];
+    if (childrenSubscription == null) {
+      childrenSubscription = _childrenSubscriptions[parentMediaId] =
+          _handler.subscribeToChildren(parentMediaId);
+      childrenSubscription?.listen((options) {
         // Notify clients that the children of [parentMediaId] have changed.
-        _backgroundChannel.invokeMethod('notifyChildrenChanged', parentMediaId);
+        _backgroundChannel.invokeMethod('notifyChildrenChanged', {
+          'parentMediaId': parentMediaId,
+          'options': options,
+        });
       });
     }
-    return childrenStream?.value ?? [];
+    return await _handler.getChildren(parentMediaId, options);
   }
 }
 
@@ -1192,9 +1195,12 @@ abstract class AudioHandler {
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic> options]);
 
-  /// Get a value stream of the children of a parent media item.
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
-      [Map<String, dynamic> options]);
+  /// Get a value stream that emits service-specific options to send to the
+  /// client whenever the children under the specified parent change. The
+  /// emitted options may contain information about what changed. A client that
+  /// is subscribed to this stream should call [getChildren] to obtain the
+  /// changed children.
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId);
 
   /// Get a particular media item.
   Future<MediaItem> getMediaItem(String mediaId);
@@ -1484,13 +1490,12 @@ class CompositeAudioHandler extends AudioHandler {
   @mustCallSuper
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic> options]) =>
-      _inner.getChildren(parentMediaId);
+      _inner.getChildren(parentMediaId, options);
 
   @override
   @mustCallSuper
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
-          [Map<String, dynamic> options]) =>
-      _inner.getChildrenStream(parentMediaId);
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
+      _inner.subscribeToChildren(parentMediaId);
 
   @override
   @mustCallSuper
@@ -1750,8 +1755,7 @@ class _IsolateAudioHandler extends AudioHandler {
 
   // Not supported yet.
   @override
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
-          [Map<String, dynamic> options]) =>
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
       null;
 
   @override
@@ -2080,8 +2084,7 @@ class BaseAudioHandler extends AudioHandler {
       null;
 
   @override
-  ValueStream<List<MediaItem>> getChildrenStream(String parentMediaId,
-          [Map<String, dynamic> options]) =>
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
       null;
 
   @override
