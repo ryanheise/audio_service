@@ -36,7 +36,16 @@ If you'd like to help with any missing features, please join us on the [GitHub i
 
 ## Migrating to 0.16.0
 
-Your audio code now runs in the main isolate and can service requests all of the time (rather than only after being started). This makes state information available 100% of the time to the UI, and also allows your app to "wake up" and react to audio requests even when it is not running. In background mode, audio_service will reuse the same isolate, overcoming difficulties with inter-isolate communication and certain plugin incompatibilities. Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for details.
+Prior to 0.16.0, `AudioService.start()` started a special isolate to contain your audio logic that could continue to run in the background. Some problems with this were:
+
+* Unfortunately not all Flutter plugins work correctly in the presence of multiple isolates.
+* Your app's audio state was only available to the UI *after* the service had been started.
+
+To address both of these issues, 0.16.0 now uses a single isolate and automatically converts this isolate into a background or foreground isolate when transitioning in and out of background mode. Now there is no longer any need to call `AudioService.start()`, and you can simply call `AudioService.play()` to start playing audio. This will automatically start showing the media notification if it is not already showing, and `AudioService.stop()` will stop the notification. Configuration options that were previously passed into `AudioService.start()` are now to be passed into `AudioService.init()` which should be called during the app's initialisation.
+
+Since the plugin now entirely runs within a single isolate, there is also no longer a need for the client/server pair of APIs where `AudioService.play` forwards messages to `BackgroundAudioTask.onPlay`. These are now unified under a single API `AudioHandler.play`. However, for backwards compatibility, your implementation of `BackgroundAudioTask` should continue to work with the exception of `onStart` which is no longer applicable.
+
+Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for details (TODO!).
 
 ## Can I make use of other plugins within the background audio task?
 
