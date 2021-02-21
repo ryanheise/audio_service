@@ -581,6 +581,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
         Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
         if (isRecentRequest == null) isRecentRequest = false;
+        System.out.println("### onGetRoot. isRecentRequest=" + isRecentRequest);
         Bundle extras = config.getBrowsableRootExtras();
         return new BrowserRoot(isRecentRequest ? RECENT_ROOT_ID : BROWSABLE_ROOT_ID, extras);
         // The response must be given synchronously, and we can't get a
@@ -591,6 +592,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
+        System.out.println("### onLoadChildren");
         onLoadChildren(parentMediaId, result, null);
     }
 
@@ -790,12 +792,14 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public void onSkipToNext() {
+            System.out.println("### onSkipToNext");
             if (listener == null) return;
             listener.onSkipToNext();
         }
 
         @Override
         public void onSkipToPrevious() {
+            System.out.println("### onSkipToPrevious");
             if (listener == null) return;
             listener.onSkipToPrevious();
         }

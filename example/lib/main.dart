@@ -354,7 +354,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
-    queue.add(_mediaLibrary.items);
+    queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]);
     // For Android 11, record the most recent item so it can be resumed.
     mediaItem.listen((item) => _recentSubject.add([item]));
     // Broadcast media item changes.
@@ -393,12 +393,11 @@ class AudioPlayerHandler extends BaseAudioHandler
         // recently played item was.
         print("### get recent children: ${_recentSubject.value}:");
         return _recentSubject.value;
-      case AudioService.browsableRootId:
-        // Allow Android Auto to browse available items.
-        print("### get root children: ${queue.value}:");
-        return queue.value;
       default:
-        return null;
+        // Allow client to browse the media library.
+        print(
+            "### get $parentMediaId children: ${_mediaLibrary.items[parentMediaId]}:");
+        return _mediaLibrary.items[parentMediaId];
     }
   }
 
@@ -407,10 +406,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     switch (parentMediaId) {
       case AudioService.recentRootId:
         return _recentSubject.map((_) => {});
-      case AudioService.browsableRootId:
-        return queue.map((_) => {});
       default:
-        return null;
+        return Stream.value(_mediaLibrary.items[parentMediaId]).map((_) => {});
     }
   }
 
@@ -475,28 +472,38 @@ class AudioPlayerHandler extends BaseAudioHandler
 /// Provides access to a library of media items. In your app, this could come
 /// from a database or web service.
 class MediaLibrary {
-  final _items = <MediaItem>[
-    MediaItem(
-      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-      album: "Science Friday",
-      title: "A Salute To Head-Scratching Science",
-      artist: "Science Friday and WNYC Studios",
-      duration: Duration(milliseconds: 5739820),
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
-    ),
-    MediaItem(
-      id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
-      album: "Science Friday",
-      title: "From Cat Rheology To Operatic Incompetence",
-      artist: "Science Friday and WNYC Studios",
-      duration: Duration(milliseconds: 2856950),
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
-    ),
-  ];
+  static const albumsRootId = 'albums';
 
-  List<MediaItem> get items => _items;
+  final items = <String, List<MediaItem>>{
+    AudioService.browsableRootId: [
+      MediaItem(
+        id: albumsRootId,
+        album: "",
+        title: "Albums",
+        playable: false,
+      ),
+    ],
+    albumsRootId: [
+      MediaItem(
+        id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+        album: "Science Friday",
+        title: "A Salute To Head-Scratching Science",
+        artist: "Science Friday and WNYC Studios",
+        duration: Duration(milliseconds: 5739820),
+        artUri:
+            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+      ),
+      MediaItem(
+        id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
+        album: "Science Friday",
+        title: "From Cat Rheology To Operatic Incompetence",
+        artist: "Science Friday and WNYC Studios",
+        duration: Duration(milliseconds: 2856950),
+        artUri:
+            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+      ),
+    ],
+  };
 }
 
 /// This task defines logic for speaking a sequence of numbers using
