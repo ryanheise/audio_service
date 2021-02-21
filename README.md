@@ -34,18 +34,26 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
-## Migrating to 0.16.0
+## What's new in 0.16.0?
 
-Prior to 0.16.0, `AudioService.start()` started a special isolate to contain your audio logic that could continue to run in the background. Some problems with this were:
+audio_service 0.16.0 contains two fundamental changes:
 
-* Unfortunately not all Flutter plugins work correctly in the presence of multiple isolates.
-* Your app's audio state was only available to the UI *after* the service had been started.
+* **All code now runs in a single isolate**. This allows simpler communication between your UI and background audio logic, and avoids incompatibilities with plugins that don't support multiple isolates.
+* **`start()` has been made redundant**. Your app's audio state can now be queried at any time and needn't wait for the service to be started first.
 
-To address both of these issues, 0.16.0 now uses a single isolate and automatically converts this isolate into a background or foreground isolate when transitioning in and out of background mode. Now there is no longer any need to call `AudioService.start()`, and you can simply call `AudioService.play()` to start playing audio. This will automatically start showing the media notification if it is not already showing, and `AudioService.stop()` will stop the notification. Configuration options that were previously passed into `AudioService.start()` are now to be passed into `AudioService.init()` which should be called during the app's initialisation.
+Basic migration:
 
-Since the plugin now entirely runs within a single isolate, there is also no longer a need for the client/server pair of APIs where `AudioService.play` forwards messages to `BackgroundAudioTask.onPlay`. These are now unified under a single API `AudioHandler.play`. However, for backwards compatibility, your implementation of `BackgroundAudioTask` should continue to work with the exception of `onStart` which is no longer applicable.
+1. On Android, update your app's activity class as per the "Android setup" section of this README.
+2. Call `AudioService.init()` in your app's `main()` as per the example below, passing any configuration options and callbacks you previously passed into `AudioService.start()`.
+4. Remove any call to `AudioService.start()`. The media notification should now show automatically on the first time you call `play()`.
+5. Remove your corresponding implementation of `onStart()` and move any initialisation code into the constructor or other callbacks as appropriate.
+6. If you use `customAction/onCustomAction`, the second argument is now required to be a `Map`.
 
-Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for details (TODO!).
+Complete migration:
+
+7. `BackgroundAudioTask` is being superseded by `AudioHandler`, a new composable and mixable API allowing functionality from multiple audio handlers to be combined. To migrate, change your base class from `BackgroundAudioTask` to `BaseAudioHandler` and remove the `on` prefix from each method name (e.g. rename `onPlay` to `play`).
+
+Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for more details (TODO!).
 
 ## Can I make use of other plugins within the background audio task?
 
