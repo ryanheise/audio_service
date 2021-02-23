@@ -657,14 +657,11 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
+  static final _notificationClickEvent = BehaviorSubject<bool>.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
-  static Stream<bool> get notificationClickEventStream =>
-      _notificationSubject.stream;
-
-  /// The status of the notificationClick event.
-  static bool get notificationClickEvent => _notificationSubject.value;
+  static ValueStream<bool> get notificationClickEvent =>
+      _notificationClickEvent;
 
   static BehaviorSubject<Duration> _positionSubject;
 
@@ -699,7 +696,7 @@ class AudioService {
       print("### UI received ${call.method}");
       switch (call.method) {
         case 'notificationClicked':
-          _notificationSubject.add(call.arguments[0]);
+          _notificationClickEvent.add(call.arguments[0]);
           break;
       }
     };

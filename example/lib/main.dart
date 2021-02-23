@@ -168,7 +168,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Display the notification click status.
             StreamBuilder<bool>(
-              stream: AudioService.notificationClickEventStream,
+              stream: AudioService.notificationClickEvent,
               builder: (context, snapshot) {
                 return Text(
                   'Notification Click Status: ${snapshot.data}',
