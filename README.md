@@ -39,7 +39,7 @@ If you'd like to help with any missing features, please join us on the [GitHub i
 audio_service 0.16.0 contains two fundamental changes:
 
 * **All code now runs in a single isolate**. This allows simpler communication between your UI and background audio logic, and avoids incompatibilities with plugins that don't support multiple isolates.
-* **`start()` has been made redundant**. Your app's audio state can now be queried at any time and needn't wait for the service to be started first.
+* **`start()` has been made redundant**. Your app can query the audio state at any time and needn't wait for the service to first be started.
 
 Basic migration:
 
@@ -162,11 +162,11 @@ Emit state changes from the `AudioHandler`:
 class MyAudioHandler extends BaseAudioHandler ... {
   MyAudioHandler() {
     // Broadcast which item is currently playing
-    _player.currentIndexStream.listen((index) => mediaItemSubject.add(queue[index]));
-    // Broadcast the current playback state and what controls should currently be visible
-    // in the media notification
+    _player.currentIndexStream.listen((index) => mediaItem.add(queue[index]));
+    // Broadcast the current playback state and what controls should currently
+    // be visible in the media notification
     _player.playbackEventStream.listen((event) {
-      playbackStateSubject.add(playbackState.copyWith(
+      playbackState.add(playbackState.value.copyWith(
         controls: [
 	  MediaControl.skipToPrevious,
 	  playing ? MediaControl.pause : MediaControl.play,
@@ -198,7 +198,7 @@ class MyAudioHandler extends BaseAudioHandler ... {
 Listen to playback state changes from the UI:
 
 ```dart
-_audioHandler.playbackStateStream.listen((PlaybackState state) {
+_audioHandler.playbackState.listen((PlaybackState state) {
   if (state.playing) ... else ...
   switch (state.processingState) {
     case AudioProcessingState.idle: ...
@@ -214,19 +214,19 @@ _audioHandler.playbackStateStream.listen((PlaybackState state) {
 Listen to changes to the currently playing item:
 
 ```dart
-_audioHandler.mediaItemStream.listen((MediaItem item) { ... });
+_audioHandler.mediaItem.listen((MediaItem item) { ... });
 ```
 
 Listen to changes to the queue:
 
 ```dart
-_audioHandler.queueStream.listen((List<MediaItem> queue) { ... });
+_audioHandler.queue.listen((List<MediaItem> queue) { ... });
 ```
 
 Listen to continuous changes to the current playback position:
 
 ```dart
-AudioService.positionStream.listen((Duration position) { ... });
+AudioService.position.listen((Duration position) { ... });
 ```
 
 ## Text-to-speech example
@@ -241,15 +241,15 @@ class TtsAudioHandler extends BaseAudioHandler {
   playMediaItem(MediaItem item) async {
     _item = item;
     // Tell clients what we're listening to
-    await mediaItemSubject.add(item);
+    await mediaItem.add(item);
     // Tell clients that we're now playing
-    await AudioServiceBackground.setState(
+    playbackState.add(playbackState.value.copyWith(
       playing: true,
       processingState: AudioProcessingState.ready,
       controls: [MediaControl.stop],
-    );
+    ));
     // Play a small amount of silent audio on Android to pose as an audio player
-    AudioServiceBackground.androidForceEnableMediaButtons();
+    AudioService.androidForceEnableMediaButtons();
     // Start speaking
     _tts.speak(item.extras['text']);
   }
@@ -260,11 +260,11 @@ class TtsAudioHandler extends BaseAudioHandler {
   
   stop() async {
     await _tts.stop();
-    await AudioServiceBackground.setState(
+    playbackState.add(playbackState.value.copyWith(
       playing: false,
       processingState: AudioProcessingState.idle,
       controls: [MediaControl.play],
-    );
+    ));
     await super.stop();
   }
 }
@@ -304,10 +304,11 @@ These instructions assume that your project follows the new project template int
 
 Additionally:
 
-1. Edit your project's `AndroidManifest.xml` file to declare the permissions, configure the `AudioServiceActivity`, and add component entries for the `<service>` and `<receiver>`:
+1. Make the following changes to your project's `AndroidManifest.xml` file:
 
 ```xml
 <manifest ...>
+  <!-- ADD THESE TWO PERMISSIONS -->
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   
@@ -315,16 +316,19 @@ Additionally:
     
     ...
     
+    <!-- EDIT THE android:name ATTRIBUTE IN YOUR EXISTING "ACTIVITY" ELEMENT -->
     <activity android:name="com.ryanheise.audioservice.AudioServiceActivity" ...>
       ...
     </activity>
     
+    <!-- ADD THIS "SERVICE" element -->
     <service android:name="com.ryanheise.audioservice.AudioService">
       <intent-filter>
         <action android:name="android.media.browse.MediaBrowserService" />
       </intent-filter>
     </service>
 
+    <!-- ADD THIS "RECEIVER" element -->
     <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
       <intent-filter>
         <action android:name="android.intent.action.MEDIA_BUTTON" />
@@ -334,24 +338,11 @@ Additionally:
 </manifest>
 ```
 
-It is recommended that you use the provided `AudioServiceActivity` which reuses the same `FlutterEngine` for the activity and the service. However, if your app requires its own custom activity, it must override `provideFlutterEngine` as follows:
-
-```java
-public class CustomActivity extends FlutterActivity {
-  @Override
-  public FlutterEngine provideFlutterEngine(Context context) {
-    return AudioServicePlugin.getFlutterEngine(context);
-  }
-}
-```
-
-Alternatively, you can subclass `AudioServiceActivity` and inherit its implementation of this method.
-
 2. Starting from Flutter 1.12, you will need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise the icon resources used in the Android notification will be removed during the build:
 
 ```
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
 
     ...
 
@@ -363,6 +354,21 @@ android {
     }
 }
 ```
+
+### Custom Android activity
+
+If your app uses a custom activity, you will need to override `provideFlutterEngine` as follows to ensure that your activity and service use the same shared Flutter engine:
+
+```java
+public class CustomActivity extends FlutterActivity {
+  @Override
+  public FlutterEngine provideFlutterEngine(Context context) {
+    return AudioServicePlugin.getFlutterEngine(context);
+  }
+}
+```
+
+Alternatively, you can make your custom activity a subclass of `AudioServiceActivity` and thereby inherit its implementation of `provideFlutterEngine`.
 
 ## iOS setup
 
@@ -380,6 +386,7 @@ The example project may be consulted for context.
 ## macOS setup
 The minimum supported macOS version is 10.12.2 (though this could be changed with some work in the future).  
 Modify the platform line in `macos/Podfile` to look like the following:
+
 ```
 platform :osx, '10.12.2'
 ```

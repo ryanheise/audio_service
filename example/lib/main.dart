@@ -576,6 +576,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
           playbackState.add(playbackState.value.copyWith(
             updatePosition: Duration.zero,
           ));
+          AudioService.androidForceEnableMediaButtons();
           await Future.wait([
             _tts.speak('${mediaItem.value.extras["number"]}'),
             _sleeper.sleep(Duration(seconds: 1)),
