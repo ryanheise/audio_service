@@ -1069,7 +1069,7 @@ class AudioService {
         });
       });
     }
-    return await _handler.getChildren(parentMediaId, options);
+    return await _handler.getChildren(parentMediaId, options) ?? [];
   }
 
   // DEPRECATED members
