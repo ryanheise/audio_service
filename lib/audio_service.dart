@@ -852,8 +852,61 @@ class AudioService {
     _customEventReceivePort.listen((event) async {
       final request = event as _IsolateRequest;
       switch (request.method) {
+        case 'subscribeToChildren':
+          final parentMediaId = request.arguments[0] as String;
+          final sendPort = request.arguments[1] as SendPort;
+          _handler.subscribeToChildren(parentMediaId).listen((options) {
+            sendPort.send(options);
+          });
+          break;
+        case 'prepare':
+          await _handler.prepare();
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromMediaId':
+          await _handler.prepareFromMediaId(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromSearch':
+          await _handler.prepareFromSearch(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromUri':
+          await _handler.prepareFromUri(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
         case 'play':
           await _handler.play();
+          request.sendPort.send(null);
+          break;
+        case 'playFromMediaId':
+          await _handler.playFromMediaId(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
+        case 'playFromSearch':
+          await _handler.playFromSearch(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
+        case 'playFromUri':
+          await _handler.playFromUri(
+              request.arguments[0], request.arguments[1]);
+          request.sendPort.send(null);
+          break;
+        case 'playMediaItem':
+          await _handler.playMediaItem(request.arguments[0]);
+          request.sendPort.send(null);
+          break;
+        case 'pause':
+          await _handler.pause();
+          request.sendPort.send(null);
+          break;
+        case 'click':
+          await _handler.click(request.arguments[0]);
           request.sendPort.send(null);
           break;
       }
@@ -1074,67 +1127,66 @@ class AudioService {
 
   // DEPRECATED members
 
-  /// The root media ID for browsing media provided by the background
-  /// task.
+  /// Deprecated. Use [browsableRootId] instead.
   @deprecated
   static const String MEDIA_ROOT_ID = browsableRootId;
 
   static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
 
-  /// A stream that broadcasts the children of the current browse
-  /// media parent.
+  /// Deprecated. Directly subscribe to a parent's children via
+  /// [AudioHandler.subscribeToChildren].
   @deprecated
   static Stream<List<MediaItem>> get browseMediaChildrenStream =>
       _browseMediaChildrenSubject.stream;
 
-  /// The children of the current browse media parent.
+  /// Deprecated. Use [AudioHandler.getChildren] instead.
   @deprecated
   static List<MediaItem> get browseMediaChildren =>
       _browseMediaChildrenSubject.value;
 
-  /// A stream that broadcasts the playback state.
+  /// Deprecated. Use [AudioHandler.playbackState] instead.
   @deprecated
   static ValueStream<PlaybackState> get playbackStateStream =>
-      _handler.playbackState.stream;
+      _handler.playbackState;
 
-  /// The current playback state.
+  /// Deprecated. Use [AudioHandler.playbackState.value] instead.
   @deprecated
   static PlaybackState get playbackState => _handler.playbackState.value;
 
-  /// A stream that broadcasts the current [MediaItem].
+  /// Deprecated. Use [AudioHandler.mediaItem] instead.
   @deprecated
   static ValueStream<MediaItem> get currentMediaItemStream =>
       _handler.mediaItem.stream;
 
-  /// The current [MediaItem].
+  /// Deprecated. Use [AudioHandler.mediaItem.value] instead.
   @deprecated
   static MediaItem get currentMediaItem => _handler.mediaItem.value;
 
-  /// A stream that broadcasts the queue.
+  /// Deprecated. Use [AudioHandler.queue] instead.
   @deprecated
   static ValueStream<List<MediaItem>> get queueStream => _handler.queue.stream;
 
-  /// The current queue.
+  /// Deprecated. Use [AudioHandler.queue.value] instead.
   @deprecated
   static List<MediaItem> get queue => _handler.queue.value;
 
-  /// A stream that broadcasts custom events sent from the background.
+  /// Deprecated. Use [AudioHandler.customEventStream] instead.
   @deprecated
   static Stream<dynamic> get customEventStream => _handler.customEventStream;
 
-  /// A stream indicating when the [running] state changes.
+  /// Deprecated. Use [AudioHandler.playbackState] instead.
   @deprecated
   static ValueStream<bool> get runningStream => playbackStateStream
       .map((state) => state.processingState != AudioProcessingState.idle);
 
-  /// True if the background audio task is running.
+  /// Deprecated. Use [AudioHandler.playbackState.value.processingState] instead.
   @deprecated
   static bool get running => runningStream.value;
 
   static StreamSubscription _childrenSubscription;
 
-  /// Sets the parent of the children that [browseMediaChildrenStream] broadcasts.
-  /// If unspecified, the root parent will be used.
+  /// Deprecated. Instead, subscribe directly to a parent's children via
+  /// [AudioHandler.subscribeToChildren].
   @deprecated
   static Future<void> setBrowseMediaParent(
       [String parentMediaId = browsableRootId]) async {
@@ -1146,30 +1198,21 @@ class AudioService {
     });
   }
 
-  /// Sends a request to your background audio task to add an item to the
-  /// queue. This passes through to the `onAddQueueItem` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.addQueueItem] instead.
   @deprecated
   static final addQueueItem = _clientHandler.addQueueItem;
 
-  /// Sends a request to your background audio task to add a item to the queue
-  /// at a particular position. This passes through to the `onAddQueueItemAt`
-  /// method in your background audio task.
+  /// Deprecated. Use [AudioHandler.addQueueItemAt] instead.
   @deprecated
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
     await _clientHandler.insertQueueItem(index, mediaItem);
   }
 
-  /// Sends a request to your background audio task to remove an item from the
-  /// queue. This passes through to the `onRemoveQueueItem` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.removeQueueItem] instead.
   @deprecated
   static final removeQueueItem = _clientHandler.removeQueueItem;
 
-  /// A convenience method calls [addQueueItem] for each media item in the
-  /// given list. Note that this will be inefficient if you are adding a lot
-  /// of media items at once. If possible, you should use [updateQueue]
-  /// instead.
+  /// Deprecated. Use [AudioHandler.addQueueItems] instead.
   @deprecated
   static Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     for (var mediaItem in mediaItems) {
@@ -1177,178 +1220,121 @@ class AudioService {
     }
   }
 
-  /// Sends a request to your background audio task to replace the queue with a
-  /// new list of media items. This passes through to the `onUpdateQueue`
-  /// method in your background audio task.
+  /// Deprecated. Use [AudioHandler.updateQueue] instead.
   @deprecated
   static final updateQueue = _clientHandler.updateQueue;
 
-  /// Sends a request to your background audio task to update the details of a
-  /// media item. This passes through to the 'onUpdateMediaItem' method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.updateMediaItem] instead.
   @deprecated
   static final updateMediaItem = _clientHandler.updateMediaItem;
 
-  /// Programmatically simulates a click of a media button on the headset.
-  ///
-  /// This passes through to `onClick` in the background audio task.
+  /// Deprecated. Use [AudioHandler.click] instead.
   @deprecated
   static final click = _clientHandler.click;
 
-  /// Sends a request to your background audio task to prepare for audio
-  /// playback. This passes through to the `onPrepare` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.prepare] instead.
   @deprecated
   static final prepare = _clientHandler.prepare;
 
-  /// Sends a request to your background audio task to prepare for playing a
-  /// particular media item. This passes through to the `onPrepareFromMediaId`
-  /// method in your background audio task.
+  /// Deprecated. Use [AudioHandler.prepareFromMediaId] instead.
   @deprecated
   static final prepareFromMediaId = _clientHandler.prepareFromMediaId;
 
-  /// Sends a request to your background audio task to play the current media
-  /// item. This passes through to 'onPlay' in your background audio task.
+  /// Deprecated. Use [AudioHandler.play] instead.
   @deprecated
   static final play = _clientHandler.play;
 
-  /// Sends a request to your background audio task to play a particular media
-  /// item referenced by its media id. This passes through to the
-  /// 'onPlayFromMediaId' method in your background audio task.
+  /// Deprecated. Use [AudioHandler.playFromMediaId] instead.
   @deprecated
   static final playFromMediaId = _clientHandler.playFromMediaId;
 
-  /// Sends a request to your background audio task to play a particular media
-  /// item. This passes through to the 'onPlayMediaItem' method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.playMediaItem] instead.
   @deprecated
   static final playMediaItem = _clientHandler.playMediaItem;
 
-  /// Sends a request to your background audio task to skip to a particular
-  /// item in the queue. This passes through to the `onSkipToQueueItem` method
-  /// in your background audio task.
+  /// Deprecated. Use [AudioHandler.skipToQueueItem] instead.
   @deprecated
   static final skipToQueueItem = _clientHandler.skipToQueueItem;
 
-  /// Sends a request to your background audio task to pause playback. This
-  /// passes through to the `onPause` method in your background audio task.
+  /// Deprecated. Use [AudioHandler.pause] instead.
   @deprecated
   static final pause = _clientHandler.pause;
 
-  /// Sends a request to your background audio task to stop playback and shut
-  /// down the task. This passes through to the `onStop` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.stop] instead.
   @deprecated
   static final stop = _clientHandler.stop;
 
-  /// Sends a request to your background audio task to seek to a particular
-  /// position in the current media item. This passes through to the `onSeekTo`
-  /// method in your background audio task.
+  /// Deprecated. Use [AudioHandler.seek] instead.
   @deprecated
   static final seekTo = _clientHandler.seek;
 
-  /// Sends a request to your background audio task to skip to the next item in
-  /// the queue. This passes through to the `onSkipToNext` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.skipToNext] instead.
   @deprecated
   static final skipToNext = _clientHandler.skipToNext;
 
-  /// Sends a request to your background audio task to skip to the previous
-  /// item in the queue. This passes through to the `onSkipToPrevious` method
-  /// in your background audio task.
+  /// Deprecated. Use [AudioHandler.skipToPrevious] instead.
   @deprecated
   static final skipToPrevious = _clientHandler.skipToPrevious;
 
-  /// Sends a request to your background audio task to fast forward by the
-  /// interval passed into the [start] method. This passes through to the
-  /// `onFastForward` method in your background audio task.
+  /// Deprecated. Use [AudioHandler.fastForward] instead.
   @deprecated
   static final fastForward = _clientHandler.fastForward;
 
-  /// Sends a request to your background audio task to rewind by the interval
-  /// passed into the [start] method. This passes through to the `onRewind`
-  /// method in the background audio task.
+  /// Deprecated. Use [AudioHandler.rewind] instead.
   @deprecated
   static final rewind = _clientHandler.rewind;
 
-  /// Sends a request to your background audio task to set the repeat mode.
-  /// This passes through to the `onSetRepeatMode` method in your background
-  /// audio task.
+  /// Deprecated. Use [AudioHandler.setRepeatMode] instead.
   @deprecated
   static final setRepeatMode = _clientHandler.setRepeatMode;
 
-  /// Sends a request to your background audio task to set the shuffle mode.
-  /// This passes through to the `onSetShuffleMode` method in your background
-  /// audio task.
+  /// Deprecated. Use [AudioHandler.setShuffleMode] instead.
   @deprecated
   static final setShuffleMode = _clientHandler.setShuffleMode;
 
-  /// Sends a request to your background audio task to set a rating on the
-  /// current media item. This passes through to the `onSetRating` method in
-  /// your background audio task. The extras map must *only* contain primitive
-  /// types!
+  /// Deprecated. Use [AudioHandler.setRating] instead.
   @deprecated
   static final setRating = _clientHandler.setRating;
 
-  /// Sends a request to your background audio task to set the audio playback
-  /// speed. This passes through to the `onSetSpeed` method in your background
-  /// audio task.
+  /// Deprecated. Use [AudioHandler.setSpeed] instead.
   @deprecated
   static final setSpeed = _clientHandler.setSpeed;
 
-  /// Sends a request to your background audio task to begin or end seeking
-  /// backward. This method passes through to the `onSeekBackward` method in
-  /// your background audio task.
+  /// Deprecated. Use [AudioHandler.seekBackward] instead.
   @deprecated
   static final seekBackward = _clientHandler.seekBackward;
 
-  /// Sends a request to your background audio task to begin or end seek
-  /// forward. This method passes through to the `onSeekForward` method in your
-  /// background audio task.
+  /// Deprecated. Use [AudioHandler.seekForward] instead.
   @deprecated
   static final seekForward = _clientHandler.seekForward;
 
-  /// Sends a custom request to your background audio task. This passes through
-  /// to the `onCustomAction` in your background audio task.
-  ///
-  /// This may be used for your own purposes.
+  /// Deprecated. Use [AudioHandler.customAction] instead.
   @deprecated
   static final customAction = _clientHandler.customAction;
 }
 
+/// This class is deprecated. Use [BaseAudioHandler] instead.
 @deprecated
 abstract class BackgroundAudioTask extends BaseAudioHandler {
   Duration _fastForwardInterval;
   Duration _rewindInterval;
 
-  /// The fast forward interval passed into [AudioService.start].
+  /// Deprecated
   Duration get fastForwardInterval => _fastForwardInterval;
 
-  /// The rewind interval passed into [AudioService.start].
+  /// Deprecated
   Duration get rewindInterval => _rewindInterval;
 
-  /// Called when a client has requested to terminate this background audio
-  /// task, in response to [AudioService.stop]. You should implement this
-  /// method to stop playing audio and dispose of any resources used.
-  ///
-  /// If you override this, make sure your method ends with a call to `await
-  /// super.onStop()`. The isolate containing this task will shut down as soon
-  /// as this method completes.
+  /// Depricated. Replaced by [AudioHandler.stop].
   @mustCallSuper
   Future<void> onStop() async {
     await super.stop();
   }
 
-  /// Called when a media browser client, such as Android Auto, wants to query
-  /// the available media items to display to the user.
+  /// Deprecated. Replaced by [AudioHandler.getChildren].
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
 
-  /// Called when the media button on the headset is pressed, or in response to
-  /// a call from [AudioService.click]. The default behaviour is:
-  ///
-  /// * On [MediaButton.media], toggle [onPlay] and [onPause].
-  /// * On [MediaButton.next], call [onSkipToNext].
-  /// * On [MediaButton.previous], call [onSkipToPrevious].
+  /// Deprecated. Replaced by [AudioHandler.click].
   Future<void> onClick(MediaButton button) async {
     switch (button) {
       case MediaButton.media:
@@ -1367,158 +1353,82 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
     }
   }
 
-  /// Called when a client has requested to pause audio playback, such as via a
-  /// call to [AudioService.pause]. You should implement this method to pause
-  /// audio playback and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
+  /// Deprecated. Replaced by [AudioHandler.pause].
   Future<void> onPause() async {}
 
-  /// Called when a client has requested to prepare audio for playback, such as
-  /// via a call to [AudioService.prepare].
+  /// Deprecated. Replaced by [AudioHandler.prepare].
   Future<void> onPrepare() async {}
 
-  /// Called when a client has requested to prepare a specific media item for
-  /// audio playback, such as via a call to [AudioService.prepareFromMediaId].
+  /// Deprecated. Replaced by [AudioHandler.prepareFromMediaId].
   Future<void> onPrepareFromMediaId(String mediaId) async {}
 
-  /// Called when a client has requested to resume audio playback, such as via
-  /// a call to [AudioService.play]. You should implement this method to play
-  /// audio and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
+  /// Deprecated. Replaced by [AudioHandler.play].
   Future<void> onPlay() async {}
 
-  /// Called when a client has requested to play a media item by its ID, such
-  /// as via a call to [AudioService.playFromMediaId]. You should implement
-  /// this method to play audio and also broadcast the appropriate state change
-  /// via [AudioServiceBackground.setState].
+  /// Deprecated. Replaced by [AudioHandler.playFromMediaId].
   Future<void> onPlayFromMediaId(String mediaId) async {}
 
-  /// Called when the Flutter UI has requested to play a given media item via a
-  /// call to [AudioService.playMediaItem]. You should implement this method to
-  /// play audio and also broadcast the appropriate state change via
-  /// [AudioServiceBackground.setState].
-  ///
-  /// Note: This method can only be triggered by your Flutter UI. Peripheral
-  /// devices such as Android Auto will instead trigger
-  /// [AudioService.onPlayFromMediaId].
+  /// Deprecated. Replaced by [AudioHandler.playMediaItem].
   Future<void> onPlayMediaItem(MediaItem mediaItem) async {}
 
-  /// Called when a client has requested to add a media item to the queue, such
-  /// as via a call to [AudioService.addQueueItem].
+  /// Deprecated. Replaced by [AudioHandler.addQueueItem].
   Future<void> onAddQueueItem(MediaItem mediaItem) async {}
 
-  /// Called when the Flutter UI has requested to set a new queue.
-  ///
-  /// If you use a queue, your implementation of this method should call
-  /// [AudioServiceBackground.setQueue] to notify all clients that the queue
-  /// has changed.
+  /// Deprecated. Replaced by [AudioHandler.updateQueue].
   Future<void> onUpdateQueue(List<MediaItem> queue) async {}
 
-  /// Called when the Flutter UI has requested to update the details of
-  /// a media item.
+  /// Deprecated. Replaced by [AudioHandler.updateMediaItem].
   Future<void> onUpdateMediaItem(MediaItem mediaItem) async {}
 
-  /// Called when a client has requested to add a media item to the queue at a
-  /// specified position, such as via a request to
-  /// [AudioService.addQueueItemAt].
+  /// Deprecated. Replaced by [AudioHandler.insertQueueItem].
   Future<void> onAddQueueItemAt(MediaItem mediaItem, int index) async {}
 
-  /// Called when a client has requested to remove a media item from the queue,
-  /// such as via a request to [AudioService.removeQueueItem].
+  /// Deprecated. Replaced by [AudioHandler.removeQueueItem].
   Future<void> onRemoveQueueItem(MediaItem mediaItem) async {}
 
-  /// Called when a client has requested to skip to the next item in the queue,
-  /// such as via a request to [AudioService.skipToNext].
-  ///
-  /// By default, calls [onSkipToQueueItem] with the queue item after
-  /// [AudioServiceBackground.mediaItem] if it exists.
+  /// Deprecated. Replaced by [AudioHandler.skipToNext].
   Future<void> onSkipToNext() => _skip(1);
 
-  /// Called when a client has requested to skip to the previous item in the
-  /// queue, such as via a request to [AudioService.skipToPrevious].
-  ///
-  /// By default, calls [onSkipToQueueItem] with the queue item before
-  /// [AudioServiceBackground.mediaItem] if it exists.
+  /// Deprecated. Replaced by [AudioHandler.skipToPrevious].
   Future<void> onSkipToPrevious() => _skip(-1);
 
-  /// Called when a client has requested to fast forward, such as via a
-  /// request to [AudioService.fastForward]. An implementation of this callback
-  /// can use the [fastForwardInterval] property to determine how much audio
-  /// to skip.
+  /// Deprecated. Replaced by [AudioHandler.fastForward].
   Future<void> onFastForward() async {}
 
-  /// Called when a client has requested to rewind, such as via a request to
-  /// [AudioService.rewind]. An implementation of this callback can use the
-  /// [rewindInterval] property to determine how much audio to skip.
+  /// Deprecated. Replaced by [AudioHandler.rewind].
   Future<void> onRewind() async {}
 
-  /// Called when a client has requested to skip to a specific item in the
-  /// queue, such as via a call to [AudioService.skipToQueueItem].
+  /// Deprecated. Replaced by [AudioHandler.skipToQueueItem].
   Future<void> onSkipToQueueItem(String mediaId) async {}
 
-  /// Called when a client has requested to seek to a position, such as via a
-  /// call to [AudioService.seekTo]. If your implementation of seeking causes
-  /// buffering to occur, consider broadcasting a buffering state via
-  /// [AudioServiceBackground.setState] while the seek is in progress.
+  /// Deprecated. Replaced by [AudioHandler.seekTo].
   Future<void> onSeekTo(Duration position) async {}
 
-  /// Called when a client has requested to rate the current media item, such as
-  /// via a call to [AudioService.setRating].
+  /// Deprecated. Replaced by [AudioHandler.setRating].
   Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
 
-  /// Called when a client has requested to change the current repeat mode.
+  /// Deprecated. Replaced by [AudioHandler.setRepeatMode].
   Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {}
 
-  /// Called when a client has requested to change the current shuffle mode.
+  /// Deprecated. Replaced by [AudioHandler.setShuffleMode].
   Future<void> onSetShuffleMode(AudioServiceShuffleMode shuffleMode) async {}
 
-  /// Called when a client has requested to either begin or end seeking
-  /// backward.
+  /// Deprecated. Replaced by [AudioHandler.seekBackward].
   Future<void> onSeekBackward(bool begin) async {}
 
-  /// Called when a client has requested to either begin or end seeking
-  /// forward.
+  /// Deprecated. Replaced by [AudioHandler.seekForward].
   Future<void> onSeekForward(bool begin) async {}
 
-  /// Called when the Flutter UI has requested to set the speed of audio
-  /// playback. An implementation of this callback should change the audio
-  /// speed and broadcast the speed change to all clients via
-  /// [AudioServiceBackground.setState].
+  /// Deprecated. Replaced by [AudioHandler.setSpeed].
   Future<void> onSetSpeed(double speed) async {}
 
-  /// Called when a custom action has been sent by the client via
-  /// [AudioService.customAction]. The result of this method will be returned
-  /// to the client.
+  /// Deprecated. Replaced by [AudioHandler.customAction].
   Future<dynamic> onCustomAction(String name, dynamic arguments) async {}
 
-  /// Called on Android when the user swipes away your app's task in the task
-  /// manager. Note that if you use the `androidStopForegroundOnPause` option to
-  /// [AudioService.start], then when your audio is paused, the operating
-  /// system moves your service to a lower priority level where it can be
-  /// destroyed at any time to reclaim memory. If the user swipes away your
-  /// task under these conditions, the operating system will destroy your
-  /// service, and you may override this method to do any cleanup. For example:
-  ///
-  /// ```dart
-  /// Future<void> onTaskRemoved() {
-  ///   if (!AudioServiceBackground.state.playing) {
-  ///     await onStop();
-  ///   }
-  /// }
-  /// ```
+  /// Deprecated. Replaced by [AudioHandler.onTaskRemoved].
   Future<void> onTaskRemoved() async {}
 
-  /// Called on Android when the user swipes away the notification. The default
-  /// implementation (which you may override) calls [onStop]. Note that by
-  /// default, the service runs in the foreground state which (despite the name)
-  /// allows the service to run at a high priority in the background without the
-  /// operating system killing it. While in the foreground state, the
-  /// notification cannot be swiped away. You can pass a parameter value of
-  /// `true` for `androidStopForegroundOnPause` in the [AudioService.start]
-  /// method if you would like the service to exit the foreground state when
-  /// playback is paused. This will allow the user to swipe the notification
-  /// away while playback is paused (but it will also allow the operating system
-  /// to kill your service at any time to free up resources).
+  /// Deprecated. Replaced by [AudioHandler.onNotificationDeleted].
   Future<void> onClose() => onStop();
 
   Future<void> _skip(int offset) async {
@@ -1532,130 +1442,122 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
       await onSkipToQueueItem(queue[newIndex]?.id);
   }
 
-  /// Prepare media items for playback.
+  @override
   Future<void> prepare() => onPrepare();
 
-  /// Prepare a specific media item for playback.
+  @override
   Future<void> prepareFromMediaId(String mediaId,
           [Map<String, dynamic> extras]) =>
       onPrepareFromMediaId(mediaId);
 
-  /// Start or resume playback.
+  @override
   Future<void> play() => onPlay();
 
-  /// Play a specific media item.
+  @override
   Future<void> playFromMediaId(String mediaId, [Map<String, dynamic> extras]) =>
       onPlayFromMediaId(mediaId);
 
-  /// Play a specific media item.
+  @override
   Future<void> playMediaItem(MediaItem mediaItem) => onPlayMediaItem(mediaItem);
 
-  /// Pause playback.
+  @override
   Future<void> pause() => onPause();
 
-  /// Process a headset button click, where [button] defaults to
-  /// [MediaButton.media].
+  @override
   Future<void> click([MediaButton button]) => onClick(button);
 
-  /// Stop playback and release resources.
+  @override
   Future<void> stop() async {
     await onStop();
     // This is redunant, but we must call super here.
     super.stop();
   }
 
-  /// Add [mediaItem] to the queue.
+  @override
   Future<void> addQueueItem(MediaItem mediaItem) => onAddQueueItem(mediaItem);
 
-  /// Add [mediaItems] to the queue.
+  @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     for (var mediaItem in mediaItems) {
       await onAddQueueItem(mediaItem);
     }
   }
 
-  /// Insert [mediaItem] into the queue at position [index].
+  @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) =>
       onAddQueueItemAt(mediaItem, index);
 
-  /// Update to the queue to [queue].
+  @override
   Future<void> updateQueue(List<MediaItem> queue) => onUpdateQueue(queue);
 
-  /// Update the properties of [mediaItem].
+  @override
   Future<void> updateMediaItem(MediaItem mediaItem) =>
       onUpdateMediaItem(mediaItem);
 
-  /// Remove [mediaItem] from the queue.
+  @override
   Future<void> removeQueueItem(MediaItem mediaItem) =>
       onRemoveQueueItem(mediaItem);
 
-  /// Skip to the next item in the queue.
+  @override
   Future<void> skipToNext() => onSkipToNext();
 
-  /// Skip to the previous item in the queue.
+  @override
   Future<void> skipToPrevious() => onSkipToPrevious();
 
-  /// Jump forward by [interval], defaulting to
-  /// [AudioServiceConfig.fastForwardInterval].
+  @override
   Future<void> fastForward([Duration interval]) async {
     _fastForwardInterval = interval;
     await onFastForward();
   }
 
-  /// Jump backward by [interval], defaulting to
-  /// [AudioServiceConfig.rewindInterval]. Note: this value must be positive.
+  @override
   Future<void> rewind([Duration interval]) async {
     _rewindInterval = interval;
     await onRewind();
   }
 
-  /// Skip to a media item.
+  @override
   Future<void> skipToQueueItem(String mediaId) => onSkipToQueueItem(mediaId);
 
-  /// Seek to [position].
+  @override
   Future<void> seek(Duration position) => onSeekTo(position);
 
-  /// Set the rating.
+  @override
   Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) =>
       onSetRating(rating, extras);
 
-  /// Set the repeat mode.
+  @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
       onSetRepeatMode(repeatMode);
 
-  /// Set the shuffle mode.
+  @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
       onSetShuffleMode(shuffleMode);
 
-  /// Begin or end seeking backward continuously.
+  @override
   Future<void> seekBackward(bool begin) => onSeekBackward(begin);
 
-  /// Begin or end seeking forward continuously.
+  @override
   Future<void> seekForward(bool begin) => onSeekForward(begin);
 
-  /// Set the playback speed.
+  @override
   Future<void> setSpeed(double speed) => onSetSpeed(speed);
 
-  /// A mechanism to support app-specific actions.
+  @override
   Future<dynamic> customAction(String name, Map<String, dynamic> extras) =>
       onCustomAction(name, extras);
 
-  /// Handle the notification being swiped away (Android).
+  @override
   Future<void> onNotificationDeleted() => onClose();
 
-  /// Get the children of a parent media item.
+  @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic> options]) =>
       onLoadChildren(parentMediaId);
 
-  /// Get a value stream that emits service-specific options to send to the
-  /// client whenever the children under the specified parent change. The
-  /// emitted options may contain information about what changed. A client that
-  /// is subscribed to this stream should call [getChildren] to obtain the
-  /// changed children.
+  @override
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
-    // TODO
-    return null;
+    return Stream.value({});
   }
 }
 
@@ -2142,6 +2044,8 @@ class _IsolateRequest {
 const _isolatePortName = 'com.ryanheise.audioservice.port';
 
 class _IsolateAudioHandler extends AudioHandler {
+  final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>>>{};
+
   @override
   final BehaviorSubject<PlaybackState> playbackState =
       BehaviorSubject.seeded(PlaybackState());
@@ -2340,10 +2244,19 @@ class _IsolateAudioHandler extends AudioHandler {
           [Map<String, dynamic> options]) =>
       _send('getChildren', [parentMediaId, options]);
 
-  // Not supported yet.
   @override
-  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
-      null;
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
+    var childrenSubject = _childrenSubjects[parentMediaId];
+    if (childrenSubject == null) {
+      childrenSubject = _childrenSubjects[parentMediaId] = BehaviorSubject();
+      final receivePort = ReceivePort();
+      receivePort.listen((options) {
+        childrenSubject.add(options);
+      });
+      _send('subscribeToChildren', [parentMediaId, receivePort.sendPort]);
+    }
+    return childrenSubject;
+  }
 
   @override
   Future<MediaItem> getMediaItem(String mediaId) =>
@@ -2668,11 +2581,11 @@ class BaseAudioHandler extends AudioHandler {
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic> options]) async =>
-      null;
+      [];
 
   @override
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
-      null;
+      Stream.value({});
 
   @override
   Future<MediaItem> getMediaItem(String mediaId) => null;
