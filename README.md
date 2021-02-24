@@ -34,15 +34,11 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
-## Early access to the upcoming 0.18.0 release
+## Preview the upcoming 0.18.0 release
 
 A new version of audio_service is around the corner. This version removes the need for a background isolate, allowing simpler communication between your UI and audio logic, and greater compatibility with plugins that don't support multiple isolates.
 
-If you are interested to help with testing or providing feedback, more information is available on the 0.18.0 [README](https://github.com/ryanheise/audio_service/tree/one-isolate).
-
-## Migrating to 0.14.0
-
-Audio focus, interruptions (e.g. phone calls), mixing, ducking and the configuration of your app's audio category and attributes, are now handled by the [audio_session](https://pub.dev/packages/audio_session) package. Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for details.
+If you are interested to help with testing or providing feedback, you can upgrade by following the instructions in the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0180-preview).
 
 ## Can I make use of other plugins within the background audio task?
 
