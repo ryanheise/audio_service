@@ -36,10 +36,17 @@ If you'd like to help with any missing features, please join us on the [GitHub i
 
 ## What's new in 0.18.0?
 
-There are two fundamental changes:
+0.18.0 removes the need for a background isolate, allowing simpler communication between your UI and audio logic and greater compatibility with plugins that don't support multiple isolates.
 
-* **All code now runs in a single isolate**. This allows simpler communication between your UI and background audio logic, and avoids incompatibilities with plugins that don't support multiple isolates.
-* **`start()` has been made redundant**. Your app can query the audio state at any time and needn't wait for the service to first be started.
+NOTE: This branch is not yet released and currently undergoing testing. APIs should be considered unstable and may undergo changes before the branch is released. If you want to help test it and provide feedback, use the following pubspec dependency:
+
+```yaml
+dependencies:
+  audio_service:
+    git: 
+      url: https://github.com/ryanheise/audio_service.git
+      ref: one-isolate
+```
 
 Basic migration steps:
 
@@ -55,9 +62,9 @@ Optional (recommended) step:
 
 Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for more details (TODO!).
 
-## Can I make use of other plugins within the background audio task?
+## Can I make use of other plugins within the audio handler?
 
-Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, within your background audio task. There are also plugins like [just_audio_service](https://github.com/yringler/just_audio_service) that provide default implementations of `BackgroundAudioTask` to make your job easier.
+Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, within your background audio task.
 
 Note that this plugin will not work with other audio plugins that overlap in responsibility with this plugin (i.e. background audio, iOS control center, Android notifications, lock screen, headset buttons, etc.)
 
