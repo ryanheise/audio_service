@@ -17,31 +17,31 @@ You encapsulate your audio code in an audio handler which implements standard ca
 
 You can implement these callbacks to play any sort of audio that is appropriate for your app, such as music files or streams, audio assets, text to speech, synthesised audio, or combinations of these.
 
-| Feature                            | Android    | iOS     | macOS   | Web     |
-| -------                            | :-------:  | :-----: | :-----: | :-----: |
-| background audio                   | ✅         | ✅      | ✅      | ✅      |
-| headset clicks                     | ✅         | ✅      | ✅      | ✅      |
-| start/stop/play/pause/seek/rate    | ✅         | ✅      | ✅      | ✅      |
-| fast forward/rewind                | ✅         | ✅      | ✅      | ✅      |
-| repeat/shuffle mode                | ✅         | ✅      | ✅      | ✅      |
-| queue manipulation, skip next/prev | ✅         | ✅      | ✅      | ✅      |
-| custom actions                     | ✅         | ✅      | ✅      | ✅      |
-| custom events                      | ✅         | ✅      | ✅      | ✅      |
-| notifications/control center       | ✅         | ✅      | ✅      | ✅      |
-| lock screen controls               | ✅         | ✅      |         | ✅      |
-| album art                          | ✅         | ✅      | ✅      | ✅      |
-| Android Auto, Apple CarPlay        | (untested) | ✅      |         |         |
+| Feature                            | Android   | iOS     | macOS   | Web     |
+| -------                            | :-------: | :-----: | :-----: | :-----: |
+| background audio                   | ✅        | ✅      | ✅      | ✅      |
+| headset clicks                     | ✅        | ✅      | ✅      | ✅      |
+| start/stop/play/pause/seek/rate    | ✅        | ✅      | ✅      | ✅      |
+| fast forward/rewind                | ✅        | ✅      | ✅      | ✅      |
+| repeat/shuffle mode                | ✅        | ✅      | ✅      | ✅      |
+| queue manipulation, skip next/prev | ✅        | ✅      | ✅      | ✅      |
+| custom actions                     | ✅        | ✅      | ✅      | ✅      |
+| custom events                      | ✅        | ✅      | ✅      | ✅      |
+| notifications/control center       | ✅        | ✅      | ✅      | ✅      |
+| lock screen controls               | ✅        | ✅      |         | ✅      |
+| album art                          | ✅        | ✅      | ✅      | ✅      |
+| Android Auto, Apple CarPlay        | ✅        | ✅      |         |         |
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
-## What's new in 0.16.0?
+## What's new in 0.18.0?
 
-audio_service 0.16.0 contains two fundamental changes:
+There are two fundamental changes:
 
 * **All code now runs in a single isolate**. This allows simpler communication between your UI and background audio logic, and avoids incompatibilities with plugins that don't support multiple isolates.
 * **`start()` has been made redundant**. Your app can query the audio state at any time and needn't wait for the service to first be started.
 
-Basic migration:
+Basic migration steps:
 
 1. On Android, update your app's activity class as per the "Android setup" section of this README.
 2. Call `AudioService.init()` in your app's `main()` as per the example below, passing any configuration options and callbacks you previously passed into `AudioService.start()`.
@@ -49,9 +49,9 @@ Basic migration:
 5. Remove your corresponding implementation of `onStart()` and move any initialisation code into the constructor or other callbacks as appropriate.
 6. If you use `customAction/onCustomAction`, the second argument is now required to be a `Map`.
 
-Complete migration:
+Optional (recommended) step:
 
-7. `BackgroundAudioTask` is being superseded by `AudioHandler`, a new composable and mixable API allowing functionality from multiple audio handlers to be combined. To migrate, change your base class from `BackgroundAudioTask` to `BaseAudioHandler` and remove the `on` prefix from each method name (e.g. rename `onPlay` to `play`).
+7. `BackgroundAudioTask` is deprecated and replaced by `AudioHandler`, a new composable and mixable API allowing functionality from multiple audio handlers to be combined. To migrate, change your base class from `BackgroundAudioTask` to `BaseAudioHandler` and remove the `on` prefix from each method name (e.g. rename `onPlay` to `play`).
 
 Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for more details (TODO!).
 
