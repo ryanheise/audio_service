@@ -316,7 +316,12 @@ class MainSwitchHandler extends SwitchAudioHandler {
   @override
   BehaviorSubject<dynamic> customState = BehaviorSubject.seeded(CustomEvent(0));
 
-  MainSwitchHandler(this.handlers) : super(handlers.first);
+  MainSwitchHandler(this.handlers) : super(handlers.first) {
+    // Configure the app's audio category and attributes for speech.
+    AudioSession.instance.then((session) {
+      session.configure(AudioSessionConfiguration.speech());
+    });
+  }
 
   @override
   Future<dynamic> customAction(String name, Map<String, dynamic> extras) async {
@@ -348,11 +353,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   Future<void> _init() async {
-    // We configure the audio session for speech since we're playing a podcast.
-    // You can also put this in your app's initialisation if your app doesn't
-    // switch between two types of audio as this example does.
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration.speech());
     // Load and broadcast the queue
     queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]);
     // For Android 11, record the most recent item so it can be resumed.
@@ -523,12 +524,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   }
 
   Future<void> _init() async {
-    // flutter_tts resets the AVAudioSession category to playAndRecord and the
-    // options to defaultToSpeaker whenever this background isolate is loaded,
-    // so we need to set our preferred audio session configuration here after
-    // that has happened.
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration.speech());
     // Handle audio interruptions.
     session.interruptionEventStream.listen((event) {
       if (event.begin) {
