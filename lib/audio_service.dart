@@ -1551,11 +1551,6 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic> options]) =>
       onLoadChildren(parentMediaId);
-
-  @override
-  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
-    return Stream.value({});
-  }
 }
 
 /// An [AudioHandler] plays audio, provides state updates and query results to
@@ -2582,7 +2577,7 @@ class BaseAudioHandler extends AudioHandler {
 
   @override
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
-      Stream.value({});
+      BehaviorSubject.seeded(<String, dynamic>{});
 
   @override
   Future<MediaItem> getMediaItem(String mediaId) => null;
