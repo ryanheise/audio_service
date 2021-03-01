@@ -110,15 +110,15 @@ class PlaybackState {
   final AudioServiceShuffleMode shuffleMode;
 
   const PlaybackState({
-    @required this.processingState,
-    @required this.playing,
-    @required this.actions,
-    this.position,
-    this.bufferedPosition = Duration.zero,
-    this.speed,
-    this.updateTime,
-    this.repeatMode = AudioServiceRepeatMode.none,
-    this.shuffleMode = AudioServiceShuffleMode.none,
+    required this.processingState,
+    required this.playing,
+    required this.actions,
+    required this.position,
+    required this.bufferedPosition,
+    required this.speed,
+    required this.updateTime,
+    required this.repeatMode,
+    required this.shuffleMode,
   });
 
   /// The current playback position.
@@ -128,7 +128,7 @@ class PlaybackState {
           milliseconds: (position.inMilliseconds +
                   ((DateTime.now().millisecondsSinceEpoch -
                           updateTime.millisecondsSinceEpoch) *
-                      (speed ?? 1.0)))
+                      speed))
               .toInt());
     } else {
       return position;
@@ -267,45 +267,45 @@ class MediaItem {
   final String title;
 
   /// The artist of this media item.
-  final String artist;
+  final String? artist;
 
   /// The genre of this media item.
-  final String genre;
+  final String? genre;
 
   /// The duration of this media item.
-  final Duration duration;
+  final Duration? duration;
 
   /// The artwork for this media item as a uri.
-  final String artUri;
+  final String? artUri;
 
   /// Whether this is playable (i.e. not a folder).
-  final bool playable;
+  final bool? playable;
 
   /// Override the default title for display purposes.
-  final String displayTitle;
+  final String? displayTitle;
 
   /// Override the default subtitle for display purposes.
-  final String displaySubtitle;
+  final String? displaySubtitle;
 
   /// Override the default description for display purposes.
-  final String displayDescription;
+  final String? displayDescription;
 
   /// The rating of the MediaItem.
-  final Rating rating;
+  final Rating? rating;
 
   /// A map of additional metadata for the media item.
   ///
   /// The values must be integers or strings.
-  final Map<String, dynamic> extras;
+  final Map<String, dynamic>? extras;
 
   /// Creates a [MediaItem].
   ///
   /// [id], [album] and [title] must not be null, and [id] must be unique for
   /// each instance.
   const MediaItem({
-    @required this.id,
-    @required this.album,
-    @required this.title,
+    required this.id,
+    required this.album,
+    required this.title,
     this.artist,
     this.genre,
     this.duration,
@@ -335,25 +335,25 @@ class MediaItem {
         displaySubtitle: raw['displaySubtitle'],
         displayDescription: raw['displayDescription'],
         rating: raw['rating'] != null ? Rating._fromRaw(raw['rating']) : null,
-        extras: _raw2extras(raw['extras']),
+        extras: raw['extras']?.cast<String, dynamic>(),
       );
 
   /// Creates a copy of this [MediaItem] but with with the given fields
   /// replaced by new values.
   MediaItem copyWith({
-    String id,
-    String album,
-    String title,
-    String artist,
-    String genre,
-    Duration duration,
-    String artUri,
-    bool playable,
-    String displayTitle,
-    String displaySubtitle,
-    String displayDescription,
-    Rating rating,
-    Map<String, dynamic> extras,
+    String? id,
+    String? album,
+    String? title,
+    String? artist,
+    String? genre,
+    Duration? duration,
+    String? artUri,
+    bool? playable,
+    String? displayTitle,
+    String? displaySubtitle,
+    String? displayDescription,
+    Rating? rating,
+    Map<String, dynamic>? extras,
   }) =>
       MediaItem(
         id: id ?? this.id,
@@ -397,15 +397,6 @@ class MediaItem {
         'rating': rating?._toRaw(),
         'extras': extras,
       };
-
-  static Map<String, dynamic> _raw2extras(Map raw) {
-    if (raw == null) return null;
-    final extras = <String, dynamic>{};
-    for (var key in raw.keys) {
-      extras[key as String] = raw[key];
-    }
-    return extras;
-  }
 }
 
 /// A button to appear in the Android notification, lock screen, Android smart
@@ -502,9 +493,9 @@ class MediaControl {
   final MediaAction action;
 
   const MediaControl({
-    @required this.androidIcon,
-    @required this.label,
-    @required this.action,
+    required this.androidIcon,
+    required this.label,
+    required this.action,
   });
 }
 
@@ -534,51 +525,53 @@ class AudioService {
   /// task.
   static const String MEDIA_ROOT_ID = "root";
 
-  static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
+  static final _browseMediaChildrenSubject =
+      BehaviorSubject<List<MediaItem>?>();
 
   /// A stream that broadcasts the children of the current browse
   /// media parent.
-  static Stream<List<MediaItem>> get browseMediaChildrenStream =>
+  static ValueStream<List<MediaItem>?> get browseMediaChildrenStream =>
       _browseMediaChildrenSubject.stream;
 
   /// The children of the current browse media parent.
-  static List<MediaItem> get browseMediaChildren =>
+  static List<MediaItem>? get browseMediaChildren =>
       _browseMediaChildrenSubject.value;
 
   static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
 
   /// A stream that broadcasts the playback state.
-  static Stream<PlaybackState> get playbackStateStream =>
+  static ValueStream<PlaybackState> get playbackStateStream =>
       _playbackStateSubject.stream;
 
   /// The current playback state.
-  static PlaybackState get playbackState => _playbackStateSubject.value;
+  static PlaybackState get playbackState =>
+      _playbackStateSubject.value ?? AudioServiceBackground._noneState;
 
-  static final _currentMediaItemSubject = BehaviorSubject<MediaItem>();
+  static final _currentMediaItemSubject = BehaviorSubject<MediaItem?>();
 
   /// A stream that broadcasts the current [MediaItem].
-  static Stream<MediaItem> get currentMediaItemStream =>
+  static ValueStream<MediaItem?> get currentMediaItemStream =>
       _currentMediaItemSubject.stream;
 
   /// The current [MediaItem].
-  static MediaItem get currentMediaItem => _currentMediaItemSubject.value;
+  static MediaItem? get currentMediaItem => _currentMediaItemSubject.value;
 
-  static final _queueSubject = BehaviorSubject<List<MediaItem>>();
+  static final _queueSubject = BehaviorSubject<List<MediaItem>?>();
 
   /// A stream that broadcasts the queue.
-  static Stream<List<MediaItem>> get queueStream => _queueSubject.stream;
+  static ValueStream<List<MediaItem>?> get queueStream => _queueSubject.stream;
 
   /// The current queue.
-  static List<MediaItem> get queue => _queueSubject.value;
+  static List<MediaItem>? get queue => _queueSubject.value;
 
-  static final _notificationSubject = BehaviorSubject<bool>.seeded(false);
+  static final _notificationSubject = BehaviorSubject.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
-  static Stream<bool> get notificationClickEventStream =>
+  static ValueStream<bool> get notificationClickEventStream =>
       _notificationSubject.stream;
 
   /// The status of the notificationClick event.
-  static bool get notificationClickEvent => _notificationSubject.value;
+  static bool get notificationClickEvent => _notificationSubject.value ?? false;
 
   static final _customEventSubject = PublishSubject<dynamic>();
 
@@ -586,16 +579,16 @@ class AudioService {
   static Stream<dynamic> get customEventStream => _customEventSubject.stream;
 
   /// If a seek is in progress, this holds the position we are seeking to.
-  static Duration _seekPos;
+  static Duration? _seekPos;
 
   /// True after service stopped and !running.
   static bool _afterStop = false;
 
   /// Receives custom events from the background audio task.
-  static ReceivePort _customEventReceivePort;
-  static StreamSubscription _customEventSubscription;
+  static ReceivePort? _customEventReceivePort;
+  static StreamSubscription? _customEventSubscription;
 
-  static Completer<void> _startNonIsolateCompleter;
+  static Completer<void>? _startNonIsolateCompleter;
 
   static void _startedNonIsolate() {
     _startNonIsolateCompleter?.complete();
@@ -611,7 +604,8 @@ class AudioService {
   /// TODO: Queue other tasks? Note, only short-running tasks should be queued.
   static final _asyncTaskQueue = _AsyncTaskQueue();
 
-  static BehaviorSubject<Duration> _positionSubject;
+  // ignore: close_sinks
+  static BehaviorSubject<Duration>? _positionSubject;
 
   /// Connects to the service from your UI so that audio playback can be
   /// controlled.
@@ -655,15 +649,15 @@ class AudioService {
                   : null);
               break;
             case 'onQueueChanged':
-              final List<Map> args = call.arguments[0] != null
+              final List<Map>? args = call.arguments[0] != null
                   ? List<Map>.from(call.arguments[0])
                   : null;
               _queueSubject
-                  .add(args?.map((raw) => MediaItem.fromJson(raw))?.toList());
+                  .add(args?.map((raw) => MediaItem.fromJson(raw)).toList());
               break;
             case 'onStopped':
               _browseMediaChildrenSubject.add(null);
-              _playbackStateSubject.add(null);
+              _playbackStateSubject.add(AudioServiceBackground._noneState);
               _currentMediaItemSubject.add(null);
               _queueSubject.add(null);
               _notificationSubject.add(false);
@@ -683,16 +677,16 @@ class AudioService {
         }
         if (AudioService.usesIsolate) {
           _customEventReceivePort = ReceivePort();
-          _customEventSubscription = _customEventReceivePort.listen((event) {
+          _customEventSubscription = _customEventReceivePort!.listen((event) {
             _customEventSubject.add(event);
           });
           IsolateNameServer.removePortNameMapping(_CUSTOM_EVENT_PORT_NAME);
           IsolateNameServer.registerPortWithName(
-              _customEventReceivePort.sendPort, _CUSTOM_EVENT_PORT_NAME);
+              _customEventReceivePort!.sendPort, _CUSTOM_EVENT_PORT_NAME);
         }
         await _channel.invokeMethod("connect");
-        final running = await _channel.invokeMethod("isRunning");
-        if (running != AudioService.running) {
+        final running = (await _channel.invokeMethod<bool>("isRunning"))!;
+        if (running != _runningSubject.value) {
           _runningSubject.add(running);
         }
         _connected = true;
@@ -720,10 +714,10 @@ class AudioService {
   static final _runningSubject = BehaviorSubject<bool>();
 
   /// A stream indicating when the [running] state changes.
-  static get runningStream => _runningSubject.stream;
+  static ValueStream<bool> get runningStream => _runningSubject.stream;
 
   /// True if the background audio task is running.
-  static bool get running => _runningSubject.value;
+  static bool get running => _runningSubject.value ?? false;
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off. Only one background audio task
@@ -781,11 +775,11 @@ class AudioService {
   /// completes with true if the task was successfully started, or false
   /// otherwise.
   static Future<bool> start({
-    @required Function backgroundTaskEntrypoint,
-    Map<String, dynamic> params,
+    required Function backgroundTaskEntrypoint,
+    Map<String, dynamic>? params,
     String androidNotificationChannelName = "Notifications",
-    String androidNotificationChannelDescription,
-    int androidNotificationColor,
+    String? androidNotificationChannelDescription,
+    int? androidNotificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
     bool androidShowNotificationBadge = false,
     bool androidNotificationClickStartsActivity = true,
@@ -793,7 +787,7 @@ class AudioService {
     bool androidResumeOnClick = true,
     bool androidStopForegroundOnPause = false,
     bool androidEnableQueue = false,
-    Size androidArtDownscaleSize,
+    Size? androidArtDownscaleSize,
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
@@ -805,7 +799,7 @@ class AudioService {
       if (running) return false;
       _runningSubject.add(true);
       _afterStop = false;
-      ui.CallbackHandle handle;
+      ui.CallbackHandle? handle;
       if (AudioService.usesIsolate) {
         handle = ui.PluginUtilities.getCallbackHandle(backgroundTaskEntrypoint);
         if (handle == null) {
@@ -827,9 +821,9 @@ class AudioService {
         // TODO: remove dependency on flutter_isolate by either using the
         // FlutterNativeView API directly or by waiting until Flutter allows
         // regular isolates to use method channels.
-        await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle);
+        await FlutterIsolate.spawn(_iosIsolateEntrypoint, callbackHandle!);
       }
-      final success = await _channel.invokeMethod('start', {
+      final success = (await _channel.invokeMethod<bool>('start', {
         'callbackHandle': callbackHandle,
         'params': params,
         'androidNotificationChannelName': androidNotificationChannelName,
@@ -852,7 +846,7 @@ class AudioService {
             : null,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
-      });
+      }))!;
       if (!AudioService.usesIsolate) {
         _startNonIsolateCompleter = Completer();
         backgroundTaskEntrypoint();
@@ -1048,7 +1042,7 @@ class AudioService {
   /// your background audio task. The extras map must *only* contain primitive
   /// types!
   static Future<void> setRating(Rating rating,
-      [Map<String, dynamic> extras]) async {
+      [Map<String, dynamic>? extras]) async {
     await _channel.invokeMethod('setRating', {
       "rating": rating._toRaw(),
       "extras": extras,
@@ -1096,16 +1090,15 @@ class AudioService {
   /// no slower than once every 200ms.
   ///
   /// See [createPositionStream] for more control over the stream parameters.
-  //static Stream<Duration> _positionStream;
-  static Stream<Duration> get positionStream {
+  static ValueStream<Duration> get positionStream {
     if (_positionSubject == null) {
       _positionSubject = BehaviorSubject<Duration>(sync: true);
-      _positionSubject.addStream(createPositionStream(
+      _positionSubject!.addStream(createPositionStream(
           steps: 800,
           minPeriod: Duration(milliseconds: 16),
           maxPeriod: Duration(milliseconds: 200)));
     }
-    return _positionSubject.stream;
+    return _positionSubject!.stream;
   }
 
   /// Creates a new stream periodically tracking the current position. The
@@ -1124,12 +1117,12 @@ class AudioService {
   }) {
     assert(minPeriod <= maxPeriod);
     assert(minPeriod > Duration.zero);
-    Duration last;
+    Duration? last;
     // ignore: close_sinks
-    StreamController<Duration> controller;
-    StreamSubscription<MediaItem> mediaItemSubscription;
-    StreamSubscription<PlaybackState> playbackStateSubscription;
-    Timer currentTimer;
+    late StreamController<Duration> controller;
+    late StreamSubscription<MediaItem?> mediaItemSubscription;
+    late StreamSubscription<PlaybackState> playbackStateSubscription;
+    Timer? currentTimer;
     Duration duration() => currentMediaItem?.duration ?? Duration.zero;
     Duration step() {
       var s = duration() ~/ steps;
@@ -1138,9 +1131,10 @@ class AudioService {
       return s;
     }
 
-    void yieldPosition(Timer timer) {
-      if (last != (_seekPos ?? playbackState?.currentPosition)) {
-        controller.add(last = (_seekPos ?? playbackState?.currentPosition));
+    void yieldPosition(Timer? timer) {
+      final newPosition = _seekPos ?? playbackState.currentPosition;
+      if (last != newPosition) {
+        controller.add(last = newPosition);
       }
     }
 
@@ -1183,25 +1177,26 @@ class AudioServiceBackground {
     position: Duration.zero,
     bufferedPosition: Duration.zero,
     speed: 1.0,
+    updateTime: DateTime.fromMillisecondsSinceEpoch(0),
     repeatMode: AudioServiceRepeatMode.none,
     shuffleMode: AudioServiceShuffleMode.none,
   );
-  static MethodChannel _backgroundChannel;
+  static late MethodChannel _backgroundChannel;
   static PlaybackState _state = _noneState;
   static List<MediaControl> _controls = [];
   static List<MediaAction> _systemActions = [];
-  static MediaItem _mediaItem;
-  static List<MediaItem> _queue;
-  static BaseCacheManager _cacheManager;
-  static BackgroundAudioTask _task;
+  static MediaItem? _mediaItem;
+  static List<MediaItem>? _queue;
+  static BaseCacheManager? _cacheManager;
+  static late BackgroundAudioTask _task;
   static bool _running = false;
 
   /// Completes when the task is shut down.
-  static Completer<dynamic> _taskCompleter;
+  static late Completer<dynamic> _taskCompleter;
 
   /// Completes when the last method call (other than onStop) in progress has
   /// completed.
-  static Completer<dynamic> _inProgressCompleter;
+  static late Completer<dynamic> _inProgressCompleter;
 
   static int _inProgressMethodCount = 0;
 
@@ -1213,12 +1208,12 @@ class AudioServiceBackground {
   /// The current media item.
   ///
   /// This is the value most recently set via [setMediaItem].
-  static MediaItem get mediaItem => _mediaItem;
+  static MediaItem? get mediaItem => _mediaItem;
 
   /// The current queue.
   ///
   /// This is the value most recently set via [setQueue].
-  static List<MediaItem> get queue => _queue;
+  static List<MediaItem>? get queue => _queue;
 
   /// Runs the background audio task within the background isolate.
   ///
@@ -1261,7 +1256,7 @@ class AudioServiceBackground {
           }
         }
       } catch (e, stacktrace) {
-        throw PlatformException(code: '$e', stacktrace: stacktrace?.toString());
+        throw PlatformException(code: '$e', stacktrace: stacktrace.toString());
       }
     };
     // Mock method call handlers only work in one direction so we need to set up
@@ -1272,12 +1267,12 @@ class AudioServiceBackground {
     } else {
       _backgroundChannel.setMethodCallHandler(handler);
     }
-    Map startParams = await _backgroundChannel.invokeMethod('ready');
+    Map startParams = (await (_backgroundChannel.invokeMethod<Map>('ready')))!;
     Duration fastForwardInterval =
         Duration(milliseconds: startParams['fastForwardInterval']);
     Duration rewindInterval =
         Duration(milliseconds: startParams['rewindInterval']);
-    Map<String, dynamic> params =
+    Map<String, dynamic>? params =
         startParams['params']?.cast<String, dynamic>();
     _task._setParams(
       fastForwardInterval: fastForwardInterval,
@@ -1338,7 +1333,7 @@ class AudioServiceBackground {
         final List args = call.arguments;
         final List queue = args[0];
         return await _task.onUpdateQueue(
-            queue?.map((raw) => MediaItem.fromJson(raw))?.toList());
+            queue.map((raw) => MediaItem.fromJson(raw)).toList());
       case 'onUpdateMediaItem':
         return await _task
             .onUpdateMediaItem(MediaItem.fromJson(call.arguments[0]));
@@ -1429,7 +1424,7 @@ class AudioServiceBackground {
     await _backgroundChannel.invokeMethod('stopped');
     if (kIsWeb) {
     } else if (Platform.isIOS) {
-      FlutterIsolate.current?.kill();
+      FlutterIsolate.current.kill();
     }
     _backgroundChannel.setMethodCallHandler(null);
   }
@@ -1493,17 +1488,17 @@ class AudioServiceBackground {
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
-    List<MediaControl> controls,
-    List<MediaAction> systemActions,
-    AudioProcessingState processingState,
-    bool playing,
-    Duration position,
-    Duration bufferedPosition,
-    double speed,
-    DateTime updateTime,
-    List<int> androidCompactActions,
-    AudioServiceRepeatMode repeatMode = AudioServiceRepeatMode.none,
-    AudioServiceShuffleMode shuffleMode = AudioServiceShuffleMode.none,
+    List<MediaControl>? controls,
+    List<MediaAction>? systemActions,
+    AudioProcessingState? processingState,
+    bool? playing,
+    Duration? position,
+    Duration? bufferedPosition,
+    double? speed,
+    DateTime? updateTime,
+    List<int>? androidCompactActions,
+    AudioServiceRepeatMode? repeatMode,
+    AudioServiceShuffleMode? shuffleMode,
   }) async {
     controls ??= _controls;
     systemActions ??= _systemActions;
@@ -1512,9 +1507,9 @@ class AudioServiceBackground {
     position ??= _state.currentPosition;
     updateTime ??= DateTime.now();
     bufferedPosition ??= _state.bufferedPosition;
-    speed ??= _state.speed ?? 1.0;
-    repeatMode ??= AudioServiceRepeatMode.none;
-    shuffleMode ??= AudioServiceShuffleMode.none;
+    speed ??= _state.speed;
+    repeatMode ??= _state.repeatMode;
+    shuffleMode ??= _state.shuffleMode;
     _controls = controls;
     _systemActions = systemActions;
     _state = PlaybackState(
@@ -1545,7 +1540,7 @@ class AudioServiceBackground {
       position.inMilliseconds,
       bufferedPosition.inMilliseconds,
       speed,
-      updateTime?.millisecondsSinceEpoch,
+      updateTime.millisecondsSinceEpoch,
       androidCompactActions,
       repeatMode.index,
       shuffleMode.index,
@@ -1568,21 +1563,11 @@ class AudioServiceBackground {
     _mediaItem = mediaItem;
     if (mediaItem.artUri != null) {
       // We potentially need to fetch the art.
-      String filePath = _getLocalPath(mediaItem.artUri);
+      String? filePath = _getLocalPath(mediaItem.artUri!);
       if (filePath == null) {
-        // flutter_cache_manager 1.x returns FileInfo,
-        // flutter_cache_manager 2.x returns Future<FileInfo>
-        final dynamic fileInfoResult =
-            _cacheManager.getFileFromMemory(mediaItem.artUri);
-        FileInfo fileInfo;
-        if (fileInfoResult == null) {
-          fileInfo = null;
-        } else if (fileInfoResult is Future<FileInfo>) {
-          fileInfo = await fileInfoResult;
-        } else {
-          fileInfo = fileInfoResult;
-        }
-        filePath = fileInfo?.file?.path;
+        final FileInfo? fileInfo =
+            await _cacheManager!.getFileFromMemory(mediaItem.artUri!);
+        filePath = fileInfo?.file.path;
         if (filePath == null) {
           // We haven't fetched the art yet, so show the metadata now, and again
           // after we load the art.
@@ -1613,15 +1598,15 @@ class AudioServiceBackground {
     }
   }
 
-  static Future<String> _loadArtwork(MediaItem mediaItem) async {
+  static Future<String?> _loadArtwork(MediaItem mediaItem) async {
     try {
       final artUri = mediaItem.artUri;
       if (artUri != null) {
-        String local = _getLocalPath(artUri);
+        String? local = _getLocalPath(artUri);
         if (local != null) {
           return local;
         } else {
-          final file = await _cacheManager.getSingleFile(mediaItem.artUri);
+          final file = await _cacheManager!.getSingleFile(mediaItem.artUri!);
           return file.path;
         }
       }
@@ -1629,7 +1614,7 @@ class AudioServiceBackground {
     return null;
   }
 
-  static String _getLocalPath(String artUri) {
+  static String? _getLocalPath(String artUri) {
     const prefix = "file://";
     if (artUri.toLowerCase().startsWith(prefix)) {
       return artUri.substring(prefix.length);
@@ -1670,7 +1655,7 @@ class AudioServiceBackground {
     if (!AudioService.usesIsolate) {
       AudioService._customEventSubject.add(event);
     } else {
-      SendPort sendPort =
+      SendPort? sendPort =
           IsolateNameServer.lookupPortByName(_CUSTOM_EVENT_PORT_NAME);
       sendPort?.send(event);
     }
@@ -1684,13 +1669,13 @@ class AudioServiceBackground {
 /// minimum, you must override [onStart] and [onStop] to handle initialising
 /// and shutting down the audio task.
 abstract class BackgroundAudioTask {
-  final BaseCacheManager cacheManager;
-  Duration _fastForwardInterval;
-  Duration _rewindInterval;
+  final BaseCacheManager? cacheManager;
+  late Duration _fastForwardInterval;
+  late Duration _rewindInterval;
 
   /// Subclasses may supply a [cacheManager] to manage the loading of artwork,
   /// or an instance of [DefaultCacheManager] will be used by default.
-  BackgroundAudioTask({BaseCacheManager cacheManager})
+  BackgroundAudioTask({BaseCacheManager? cacheManager})
       : this.cacheManager =
             cacheManager ?? (_testMode ? null : DefaultCacheManager());
 
@@ -1704,7 +1689,7 @@ abstract class BackgroundAudioTask {
   /// audio, in response to [AudioService.start]. [params] will contain any
   /// params passed into [AudioService.start] when starting this background
   /// audio task.
-  Future<void> onStart(Map<String, dynamic> params) async {}
+  Future<void> onStart(Map<String, dynamic>? params) async {}
 
   /// Called when a client has requested to terminate this background audio
   /// task, in response to [AudioService.stop]. You should implement this
@@ -1731,7 +1716,7 @@ abstract class BackgroundAudioTask {
   Future<void> onClick(MediaButton button) async {
     switch (button) {
       case MediaButton.media:
-        if (AudioServiceBackground.state?.playing == true) {
+        if (AudioServiceBackground.state.playing == true) {
           await onPause();
         } else {
           await onPlay();
@@ -1843,7 +1828,8 @@ abstract class BackgroundAudioTask {
 
   /// Called when a client has requested to rate the current media item, such as
   /// via a call to [AudioService.setRating].
-  Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
+  Future<void> onSetRating(
+      Rating rating, Map<dynamic, dynamic>? extras) async {}
 
   /// Called when a client has requested to change the current repeat mode.
   Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {}
@@ -1901,8 +1887,8 @@ abstract class BackgroundAudioTask {
   Future<void> onClose() => onStop();
 
   void _setParams({
-    Duration fastForwardInterval,
-    Duration rewindInterval,
+    required Duration fastForwardInterval,
+    required Duration rewindInterval,
   }) {
     _fastForwardInterval = fastForwardInterval;
     _rewindInterval = rewindInterval;
@@ -1916,13 +1902,13 @@ abstract class BackgroundAudioTask {
     if (i == -1) return;
     int newIndex = i + offset;
     if (newIndex >= 0 && newIndex < queue.length)
-      await onSkipToQueueItem(queue[newIndex]?.id);
+      await onSkipToQueueItem(queue[newIndex].id);
   }
 }
 
 _iosIsolateEntrypoint(int rawHandle) async {
   ui.CallbackHandle handle = ui.CallbackHandle.fromRawHandle(rawHandle);
-  Function backgroundTask = ui.PluginUtilities.getCallbackFromHandle(handle);
+  Function backgroundTask = ui.PluginUtilities.getCallbackFromHandle(handle)!;
   backgroundTask();
 }
 
@@ -1942,7 +1928,7 @@ _iosIsolateEntrypoint(int rawHandle) async {
 class AudioServiceWidget extends StatefulWidget {
   final Widget child;
 
-  AudioServiceWidget({@required this.child});
+  AudioServiceWidget({required this.child});
 
   @override
   _AudioServiceWidgetState createState() => _AudioServiceWidgetState();
@@ -1953,14 +1939,14 @@ class _AudioServiceWidgetState extends State<AudioServiceWidget>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance!.addObserver(this);
     AudioService.connect();
   }
 
   @override
   void dispose() {
     AudioService.disconnect();
-    WidgetsBinding.instance.removeObserver(this);
+    WidgetsBinding.instance!.removeObserver(this);
     super.dispose();
   }
 

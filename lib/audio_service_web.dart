@@ -10,20 +10,13 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 const String _CUSTOM_PREFIX = 'custom_';
 
-class Art {
-  String src;
-  String type;
-  String sizes;
-  Art({this.src, this.type, this.sizes});
-}
-
 class AudioServicePlugin {
-  int fastForwardInterval;
-  int rewindInterval;
-  Map params;
+  late int fastForwardInterval;
+  late int rewindInterval;
+  Map? params;
   bool started = false;
-  ClientHandler clientHandler;
-  BackgroundHandler backgroundHandler;
+  late ClientHandler clientHandler;
+  late BackgroundHandler backgroundHandler;
 
   static void registerWith(Registrar registrar) {
     AudioServicePlugin(registrar);
@@ -43,12 +36,12 @@ class ClientHandler {
       : channel = MethodChannel(
           'ryanheise.com/audioService',
           const StandardMethodCodec(),
-          registrar.messenger,
+          registrar,
         ) {
     channel.setMethodCallHandler(handleServiceMethodCall);
   }
 
-  Future<T> invokeMethod<T>(String method, [dynamic arguments]) =>
+  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) =>
       channel.invokeMethod(method, arguments);
 
   Future<dynamic> handleServiceMethodCall(MethodCall call) async {
@@ -152,18 +145,18 @@ class ClientHandler {
 class BackgroundHandler {
   final AudioServicePlugin plugin;
   final MethodChannel channel;
-  MediaItem mediaItem;
+  MediaItem? mediaItem;
 
   BackgroundHandler(this.plugin, Registrar registrar)
       : channel = MethodChannel(
           'ryanheise.com/audioServiceBackground',
           const StandardMethodCodec(),
-          registrar.messenger,
+          registrar,
         ) {
     channel.setMethodCallHandler(handleBackgroundMethodCall);
   }
 
-  Future<T> invokeMethod<T>(String method, [dynamic arguments]) =>
+  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) =>
       channel.invokeMethod(method, arguments);
 
   Future<dynamic> handleBackgroundMethodCall(MethodCall call) async {
@@ -195,13 +188,13 @@ class BackgroundHandler {
   Future<bool> started(MethodCall call) async => true;
 
   Future<dynamic> ready(MethodCall call) async => {
-        'fastForwardInterval': plugin.fastForwardInterval ?? 30000,
-        'rewindInterval': plugin.rewindInterval ?? 30000,
+        'fastForwardInterval': plugin.fastForwardInterval,
+        'rewindInterval': plugin.rewindInterval,
         'params': plugin.params
       };
 
   Future<void> stopped(MethodCall call) async {
-    final session = html.window.navigator.mediaSession;
+    final session = html.window.navigator.mediaSession!;
     session.metadata = null;
     plugin.started = false;
     mediaItem = null;
@@ -209,8 +202,8 @@ class BackgroundHandler {
   }
 
   Future<void> setState(MethodCall call) async {
-    final session = html.window.navigator.mediaSession;
-    final List args = call.arguments;
+    final session = html.window.navigator.mediaSession!;
+    final List args = call.arguments!;
     final List<MediaControl> controls = call.arguments[0]
         .map<MediaControl>((element) => MediaControl(
             action: MediaAction.values[element['action']],
@@ -274,8 +267,8 @@ class BackgroundHandler {
         case MediaAction.seekTo:
           try {
             setActionHandler('seekto', js.allowInterop((ActionResult ev) {
-              print(ev.action);
-              print(ev.seekTime);
+              //print(ev.action);
+              //print(ev.seekTime);
               // Chrome uses seconds for whatever reason
               AudioService.seekTo(Duration(
                 milliseconds: (ev.seekTime * 1000).round(),
@@ -295,12 +288,12 @@ class BackgroundHandler {
     try {
       // Dart also doesn't expose setPositionState
       if (mediaItem != null) {
-        print(
-            'Setting positionState Duration(${mediaItem.duration?.inSeconds}), PlaybackRate(${args[6] ?? 1.0}), Position(${Duration(milliseconds: args[4])?.inSeconds})');
+        //print(
+        //    'Setting positionState Duration(${mediaItem!.duration?.inSeconds}), PlaybackRate(${args![6] ?? 1.0}), Position(${Duration(milliseconds: args[4]).inSeconds})');
 
         // Chrome looks for seconds for some reason
         setPositionState(PositionState(
-          duration: (mediaItem.duration?.inMilliseconds ?? 0) / 1000,
+          duration: (mediaItem!.duration?.inMilliseconds ?? 0) / 1000,
           playbackRate: args[6] ?? 1.0,
           position: (args[4] ?? 0) / 1000,
         ));
@@ -326,13 +319,13 @@ class BackgroundHandler {
     mediaItem = MediaItem.fromJson(call.arguments);
     // This would be how we could pull images out of the cache... But nothing is actually cached on web
     final artUri = /* mediaItem.extras['artCacheFile'] ?? */
-        mediaItem.artUri;
+        mediaItem!.artUri;
 
     try {
       metadata = html.MediaMetadata({
-        'album': mediaItem.album,
-        'title': mediaItem.title,
-        'artist': mediaItem.artist,
+        'album': mediaItem!.album,
+        'title': mediaItem!.title,
+        'artist': mediaItem!.artist,
         'artwork': [
           {
             'src': artUri,
@@ -344,7 +337,7 @@ class BackgroundHandler {
       print('Metadata failed $e');
     }
 
-    plugin.clientHandler.invokeMethod('onMediaChanged', [mediaItem.toJson()]);
+    plugin.clientHandler.invokeMethod('onMediaChanged', [mediaItem!.toJson()]);
   }
 
   Future<void> setQueue(MethodCall call) async {
