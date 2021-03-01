@@ -276,7 +276,7 @@ class MediaItem {
   final Duration? duration;
 
   /// The artwork for this media item as a uri.
-  final String? artUri;
+  final Uri? artUri;
 
   /// Whether this is playable (i.e. not a folder).
   final bool? playable;
@@ -329,7 +329,7 @@ class MediaItem {
         duration: raw['duration'] != null
             ? Duration(milliseconds: raw['duration'])
             : null,
-        artUri: raw['artUri'],
+        artUri: raw['artUri'] != null ? Uri.parse(raw['artUri']) : null,
         playable: raw['playable'],
         displayTitle: raw['displayTitle'],
         displaySubtitle: raw['displaySubtitle'],
@@ -347,7 +347,7 @@ class MediaItem {
     String? artist,
     String? genre,
     Duration? duration,
-    String? artUri,
+    Uri? artUri,
     bool? playable,
     String? displayTitle,
     String? displaySubtitle,
@@ -389,7 +389,7 @@ class MediaItem {
         'artist': artist,
         'genre': genre,
         'duration': duration?.inMilliseconds,
-        'artUri': artUri,
+        'artUri': artUri?.toString(),
         'playable': playable,
         'displayTitle': displayTitle,
         'displaySubtitle': displaySubtitle,
@@ -1561,12 +1561,15 @@ class AudioServiceBackground {
   /// Sets the currently playing media item and notifies all clients.
   static Future<void> setMediaItem(MediaItem mediaItem) async {
     _mediaItem = mediaItem;
-    if (mediaItem.artUri != null) {
+    final artUri = mediaItem.artUri;
+    if (artUri != null) {
       // We potentially need to fetch the art.
-      String? filePath = _getLocalPath(mediaItem.artUri!);
-      if (filePath == null) {
-        final FileInfo? fileInfo =
-            await _cacheManager!.getFileFromMemory(mediaItem.artUri!);
+      String? filePath;
+      if (artUri.scheme == 'file') {
+        filePath = artUri.toFilePath();
+      } else {
+        final FileInfo? fileInfo = await _cacheManager!
+            .getFileFromMemory(mediaItem.artUri!.toString());
         filePath = fileInfo?.file.path;
         if (filePath == null) {
           // We haven't fetched the art yet, so show the metadata now, and again
@@ -1602,23 +1605,15 @@ class AudioServiceBackground {
     try {
       final artUri = mediaItem.artUri;
       if (artUri != null) {
-        String? local = _getLocalPath(artUri);
-        if (local != null) {
-          return local;
+        if (artUri.scheme == 'file') {
+          return artUri.toFilePath();
         } else {
-          final file = await _cacheManager!.getSingleFile(mediaItem.artUri!);
+          final file =
+              await _cacheManager!.getSingleFile(mediaItem.artUri!.toString());
           return file.path;
         }
       }
     } catch (e) {}
-    return null;
-  }
-
-  static String? _getLocalPath(String artUri) {
-    const prefix = "file://";
-    if (artUri.toLowerCase().startsWith(prefix)) {
-      return artUri.substring(prefix.length);
-    }
     return null;
   }
 
