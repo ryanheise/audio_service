@@ -1,3 +1,7 @@
+## 0.17.0-nullsafety.0
+
+* Null safety.
+
 ## 0.16.2+1
 
 * Mention upcoming 0.18.0 release in README.
