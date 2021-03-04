@@ -28,7 +28,6 @@ static NSNumber *repeatMode = nil;
 static NSNumber *shuffleMode = nil;
 static NSNumber *fastForwardInterval = nil;
 static NSNumber *rewindInterval = nil;
-static NSMutableDictionary *params = nil;
 static MPMediaItemArtwork* artwork = nil;
 
 @implementation AudioServicePlugin {
@@ -251,23 +250,9 @@ static MPMediaItemArtwork* artwork = nil;
         [commandCenter.togglePlayPauseCommand removeTarget:nil];
         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
         processingState = ApsIdle;
-        playing = NO;
-        position = nil;
-        bufferedPosition = nil;
-        updateTime = nil;
-        speed = nil;
-        artwork = nil;
-        mediaItem = nil;
-        repeatMode = @(0);
-        shuffleMode = @(0);
-        actionBits = 0;
         [self updateControls];
         _controlsUpdated = NO;
-        queue = nil;
         startResult = nil;
-        fastForwardInterval = nil;
-        rewindInterval = nil;
-        params = nil;
         commandCenter = nil;
         result(@YES);
     } else {
@@ -311,6 +296,7 @@ static MPMediaItemArtwork* artwork = nil;
 }
 
 - (void) updateControls {
+    if (!commandCenter) return;
     for (enum MediaAction action = AStop; action <= ASeekForward; action++) {
         [self updateControl:action];
     }
