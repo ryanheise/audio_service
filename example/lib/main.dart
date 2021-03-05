@@ -1,32 +1,34 @@
 import 'dart:async';
-import 'dart:io';
+//import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+//import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
-final _isTtsSupported = kIsWeb || !Platform.isMacOS;
+//final _isTtsSupported = kIsWeb || !Platform.isMacOS;
 
 // You might want to provide this using dependency injection rather than a
 // global variable.
-AudioHandler _audioHandler;
+late AudioHandler _audioHandler;
 
 /// Extension methods for our custom actions.
 extension DemoAudioHandler on AudioHandler {
-  Future<void> switchToHandler(int index) =>
-      _audioHandler.customAction('switchToHandler', {'index': index});
+  Future<void> switchToHandler(int? index) async {
+    if (index == null) return;
+    await _audioHandler.customAction('switchToHandler', {'index': index});
+  }
 }
 
 Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => MainSwitchHandler([
       AudioPlayerHandler(),
-      if (_isTtsSupported) TextPlayerHandler(),
+      //if (_isTtsSupported) TextPlayerHandler(),
     ]),
     config: AudioServiceConfig(
       androidNotificationChannelName: 'Audio Service Demo',
@@ -51,7 +53,7 @@ class MyApp extends StatelessWidget {
 class MainScreen extends StatelessWidget {
   static final handlerNames = [
     'Audio Player',
-    if (_isTtsSupported) 'Text-To-Speech',
+    //if (_isTtsSupported) 'Text-To-Speech',
   ];
 
   @override
@@ -92,7 +94,7 @@ class MainScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    if (queue != null && queue.isNotEmpty)
+                    if (queue.isNotEmpty)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -112,7 +114,7 @@ class MainScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                    if (mediaItem?.title != null) Text(mediaItem.title),
+                    if (mediaItem?.title != null) Text(mediaItem!.title),
                   ],
                 );
               },
@@ -184,7 +186,7 @@ class MainScreen extends StatelessWidget {
   /// A stream reporting the combined state of the current media item and its
   /// current position.
   Stream<MediaState> get _mediaStateStream =>
-      Rx.combineLatest2<MediaItem, Duration, MediaState>(
+      Rx.combineLatest2<MediaItem?, Duration, MediaState>(
           _audioHandler.mediaItem.stream,
           AudioService.getPositionStream(),
           (mediaItem, position) => MediaState(mediaItem, position));
@@ -192,13 +194,13 @@ class MainScreen extends StatelessWidget {
   /// A stream reporting the combined state of the current queue and the current
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
-      Rx.combineLatest2<List<MediaItem>, MediaItem, QueueState>(
+      Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
           _audioHandler.queue.stream,
           _audioHandler.mediaItem.stream,
           (queue, mediaItem) => QueueState(queue, mediaItem));
 
-  RaisedButton startButton(String label, VoidCallback onPressed) =>
-      RaisedButton(
+  ElevatedButton startButton(String label, VoidCallback onPressed) =>
+      ElevatedButton(
         child: Text(label),
         onPressed: onPressed,
       );
@@ -223,14 +225,14 @@ class MainScreen extends StatelessWidget {
 }
 
 class QueueState {
-  final List<MediaItem> queue;
-  final MediaItem mediaItem;
+  final List<MediaItem>? queue;
+  final MediaItem? mediaItem;
 
   QueueState(this.queue, this.mediaItem);
 }
 
 class MediaState {
-  final MediaItem mediaItem;
+  final MediaItem? mediaItem;
   final Duration position;
 
   MediaState(this.mediaItem, this.position);
@@ -239,12 +241,12 @@ class MediaState {
 class SeekBar extends StatefulWidget {
   final Duration duration;
   final Duration position;
-  final ValueChanged<Duration> onChanged;
-  final ValueChanged<Duration> onChangeEnd;
+  final ValueChanged<Duration>? onChanged;
+  final ValueChanged<Duration>? onChangeEnd;
 
   SeekBar({
-    @required this.duration,
-    @required this.position,
+    required this.duration,
+    required this.position,
     this.onChanged,
     this.onChangeEnd,
   });
@@ -254,12 +256,12 @@ class SeekBar extends StatefulWidget {
 }
 
 class _SeekBarState extends State<SeekBar> {
-  double _dragValue;
+  double? _dragValue;
   bool _dragging = false;
 
   @override
   Widget build(BuildContext context) {
-    final value = min(_dragValue ?? widget.position?.inMilliseconds?.toDouble(),
+    final value = min(_dragValue ?? widget.position.inMilliseconds.toDouble(),
         widget.duration.inMilliseconds.toDouble());
     if (_dragValue != null && !_dragging) {
       _dragValue = null;
@@ -278,12 +280,12 @@ class _SeekBarState extends State<SeekBar> {
               _dragValue = value;
             });
             if (widget.onChanged != null) {
-              widget.onChanged(Duration(milliseconds: value.round()));
+              widget.onChanged!(Duration(milliseconds: value.round()));
             }
           },
           onChangeEnd: (value) {
             if (widget.onChangeEnd != null) {
-              widget.onChangeEnd(Duration(milliseconds: value.round()));
+              widget.onChangeEnd!(Duration(milliseconds: value.round()));
             }
             _dragging = false;
           },
@@ -324,11 +326,12 @@ class MainSwitchHandler extends SwitchAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(String name, Map<String, dynamic> extras) async {
+  Future<dynamic> customAction(
+      String name, Map<String, dynamic>? extras) async {
     switch (name) {
       case 'switchToHandler':
         await stop();
-        final int index = extras['index'];
+        final int index = extras!['index'];
         inner = handlers[index];
         customState.add(CustomEvent(index));
         return null;
@@ -342,25 +345,27 @@ class MainSwitchHandler extends SwitchAudioHandler {
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   // ignore: close_sinks
-  final _recentSubject = BehaviorSubject<List<MediaItem>>();
+  final BehaviorSubject<List<MediaItem>> _recentSubject =
+      BehaviorSubject<List<MediaItem>>();
   final _mediaLibrary = MediaLibrary();
   final _player = AudioPlayer();
 
-  int get index => _player.currentIndex;
+  int? get index => _player.currentIndex;
 
   AudioPlayerHandler() {
     _init();
   }
 
   Future<void> _init() async {
-    final session = await AudioSession.instance;
     // Load and broadcast the queue
     queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]);
     // For Android 11, record the most recent item so it can be resumed.
-    mediaItem.listen((item) => _recentSubject.add([item]));
+    mediaItem
+        .whereType<MediaItem>()
+        .listen((item) => _recentSubject.add([item]));
     // Broadcast media item changes.
     _player.currentIndexStream.listen((index) {
-      if (index != null) mediaItem.add(queue.value[index]);
+      if (index != null) mediaItem.add(queue.value![index]);
     });
     // Propagate all events from the audio player to AudioService clients.
     _player.playbackEventStream.listen(_broadcastState);
@@ -375,7 +380,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       // work. Not sure why!
       //await Future.delayed(Duration(seconds: 2)); // magic delay
       await _player.setAudioSource(ConcatenatingAudioSource(
-        children: queue.value
+        children: queue.value!
             .map((item) => AudioSource.uri(Uri.parse(item.id)))
             .toList(),
       ));
@@ -387,18 +392,18 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
-      [Map<String, dynamic> options]) async {
+      [Map<String, dynamic>? options]) async {
     switch (parentMediaId) {
       case AudioService.recentRootId:
         // When the user resumes a media session, tell the system what the most
         // recently played item was.
         print("### get recent children: ${_recentSubject.value}:");
-        return _recentSubject.value;
+        return _recentSubject.value ?? [];
       default:
         // Allow client to browse the media library.
         print(
             "### get $parentMediaId children: ${_mediaLibrary.items[parentMediaId]}:");
-        return _mediaLibrary.items[parentMediaId];
+        return _mediaLibrary.items[parentMediaId]!;
     }
   }
 
@@ -408,7 +413,8 @@ class AudioPlayerHandler extends BaseAudioHandler
       case AudioService.recentRootId:
         return _recentSubject.map((_) => {});
       default:
-        return Stream.value(_mediaLibrary.items[parentMediaId]).map((_) => {});
+        return Stream.value(_mediaLibrary.items[parentMediaId]).map((_) => {})
+            as ValueStream<Map<String, dynamic>>;
     }
   }
 
@@ -416,7 +422,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> skipToQueueItem(String mediaId) async {
     // Then default implementations of skipToNext and skipToPrevious provided by
     // the [QueueHandler] mixin will delegate to this method.
-    final newIndex = queue.value.indexWhere((item) => item.id == mediaId);
+    final newIndex = queue.value!.indexWhere((item) => item.id == mediaId);
     if (newIndex == -1) return;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: newIndex);
@@ -441,8 +447,8 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   /// Broadcasts the current state to all clients.
   void _broadcastState(PlaybackEvent event) {
-    final playing = _player.playing ?? false;
-    playbackState.add(playbackState.value.copyWith(
+    final playing = _player.playing;
+    playbackState.add(playbackState.value!.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
@@ -461,11 +467,11 @@ class AudioPlayerHandler extends BaseAudioHandler
         ProcessingState.buffering: AudioProcessingState.buffering,
         ProcessingState.ready: AudioProcessingState.ready,
         ProcessingState.completed: AudioProcessingState.completed,
-      }[_player.processingState ?? ProcessingState.idle],
+      }[_player.processingState]!,
       playing: playing,
-      updatePosition: _player.position ?? Duration.zero,
-      bufferedPosition: _player.bufferedPosition ?? Duration.zero,
-      speed: _player.speed ?? 1.0,
+      updatePosition: _player.position,
+      bufferedPosition: _player.bufferedPosition,
+      speed: _player.speed,
     ));
   }
 }
@@ -491,8 +497,8 @@ class MediaLibrary {
         title: "A Salute To Head-Scratching Science",
         artist: "Science Friday and WNYC Studios",
         duration: Duration(milliseconds: 5739820),
-        artUri:
-            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+        artUri: Uri.parse(
+            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg"),
       ),
       MediaItem(
         id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
@@ -500,8 +506,8 @@ class MediaLibrary {
         title: "From Cat Rheology To Operatic Incompetence",
         artist: "Science Friday and WNYC Studios",
         duration: Duration(milliseconds: 2856950),
-        artUri:
-            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
+        artUri: Uri.parse(
+            "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg"),
       ),
     ],
   };
@@ -509,171 +515,171 @@ class MediaLibrary {
 
 /// This task defines logic for speaking a sequence of numbers using
 /// text-to-speech.
-class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
-  final _tts = Tts();
-  final _sleeper = Sleeper();
-  Completer _completer;
-  var _index = 0;
-  bool _interrupted = false;
-  var _running = false;
-
-  bool get _playing => playbackState.value.playing;
-
-  TextPlayerHandler() {
-    _init();
-  }
-
-  Future<void> _init() async {
-    final session = await AudioSession.instance;
-    // Handle audio interruptions.
-    session.interruptionEventStream.listen((event) {
-      if (event.begin) {
-        if (_playing) {
-          pause();
-          _interrupted = true;
-        }
-      } else {
-        switch (event.type) {
-          case AudioInterruptionType.pause:
-          case AudioInterruptionType.duck:
-            if (!_playing && _interrupted) {
-              play();
-            }
-            break;
-          case AudioInterruptionType.unknown:
-            break;
-        }
-        _interrupted = false;
-      }
-    });
-    // Handle unplugged headphones.
-    session.becomingNoisyEventStream.listen((_) {
-      if (_playing) pause();
-    });
-    queue.add(List.generate(
-        10,
-        (i) => MediaItem(
-              id: 'tts_${i + 1}',
-              album: 'Numbers',
-              title: 'Number ${i + 1}',
-              artist: 'Sample Artist',
-              extras: {'number': i + 1},
-              duration: Duration(seconds: 1),
-            )));
-  }
-
-  Future<void> run() async {
-    _completer = Completer();
-    _running = true;
-    while (_running) {
-      try {
-        if (playbackState.value.playing) {
-          mediaItem.add(queue.value[_index]);
-          playbackState.add(playbackState.value.copyWith(
-            updatePosition: Duration.zero,
-          ));
-          AudioService.androidForceEnableMediaButtons();
-          await Future.wait([
-            _tts.speak('${mediaItem.value.extras["number"]}'),
-            _sleeper.sleep(Duration(seconds: 1)),
-          ]);
-          if (_index + 1 < queue.value.length) {
-            _index++;
-          } else {
-            _running = false;
-          }
-        } else {
-          await _sleeper.sleep();
-        }
-      } on SleeperInterruptedException {} on TtsInterruptedException {}
-    }
-    _index = 0;
-    mediaItem.add(queue.value[_index]);
-    playbackState.add(playbackState.value.copyWith(
-      updatePosition: Duration.zero,
-    ));
-    if (playbackState.value.processingState != AudioProcessingState.idle) {
-      stop();
-    }
-    _completer.complete();
-    _completer = null;
-  }
-
-  @override
-  Future<void> skipToQueueItem(String mediaId) async {
-    _index = queue.value.indexWhere((item) => item.id == mediaId);
-    _signal();
-  }
-
-  @override
-  Future<void> play() async {
-    if (playbackState.value.playing) return;
-    final session = await AudioSession.instance;
-    // flutter_tts doesn't activate the session, so we do it here. This
-    // allows the app to stop other apps from playing audio while we are
-    // playing audio.
-    if (await session.setActive(true)) {
-      // If we successfully activated the session, set the state to playing
-      // and resume playback.
-      playbackState.add(playbackState.value.copyWith(
-        controls: [MediaControl.pause, MediaControl.stop],
-        processingState: AudioProcessingState.ready,
-        playing: true,
-      ));
-      if (_completer == null) {
-        run();
-      } else {
-        _sleeper.interrupt();
-      }
-    }
-  }
-
-  @override
-  Future<void> pause() async {
-    _interrupted = false;
-    playbackState.add(playbackState.value.copyWith(
-      controls: [MediaControl.play, MediaControl.stop],
-      processingState: AudioProcessingState.ready,
-      playing: false,
-    ));
-    _signal();
-  }
-
-  @override
-  Future<void> stop() async {
-    playbackState.add(playbackState.value.copyWith(
-      controls: [],
-      processingState: AudioProcessingState.idle,
-      playing: false,
-    ));
-    _running = false;
-    _signal();
-    // Wait for the speech to stop
-    await _completer?.future;
-    // Shut down this task
-    await super.stop();
-  }
-
-  void _signal() {
-    _sleeper.interrupt();
-    _tts.interrupt();
-  }
-}
+//class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
+//  final _tts = Tts();
+//  final _sleeper = Sleeper();
+//  Completer _completer;
+//  var _index = 0;
+//  bool _interrupted = false;
+//  var _running = false;
+//
+//  bool get _playing => playbackState.value.playing;
+//
+//  TextPlayerHandler() {
+//    _init();
+//  }
+//
+//  Future<void> _init() async {
+//    final session = await AudioSession.instance;
+//    // Handle audio interruptions.
+//    session.interruptionEventStream.listen((event) {
+//      if (event.begin) {
+//        if (_playing) {
+//          pause();
+//          _interrupted = true;
+//        }
+//      } else {
+//        switch (event.type) {
+//          case AudioInterruptionType.pause:
+//          case AudioInterruptionType.duck:
+//            if (!_playing && _interrupted) {
+//              play();
+//            }
+//            break;
+//          case AudioInterruptionType.unknown:
+//            break;
+//        }
+//        _interrupted = false;
+//      }
+//    });
+//    // Handle unplugged headphones.
+//    session.becomingNoisyEventStream.listen((_) {
+//      if (_playing) pause();
+//    });
+//    queue.add(List.generate(
+//        10,
+//        (i) => MediaItem(
+//              id: 'tts_${i + 1}',
+//              album: 'Numbers',
+//              title: 'Number ${i + 1}',
+//              artist: 'Sample Artist',
+//              extras: {'number': i + 1},
+//              duration: Duration(seconds: 1),
+//            )));
+//  }
+//
+//  Future<void> run() async {
+//    _completer = Completer();
+//    _running = true;
+//    while (_running) {
+//      try {
+//        if (playbackState.value.playing) {
+//          mediaItem.add(queue.value[_index]);
+//          playbackState.add(playbackState.value.copyWith(
+//            updatePosition: Duration.zero,
+//          ));
+//          AudioService.androidForceEnableMediaButtons();
+//          await Future.wait([
+//            _tts.speak('${mediaItem.value.extras["number"]}'),
+//            _sleeper.sleep(Duration(seconds: 1)),
+//          ]);
+//          if (_index + 1 < queue.value.length) {
+//            _index++;
+//          } else {
+//            _running = false;
+//          }
+//        } else {
+//          await _sleeper.sleep();
+//        }
+//      } on SleeperInterruptedException {} on TtsInterruptedException {}
+//    }
+//    _index = 0;
+//    mediaItem.add(queue.value[_index]);
+//    playbackState.add(playbackState.value.copyWith(
+//      updatePosition: Duration.zero,
+//    ));
+//    if (playbackState.value.processingState != AudioProcessingState.idle) {
+//      stop();
+//    }
+//    _completer.complete();
+//    _completer = null;
+//  }
+//
+//  @override
+//  Future<void> skipToQueueItem(String mediaId) async {
+//    _index = queue.value.indexWhere((item) => item.id == mediaId);
+//    _signal();
+//  }
+//
+//  @override
+//  Future<void> play() async {
+//    if (playbackState.value.playing) return;
+//    final session = await AudioSession.instance;
+//    // flutter_tts doesn't activate the session, so we do it here. This
+//    // allows the app to stop other apps from playing audio while we are
+//    // playing audio.
+//    if (await session.setActive(true)) {
+//      // If we successfully activated the session, set the state to playing
+//      // and resume playback.
+//      playbackState.add(playbackState.value.copyWith(
+//        controls: [MediaControl.pause, MediaControl.stop],
+//        processingState: AudioProcessingState.ready,
+//        playing: true,
+//      ));
+//      if (_completer == null) {
+//        run();
+//      } else {
+//        _sleeper.interrupt();
+//      }
+//    }
+//  }
+//
+//  @override
+//  Future<void> pause() async {
+//    _interrupted = false;
+//    playbackState.add(playbackState.value.copyWith(
+//      controls: [MediaControl.play, MediaControl.stop],
+//      processingState: AudioProcessingState.ready,
+//      playing: false,
+//    ));
+//    _signal();
+//  }
+//
+//  @override
+//  Future<void> stop() async {
+//    playbackState.add(playbackState.value.copyWith(
+//      controls: [],
+//      processingState: AudioProcessingState.idle,
+//      playing: false,
+//    ));
+//    _running = false;
+//    _signal();
+//    // Wait for the speech to stop
+//    await _completer?.future;
+//    // Shut down this task
+//    await super.stop();
+//  }
+//
+//  void _signal() {
+//    _sleeper.interrupt();
+//    _tts.interrupt();
+//  }
+//}
 
 /// An object that performs interruptable sleep.
 class Sleeper {
-  Completer _blockingCompleter;
+  Completer? _blockingCompleter;
 
   /// Sleep for a duration. If sleep is interrupted, a
   /// [SleeperInterruptedException] will be thrown.
-  Future<void> sleep([Duration duration]) async {
+  Future<void> sleep([Duration? duration]) async {
     _blockingCompleter = Completer();
     if (duration != null) {
-      await Future.any([Future.delayed(duration), _blockingCompleter.future]);
+      await Future.any([Future.delayed(duration), _blockingCompleter!.future]);
     } else {
-      await _blockingCompleter.future;
+      await _blockingCompleter!.future;
     }
-    final interrupted = _blockingCompleter.isCompleted;
+    final interrupted = _blockingCompleter!.isCompleted;
     _blockingCompleter = null;
     if (interrupted) {
       throw SleeperInterruptedException();
@@ -683,7 +689,7 @@ class Sleeper {
   /// Interrupt any sleep that's underway.
   void interrupt() {
     if (_blockingCompleter?.isCompleted == false) {
-      _blockingCompleter.complete();
+      _blockingCompleter!.complete();
     }
   }
 }
@@ -692,48 +698,48 @@ class SleeperInterruptedException {}
 
 /// A wrapper around FlutterTts that makes it easier to wait for speech to
 /// complete.
-class Tts {
-  final FlutterTts _flutterTts = new FlutterTts();
-  Completer _speechCompleter;
-  bool _interruptRequested = false;
-  bool _playing = false;
-
-  Tts() {
-    _flutterTts.setCompletionHandler(() {
-      _speechCompleter?.complete();
-    });
-  }
-
-  bool get playing => _playing;
-
-  Future<void> speak(String text) async {
-    _playing = true;
-    if (!_interruptRequested) {
-      _speechCompleter = Completer();
-      await _flutterTts.speak(text);
-      await _speechCompleter.future;
-      _speechCompleter = null;
-    }
-    _playing = false;
-    if (_interruptRequested) {
-      _interruptRequested = false;
-      throw TtsInterruptedException();
-    }
-  }
-
-  Future<void> stop() async {
-    if (_playing) {
-      await _flutterTts.stop();
-      _speechCompleter?.complete();
-    }
-  }
-
-  void interrupt() {
-    if (_playing) {
-      _interruptRequested = true;
-      stop();
-    }
-  }
-}
+//class Tts {
+//  final FlutterTts _flutterTts = new FlutterTts();
+//  Completer _speechCompleter;
+//  bool _interruptRequested = false;
+//  bool _playing = false;
+//
+//  Tts() {
+//    _flutterTts.setCompletionHandler(() {
+//      _speechCompleter?.complete();
+//    });
+//  }
+//
+//  bool get playing => _playing;
+//
+//  Future<void> speak(String text) async {
+//    _playing = true;
+//    if (!_interruptRequested) {
+//      _speechCompleter = Completer();
+//      await _flutterTts.speak(text);
+//      await _speechCompleter.future;
+//      _speechCompleter = null;
+//    }
+//    _playing = false;
+//    if (_interruptRequested) {
+//      _interruptRequested = false;
+//      throw TtsInterruptedException();
+//    }
+//  }
+//
+//  Future<void> stop() async {
+//    if (_playing) {
+//      await _flutterTts.stop();
+//      _speechCompleter?.complete();
+//    }
+//  }
+//
+//  void interrupt() {
+//    if (_playing) {
+//      _interruptRequested = true;
+//      stop();
+//    }
+//  }
+//}
 
 class TtsInterruptedException {}

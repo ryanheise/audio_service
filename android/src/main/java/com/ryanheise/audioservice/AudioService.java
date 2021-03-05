@@ -402,7 +402,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private VolumeProviderCompat volumeProvider;
-    public void setPlaybackInfo(int playbackType, int volumeControlType, int maxVolume, int volume) {
+    public void setPlaybackInfo(int playbackType, Integer volumeControlType, Integer maxVolume, Integer volume) {
         if (playbackType == MediaControllerCompat.PlaybackInfo.PLAYBACK_TYPE_LOCAL) {
             // We have to wait 'til media2 before we can use AudioAttributes.
             mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC);
