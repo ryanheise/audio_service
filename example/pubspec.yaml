@@ -12,8 +12,7 @@ dependencies:
   path_provider: ^2.0.1
   audio_session: ^0.1.0
   just_audio: ^0.7.0
-  # TODO: re-enable when flutter_tts is migrated to null safety.
-  # flutter_tts: ^0.8.5
+  flutter_tts: ^3.0.0
   rxdart: ^0.26.0
   audio_service:
     path: ../
