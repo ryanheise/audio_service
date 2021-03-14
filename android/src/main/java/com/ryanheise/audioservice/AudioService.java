@@ -304,6 +304,11 @@ public class AudioService extends MediaBrowserServiceCompat {
         return START_NOT_STICKY;
     }
 
+    public void stop() {
+        deactivateMediaSession();
+        stopSelf();
+    }
+
     @Override
     public void onDestroy() {
         System.out.println("### onDestroy");
@@ -317,9 +322,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         actions.clear();
         artBitmapCache.evictAll();
         compactActionIndices = null;
-        mediaSession.setQueue(queue);
-        mediaSession.setActive(false);
-        mediaSession.release();
+        releaseMediaSession();
         stopForeground(!config.androidResumeOnClick);
         // This still does not solve the Android 11 problem.
         // if (notificationCreated) {
@@ -395,7 +398,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
-            stopSelf();
+            stop();
         }
 
         updateNotification();
@@ -556,6 +559,31 @@ public class AudioService extends MediaBrowserServiceCompat {
     private void releaseWakeLock() {
         if (wakeLock.isHeld())
             wakeLock.release();
+    }
+
+    private void activateMediaSession() {
+        if (!mediaSession.isActive())
+            mediaSession.setActive(true);
+    }
+
+    private void deactivateMediaSession() {
+        System.out.println("### deactivateMediaSession");
+        if (mediaSession.isActive()) {
+            System.out.println("### deactivate mediaSession");
+            mediaSession.setActive(false);
+        }
+        // Force cancellation of the notification
+        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(NOTIFICATION_ID);
+    }
+
+    private void releaseMediaSession() {
+        System.out.println("### releaseMediaSession");
+        if (mediaSession == null) return;
+        deactivateMediaSession();
+        System.out.println("### release mediaSession");
+        mediaSession.release();
+        mediaSession = null;
     }
 
     void enableQueue() {

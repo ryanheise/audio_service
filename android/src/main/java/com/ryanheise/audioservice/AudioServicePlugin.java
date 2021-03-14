@@ -848,7 +848,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 break;
             case "stopService":
                 if (AudioService.instance != null) {
-                    AudioService.instance.stopSelf();
+                    AudioService.instance.stop();
                 }
                 result.success(true);
                 break;
