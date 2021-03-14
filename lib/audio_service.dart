@@ -109,6 +109,12 @@ class PlaybackState {
   /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
   /// additional actions will allow the user to press and hold the buttons to
   /// activate the continuous seeking behaviour.
+  ///
+  /// When enabling the seek bar, also note that some Android devices will not
+  /// render the seek bar correctly unless your
+  /// [AudioServiceConfig.androidNotificationIcon] is a monochrome white icon on
+  /// a transparent background, and your [AudioServiceConfig.notificationColor]
+  /// is a non-transparent color.
   final Set<MediaAction> systemActions;
 
   /// The playback position at [updateTime].
@@ -2874,10 +2880,14 @@ class AudioServiceConfig {
   final bool androidResumeOnClick;
   final String androidNotificationChannelName;
   final String? androidNotificationChannelDescription;
+
+  /// The color to use on the background of the notification on Android. This
+  /// should be a non-transparent color.
   final Color? notificationColor;
 
   /// The icon resource to be used in the Android media notification, specified
-  /// like an XML resource reference. This defaults to `"mipmap/ic_launcher"`.
+  /// like an XML resource reference. This should be a monochrome white icon on
+  /// a transparent background. The default value is `"mipmap/ic_launcher"`.
   final String androidNotificationIcon;
 
   /// Whether notification badges (also known as notification dots) should
