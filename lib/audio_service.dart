@@ -3016,6 +3016,7 @@ class AndroidContentStyle {
 
 /// (Maybe) temporary.
 extension AudioServiceValueStream<T> on ValueStream<T> {
+  @Deprecated('Use "this" instead. Will be removed before the release')
   ValueStream<T> get stream => this;
 }
 

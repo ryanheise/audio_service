@@ -77,7 +77,7 @@ class MainScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     StreamBuilder<dynamic>(
-                      stream: _audioHandler.customState.stream,
+                      stream: _audioHandler.customState,
                       builder: (context, snapshot) {
                         final handlerIndex = snapshot.data?.handlerIndex ?? 0;
                         return DropdownButton<int>(
@@ -121,7 +121,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Play/pause/stop buttons.
             StreamBuilder<bool>(
-              stream: _audioHandler.playbackState.stream
+              stream: _audioHandler.playbackState
                   .map((state) => state.playing)
                   .distinct(),
               builder: (context, snapshot) {
@@ -151,7 +151,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Display the processing state.
             StreamBuilder<AudioProcessingState>(
-              stream: _audioHandler.playbackState.stream
+              stream: _audioHandler.playbackState
                   .map((state) => state.processingState)
                   .distinct(),
               builder: (context, snapshot) {
@@ -187,7 +187,7 @@ class MainScreen extends StatelessWidget {
   /// current position.
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem?, Duration, MediaState>(
-          _audioHandler.mediaItem.stream,
+          _audioHandler.mediaItem,
           AudioService.getPositionStream(),
           (mediaItem, position) => MediaState(mediaItem, position));
 
@@ -195,8 +195,8 @@ class MainScreen extends StatelessWidget {
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
       Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
-          _audioHandler.queue.stream,
-          _audioHandler.mediaItem.stream,
+          _audioHandler.queue,
+          _audioHandler.mediaItem,
           (queue, mediaItem) => QueueState(queue, mediaItem));
 
   ElevatedButton startButton(String label, VoidCallback onPressed) =>
