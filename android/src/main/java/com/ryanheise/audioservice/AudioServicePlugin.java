@@ -105,9 +105,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static Set<ClientHandler> clientHandlers = new HashSet<ClientHandler>();
     private static ClientHandler mainClientHandler;
     private static BackgroundHandler backgroundHandler;
-    private static int nextQueueItemId = 0;
-    private static List<String> queueMediaIds = new ArrayList<String>();
-    private static Map<String, Integer> queueItemIds = new HashMap<String, Integer>();
     private static volatile Result startResult;
     private static volatile Result stopResult;
     private static long bootTime;
@@ -654,8 +651,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onSkipToQueueItem(long queueItemId) {
-            String mediaId = queueMediaIds.get((int)queueItemId);
-            invokeMethod("onSkipToQueueItem", mediaId);
+            invokeMethod("onSkipToQueueItem", queueItemId);
         }
 
         @Override
@@ -770,6 +766,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 String errorMessage = (String)args.get("errorMessage");
                 int repeatMode = (Integer)args.get("repeatMode");
                 int shuffleMode = (Integer)args.get("shuffleMode");
+                Long queueIndex = getLong(args.get("queueIndex"));
                 boolean captioningEnabled = (Boolean)args.get("captioningEnabled");
 
                 // On the flutter side, we represent the update time relative to the epoch.
@@ -808,7 +805,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         errorMessage,
                         repeatMode,
                         shuffleMode,
-                        captioningEnabled);
+                        captioningEnabled,
+                        queueIndex);
                 result.success(true);
                 break;
             case "setPlaybackInfo":
@@ -996,18 +994,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         );
     }
 
-    private static synchronized int generateNextQueueItemId(String mediaId) {
-        queueMediaIds.add(mediaId);
-        queueItemIds.put(mediaId, nextQueueItemId);
-        return nextQueueItemId++;
-    }
-
     private static List<MediaSessionCompat.QueueItem> raw2queue(List<Map<?, ?>> rawQueue) {
         List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
+        int i = 0;
         for (Map<?, ?> rawMediaItem : rawQueue) {
             MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
             MediaDescriptionCompat description = mediaMetadata.getDescription();
-            queue.add(new MediaSessionCompat.QueueItem(description, generateNextQueueItemId(description.getMediaId())));
+            queue.add(new MediaSessionCompat.QueueItem(description, i));
+            i++;
         }
         return queue;
     }

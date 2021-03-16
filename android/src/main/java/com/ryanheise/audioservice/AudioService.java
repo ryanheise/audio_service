@@ -367,7 +367,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return PendingIntent.getBroadcast(this, 0, intent, 0);
     }
 
-    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled) {
+    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled, Long queueIndex) {
         this.actions = actions;
         this.compactActionIndices = compactActionIndices;
         boolean wasPlaying = this.playing;
@@ -381,6 +381,8 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
                 .setState(getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
+        if (queueIndex != null)
+            stateBuilder.setActiveQueueItemId(queueIndex);
         if (errorCode != null && errorMessage != null)
             stateBuilder.setErrorMessage(errorCode, errorMessage);
         else if (errorMessage != null)

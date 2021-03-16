@@ -512,9 +512,9 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  Future<void> skipToQueueItem(String mediaId) {
-    _log('skipToQueueItem($mediaId)');
-    return super.skipToQueueItem(mediaId);
+  Future<void> skipToQueueItem(int index) {
+    _log('skipToQueueItem($index)');
+    return super.skipToQueueItem(index);
   }
 
   @override
@@ -590,7 +590,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic>? options]) async {
     _log('getChildren($parentMediaId, $options)');
-    final result = super.getChildren(parentMediaId, options);
+    final result = await super.getChildren(parentMediaId, options);
     _log('getChildren -> $result');
     return result;
   }
@@ -713,15 +713,14 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   @override
-  Future<void> skipToQueueItem(String mediaId) async {
+  Future<void> skipToQueueItem(int index) async {
     // Then default implementations of skipToNext and skipToPrevious provided by
     // the [QueueHandler] mixin will delegate to this method.
-    final newIndex = queue.value!.indexWhere((item) => item.id == mediaId);
-    if (newIndex == -1) return;
+    if (index < 0 || index > queue.value!.length) return;
     // This jumps to the beginning of the queue item at newIndex.
-    _player.seek(Duration.zero, index: newIndex);
+    _player.seek(Duration.zero, index: index);
     // Demonstrate custom events.
-    customEventSubject.add('skip to $newIndex');
+    customEventSubject.add('skip to $index');
   }
 
   @override
@@ -766,6 +765,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       updatePosition: _player.position,
       bufferedPosition: _player.bufferedPosition,
       speed: _player.speed,
+      queueIndex: event.currentIndex,
     ));
   }
 }
@@ -900,8 +900,8 @@ class MediaLibrary {
 //  }
 //
 //  @override
-//  Future<void> skipToQueueItem(String mediaId) async {
-//    _index = queue.value.indexWhere((item) => item.id == mediaId);
+//  Future<void> skipToQueueItem(int index) async {
+//    _index = index;
 //    _signal();
 //  }
 //

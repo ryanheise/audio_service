@@ -152,6 +152,9 @@ class PlaybackState {
   /// Whether captioning is enabled.
   final bool captioningEnabled;
 
+  /// The index of the current item in the queue, if any.
+  final int? queueIndex;
+
   /// Creates a [PlaybackState] with given field values, and with [updateTime]
   /// defaulting to [DateTime.now()].
   PlaybackState({
@@ -169,6 +172,7 @@ class PlaybackState {
     this.repeatMode = AudioServiceRepeatMode.none,
     this.shuffleMode = AudioServiceShuffleMode.none,
     this.captioningEnabled = false,
+    this.queueIndex,
   })  : assert(androidCompactActionIndices == null ||
             androidCompactActionIndices.length <= 3),
         this.updateTime = updateTime ?? DateTime.now();
@@ -192,6 +196,7 @@ class PlaybackState {
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
     bool? captioningEnabled,
+    int? queueIndex,
   }) {
     processingState ??= this.processingState;
     return PlaybackState(
@@ -213,6 +218,7 @@ class PlaybackState {
       repeatMode: repeatMode ?? this.repeatMode,
       shuffleMode: shuffleMode ?? this.shuffleMode,
       captioningEnabled: captioningEnabled ?? this.captioningEnabled,
+      queueIndex: queueIndex ?? this.queueIndex,
     );
   }
 
@@ -245,6 +251,7 @@ class PlaybackState {
         'repeatMode': repeatMode.index,
         'shuffleMode': shuffleMode.index,
         'captioningEnabled': captioningEnabled,
+        'queueIndex': queueIndex,
       };
 
   @override
@@ -1371,7 +1378,11 @@ class AudioService {
 
   /// Deprecated. Use [AudioHandler.skipToQueueItem] instead.
   @deprecated
-  static final skipToQueueItem = _handler.skipToQueueItem;
+  static Future<void> skipToQueueItem(String mediaId) async {
+    final queue = _handler.queue.value!;
+    int index = queue.indexWhere((item) => item.id == mediaId);
+    await _handler.skipToQueueItem(index);
+  }
 
   /// Deprecated. Use [AudioHandler.pause] instead.
   @deprecated
@@ -1630,7 +1641,12 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
   Future<void> rewind() => onRewind();
 
   @override
-  Future<void> skipToQueueItem(String mediaId) => onSkipToQueueItem(mediaId);
+  Future<void> skipToQueueItem(int index) async {
+    final queue = this.queue.value ?? <MediaItem>[];
+    if (index < 0 || index >= queue.length) return;
+    final mediaItem = queue[index];
+    return onSkipToQueueItem(mediaItem.id);
+  }
 
   @override
   Future<void> seek(Duration position) => onSeekTo(position);
@@ -1752,8 +1768,8 @@ abstract class AudioHandler {
   /// must be positive.
   Future<void> rewind();
 
-  /// Skip to a media item.
-  Future<void> skipToQueueItem(String mediaId);
+  /// Skip to a queue item.
+  Future<void> skipToQueueItem(int index);
 
   /// Seek to [position].
   Future<void> seek(Duration position);
@@ -2029,8 +2045,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> skipToQueueItem(String mediaId) =>
-      _inner.skipToQueueItem(mediaId);
+  Future<void> skipToQueueItem(int index) => _inner.skipToQueueItem(index);
 
   @override
   @mustCallSuper
@@ -2310,8 +2325,7 @@ class _IsolateAudioHandler extends AudioHandler {
   Future<void> rewind() => _send('rewind');
 
   @override
-  Future<void> skipToQueueItem(String mediaId) =>
-      _send('skipToQueueItem', [mediaId]);
+  Future<void> skipToQueueItem(int index) => _send('skipToQueueItem', [index]);
 
   @override
   Future<void> seek(Duration position) => _send('seek', [position]);
@@ -2628,7 +2642,7 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> rewind() async {}
 
   @override
-  Future<void> skipToQueueItem(String mediaId) async {}
+  Future<void> skipToQueueItem(int index) async {}
 
   @override
   Future<void> seek(Duration position) async {}
@@ -2773,9 +2787,11 @@ class _Seeker {
 }
 
 /// This mixin provides default implementations of methods for updating and
-/// navigating the queue. The [skipToNext] and [skipToPrevious] default
-/// implementations are defined in terms of your own implementation of
-/// [skipToQueueItem].
+/// navigating the queue. When using this mixin, you must add a list of
+/// [MediaItem]s to [queue], override [skipToQueueItem] and initialise the queue
+/// index (e.g. by calling [skipToQueueItem] with the initial queue index). The
+/// [skipToNext] and [skipToPrevious] default implementations are defined by
+/// this mixin in terms of your own implementation of [skipToQueueItem].
 mixin QueueHandler on BaseAudioHandler {
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
@@ -2827,27 +2843,24 @@ mixin QueueHandler on BaseAudioHandler {
     await super.skipToPrevious();
   }
 
-  /// This should be overridden to instruct how to skip to the media item
-  /// identified by [mediaId]. By default, this will find the [MediaItem]
-  /// identified by [mediaId] and broadcast this on the [mediaItemStream]. Your
+  /// This should be overridden to instruct how to skip to the queue item at
+  /// [index]. By default, this will broadcast [index] as
+  /// [PlaybackState.queueIndex] via the [playbackState] stream, and will
+  /// broadcast [queue] element [index] via the stream [mediaItem]. Your
   /// implementation may call super to reuse this default implementation, or
   /// else provide equivalent behaviour.
   @override
-  Future<void> skipToQueueItem(String mediaId) async {
-    final mediaItem =
-        queue.value!.firstWhere((mediaItem) => mediaItem.id == mediaId);
-    this.mediaItem.add(mediaItem);
-    await super.skipToQueueItem(mediaId);
+  Future<void> skipToQueueItem(int index) async {
+    playbackState.add(playbackState.value!.copyWith(queueIndex: index));
+    mediaItem.add(queue.value![index]);
+    await super.skipToQueueItem(index);
   }
 
   Future<void> _skip(int offset) async {
-    if (mediaItem.value == null) return;
-    int i = queue.value!.indexOf(mediaItem.value!);
-    if (i == -1) return;
-    int newIndex = i + offset;
-    if (newIndex >= 0 && newIndex < queue.value!.length) {
-      await skipToQueueItem(queue.value![newIndex].id);
-    }
+    final queue = this.queue.value!;
+    final index = playbackState.value!.queueIndex!;
+    if (index < 0 || index >= queue.length) return;
+    await skipToQueueItem(index + offset);
   }
 }
 
