@@ -109,7 +109,7 @@ main() async {
   _audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
     config: AudioServiceConfig(
-      androidNoticificationChannelName: 'My Audio App',
+      androidNotificationChannelName: 'My Audio App',
       androidEnableQueue: true,
     ),
   );
