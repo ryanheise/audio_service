@@ -187,6 +187,7 @@ static MPMediaItemArtwork* artwork = nil;
             actionBits |= actionCode;
         }
         processingState = [args[@"processingState"] intValue];
+        BOOL wasPlaying = playing;
         playing = [args[@"playing"] boolValue];
         position = args[@"updatePosition"];
         bufferedPosition = args[@"bufferedPosition"];
@@ -202,7 +203,9 @@ static MPMediaItemArtwork* artwork = nil;
         }
         [self broadcastPlaybackState];
         [self updateControls];
-        [self updateNowPlayingInfo];
+        if (playing != wasPlaying) {
+            [self updateNowPlayingInfo];
+        }
         result(@(YES));
     } else if ([@"setQueue" isEqualToString:call.method]) {
         queue = call.arguments;
