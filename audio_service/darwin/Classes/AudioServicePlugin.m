@@ -9,8 +9,7 @@
 // you for your support!
 
 static NSHashTable<AudioServicePlugin *> *plugins = nil;
-static FlutterMethodChannel *channel = nil;
-static FlutterMethodChannel *backgroundChannel = nil;
+static FlutterMethodChannel *handlerChannel = nil;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
 static NSArray *queue = nil;
@@ -39,13 +38,14 @@ static MPMediaItemArtwork* artwork = nil;
         if (!plugins) {
             plugins = [NSHashTable weakObjectsHashTable];
         }
-        // TODO: Need a reliable way to detect whether this is a client
-        // or the background.
         AudioServicePlugin *instance = [[AudioServicePlugin alloc] initWithRegistrar:registrar];
+        NSLog(@"XXX: register client listener");
         [registrar addMethodCallDelegate:instance channel:instance.channel];
+        NSLog(@"XXX: registered client listener");
         [plugins addObject:instance];
-        if (!backgroundChannel) {
+        if (!handlerChannel) {
             processingState = ApsIdle;
+            NSLog(@"XXX: setting position to zero");
             position = @(0);
             bufferedPosition = @(0);
             long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
@@ -53,10 +53,10 @@ static MPMediaItemArtwork* artwork = nil;
             speed = [NSNumber numberWithDouble: 1.0];
             repeatMode = @(0);
             shuffleMode = @(0);
-            backgroundChannel = [FlutterMethodChannel
-                methodChannelWithName:@"ryanheise.com/audioServiceBackground"
+            handlerChannel = [FlutterMethodChannel
+                methodChannelWithName:@"com.ryanheise.audio_service.handler.methods"
                       binaryMessenger:[registrar messenger]];
-            [registrar addMethodCallDelegate:instance channel:backgroundChannel];
+            [registrar addMethodCallDelegate:instance channel:handlerChannel];
         }
     }
 }
@@ -65,7 +65,7 @@ static MPMediaItemArtwork* artwork = nil;
     self = [super init];
     NSAssert(self, @"super init cannot be nil");
     _channel = [FlutterMethodChannel
-        methodChannelWithName:@"ryanheise.com/audioService"
+        methodChannelWithName:@"com.ryanheise.audio_service.client.methods"
               binaryMessenger:[registrar messenger]];
     return self;
 }
@@ -74,13 +74,13 @@ static MPMediaItemArtwork* artwork = nil;
     return _channel;
 }
 
-- (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments {
+- (void)invokeClientMethod:(NSString *)method arguments:(id _Nullable)arguments {
     for (AudioServicePlugin *plugin in plugins) {
         [plugin.channel invokeMethod:method arguments:arguments];
     }
 }
 
-- (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments result:(FlutterResult)result {
+- (void)invokeClientMethod:(NSString *)method arguments:(id _Nullable)arguments result:(FlutterResult)result {
     for (AudioServicePlugin *plugin in plugins) {
         [plugin.channel invokeMethod:method arguments:arguments result:result];
     }
@@ -136,64 +136,67 @@ static MPMediaItemArtwork* artwork = nil;
 }
 
 - (void)broadcastPlaybackState {
-    [self invokeMethod:@"onPlaybackStateChanged" arguments:@[
-        // processingState
-        @(processingState),
-        // playing
-        @(playing),
-        // actions
-        @(actionBits),
-        // position
-        position,
-        // bufferedPosition
-        bufferedPosition,
-        // playback speed
-        speed,
-        // update time since epoch
-        updateTime,
-        // repeat mode
-        repeatMode,
-        // shuffle mode
-        shuffleMode,
-    ]];
+    NSMutableArray *systemActions = [NSMutableArray new];
+    for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
+        if ((actionBits & (1 << actionIndex)) != 0) {
+            [systemActions addObject:@(actionIndex)];
+        }
+    }
+    NSLog(@"XXX: broadcasting state");
+    [self invokeClientMethod:@"onPlaybackStateChanged" arguments:@{
+            @"state":@{
+                    @"processingState": @(processingState),
+                    @"playing": @(playing),
+                    @"controls": @[],
+                    @"systemActions": systemActions,
+                    @"updatePosition": position,
+                    @"bufferedPosition": bufferedPosition,
+                    @"speed": speed,
+                    @"updateTime": updateTime,
+                    @"repeatMode": repeatMode,
+                    @"shuffleMode": shuffleMode,
+            }
+    }];
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     if ([@"configure" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
-        fastForwardInterval = [args objectForKey:@"fastForwardInterval"];
-        rewindInterval = [args objectForKey:@"rewindInterval"];
-        result(@YES);
+        NSDictionary *configMap = (NSDictionary *)args[@"config"];
+        fastForwardInterval = configMap[@"fastForwardInterval"];
+        rewindInterval = configMap[@"rewindInterval"];
+        result(@{});
     } else if ([@"setState" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
+        NSDictionary *stateMap = (NSDictionary *)args[@"state"];
         long long msSinceEpoch;
-        if (args[@"updateTime"] != [NSNull null]) {
-            msSinceEpoch = [args[@"updateTime"] longLongValue];
+        if (stateMap[@"updateTime"] != [NSNull null]) {
+            msSinceEpoch = [stateMap[@"updateTime"] longLongValue];
         } else {
             msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
         }
         actionBits = 0;
-        NSArray *controlsArray = args[@"controls"];
+        NSArray *controlsArray = stateMap[@"controls"];
         for (int i = 0; i < controlsArray.count; i++) {
             NSDictionary *control = (NSDictionary *)controlsArray[i];
             NSNumber *actionIndex = (NSNumber *)control[@"action"];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        NSArray *systemActionsArray = args[@"systemActions"];
+        NSArray *systemActionsArray = stateMap[@"systemActions"];
         for (int i = 0; i < systemActionsArray.count; i++) {
             NSNumber *actionIndex = (NSNumber *)systemActionsArray[i];
             int actionCode = 1 << [actionIndex intValue];
             actionBits |= actionCode;
         }
-        processingState = [args[@"processingState"] intValue];
+        processingState = [stateMap[@"processingState"] intValue];
         BOOL wasPlaying = playing;
-        playing = [args[@"playing"] boolValue];
-        position = args[@"updatePosition"];
-        bufferedPosition = args[@"bufferedPosition"];
-        speed = args[@"speed"];
-        repeatMode = args[@"repeatMode"];
-        shuffleMode = args[@"shuffleMode"];
+        playing = [stateMap[@"playing"] boolValue];
+        position = stateMap[@"updatePosition"];
+        bufferedPosition = stateMap[@"bufferedPosition"];
+        speed = stateMap[@"speed"];
+        repeatMode = stateMap[@"repeatMode"];
+        shuffleMode = stateMap[@"shuffleMode"];
         updateTime = [NSNumber numberWithLongLong: msSinceEpoch];
         if (playing && !commandCenter) {
 #if TARGET_OS_IPHONE
@@ -206,13 +209,17 @@ static MPMediaItemArtwork* artwork = nil;
         if (playing != wasPlaying) {
             [self updateNowPlayingInfo];
         }
-        result(@(YES));
+        result(@{});
     } else if ([@"setQueue" isEqualToString:call.method]) {
-        queue = call.arguments;
-        [self invokeMethod:@"onQueueChanged" arguments:@[queue]];
-        result(@YES);
+        NSDictionary *args = (NSDictionary *)call.arguments;
+        queue = args[@"queue"];
+        [self invokeClientMethod:@"onQueueChanged" arguments:@{
+            @"queue":queue
+        }];
+        result(@{});
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
-        mediaItem = call.arguments;
+        NSDictionary *args = (NSDictionary *)call.arguments;
+        mediaItem = args[@"mediaItem"];
         NSString* artUri = mediaItem[@"artUri"];
         artwork = nil;
         if (![artUri isEqual: [NSNull null]]) {
@@ -239,14 +246,14 @@ static MPMediaItemArtwork* artwork = nil;
             }
         }
         [self updateNowPlayingInfo];
-        [self invokeMethod:@"onMediaChanged" arguments:@[call.arguments]];
-        result(@(YES));
+        [self invokeClientMethod:@"onMediaItemChanged" arguments:call.arguments];
+        result(@{});
     } else if ([@"setPlaybackInfo" isEqualToString:call.method]) {
-        result(@YES);
+        result(@{});
     } else if ([@"notifyChildrenChanged" isEqualToString:call.method]) {
-        result(@YES);
+        result(@{});
     } else if ([@"androidForceEnableMediaButtons" isEqualToString:call.method]) {
-        result(@YES);
+        result(@{});
     } else if ([@"stopService" isEqualToString:call.method]) {
         [commandCenter.changePlaybackRateCommand setEnabled:NO];
         [commandCenter.togglePlayPauseCommand setEnabled:NO];
@@ -257,22 +264,19 @@ static MPMediaItemArtwork* artwork = nil;
         _controlsUpdated = NO;
         startResult = nil;
         commandCenter = nil;
-        result(@YES);
-    } else {
-        // TODO: Check if needed anymore.
-        [self invokeMethod:call.method arguments:call.arguments result:result];
+        result(@{});
     }
 }
 
 - (MPRemoteCommandHandlerStatus) play: (MPRemoteCommandEvent *) event {
     NSLog(@"play");
-    [backgroundChannel invokeMethod:@"onPlay" arguments:nil];
+    [handlerChannel invokeMethod:@"play" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) pause: (MPRemoteCommandEvent *) event {
     NSLog(@"pause");
-    [backgroundChannel invokeMethod:@"onPause" arguments:nil];
+    [handlerChannel invokeMethod:@"pause" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
@@ -426,57 +430,65 @@ static MPMediaItemArtwork* artwork = nil;
 
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
     NSLog(@"togglePlayPause");
-    [backgroundChannel invokeMethod:@"onClick" arguments:@[@(0)]];
+    [handlerChannel invokeMethod:@"click" arguments:@{
+        @"button":@(0)
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) stop: (MPRemoteCommandEvent *) event {
     NSLog(@"stop");
-    [backgroundChannel invokeMethod:@"onStop" arguments:nil];
+    [handlerChannel invokeMethod:@"stop" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) nextTrack: (MPRemoteCommandEvent *) event {
     NSLog(@"nextTrack");
-    [backgroundChannel invokeMethod:@"onSkipToNext" arguments:nil];
+    [handlerChannel invokeMethod:@"skipToNext" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) previousTrack: (MPRemoteCommandEvent *) event {
     NSLog(@"previousTrack");
-    [backgroundChannel invokeMethod:@"onSkipToPrevious" arguments:nil];
+    [handlerChannel invokeMethod:@"skipToPrevious" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
     NSLog(@"changePlaybackPosition");
-    [backgroundChannel invokeMethod:@"onSeekTo" arguments: @[@((long long) (event.positionTime * 1000))]];
+    [handlerChannel invokeMethod:@"seekTo" arguments: @{
+        @"position":@((long long) (event.positionTime * 1000))
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) skipForward: (MPRemoteCommandEvent *) event {
     NSLog(@"skipForward");
-    [backgroundChannel invokeMethod:@"onFastForward" arguments:nil];
+    [handlerChannel invokeMethod:@"fastForward" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) skipBackward: (MPRemoteCommandEvent *) event {
     NSLog(@"skipBackward");
-    [backgroundChannel invokeMethod:@"onRewind" arguments:nil];
+    [handlerChannel invokeMethod:@"rewind" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) seekForward: (MPSeekCommandEvent *) event {
     NSLog(@"seekForward");
     BOOL begin = event.type == MPSeekCommandEventTypeBeginSeeking;
-    [backgroundChannel invokeMethod:@"onSeekForward" arguments:@[@(begin)]];
+    [handlerChannel invokeMethod:@"seekForward" arguments:@{
+        @"begin":@(begin)
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) seekBackward: (MPSeekCommandEvent *) event {
     NSLog(@"seekBackward");
     BOOL begin = event.type == MPSeekCommandEventTypeBeginSeeking;
-    [backgroundChannel invokeMethod:@"onSeekBackward" arguments:@[@(begin)]];
+    [handlerChannel invokeMethod:@"seekBackward" arguments:@{
+        @"begin":@(begin)
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
@@ -495,7 +507,9 @@ static MPMediaItemArtwork* artwork = nil;
             modeIndex = 2;
             break;
     }
-    [backgroundChannel invokeMethod:@"onSetRepeatMode" arguments:@[@(modeIndex)]];
+    [handlerChannel invokeMethod:@"setRepeatMode" arguments:@{
+        @"repeatMode":@(modeIndex)
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
@@ -514,7 +528,9 @@ static MPMediaItemArtwork* artwork = nil;
             modeIndex = 2;
             break;
     }
-    [backgroundChannel invokeMethod:@"onSetShuffleMode" arguments:@[@(modeIndex)]];
+    [handlerChannel invokeMethod:@"setShuffleMode" arguments:@{
+        @"shuffleMode":@(modeIndex)
+    }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
