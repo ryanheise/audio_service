@@ -1,6 +1,7 @@
-## 0.17.0-nullsafety.0
+## 0.17.0
 
 * Null safety.
+* Change artUri type from String to Uri.
 
 ## 0.16.2+1
 
