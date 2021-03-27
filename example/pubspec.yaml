@@ -3,23 +3,23 @@ description: Demonstrates how to use the audio_service plugin.
 publish_to: 'none'
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: ">=2.12.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  path_provider: ^1.6.10
-  audio_session: ^0.0.11
-  just_audio: ^0.6.13
-  flutter_tts: ^0.8.5
-  rxdart: "0.25.0"
+  path_provider: ^2.0.1
+  audio_session: ^0.1.0
+  just_audio: ^0.7.0
+  flutter_tts: ^3.0.0
+  rxdart: ^0.26.0
   audio_service:
     path: ../
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^0.1.2
+  cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:

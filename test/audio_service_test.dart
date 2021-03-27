@@ -35,7 +35,7 @@ void main() {
     expect(AudioServiceBackground.mediaItem.toString(),
         equals(_singleItem.toString()));
     await Future.delayed(Duration.zero);
-    expect(AudioService.playbackState?.playing, equals(false));
+    expect(AudioService.playbackState.playing, equals(false));
     expect(AudioService.currentMediaItem.toString(),
         equals(_singleItem.toString()));
 
@@ -271,7 +271,7 @@ void main() {
       artist: 'artist',
       genre: 'genre',
       duration: Duration.zero,
-      artUri: 'https://foo.foo/foo.mp3',
+      artUri: Uri.parse('https://foo.foo/foo.mp3'),
       playable: true,
       displayTitle: 'displayTitle',
       displaySubtitle: 'displaySubtitle',
@@ -286,7 +286,7 @@ void main() {
       artist: 'artist',
       genre: 'genre',
       duration: Duration(minutes: 1),
-      artUri: 'https://foo.foo/foo.mp3',
+      artUri: Uri.parse('https://foo.foo/foo.mp3'),
       playable: true,
       displayTitle: 'displayTitle',
       displaySubtitle: 'displaySubtitle',
@@ -301,7 +301,7 @@ void main() {
       artist: 'artist',
       genre: 'genre',
       duration: Duration.zero,
-      artUri: 'https://foo.foo/foo.mp3',
+      artUri: Uri.parse('https://foo.foo/foo.mp3'),
       playable: true,
       displayTitle: 'displayTitle',
       displaySubtitle: 'displaySubtitle',
@@ -382,7 +382,7 @@ void main() {
     final stopwatch = Stopwatch();
     stopwatch.start();
     var completer = Completer();
-    StreamSubscription subscription;
+    late StreamSubscription subscription;
     subscription = AudioService.positionStream.listen((position) {
       if (position >= position1) {
         subscription.cancel();
@@ -414,7 +414,7 @@ void main() {
   test('customEventStream', () async {
     await AudioService.connect();
     await AudioService.start(backgroundTaskEntrypoint: task1);
-    Duration position;
+    Duration? position = Duration.zero;
     final subscription = AudioService.customEventStream.listen((event) {
       position = event;
     });
@@ -449,16 +449,16 @@ void task1() => AudioServiceBackground.run(() => Task1());
 class Task1 extends BackgroundAudioTask {
   final _queue = <MediaItem>[_singleItem];
   var _index = 0;
-  Map _params;
-  MediaItem get mediaItem => _index < _queue.length ? _queue[_index] : null;
+  Map? _params;
+  MediaItem? get mediaItem => _index < _queue.length ? _queue[_index] : null;
 
   @override
-  Future<void> onStart(Map<String, dynamic> params) async {
+  Future<void> onStart(Map<String, dynamic>? params) async {
     _params = params;
     await AudioServiceBackground.setQueue(_queue);
     await AudioServiceBackground.setState(
         processingState: AudioProcessingState.ready);
-    await AudioServiceBackground.setMediaItem(mediaItem);
+    await AudioServiceBackground.setMediaItem(mediaItem!);
   }
 
   @override
@@ -481,7 +481,7 @@ class Task1 extends BackgroundAudioTask {
   Future<void> onPlayFromMediaId(String mediaId) async {
     _index = _queue.indexWhere((item) => item.id == mediaId);
     await AudioServiceBackground.setState(playing: true);
-    await AudioServiceBackground.setMediaItem(mediaItem);
+    await AudioServiceBackground.setMediaItem(mediaItem!);
   }
 
   @override
@@ -502,7 +502,7 @@ class Task1 extends BackgroundAudioTask {
     _queue.replaceRange(0, _queue.length, queue);
     await AudioServiceBackground.setQueue(_queue);
     if (mediaItem != oldMediaItem) {
-      await AudioServiceBackground.setMediaItem(mediaItem);
+      await AudioServiceBackground.setMediaItem(mediaItem!);
     }
   }
 
@@ -521,7 +521,7 @@ class Task1 extends BackgroundAudioTask {
     _queue.insert(index, mediaItem);
     await AudioServiceBackground.setQueue(_queue);
     if (this.mediaItem != oldMediaItem) {
-      await AudioServiceBackground.setMediaItem(this.mediaItem);
+      await AudioServiceBackground.setMediaItem(this.mediaItem!);
     }
   }
 
@@ -534,7 +534,7 @@ class Task1 extends BackgroundAudioTask {
       // Note: This is not a robust way to implement a queue, but our
       // purpose is not to build a complete background task, rather it
       // is to test the plugin proper.
-      await AudioServiceBackground.setMediaItem(this.mediaItem);
+      await AudioServiceBackground.setMediaItem(this.mediaItem!);
     }
   }
 
@@ -557,7 +557,8 @@ class Task1 extends BackgroundAudioTask {
   }
 
   @override
-  Future<void> onSetRating(Rating rating, Map<dynamic, dynamic> extras) async {}
+  Future<void> onSetRating(
+      Rating rating, Map<dynamic, dynamic>? extras) async {}
 
   @override
   Future<void> onSetRepeatMode(AudioServiceRepeatMode repeatMode) async {
@@ -611,10 +612,10 @@ class MockAudioService {
 
   static var _connected = false;
   static var _running = false;
-  static int _fastForwardInterval;
-  static int _rewindInterval;
-  static Map<String, dynamic> _params;
-  static Completer<bool> _stopCompleter;
+  static int? _fastForwardInterval;
+  static int? _rewindInterval;
+  static Map<String, dynamic>? _params;
+  static Completer<bool>? _stopCompleter;
 
   static void setup() {
     _connected = false;
@@ -632,7 +633,7 @@ class MockAudioService {
           return _running;
         case 'start':
           if (_running) return false;
-          _params = (args['params'] as Map)?.cast<String, dynamic>();
+          _params = (args['params'] as Map?)?.cast<String, dynamic>();
           _fastForwardInterval = args['fastForwardInterval'];
           _rewindInterval = args['rewindInterval'];
           _running = true;
@@ -674,7 +675,7 @@ class MockAudioService {
         case 'stop':
           bgChannelInverse.invokeMethod(onMethod, args);
           _stopCompleter = Completer();
-          return _stopCompleter.future;
+          return _stopCompleter!.future;
         case 'setRating':
           return bgChannelInverse
               .invokeMethod(onMethod, [args['rating'], args['extras']]);
@@ -709,10 +710,7 @@ class MockAudioService {
           for (var rawSystemAction in rawSystemActions) {
             actionBits |= 1 << rawSystemAction;
           }
-          int updateTime = args[7];
-          if (updateTime == null) {
-            updateTime = DateTime.now().millisecondsSinceEpoch;
-          }
+          int updateTime = args[7] ?? DateTime.now().millisecondsSinceEpoch;
           await channelInverse.invokeMethod('onPlaybackStateChanged', [
             args[2], // processingState
             args[3], // playing
@@ -728,7 +726,7 @@ class MockAudioService {
         case 'stopped':
           _running = false;
           await channelInverse.invokeMethod('onStopped');
-          _stopCompleter.complete(true);
+          _stopCompleter!.complete(true);
           return true;
         case 'notifyChildrenChanged':
           return true;
