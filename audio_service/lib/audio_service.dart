@@ -662,193 +662,195 @@ class AudioService {
 
     _platform.setHandlerCallbacks(_HandlerCallbacks(handler));
     // This port listens to connections from other isolates.
-    _customActionReceivePort = ReceivePort();
-    _customActionReceivePort.listen((dynamic event) async {
-      final request = event as _IsolateRequest;
-      switch (request.method) {
-        case 'prepare':
-          await _handler.prepare();
-          request.sendPort.send(null);
-          break;
-        case 'prepareFromMediaId':
-          await _handler.prepareFromMediaId(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'prepareFromSearch':
-          await _handler.prepareFromSearch(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'prepareFromUri':
-          await _handler.prepareFromUri(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'play':
-          await _handler.play();
-          request.sendPort.send(null);
-          break;
-        case 'playFromMediaId':
-          await _handler.playFromMediaId(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'playFromSearch':
-          await _handler.playFromSearch(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'playFromUri':
-          await _handler.playFromUri(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'playMediaItem':
-          await _handler.playMediaItem(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'pause':
-          await _handler.pause();
-          request.sendPort.send(null);
-          break;
-        case 'click':
-          await _handler.click(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'stop':
-          await _handler.stop();
-          request.sendPort.send(null);
-          break;
-        case 'addQueueItem':
-          await _handler.addQueueItem(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'addQueueItems':
-          await _handler.addQueueItems(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'insertQueueItem':
-          await _handler.insertQueueItem(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'updateQueue':
-          await _handler.updateQueue(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'updateMediaItem':
-          await _handler.updateMediaItem(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'removeQueueItem':
-          await _handler.removeQueueItem(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'removeQueueItemAt':
-          await _handler.removeQueueItemAt(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'skipToNext':
-          await _handler.skipToNext();
-          request.sendPort.send(null);
-          break;
-        case 'skipToPrevious':
-          await _handler.skipToPrevious();
-          request.sendPort.send(null);
-          break;
-        case 'fastForward':
-          await _handler.fastForward();
-          request.sendPort.send(null);
-          break;
-        case 'rewind':
-          await _handler.rewind();
-          request.sendPort.send(null);
-          break;
-        case 'skipToQueueItem':
-          await _handler.skipToQueueItem(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'seek':
-          await _handler.seek(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'setRating':
-          await _handler.setRating(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'setCaptioningEnabled':
-          await _handler.setCaptioningEnabled(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'setRepeatMode':
-          await _handler.setRepeatMode(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'setShuffleMode':
-          await _handler.setShuffleMode(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'seekBackward':
-          await _handler.seekBackward(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'seekForward':
-          await _handler.seekForward(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'setSpeed':
-          await _handler.setSpeed(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'customAction':
-          await _handler.customAction(
-              request.arguments![0], request.arguments![1]);
-          request.sendPort.send(null);
-          break;
-        case 'onTaskRemoved':
-          await _handler.onTaskRemoved();
-          request.sendPort.send(null);
-          break;
-        case 'onNotificationDeleted':
-          await _handler.onNotificationDeleted();
-          request.sendPort.send(null);
-          break;
-        case 'getChildren':
-          request.sendPort.send(await _handler.getChildren(
-              request.arguments![0], request.arguments![1]));
-          break;
-        case 'subscribeToChildren':
-          final parentMediaId = request.arguments![0] as String;
-          final sendPort = request.arguments![1] as SendPort?;
-          _handler
-              .subscribeToChildren(parentMediaId)
-              .listen((Map<String, dynamic>? options) {
-            sendPort!.send(options);
-          });
-          break;
-        case 'getMediaItem':
-          request.sendPort
-              .send(await _handler.getMediaItem(request.arguments![0]));
-          break;
-        case 'search':
-          request.sendPort.send(await _handler.search(
-              request.arguments![0], request.arguments![1]));
-          break;
-        case 'androidAdjustRemoteVolume':
-          await _handler.androidAdjustRemoteVolume(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-        case 'androidSetRemoteVolume':
-          await _handler.androidSetRemoteVolume(request.arguments![0]);
-          request.sendPort.send(null);
-          break;
-      }
-    });
-    //IsolateNameServer.removePortNameMapping(_isolatePortName);
-    IsolateNameServer.registerPortWithName(
-        _customActionReceivePort.sendPort, _isolatePortName);
+    if (!kIsWeb) {
+      _customActionReceivePort = ReceivePort();
+      _customActionReceivePort.listen((dynamic event) async {
+        final request = event as _IsolateRequest;
+        switch (request.method) {
+          case 'prepare':
+            await _handler.prepare();
+            request.sendPort.send(null);
+            break;
+          case 'prepareFromMediaId':
+            await _handler.prepareFromMediaId(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'prepareFromSearch':
+            await _handler.prepareFromSearch(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'prepareFromUri':
+            await _handler.prepareFromUri(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'play':
+            await _handler.play();
+            request.sendPort.send(null);
+            break;
+          case 'playFromMediaId':
+            await _handler.playFromMediaId(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'playFromSearch':
+            await _handler.playFromSearch(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'playFromUri':
+            await _handler.playFromUri(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'playMediaItem':
+            await _handler.playMediaItem(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'pause':
+            await _handler.pause();
+            request.sendPort.send(null);
+            break;
+          case 'click':
+            await _handler.click(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'stop':
+            await _handler.stop();
+            request.sendPort.send(null);
+            break;
+          case 'addQueueItem':
+            await _handler.addQueueItem(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'addQueueItems':
+            await _handler.addQueueItems(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'insertQueueItem':
+            await _handler.insertQueueItem(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'updateQueue':
+            await _handler.updateQueue(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'updateMediaItem':
+            await _handler.updateMediaItem(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'removeQueueItem':
+            await _handler.removeQueueItem(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'removeQueueItemAt':
+            await _handler.removeQueueItemAt(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'skipToNext':
+            await _handler.skipToNext();
+            request.sendPort.send(null);
+            break;
+          case 'skipToPrevious':
+            await _handler.skipToPrevious();
+            request.sendPort.send(null);
+            break;
+          case 'fastForward':
+            await _handler.fastForward();
+            request.sendPort.send(null);
+            break;
+          case 'rewind':
+            await _handler.rewind();
+            request.sendPort.send(null);
+            break;
+          case 'skipToQueueItem':
+            await _handler.skipToQueueItem(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'seek':
+            await _handler.seek(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'setRating':
+            await _handler.setRating(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'setCaptioningEnabled':
+            await _handler.setCaptioningEnabled(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'setRepeatMode':
+            await _handler.setRepeatMode(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'setShuffleMode':
+            await _handler.setShuffleMode(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'seekBackward':
+            await _handler.seekBackward(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'seekForward':
+            await _handler.seekForward(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'setSpeed':
+            await _handler.setSpeed(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'customAction':
+            await _handler.customAction(
+                request.arguments![0], request.arguments![1]);
+            request.sendPort.send(null);
+            break;
+          case 'onTaskRemoved':
+            await _handler.onTaskRemoved();
+            request.sendPort.send(null);
+            break;
+          case 'onNotificationDeleted':
+            await _handler.onNotificationDeleted();
+            request.sendPort.send(null);
+            break;
+          case 'getChildren':
+            request.sendPort.send(await _handler.getChildren(
+                request.arguments![0], request.arguments![1]));
+            break;
+          case 'subscribeToChildren':
+            final parentMediaId = request.arguments![0] as String;
+            final sendPort = request.arguments![1] as SendPort?;
+            _handler
+                .subscribeToChildren(parentMediaId)
+                .listen((Map<String, dynamic>? options) {
+              sendPort!.send(options);
+            });
+            break;
+          case 'getMediaItem':
+            request.sendPort
+                .send(await _handler.getMediaItem(request.arguments![0]));
+            break;
+          case 'search':
+            request.sendPort.send(await _handler.search(
+                request.arguments![0], request.arguments![1]));
+            break;
+          case 'androidAdjustRemoteVolume':
+            await _handler.androidAdjustRemoteVolume(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+          case 'androidSetRemoteVolume':
+            await _handler.androidSetRemoteVolume(request.arguments![0]);
+            request.sendPort.send(null);
+            break;
+        }
+      });
+      //IsolateNameServer.removePortNameMapping(_isolatePortName);
+      IsolateNameServer.registerPortWithName(
+          _customActionReceivePort.sendPort, _isolatePortName);
+    }
     _handler.mediaItem.listen((MediaItem? mediaItem) async {
       if (mediaItem == null) return;
       final artUri = mediaItem.artUri;
