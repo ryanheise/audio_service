@@ -11,6 +11,8 @@ dependencies:
   # TODO: change this to hosted once released.
   audio_service_platform_interface:
     path: ../audio_service_platform_interface
+  audio_service_web:
+    path: ../audio_service_web
   audio_session: ^0.1.0
   rxdart: ^0.26.0
   flutter_cache_manager: ^3.0.0-nullsafety.1
@@ -39,5 +41,4 @@ flutter:
       macos:
         pluginClass: AudioServicePlugin
       web:
-        pluginClass: AudioServicePlugin
-        fileName: audio_service_web.dart
+        default_package: audio_service_web
