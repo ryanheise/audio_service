@@ -257,6 +257,9 @@ class PlaybackState {
         captioningEnabled: captioningEnabled,
         queueIndex: queueIndex,
       );
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 enum RatingStyle {
@@ -367,6 +370,9 @@ class Rating {
 
   RatingMessage _toMessage() => RatingMessage(
       type: RatingStyleMessage.values[_type.index], value: _value);
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 /// Metadata about an audio item that can be played, or a folder containing
@@ -487,6 +493,9 @@ class MediaItem {
         rating: rating?._toMessage(),
         extras: extras,
       );
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 /// A button to appear in the Android notification, lock screen, Android smart
@@ -593,6 +602,9 @@ class MediaControl {
         label: label,
         action: MediaActionMessage.values[action.index],
       );
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
@@ -2749,6 +2761,9 @@ class AudioServiceConfig {
         preloadArtwork: preloadArtwork,
         androidBrowsableRootExtras: androidBrowsableRootExtras,
       );
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 /// Key/value codes for use in [MediaItem.extras] and
@@ -2844,6 +2859,9 @@ enum AndroidVolumeControlType { fixed, relative, absolute }
 
 abstract class AndroidPlaybackInfo {
   AndroidPlaybackInfoMessage _toMessage();
+
+  @override
+  String toString() => '${_toMessage().toMap()}';
 }
 
 class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {

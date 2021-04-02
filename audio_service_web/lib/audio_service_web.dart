@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:html' as html;
 
 import 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'dart:js' as js;
 import 'js/media_session_web.dart';
@@ -13,7 +12,7 @@ class AudioServiceWeb extends AudioServicePlatform {
   }
 
   AudioHandlerCallbacks? handlerCallbacks;
-  MediaItem? mediaItem;
+  MediaItemMessage? mediaItem;
 
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
@@ -119,16 +118,16 @@ class AudioServiceWeb extends AudioServicePlatform {
   }
 
   Future<void> setMediaItem(SetMediaItemRequest request) async {
-    final mediaItem = request.mediaItem;
-    final artUri = mediaItem.artUri;
+    mediaItem = request.mediaItem;
+    final artUri = mediaItem!.artUri;
 
     print('setting media item!');
 
     try {
       metadata = html.MediaMetadata({
-        'album': mediaItem.album,
-        'title': mediaItem.title,
-        'artist': mediaItem.artist,
+        'album': mediaItem!.album,
+        'title': mediaItem!.title,
+        'artist': mediaItem!.artist,
         'artwork': [
           {
             'src': artUri,
