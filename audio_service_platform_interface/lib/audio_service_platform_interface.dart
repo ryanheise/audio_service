@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'no_op_audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -9,7 +13,10 @@ abstract class AudioServicePlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static AudioServicePlatform _instance = MethodChannelAudioService();
+  static AudioServicePlatform _instance =
+      (!kIsWeb && (Platform.isWindows || Platform.isLinux))
+          ? NoOpAudioService()
+          : MethodChannelAudioService();
 
   /// The default instance of [AudioServicePlatform] to use.
   ///
