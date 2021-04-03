@@ -345,22 +345,30 @@ Additionally:
 </manifest>
 ```
 
-2. Starting from Flutter 1.12, you will need to disable the `shrinkResources` setting in your `android/app/build.gradle` file, otherwise the icon resources used in the Android notification will be removed during the build:
+2. If you use any custom icons in notification, you should create `res/raw/keep.xml` as shown below, otherwise the icon resources will be removed during the build:
 
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+  tools:keep="@drawable/*" />
+
+<!-- This forces R8 to keep all drawables from being stripped away in release builds -->
 ```
-android {
-    compileSdkVersion 30
 
-    ...
+If you only use your own icon resources and you would like to discrard plugin's, you could write it like this:
 
-    buildTypes {
-        release {
-            signingConfig ...
-            shrinkResources false // ADD THIS LINE
-        }
-    }
-}
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+  tools:keep="@drawable/*"
+  tools:discard="@drawable/audio_service_*" 
+/>
+
+<!-- In this case, make sure you do not prefix your resources
+  with `audio_service_`, otherwise they will be discarded -->
 ```
+
+For more information about shrinking see [Android documentation](https://developer.android.com/studio/build/shrink-code#keep-resources).
 
 ### Custom Android activity
 
