@@ -345,17 +345,15 @@ Additionally:
 </manifest>
 ```
 
-2. If you use any custom icons in notification, you should create `res/raw/keep.xml` as shown below, otherwise the icon resources will be removed during the build:
+2. If you use any custom icons in notification, create the file `android/app/src/main/res/raw/keep.xml` to prevent them from being stripped during the build process:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools"
   tools:keep="@drawable/*" />
-
-<!-- This forces R8 to keep all drawables from being stripped away in release builds -->
 ```
 
-If you only use your own icon resources and you would like to discrard plugin's, you could write it like this:
+By default plugin's default icons are not stipped by R8. If you don't use them, you may selectively strip them. For example, the rules below will keep all your icons and discard all the plugin's:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -363,9 +361,6 @@ If you only use your own icon resources and you would like to discrard plugin's,
   tools:keep="@drawable/*"
   tools:discard="@drawable/audio_service_*" 
 />
-
-<!-- In this case, make sure you do not prefix your resources
-  with `audio_service_`, otherwise they will be discarded -->
 ```
 
 For more information about shrinking see [Android documentation](https://developer.android.com/studio/build/shrink-code#keep-resources).
