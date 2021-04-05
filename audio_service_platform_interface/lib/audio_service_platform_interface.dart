@@ -1489,13 +1489,13 @@ class AudioServiceConfigMessage {
   /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
 
-  /// If not null, causes the artwork specified by [MediaItem.artUri] to be
+  /// If not null, causes the artwork specified by [MediaItemMessage.artUri] to be
   /// downscaled to this maximum pixel width. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
   /// [artDownscaleHeight] must also be specified.
   final int? artDownscaleWidth;
 
-  /// If not null, causes the artwork specified by [MediaItem.artUri] to be
+  /// If not null, causes the artwork specified by [MediaItemMessage.artUri] to be
   /// downscaled to this maximum pixel height. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
   /// [artDownscaleWidth] must also be specified.
