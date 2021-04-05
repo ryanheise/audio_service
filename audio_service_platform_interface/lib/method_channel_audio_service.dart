@@ -11,7 +11,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
     return ConfigureResponse.fromMap((await _clientChannel
-        .invokeMethod<Map<dynamic, dynamic>>('configure', request.toMap()))!);
+        .invokeMapMethod<String, dynamic>('configure', request.toMap()))!);
   }
 
   @override
@@ -60,15 +60,18 @@ class MethodChannelAudioService extends AudioServicePlatform {
       switch (call.method) {
         case 'onPlaybackStateChanged':
           callbacks.onPlaybackStateChanged(
-              OnPlaybackStateChangedRequest.fromMap(call.arguments));
+            OnPlaybackStateChangedRequest.fromMap(call.arguments),
+          );
           break;
         case 'onMediaItemChanged':
           callbacks.onMediaItemChanged(
-              OnMediaItemChangedRequest.fromMap(call.arguments));
+            OnMediaItemChangedRequest.fromMap(call.arguments),
+          );
           break;
         case 'onQueueChanged':
-          callbacks
-              .onQueueChanged(OnQueueChangedRequest.fromMap(call.arguments));
+          callbacks.onQueueChanged(
+            OnQueueChangedRequest.fromMap(call.arguments),
+          );
           break;
         //case 'onChildrenLoaded':
         //  callbacks.onChildrenLoaded(
@@ -103,13 +106,13 @@ class MethodChannelAudioService extends AudioServicePlatform {
           print('### called callbacks.click');
           return null;
         case 'stop':
-          await callbacks.stop(StopRequest());
+          await callbacks.stop(const StopRequest());
           return null;
         case 'pause':
-          await callbacks.pause(PauseRequest());
+          await callbacks.pause(const PauseRequest());
           return null;
         case 'prepare':
-          await callbacks.prepare(PrepareRequest());
+          await callbacks.prepare(const PrepareRequest());
           return null;
         case 'prepareFromMediaId':
           await callbacks.prepareFromMediaId(PrepareFromMediaIdRequest(
@@ -127,7 +130,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
               extras: _castMap(call.arguments['extras'])));
           return null;
         case 'play':
-          await callbacks.play(PlayRequest());
+          await callbacks.play(const PlayRequest());
           return null;
         case 'playFromMediaId':
           await callbacks.playFromMediaId(PlayFromMediaIdRequest(
@@ -181,16 +184,16 @@ class MethodChannelAudioService extends AudioServicePlatform {
               RemoveQueueItemAtRequest(index: call.arguments['index']));
           return null;
         case 'skipToNext':
-          await callbacks.skipToNext(SkipToNextRequest());
+          await callbacks.skipToNext(const SkipToNextRequest());
           return null;
         case 'skipToPrevious':
-          await callbacks.skipToPrevious(SkipToPreviousRequest());
+          await callbacks.skipToPrevious(const SkipToPreviousRequest());
           return null;
         case 'fastForward':
-          await callbacks.fastForward(FastForwardRequest());
+          await callbacks.fastForward(const FastForwardRequest());
           return null;
         case 'rewind':
-          await callbacks.rewind(RewindRequest());
+          await callbacks.rewind(const RewindRequest());
           return null;
         case 'skipToQueueItem':
           await callbacks.skipToQueueItem(
@@ -242,10 +245,10 @@ class MethodChannelAudioService extends AudioServicePlatform {
                       .values[call.arguments['direction']]!));
           return null;
         case 'onTaskRemoved':
-          await callbacks.onTaskRemoved(OnTaskRemovedRequest());
+          await callbacks.onTaskRemoved(const OnTaskRemovedRequest());
           return null;
         case 'onNotificationDeleted':
-          await callbacks.onNotificationDeleted(OnNotificationDeletedRequest());
+          await callbacks.onNotificationDeleted(const OnNotificationDeletedRequest());
           return null;
         case 'customAction':
           await callbacks.customAction(CustomActionRequest(
