@@ -1155,8 +1155,8 @@ class AudioService {
 
   /// Deprecated. Use [AudioHandler.insertQueueItem] instead.
   @deprecated
-  static Future<void> addQueueItemAt(MediaItem mediaItem, int index) {
-    return _handler.insertQueueItem(index, mediaItem);
+  static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
+    await _handler.insertQueueItem(index, mediaItem);
   }
 
   /// Deprecated. Use [AudioHandler.removeQueueItem] instead.
@@ -2468,8 +2468,8 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> onTaskRemoved() async {}
 
   @override
-  Future<void> onNotificationDeleted() {
-    return stop();
+  Future<void> onNotificationDeleted() async {
+    await stop();
   }
 
   @override
@@ -2604,23 +2604,23 @@ mixin QueueHandler on BaseAudioHandler {
   }
 
   @override
-  Future<void> updateQueue(List<MediaItem> queue) {
+  Future<void> updateQueue(List<MediaItem> queue) async {
     this.queue.add(
         this.queue.value!..replaceRange(0, this.queue.value!.length, queue));
-    return super.updateQueue(queue);
+    await super.updateQueue(queue);
   }
 
   @override
-  Future<void> updateMediaItem(MediaItem mediaItem) {
+  Future<void> updateMediaItem(MediaItem mediaItem) async {
     this.queue.add(
         this.queue.value!..[this.queue.value!.indexOf(mediaItem)] = mediaItem);
-    return super.updateMediaItem(mediaItem);
+    await super.updateMediaItem(mediaItem);
   }
 
   @override
-  Future<void> removeQueueItem(MediaItem mediaItem) {
+  Future<void> removeQueueItem(MediaItem mediaItem) async {
     queue.add(this.queue.value!..remove(mediaItem));
-    return super.removeQueueItem(mediaItem);
+    await super.removeQueueItem(mediaItem);
   }
 
   @override
@@ -2642,10 +2642,10 @@ mixin QueueHandler on BaseAudioHandler {
   /// [PlaybackState.queueIndex] via the [playbackState] stream, and will
   /// broadcast [queue] element [index] via the stream [mediaItem].
   @override
-  Future<void> skipToQueueItem(int index) {
+  Future<void> skipToQueueItem(int index) async {
     playbackState.add(playbackState.value!.copyWith(queueIndex: index));
     mediaItem.add(queue.value![index]);
-    return super.skipToQueueItem(index);
+    await super.skipToQueueItem(index);
   }
 
   Future<void> _skip(int offset) async {
