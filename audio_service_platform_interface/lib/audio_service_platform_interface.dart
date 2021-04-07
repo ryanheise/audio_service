@@ -1373,11 +1373,10 @@ class ConfigureRequest {
 }
 
 /// The result of [AudioServicePlatform.configure].
-/// 
-/// This is not marked as immutable and doesn't have `const` contructor, because it's
-/// only supposed to be constructed from the result from a native call, thus
-/// will be always runtime (and because `fromMap` should not return
-/// constants as well).
+///
+/// Doesn't have `const` contructor, because it's  only supposed to be constructed
+/// from the result from a native call, thus will be always runtime (and because `fromMap`
+/// should not return constants as well).
 class ConfigureResponse {
   static ConfigureResponse fromMap(Map<String, dynamic> map) =>
       ConfigureResponse();
