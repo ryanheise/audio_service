@@ -1374,8 +1374,8 @@ class ConfigureRequest {
 
 /// The result of [AudioServicePlatform.configure].
 ///
-/// Doesn't have `const` contructor, because it's  only supposed to be constructed
-/// from the result from a native call, thus will be always runtime (and because `fromMap`
+/// Doesn't have `const` constructor, because it's only supposed to be instantiated
+/// from the result of a native call, and thus will be always runtime (and because `fromMap`
 /// should not return constants as well).
 class ConfigureResponse {
   static ConfigureResponse fromMap(Map<String, dynamic> map) =>
