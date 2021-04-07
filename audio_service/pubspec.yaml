@@ -32,10 +32,7 @@ dependencies:
 
   audio_session: ^0.1.0
   rxdart: ^0.26.0
-  flutter_cache_manager: ^3.0.0-nullsafety.1
-  # This sqflite constraint is needed to make the >= 2.0.0 versions of
-  # flutter_cache_manager compile.
-  sqflite: ^2.0.0+2
+  flutter_cache_manager: ^3.0.1
   js: ^0.6.3
   flutter:
     sdk: flutter

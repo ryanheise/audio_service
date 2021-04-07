@@ -261,7 +261,6 @@ enum MediaActionMessage {
   seekForward,
 }
 
-@immutable
 class MediaControlMessage {
   /// A reference to an Android icon resource for the control (e.g.
   /// `"drawable/ic_action_pause"`)
@@ -291,7 +290,6 @@ class MediaControlMessage {
 /// state such as [AudioProcessingState.buffering], the playback position and
 /// the currently enabled actions to be shown in the Android notification or the
 /// iOS control center.
-@immutable
 class PlaybackStateMessage {
   /// The audio processing state e.g. [AudioProcessingStateMessage.buffering].
   final AudioProcessingStateMessage processingState;
@@ -450,7 +448,6 @@ class PlaybackStateMessage {
       };
 }
 
-@immutable
 class AndroidVolumeDirectionMessage {
   static const lower = AndroidVolumeDirectionMessage(-1);
   static const same = AndroidVolumeDirectionMessage(0);
@@ -469,7 +466,6 @@ class AndroidVolumeDirectionMessage {
   String toString() => '$index';
 }
 
-@immutable
 class AndroidPlaybackTypeMessage {
   static const local = AndroidPlaybackTypeMessage(1);
   static const remote = AndroidPlaybackTypeMessage(2);
@@ -484,7 +480,6 @@ class AndroidPlaybackTypeMessage {
 
 enum AndroidVolumeControlTypeMessage { fixed, relative, absolute }
 
-@immutable
 abstract class AndroidPlaybackInfoMessage {
   @literal
   const AndroidPlaybackInfoMessage();
@@ -557,7 +552,6 @@ enum AudioServiceRepeatModeMessage {
   group,
 }
 
-@immutable
 class MediaItemMessage {
   /// A unique id.
   final String id;
@@ -662,7 +656,6 @@ class MediaItemMessage {
 }
 
 /// A rating to attach to a MediaItemMessage.
-@immutable
 class RatingMessage {
   final RatingStyleMessage type;
   final dynamic value;
@@ -756,7 +749,6 @@ enum RatingStyleMessage {
   percentage,
 }
 
-@immutable
 class OnPlaybackStateChangedRequest {
   final PlaybackStateMessage state;
 
@@ -773,7 +765,6 @@ class OnPlaybackStateChangedRequest {
       };
 }
 
-@immutable
 class OnQueueChangedRequest {
   final List<MediaItemMessage> queue;
 
@@ -792,7 +783,6 @@ class OnQueueChangedRequest {
       };
 }
 
-@immutable
 class OnMediaItemChangedRequest {
   final MediaItemMessage? mediaItem;
 
@@ -811,7 +801,6 @@ class OnMediaItemChangedRequest {
       };
 }
 
-@immutable
 class OnChildrenLoadedRequest {
   final String parentMediaId;
   final List<MediaItemMessage> children;
@@ -830,7 +819,6 @@ class OnChildrenLoadedRequest {
       );
 }
 
-@immutable
 class OnNotificationClickedRequest {
   final bool clicked;
 
@@ -847,7 +835,6 @@ class OnNotificationClickedRequest {
       };
 }
 
-@immutable
 class SetStateRequest {
   final PlaybackStateMessage state;
 
@@ -859,7 +846,6 @@ class SetStateRequest {
       };
 }
 
-@immutable
 class SetQueueRequest {
   final List<MediaItemMessage> queue;
 
@@ -871,7 +857,6 @@ class SetQueueRequest {
       };
 }
 
-@immutable
 class SetMediaItemRequest {
   final MediaItemMessage mediaItem;
 
@@ -882,7 +867,6 @@ class SetMediaItemRequest {
       };
 }
 
-@immutable
 class StopServiceRequest {
   @literal
   const StopServiceRequest();
@@ -890,7 +874,6 @@ class StopServiceRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class SetAndroidPlaybackInfoRequest {
   final AndroidPlaybackInfoMessage playbackInfo;
 
@@ -902,7 +885,6 @@ class SetAndroidPlaybackInfoRequest {
       };
 }
 
-@immutable
 class AndroidForceEnableMediaButtonsRequest {
   @literal
   const AndroidForceEnableMediaButtonsRequest();
@@ -910,7 +892,6 @@ class AndroidForceEnableMediaButtonsRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class NotifyChildrenChangedRequest {
   final String parentMediaId;
   final Map<String, dynamic>? options;
@@ -927,7 +908,6 @@ class NotifyChildrenChangedRequest {
       };
 }
 
-@immutable
 class PrepareRequest {
   @literal
   const PrepareRequest();
@@ -935,7 +915,6 @@ class PrepareRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class PrepareFromMediaIdRequest {
   final String mediaId;
   final Map<String, dynamic>? extras;
@@ -948,7 +927,6 @@ class PrepareFromMediaIdRequest {
       };
 }
 
-@immutable
 class PrepareFromSearchRequest {
   final String query;
   final Map<String, dynamic>? extras;
@@ -962,7 +940,6 @@ class PrepareFromSearchRequest {
       };
 }
 
-@immutable
 class PrepareFromUriRequest {
   final Uri uri;
   final Map<String, dynamic>? extras;
@@ -976,7 +953,6 @@ class PrepareFromUriRequest {
       };
 }
 
-@immutable
 class PlayRequest {
   @literal
   const PlayRequest();
@@ -984,7 +960,6 @@ class PlayRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class PlayFromMediaIdRequest {
   final String mediaId;
   final Map<String, dynamic>? extras;
@@ -997,7 +972,6 @@ class PlayFromMediaIdRequest {
       };
 }
 
-@immutable
 class PlayFromSearchRequest {
   final String query;
   final Map<String, dynamic>? extras;
@@ -1011,7 +985,6 @@ class PlayFromSearchRequest {
       };
 }
 
-@immutable
 class PlayFromUriRequest {
   final Uri uri;
   final Map<String, dynamic>? extras;
@@ -1025,7 +998,6 @@ class PlayFromUriRequest {
       };
 }
 
-@immutable
 class PlayMediaItemRequest {
   final MediaItemMessage mediaItem;
 
@@ -1037,7 +1009,6 @@ class PlayMediaItemRequest {
       };
 }
 
-@immutable
 class PauseRequest {
   @literal
   const PauseRequest();
@@ -1045,7 +1016,6 @@ class PauseRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class ClickRequest {
   final MediaButtonMessage button;
 
@@ -1057,7 +1027,6 @@ class ClickRequest {
       };
 }
 
-@immutable
 class StopRequest {
   @literal
   const StopRequest();
@@ -1065,7 +1034,6 @@ class StopRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class AddQueueItemRequest {
   final MediaItemMessage mediaItem;
 
@@ -1077,7 +1045,6 @@ class AddQueueItemRequest {
       };
 }
 
-@immutable
 class AddQueueItemsRequest {
   final List<MediaItemMessage> queue;
 
@@ -1089,7 +1056,6 @@ class AddQueueItemsRequest {
       };
 }
 
-@immutable
 class InsertQueueItemRequest {
   final int index;
   final MediaItemMessage mediaItem;
@@ -1103,7 +1069,6 @@ class InsertQueueItemRequest {
       };
 }
 
-@immutable
 class UpdateQueueRequest {
   final List<MediaItemMessage> queue;
 
@@ -1115,7 +1080,6 @@ class UpdateQueueRequest {
       };
 }
 
-@immutable
 class UpdateMediaItemRequest {
   final MediaItemMessage mediaItem;
 
@@ -1127,7 +1091,6 @@ class UpdateMediaItemRequest {
       };
 }
 
-@immutable
 class RemoveQueueItemRequest {
   final MediaItemMessage mediaItem;
 
@@ -1139,7 +1102,6 @@ class RemoveQueueItemRequest {
       };
 }
 
-@immutable
 class RemoveQueueItemAtRequest {
   final int index;
 
@@ -1151,7 +1113,6 @@ class RemoveQueueItemAtRequest {
       };
 }
 
-@immutable
 class SkipToNextRequest {
   @literal
   const SkipToNextRequest();
@@ -1159,7 +1120,6 @@ class SkipToNextRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class SkipToPreviousRequest {
   @literal
   const SkipToPreviousRequest();
@@ -1167,7 +1127,6 @@ class SkipToPreviousRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class FastForwardRequest {
   @literal
   const FastForwardRequest();
@@ -1175,7 +1134,6 @@ class FastForwardRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class RewindRequest {
   @literal
   const RewindRequest();
@@ -1183,7 +1141,6 @@ class RewindRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class SkipToQueueItemRequest {
   final int index;
 
@@ -1195,7 +1152,6 @@ class SkipToQueueItemRequest {
       };
 }
 
-@immutable
 class SeekRequest {
   final Duration position;
 
@@ -1207,7 +1163,6 @@ class SeekRequest {
       };
 }
 
-@immutable
 class SetRatingRequest {
   final RatingMessage rating;
   final Map<String, dynamic>? extras;
@@ -1221,7 +1176,6 @@ class SetRatingRequest {
       };
 }
 
-@immutable
 class SetCaptioningEnabledRequest {
   final bool enabled;
 
@@ -1233,7 +1187,6 @@ class SetCaptioningEnabledRequest {
       };
 }
 
-@immutable
 class SetRepeatModeRequest {
   final AudioServiceRepeatModeMessage repeatMode;
 
@@ -1245,7 +1198,6 @@ class SetRepeatModeRequest {
       };
 }
 
-@immutable
 class SetShuffleModeRequest {
   final AudioServiceShuffleModeMessage shuffleMode;
 
@@ -1257,7 +1209,6 @@ class SetShuffleModeRequest {
       };
 }
 
-@immutable
 class SeekBackwardRequest {
   final bool begin;
 
@@ -1269,7 +1220,6 @@ class SeekBackwardRequest {
       };
 }
 
-@immutable
 class SeekForwardRequest {
   final bool begin;
 
@@ -1281,7 +1231,6 @@ class SeekForwardRequest {
       };
 }
 
-@immutable
 class SetSpeedRequest {
   final double speed;
 
@@ -1293,7 +1242,6 @@ class SetSpeedRequest {
       };
 }
 
-@immutable
 class CustomActionRequest {
   final String name;
   final Map<String, dynamic>? extras;
@@ -1307,7 +1255,6 @@ class CustomActionRequest {
       };
 }
 
-@immutable
 class OnTaskRemovedRequest {
   @literal
   const OnTaskRemovedRequest();
@@ -1315,7 +1262,6 @@ class OnTaskRemovedRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class OnNotificationDeletedRequest {
   @literal
   const OnNotificationDeletedRequest();
@@ -1323,7 +1269,6 @@ class OnNotificationDeletedRequest {
   Map<String, dynamic> toMap() => {};
 }
 
-@immutable
 class GetChildrenRequest {
   final String parentMediaId;
   final Map<String, dynamic>? options;
@@ -1337,7 +1282,6 @@ class GetChildrenRequest {
       };
 }
 
-@immutable
 class GetChildrenResponse {
   final List<MediaItemMessage> children;
 
@@ -1349,7 +1293,6 @@ class GetChildrenResponse {
       };
 }
 
-@immutable
 class GetMediaItemRequest {
   final String mediaId;
 
@@ -1361,7 +1304,6 @@ class GetMediaItemRequest {
       };
 }
 
-@immutable
 class GetMediaItemResponse {
   final MediaItemMessage? mediaItem;
 
@@ -1373,7 +1315,6 @@ class GetMediaItemResponse {
       };
 }
 
-@immutable
 class SearchRequest {
   final String query;
   final Map<String, dynamic>? extras;
@@ -1387,7 +1328,6 @@ class SearchRequest {
       };
 }
 
-@immutable
 class SearchResponse {
   final List<MediaItemMessage> mediaItems;
 
@@ -1399,7 +1339,6 @@ class SearchResponse {
       };
 }
 
-@immutable
 class AndroidSetRemoteVolumeRequest {
   final int volumeIndex;
 
@@ -1411,7 +1350,6 @@ class AndroidSetRemoteVolumeRequest {
       };
 }
 
-@immutable
 class AndroidAdjustRemoteVolumeRequest {
   final AndroidVolumeDirectionMessage direction;
 
@@ -1423,7 +1361,6 @@ class AndroidAdjustRemoteVolumeRequest {
       };
 }
 
-@immutable
 class ConfigureRequest {
   final AudioServiceConfigMessage config;
 
@@ -1447,7 +1384,6 @@ class ConfigureResponse {
 }
 
 /// The configuration options to use when registering an [AudioHandler].
-@immutable
 class AudioServiceConfigMessage {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
