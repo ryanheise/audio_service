@@ -1153,8 +1153,7 @@ class AudioService {
   @deprecated
   static final addQueueItem = _handler.addQueueItem;
 
-  /// Deprecated. There's no strict equivalent, instead of that
-  /// now the queue should be always fully emitted to the [AudioHandler.queue] via `add` method.
+  /// Deprecated. Use [AudioHandler.insertQueueItem] instead.
   @deprecated
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) {
     return _handler.insertQueueItem(index, mediaItem);
