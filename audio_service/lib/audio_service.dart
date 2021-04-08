@@ -308,7 +308,7 @@ enum RatingStyle {
 /// A rating to attach to a MediaItem.
 class Rating {
   final RatingStyle _type;
-  final dynamic _value;
+  final Object? _value;
 
   const Rating._(this._type, this._value);
 
@@ -318,18 +318,21 @@ class Rating {
 
   /// Creates a new percentage rating.
   const Rating.newPercentageRating(double percent)
-      : assert(percent >= 0 && percent <= 100,
-            'Percentage must be in range from 0 to 100'),
+      : assert(
+          percent >= 0 && percent <= 100,
+          'Percentage must be in range from 0 to 100',
+        ),
         _type = RatingStyle.percentage,
         _value = percent;
 
   /// Creates a new star rating.
   Rating.newStarRating(RatingStyle style, int rating)
       : assert(
-            style == RatingStyle.range3stars ||
-                style == RatingStyle.range4stars ||
-                style == RatingStyle.range5stars,
-            'Invalid rating style'),
+          style == RatingStyle.range3stars ||
+              style == RatingStyle.range4stars ||
+              style == RatingStyle.range5stars,
+          'Invalid rating style',
+        ),
         assert(rating >= 0 && rating <= style.index),
         _type = style,
         _value = rating;
@@ -350,8 +353,9 @@ class Rating {
   /// if it is unrated.
   double getPercentRating() {
     if (_type != RatingStyle.percentage) return -1;
-    if (_value < 0 || _value > 100) return -1;
-    return _value ?? -1;
+    final localValue = _value as double?;
+    if (localValue == null || localValue < 0 || localValue > 100) return -1;
+    return localValue;
   }
 
   /// Returns a rating value greater or equal to `0.0`, or a negative
@@ -363,7 +367,7 @@ class Rating {
         _type != RatingStyle.range5stars) {
       return -1;
     }
-    return _value ?? -1;
+    return _value as int? ?? -1;
   }
 
   /// Returns true if the rating is "heart selected" or false if the
@@ -371,7 +375,7 @@ class Rating {
   /// or if it is unrated.
   bool hasHeart() {
     if (_type != RatingStyle.heart) return false;
-    return _value ?? false;
+    return _value as bool? ?? false;
   }
 
   /// Returns true if the rating is "thumb up" or false if the rating
@@ -379,7 +383,7 @@ class Rating {
   /// it is unrated.
   bool isThumbUp() {
     if (_type != RatingStyle.thumbUpDown) return false;
-    return _value ?? false;
+    return _value as bool? ?? false;
   }
 
   /// Return whether there is a rating value available.
