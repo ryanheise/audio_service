@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MainScreen extends StatelessWidget {
-  static final handlerNames = [
+  static const handlerNames = [
     'Audio Player',
     'Text-To-Speech',
   ];
@@ -814,7 +814,7 @@ class MediaLibrary {
 /// text-to-speech.
 class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   final FlutterTts _tts = FlutterTts();
-  static final _numbersCount = 5;
+  static const _numbersCount = 5;
   var _index = 0;
   set index(int value) {
     _index = value;
@@ -864,7 +864,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
           id: 'tts_$n',
           album: 'Numbers',
           title: 'Number $n',
-          artist: 'Text-to-speach',
+          artist: 'Text-to-speech',
           extras: {'number': '$n'},
           duration: const Duration(seconds: 1),
         );
