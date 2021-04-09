@@ -444,7 +444,7 @@ class MediaItem {
 
   /// Creates a [MediaItem].
   ///
-  /// The [id], [album] and [title] must be unique for each instance.
+  /// The [id] must be unique for each instance.
   const MediaItem({
     required this.id,
     required this.album,

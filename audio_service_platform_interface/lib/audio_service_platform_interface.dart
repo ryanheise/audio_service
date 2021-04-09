@@ -596,7 +596,7 @@ class MediaItemMessage {
 
   /// Creates a [MediaItemMessage].
   ///
-  /// The [id], [album] and [title] must be unique for each instance.
+  /// The [id] must be unique for each instance.
   @literal
   const MediaItemMessage({
     required this.id,
