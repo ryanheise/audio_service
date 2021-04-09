@@ -778,7 +778,7 @@ class MediaLibrary {
       MediaItem(
         id: albumsRootId,
         album: '',
-        title: 'Albums',
+        title: "Albums",
         playable: false,
       ),
     ],
