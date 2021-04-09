@@ -2676,7 +2676,7 @@ enum AudioServiceRepeatMode {
   /// Playback will continue looping through all media items in the current list.
   all,
 
-  /// *UNIMPLEMENTED*
+  /// UNIMPLEMENTED - see https://github.com/ryanheise/audio_service/issues/560
   ///
   /// This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
   ///
