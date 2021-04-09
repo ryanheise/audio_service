@@ -126,10 +126,9 @@ class PlaybackState {
   /// activate the continuous seeking behaviour.
   ///
   /// When enabling the seek bar, also note that some Android devices will not
-  /// render the seek bar correctly unless your
-  /// [AudioServiceConfig.androidNotificationIcon] is a monochrome white icon on
-  /// a transparent background, and your [AudioServiceConfig.notificationColor]
-  /// is a non-transparent color.
+  /// render the seek bar correctly unless your [AudioServiceConfig.androidNotificationIcon]
+  /// is a monochrome white icon on a transparent background, and your
+  /// [AudioServiceConfig.notificationColor] is a non-transparent color.
   final Set<MediaAction> systemActions;
 
   /// The playback position at [updateTime].
@@ -1583,7 +1582,7 @@ abstract class AudioHandler {
   /// Remove [mediaItem] from the queue.
   Future<void> removeQueueItem(MediaItem mediaItem);
 
-  /// Remove at media item from the queue at the specified [index].
+  /// Remove media item from the queue at the specified [index].
   Future<void> removeQueueItemAt(int index);
 
   /// Skip to the next item in the queue.
@@ -2684,7 +2683,7 @@ enum AudioServiceRepeatMode {
   group,
 }
 
-/// The configuration options to use when registering an [AudioHandler].
+/// The configuration options to use when intializing the [AudioService].
 class AudioServiceConfig {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;

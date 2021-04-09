@@ -112,23 +112,23 @@ abstract class AudioHandlerCallbacks {
   /// Pause playback.
   Future<void> pause(PauseRequest request);
 
-  /// Process a headset button click, where [button] defaults to
-  /// [MediaButton.media].
+  /// Process a headset button click, where [ClickRequest.button] defaults to
+  /// [MediaButtonMessage.media].
   Future<void> click(ClickRequest request);
 
   /// Stop playback and release resources.
   Future<void> stop(StopRequest request);
 
-  /// Add [mediaItem] to the queue.
+  /// Add [AddQueueItemRequest.mediaItem] to the queue.
   Future<void> addQueueItem(AddQueueItemRequest request);
 
-  /// Add [mediaItems] to the queue.
+  /// Add [AddQueueItemsRequest.queue] to the queue.
   Future<void> addQueueItems(AddQueueItemsRequest request);
 
-  /// Insert [mediaItem] into the queue at position [index].
+  /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [index].
   Future<void> insertQueueItem(InsertQueueItemRequest request);
 
-  /// Update to the queue to [queue].
+  /// Update to the queue to [UpdateQueueRequest.queue].
   Future<void> updateQueue(UpdateQueueRequest request);
 
   /// Update the properties of [mediaItem].
@@ -137,7 +137,7 @@ abstract class AudioHandlerCallbacks {
   /// Remove [mediaItem] from the queue.
   Future<void> removeQueueItem(RemoveQueueItemRequest request);
 
-  /// Remove at media item from the queue at the specified [index].
+  /// Remove media item from the queue at the specified [RemoveQueueItemAtRequest.index].
   Future<void> removeQueueItemAt(RemoveQueueItemAtRequest request);
 
   /// Skip to the next item in the queue.
@@ -156,7 +156,7 @@ abstract class AudioHandlerCallbacks {
   /// Skip to a queue item.
   Future<void> skipToQueueItem(SkipToQueueItemRequest request);
 
-  /// Seek to [position].
+  /// Seek to [SeekRequest.position].
   Future<void> seek(SeekRequest request);
 
   /// Set the rating.
@@ -199,12 +199,12 @@ abstract class AudioHandlerCallbacks {
   /// Search for media items.
   Future<SearchResponse> search(SearchRequest request);
 
-  /// Set the remote volume on Android. This works only when
-  /// [AndroidPlaybackInfo.playbackType] is [AndroidPlaybackType.remote].
+  /// Set the remote volume on Android. This works only when using
+  /// [RemoteAndroidPlaybackInfo].
   Future<void> androidSetRemoteVolume(AndroidSetRemoteVolumeRequest request);
 
-  /// Adjust the remote volume on Android. This works only when
-  /// [AndroidPlaybackInfo.playbackType] is [AndroidPlaybackType.remote].
+  /// Adjust the remote volume on Android. This works only when using
+  /// [RemoteAndroidPlaybackInfo].
   Future<void> androidAdjustRemoteVolume(
       AndroidAdjustRemoteVolumeRequest request);
 }
@@ -228,7 +228,7 @@ enum AudioProcessingStateMessage {
 
   /// There was an error loading resource.
   ///
-  /// [PlaybackState.errorCode] and [PlaybackState.errorMessage] will be not null
+  /// [PlaybackStateMessage.errorCode] and [PlaybackStateMessage.errorMessage] will be not null
   /// in this state.
   error,
 }
@@ -287,7 +287,7 @@ class MediaControlMessage {
 }
 
 /// The playback state which includes a [playing] boolean state, a processing
-/// state such as [AudioProcessingState.buffering], the playback position and
+/// state such as [AudioProcessingStateMessage.buffering], the playback position and
 /// the currently enabled actions to be shown in the Android notification or the
 /// iOS control center.
 class PlaybackStateMessage {
@@ -295,13 +295,13 @@ class PlaybackStateMessage {
   final AudioProcessingStateMessage processingState;
 
   /// Whether audio is either playing, or will play as soon as [processingState]
-  /// is [AudioProcessingState.ready]. A true value should be broadcast whenever
+  /// is [AudioProcessingStateMessage.ready]. A true value should be broadcast whenever
   /// it would be appropriate for UIs to display a pause or stop button.
   ///
   /// Since [playing] and [processingState] can vary independently, it is
   /// possible distinguish a particular audio processing state while audio is
   /// playing vs paused. For example, when buffering occurs during a seek, the
-  /// [processingState] can be [AudioProcessingState.buffering], but alongside
+  /// [processingState] can be [AudioProcessingStateMessage.buffering], but alongside
   /// that [playing] can be true to indicate that the seek was performed while
   /// playing, or false to indicate that the seek was performed while paused.
   final bool playing;
@@ -310,14 +310,14 @@ class PlaybackStateMessage {
   /// notification. Each control represents a clickable button with a
   /// [MediaAction] that must be one of:
   ///
-  /// * [MediaAction.stop]
-  /// * [MediaAction.pause]
-  /// * [MediaAction.play]
-  /// * [MediaAction.rewind]
-  /// * [MediaAction.skipToPrevious]
-  /// * [MediaAction.skipToNext]
-  /// * [MediaAction.fastForward]
-  /// * [MediaAction.playPause]
+  /// * [MediaActionMessage.stop]
+  /// * [MediaActionMessage.pause]
+  /// * [MediaActionMessage.play]
+  /// * [MediaActionMessage.rewind]
+  /// * [MediaActionMessage.skipToPrevious]
+  /// * [MediaActionMessage.skipToNext]
+  /// * [MediaActionMessage.fastForward]
+  /// * [MediaActionMessage.playPause]
   final List<MediaControlMessage> controls;
 
   /// Up to 3 indices of the [controls] that should appear in Android's compact
@@ -342,10 +342,9 @@ class PlaybackStateMessage {
   /// activate the continuous seeking behaviour.
   ///
   /// When enabling the seek bar, also note that some Android devices will not
-  /// render the seek bar correctly unless your
-  /// [AudioServiceConfig.androidNotificationIcon] is a monochrome white icon on
-  /// a transparent background, and your [AudioServiceConfig.notificationColor]
-  /// is a non-transparent color.
+  /// render the seek bar correctly unless your [AudioServiceConfig.androidNotificationIcon]
+  /// is a monochrome white icon on a transparent background, and your
+  /// [AudioServiceConfig.notificationColor] is a non-transparent color.
   final Set<MediaActionMessage> systemActions;
 
   /// The playback position at [updateTime].
@@ -546,7 +545,7 @@ enum AudioServiceRepeatModeMessage {
   /// Playback will continue looping through all media items in the current list.
   all,
 
-  /// [Unimplemented] This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
+  /// UNIMPLEMENTED - see https://github.com/ryanheise/audio_service/issues/560
   ///
   /// This could represent a playlist that is a smaller subset of all media items.
   group,
@@ -657,7 +656,7 @@ class MediaItemMessage {
 /// A rating to attach to a MediaItemMessage.
 class RatingMessage {
   final RatingStyleMessage type;
-  final dynamic value;
+  final Object? value;
 
   @literal
   const RatingMessage({required this.type, required this.value});
@@ -667,8 +666,9 @@ class RatingMessage {
   /// if it is unrated.
   double get percentRating {
     if (type != RatingStyleMessage.percentage) return -1;
-    if (value < 0 || value > 100) return -1;
-    return value ?? -1;
+    final localValue = value as double?;
+    if (localValue == null || localValue < 0 || localValue > 100) return -1;
+    return localValue;
   }
 
   /// Returns a rating value greater or equal to 0.0f, or a negative
@@ -680,23 +680,23 @@ class RatingMessage {
         type != RatingStyleMessage.range5stars) {
       return -1;
     }
-    return value ?? -1;
+    return value as int? ?? -1;
   }
 
   /// Returns true if the rating is "heart selected" or false if the
-  /// rating is "heart unselected", if the rating style is not [heart]
+  /// rating is "heart unselected", if the rating style is not [RatingStyleMessage.heart]
   /// or if it is unrated.
   bool get hasHeart {
     if (type != RatingStyleMessage.heart) return false;
-    return value ?? false;
+    return value as bool? ?? false;
   }
 
   /// Returns true if the rating is "thumb up" or false if the rating
-  /// is "thumb down", if the rating style is not [thumbUpDown] or if
+  /// is "thumb down", if the rating style is not [RatingStyleMessage.thumbUpDown] or if
   /// it is unrated.
   bool get isThumbUp {
     if (type != RatingStyleMessage.thumbUpDown) return false;
-    return value ?? false;
+    return value as bool? ?? false;
   }
 
   /// Return whether there is a rating value available.
@@ -1045,6 +1045,7 @@ class AddQueueItemRequest {
 }
 
 class AddQueueItemsRequest {
+  // TODO: rename https://github.com/ryanheise/audio_service/pull/640#issuecomment-816842550
   final List<MediaItemMessage> queue;
 
   @literal
@@ -1381,7 +1382,8 @@ class ConfigureResponse {
       ConfigureResponse();
 }
 
-/// The configuration options to use when registering an [AudioHandler].
+/// The options to use when configuring the [AudioServicePlatform].
+
 class AudioServiceConfigMessage {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
@@ -1435,12 +1437,12 @@ class AudioServiceConfigMessage {
   /// [artDownscaleWidth] must also be specified.
   final int? artDownscaleHeight;
 
-  /// The interval to be used in [AudioHandler.fastForward]. This value will
+  /// The interval to be used in [AudioHandlerCallbacks.fastForward]. This value will
   /// also be used on iOS to render the skip-forward button. This value must be
   /// positive.
   final Duration fastForwardInterval;
 
-  /// The interval to be used in [AudioHandler.rewind]. This value will also be
+  /// The interval to be used in [AudioHandlerCallbacks.rewind]. This value will also be
   /// used on iOS to render the skip-backward button. This value must be
   /// positive.
   final Duration rewindInterval;
@@ -1454,6 +1456,8 @@ class AudioServiceConfigMessage {
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
   /// [AudioHandler.queue].
+  /// 
+  /// TODO: remove https://github.com/ryanheise/audio_service/pull/640#issuecomment-816850268
   final bool preloadArtwork;
 
   /// Extras to report on Android in response to an `onGetRoot` request.
