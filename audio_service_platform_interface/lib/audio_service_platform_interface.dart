@@ -710,7 +710,7 @@ class RatingMessage {
   }
 
   // Even though this should take a Map<String, dynamic>, that makes an error.
-  RatingMessage.fromMap(Map<String, dynamic> raw)
+  RatingMessage.fromMap(Map raw)
       : this(
           type: RatingStyleMessage.values[raw['type']],
           value: raw['value'],
@@ -1378,8 +1378,7 @@ class ConfigureRequest {
 /// from the result of a native call, and thus will be always runtime (and because `fromMap`
 /// should not return constants as well).
 class ConfigureResponse {
-  static ConfigureResponse fromMap(Map<String, dynamic> map) =>
-      ConfigureResponse();
+  static ConfigureResponse fromMap(Map map) => ConfigureResponse();
 }
 
 /// The options to use when configuring the [AudioServicePlatform].
@@ -1456,7 +1455,7 @@ class AudioServiceConfigMessage {
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
   /// [AudioHandler.queue].
-  /// 
+  ///
   /// TODO: remove https://github.com/ryanheise/audio_service/pull/640#issuecomment-816850268
   final bool preloadArtwork;
 
