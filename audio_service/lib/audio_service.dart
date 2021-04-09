@@ -444,8 +444,7 @@ class MediaItem {
 
   /// Creates a [MediaItem].
   ///
-  /// The [id], [album] and [title] must not be null, and [id] must be unique for
-  /// each instance.
+  /// The [id], [album] and [title] must be unique for each instance.
   const MediaItem({
     required this.id,
     required this.album,
@@ -652,12 +651,13 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  /// A stream that broadcasts the status of the notificationClick event.
-  static ValueStream<bool> get notificationClickEvent =>
-      _notificationClickEvent;
   // ignore: close_sinks
   static final BehaviorSubject<bool> _notificationClickEvent =
       BehaviorSubject.seeded(false);
+
+  /// A stream that broadcasts the status of the notificationClick event.
+  static ValueStream<bool> get notificationClickEvent =>
+      _notificationClickEvent;
 
   // ignore: close_sinks
   static BehaviorSubject<Duration>? _positionSubject;
@@ -909,8 +909,7 @@ class AudioService {
             if (filePath == null) return;
             // If we've already set a new media item, cancel this request.
             // XXX: Test this
-            // if (mediaItem != _handler.mediaItem.value)
-            //   return;
+            //if (mediaItem != _handler.mediaItem.value) return;
           }
         }
         final extras = Map.of(mediaItem.extras ?? <String, dynamic>{});
@@ -970,7 +969,7 @@ class AudioService {
 
   /// Creates a new stream periodically tracking the current position. The
   /// stream will aim to emit [steps] position updates at intervals of
-  /// [steps]. This interval will be clipped between [minPeriod]
+  /// current [MediaItem.duration] / [steps]. This interval will be clipped between [minPeriod]
   /// and [maxPeriod]. This stream will not emit values while audio playback is
   /// paused or stalled.
   ///
@@ -1476,7 +1475,7 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
     final queue = this.queue.value ?? <MediaItem>[];
     if (index < 0 || index >= queue.length) return;
     final mediaItem = queue[index];
-    return onSkipToQueueItem(mediaItem.id);
+    await onSkipToQueueItem(mediaItem.id);
   }
 
   @override
