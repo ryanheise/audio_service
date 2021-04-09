@@ -193,7 +193,8 @@ class PlaybackState {
         this.updateTime = updateTime ?? DateTime.now();
 
   /// Creates a copy of this state with given fields replaced by new values,
-  /// and unless otherwise replaced, with [updatePosition] set to [position].
+  /// with [updateTime] set to [DateTime.now()], and unless otherwise replaced,
+  /// with [updatePosition] set to [position].
   ///
   /// The [errorCode] and [errorMessage] will be set to null unless [processingState] is
   /// [AudioProcessingState.error].
@@ -3021,7 +3022,7 @@ class AudioServiceBackground {
   /// this calculation is provided by [PlaybackState.position].
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
-  static void setState({
+  static Future<void> setState({
     List<MediaControl>? controls,
     List<MediaAction>? systemActions,
     AudioProcessingState? processingState,
@@ -3033,7 +3034,7 @@ class AudioServiceBackground {
     List<int>? androidCompactActions,
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
-  }) {
+  }) async {
     _handler.playbackState.add(_handler.playbackState.value!.copyWith(
       controls: controls,
       systemActions: systemActions?.toSet(),
