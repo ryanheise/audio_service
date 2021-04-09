@@ -649,11 +649,6 @@ class AudioPlayerHandler extends BaseAudioHandler
   }
 
   Future<void> _init() async {
-    // Handle unplugged headphones.
-    final session = await AudioSession.instance;
-    session.becomingNoisyEventStream.listen((_) {
-      pause();
-    });
     // Load and broadcast the queue
     queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]);
     // For Android 11, record the most recent item so it can be resumed.
