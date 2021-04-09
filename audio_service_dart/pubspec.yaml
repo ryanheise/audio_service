@@ -1,0 +1,25 @@
+name: audio_service_dart
+description: Dart code for audio_service
+version: 0.1.0
+homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service_entities
+
+environment:
+  sdk: '>=2.12.0 <3.0.0'
+
+dependencies:
+  # Use these deps for local development
+  # audio_service_platform_interface_entities:
+  #   path: ../audio_service_platform_interface_entities
+
+  # Use these deps when pushing to origin (for the benefit of testers)
+  audio_service_platform_interface_entities:
+    git:
+      url: https://github.com/ryanheise/audio_service.git
+      ref: one-isolate
+      path: audio_service_platform_interface_entities
+
+  # Use these deps when publishing.
+  # audio_service_platform_interface_entities: ^0.1.0
+
+  meta: ^1.3.0
+  rxdart: ^0.26.0
