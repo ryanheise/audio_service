@@ -17,7 +17,8 @@ late AudioHandler _audioHandler;
 extension DemoAudioHandler on AudioHandler {
   Future<void> switchToHandler(int? index) async {
     if (index == null) return;
-    await _audioHandler.customAction('switchToHandler', {'index': index});
+    await _audioHandler
+        .customAction('switchToHandler', <String, dynamic>{'index': index});
   }
 }
 
@@ -76,7 +77,8 @@ class MainScreen extends StatelessWidget {
                     StreamBuilder<dynamic>(
                       stream: _audioHandler.customState,
                       builder: (context, snapshot) {
-                        final handlerIndex = snapshot.data?.handlerIndex ?? 0;
+                        final handlerIndex =
+                            (snapshot.data?.handlerIndex as int?) ?? 0;
                         return DropdownButton<int>(
                           value: handlerIndex,
                           items: [
@@ -158,7 +160,7 @@ class MainScreen extends StatelessWidget {
               },
             ),
             // Display the latest custom event.
-            StreamBuilder(
+            StreamBuilder<dynamic>(
               stream: _audioHandler.customEvent,
               builder: (context, snapshot) {
                 return Text("custom event: ${snapshot.data}");
@@ -197,8 +199,8 @@ class MainScreen extends StatelessWidget {
 
   ElevatedButton startButton(String label, VoidCallback onPressed) =>
       ElevatedButton(
-        child: Text(label),
         onPressed: onPressed,
+        child: Text(label),
       );
 
   IconButton playButton() => IconButton(
@@ -314,7 +316,8 @@ class CustomEvent {
 class MainSwitchHandler extends SwitchAudioHandler {
   final List<AudioHandler> handlers;
   @override
-  BehaviorSubject<dynamic> customState = BehaviorSubject.seeded(CustomEvent(0));
+  BehaviorSubject<dynamic> customState =
+      BehaviorSubject<dynamic>.seeded(CustomEvent(0));
 
   MainSwitchHandler(this.handlers) : super(handlers.first) {
     // Configure the app's audio category and attributes for speech.
@@ -329,7 +332,7 @@ class MainSwitchHandler extends SwitchAudioHandler {
     switch (name) {
       case 'switchToHandler':
         stop();
-        final int index = extras!['index'];
+        final index = extras!['index'] as int;
         inner = handlers[index];
         customState.add(CustomEvent(index));
         return null;
@@ -359,10 +362,10 @@ class LoggingAudioHandler extends CompositeAudioHandler {
     androidPlaybackInfo.listen((androidPlaybackInfo) {
       _log('androidPlaybackInfo changed: $androidPlaybackInfo');
     });
-    customEvent.listen((customEventStream) {
+    customEvent.listen((dynamic customEventStream) {
       _log('customEvent changed: $customEventStream');
     });
-    customState.listen((customState) {
+    customState.listen((dynamic customState) {
       _log('customState changed: $customState');
     });
   }
@@ -522,7 +525,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  Future<void> setRating(Rating rating, Map<dynamic, dynamic>? extras) {
+  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) {
     _log('setRating($rating, $extras)');
     return super.setRating(rating, extras);
   }
@@ -567,7 +570,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   Future<dynamic> customAction(
       String name, Map<String, dynamic>? extras) async {
     _log('customAction($name, extras)');
-    final result = await super.customAction(name, extras);
+    final dynamic result = await super.customAction(name, extras);
     _log('customAction -> $result');
     return result;
   }
@@ -703,9 +706,10 @@ class AudioPlayerHandler extends BaseAudioHandler
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     switch (parentMediaId) {
       case AudioService.recentRootId:
-        return _recentSubject.map((_) => {});
+        return _recentSubject.map((_) => <String, dynamic>{});
       default:
-        return Stream.value(_mediaLibrary.items[parentMediaId]).map((_) => {})
+        return Stream.value(_mediaLibrary.items[parentMediaId])
+                .map((_) => <String, dynamic>{})
             as ValueStream<Map<String, dynamic>>;
     }
   }
@@ -860,7 +864,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
           album: 'Numbers',
           title: 'Number $n',
           artist: 'Text-to-speech',
-          extras: {'number': '$n'},
+          extras: <String, String>{'number': '$n'},
           duration: const Duration(seconds: 1),
         );
       }),
@@ -930,7 +934,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   void _speak(int index) {
     _setState(index: index, playing: true);
     _tts.stop();
-    _tts.speak(queue.value![index].extras!['number']);
+    _tts.speak(queue.value![index].extras!['number'] as String);
   }
 
   void _setState({
