@@ -1,0 +1,3 @@
+library audio_service_platform_interface_entities;
+
+export 'src/audio_service_platform_interface_entities.dart';

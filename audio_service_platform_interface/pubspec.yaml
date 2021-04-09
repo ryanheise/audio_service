@@ -10,6 +10,20 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.0
 
+  # Use these deps for local development
+  # audio_service_platform_interface_entities:
+  #   path: ../audio_service_platform_interface_entities
+
+  # Use these deps when pushing to origin (for the benefit of testers)
+  audio_service_platform_interface_entities:
+    git:
+      url: https://github.com/ryanheise/audio_service.git
+      ref: one-isolate
+      path: audio_service_platform_interface_entities
+
+  # Use these deps when publishing.
+  # audio_service_platform_interface_entities: ^0.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

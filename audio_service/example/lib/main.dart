@@ -636,7 +636,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
 }
 
 /// An [AudioHandler] for playing a list of podcast episodes.
-class AudioPlayerHandler extends BaseAudioHandler
+class AudioPlayerHandler extends BaseFlutterAudioHandler
     with QueueHandler, SeekHandler {
   // ignore: close_sinks
   final BehaviorSubject<List<MediaItem>> _recentSubject =
