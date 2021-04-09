@@ -2218,7 +2218,7 @@ class _IsolateAudioHandler extends AudioHandler {
 /// implementations of all methods and provides various [BehaviorSubject]s, that contain values
 /// and behave like streams: [playbackState], [queue] and [mediaItem].
 ///
-/// The [customEventSubject] is is a [PublishSubject] that emits events to [customEvent].
+/// The [customEventSubject] is a [PublishSubject] that emits events to [customEvent].
 ///
 /// You can choose to implement all methods yourself, or you may leverage some
 /// mixins to provide default implementations of certain behaviours:

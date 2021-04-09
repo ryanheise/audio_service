@@ -777,7 +777,7 @@ class MediaLibrary {
     AudioService.browsableRootId: const [
       MediaItem(
         id: albumsRootId,
-        album: '',
+        album: "",
         title: "Albums",
         playable: false,
       ),
