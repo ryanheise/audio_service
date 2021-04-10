@@ -720,7 +720,7 @@ class RatingMessage {
   }
 
   // Even though this should take a Map<String, dynamic>, that makes an error.
-  RatingMessage.fromMap(Map raw)
+  RatingMessage.fromMap(Map<String, dynamic> raw)
       : this(
           type: RatingStyleMessage.values[raw['type'] as int],
           value: raw['value'],
@@ -1392,7 +1392,8 @@ class ConfigureRequest {
 /// from the result of a native call, and thus will be always runtime (and because `fromMap`
 /// should not return constants as well).
 class ConfigureResponse {
-  static ConfigureResponse fromMap(Map map) => ConfigureResponse();
+  static ConfigureResponse fromMap(Map<String, dynamic> map) =>
+      ConfigureResponse();
 }
 
 /// The options to use when configuring the [AudioServicePlatform].
@@ -1525,7 +1526,7 @@ class AudioServiceConfigMessage {
 }
 
 /// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
-/// 
+///
 /// Used mostly to unwrap [MethodCall.arguments] which in case with maps
 /// is always `Map<Object?, Object?>`.
 @pragma('vm:prefer-inline')
