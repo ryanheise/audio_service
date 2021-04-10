@@ -59,7 +59,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
       switch (call.method) {
         case 'onPlaybackStateChanged':
           callbacks.onPlaybackStateChanged(
-            OnPlaybackStateChangedRequest.fromMap(_castMap(call.arguments as Map)!),
+            OnPlaybackStateChangedRequest.fromMap(
+                _castMap(call.arguments as Map)!),
           );
           break;
         case 'onMediaItemChanged':
@@ -87,7 +88,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
         case 'getChildren':
           return (await callbacks.getChildren(GetChildrenRequest(
                   parentMediaId: call.arguments['parentMediaId'] as String,
-                  options: _castMap(call.arguments['options'] as Map))))
+                  options: _castMap(call.arguments['options'] as Map?))))
               .toMap();
         case 'getMediaItem':
           return (await callbacks.getMediaItem(GetMediaItemRequest(
@@ -118,17 +119,17 @@ class MethodChannelAudioService extends AudioServicePlatform {
         case 'prepareFromMediaId':
           await callbacks.prepareFromMediaId(PrepareFromMediaIdRequest(
               mediaId: call.arguments['mediaId'] as String,
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'prepareFromSearch':
           await callbacks.prepareFromSearch(PrepareFromSearchRequest(
               query: call.arguments['query'] as String,
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'prepareFromUri':
           await callbacks.prepareFromUri(PrepareFromUriRequest(
               uri: Uri.parse(call.arguments['uri'] as String),
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'play':
           await callbacks.play(const PlayRequest());
@@ -136,17 +137,17 @@ class MethodChannelAudioService extends AudioServicePlatform {
         case 'playFromMediaId':
           await callbacks.playFromMediaId(PlayFromMediaIdRequest(
               mediaId: call.arguments['mediaId'] as String,
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'playFromSearch':
           await callbacks.playFromSearch(PlayFromSearchRequest(
               query: call.arguments['query'] as String,
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'playFromUri':
           await callbacks.playFromUri(PlayFromUriRequest(
               uri: Uri.parse(call.arguments['uri'] as String),
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'playMediaItem':
           await callbacks.playMediaItem(PlayMediaItemRequest(
@@ -220,7 +221,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
           await callbacks.setRating(SetRatingRequest(
               rating: RatingMessage.fromMap(
                   _castMap(call.arguments['rating'] as Map)!),
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         case 'setCaptioningEnabled':
           await callbacks.setCaptioningEnabled(SetCaptioningEnabledRequest(
@@ -258,7 +259,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
         case 'customAction':
           await callbacks.customAction(CustomActionRequest(
               name: call.arguments['name'] as String,
-              extras: _castMap(call.arguments['extras'] as Map)));
+              extras: _castMap(call.arguments['extras'] as Map?)));
           return null;
         default:
           throw PlatformException(code: 'Unimplemented');

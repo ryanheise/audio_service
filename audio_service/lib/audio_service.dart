@@ -709,21 +709,21 @@ class AudioService {
           case 'prepareFromMediaId':
             await _handler.prepareFromMediaId(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'prepareFromSearch':
             await _handler.prepareFromSearch(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'prepareFromUri':
             await _handler.prepareFromUri(
               request.arguments![0] as Uri,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
@@ -734,21 +734,21 @@ class AudioService {
           case 'playFromMediaId':
             await _handler.playFromMediaId(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'playFromSearch':
             await _handler.playFromSearch(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'playFromUri':
             await _handler.playFromUri(
               request.arguments![0] as Uri,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
@@ -828,7 +828,7 @@ class AudioService {
           case 'setRating':
             await _handler.setRating(
               request.arguments![0] as Rating,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
@@ -861,7 +861,7 @@ class AudioService {
           case 'customAction':
             await _handler.customAction(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
@@ -876,7 +876,7 @@ class AudioService {
           case 'getChildren':
             request.sendPort.send(await _handler.getChildren(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             ));
             break;
           case 'subscribeToChildren':
@@ -895,11 +895,12 @@ class AudioService {
           case 'search':
             request.sendPort.send(await _handler.search(
               request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>,
+              request.arguments![1] as Map<String, dynamic>?,
             ));
             break;
           case 'androidAdjustRemoteVolume':
-            await _handler.androidAdjustRemoteVolume(request.arguments![0] as AndroidVolumeDirection );
+            await _handler.androidAdjustRemoteVolume(
+                request.arguments![0] as AndroidVolumeDirection);
             request.sendPort.send(null);
             break;
           case 'androidSetRemoteVolume':
@@ -2213,7 +2214,7 @@ class _IsolateAudioHandler extends AudioHandler {
       childrenSubject = _childrenSubjects[parentMediaId] = BehaviorSubject();
       final receivePort = ReceivePort();
       receivePort.listen((dynamic options) {
-        childrenSubject!.add(options as Map<String, dynamic>);
+        childrenSubject!.add(options as Map<String, dynamic>?);
       });
       _send('subscribeToChildren',
           <dynamic>[parentMediaId, receivePort.sendPort]);

@@ -408,7 +408,8 @@ class PlaybackStateMessage {
             androidCompactActionIndices.length <= 3),
         updateTime = updateTime ?? DateTime.now();
 
-  factory PlaybackStateMessage.fromMap(Map<String, dynamic> map) => PlaybackStateMessage(
+  factory PlaybackStateMessage.fromMap(Map<String, dynamic> map) =>
+      PlaybackStateMessage(
         processingState:
             AudioProcessingStateMessage.values[map['processingState'] as int],
         playing: map['playing'] as bool,
@@ -641,7 +642,7 @@ class MediaItemMessage {
         rating: raw['rating'] != null
             ? RatingMessage.fromMap(_castMap(raw['rating'] as Map)!)
             : null,
-        extras: (raw['extras'] as Map?)?.cast<String, dynamic>(),
+        extras: _castMap(raw['extras'] as Map?),
       );
 
   /// Converts this [MediaItemMessage] to a map of key/value pairs corresponding to
@@ -766,8 +767,7 @@ class OnPlaybackStateChangedRequest {
 
   factory OnPlaybackStateChangedRequest.fromMap(Map<String, dynamic> map) =>
       OnPlaybackStateChangedRequest(
-        state:
-            PlaybackStateMessage.fromMap(map['state'] as Map<String, dynamic>),
+        state: PlaybackStateMessage.fromMap(_castMap(map['state'] as Map)!),
       );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
@@ -781,12 +781,14 @@ class OnQueueChangedRequest {
   @literal
   const OnQueueChangedRequest({required this.queue});
 
-  factory OnQueueChangedRequest.fromMap(Map<String, dynamic> map) => OnQueueChangedRequest(
-      queue: map['queue'] == null
-          ? []
-          : (map['queue'] as List)
-              .map((dynamic raw) => MediaItemMessage.fromMap(_castMap(raw as Map)!))
-              .toList());
+  factory OnQueueChangedRequest.fromMap(Map<String, dynamic> map) =>
+      OnQueueChangedRequest(
+          queue: map['queue'] == null
+              ? []
+              : (map['queue'] as List)
+                  .map((dynamic raw) =>
+                      MediaItemMessage.fromMap(_castMap(raw as Map)!))
+                  .toList());
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'queue': queue.map((item) => item.toMap()).toList(),
@@ -821,10 +823,12 @@ class OnChildrenLoadedRequest {
     required this.children,
   });
 
-  factory OnChildrenLoadedRequest.fromMap(Map<String, dynamic> map) => OnChildrenLoadedRequest(
+  factory OnChildrenLoadedRequest.fromMap(Map<String, dynamic> map) =>
+      OnChildrenLoadedRequest(
         parentMediaId: map['parentMediaId'] as String,
         children: (map['queue'] as List)
-            .map((dynamic raw) => MediaItemMessage.fromMap(_castMap(raw as Map)!))
+            .map((dynamic raw) =>
+                MediaItemMessage.fromMap(_castMap(raw as Map)!))
             .toList(),
       );
 }

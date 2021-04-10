@@ -814,7 +814,7 @@ class MediaLibrary {
 class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   final _tts = Tts();
   final _sleeper = Sleeper();
-  Completer? _completer;
+  Completer<void>? _completer;
   var _index = 0;
   bool _interrupted = false;
   var _running = false;
@@ -859,13 +859,13 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
               album: 'Numbers',
               title: 'Number ${i + 1}',
               artist: 'Sample Artist',
-              extras: {'number': i + 1},
+              extras: <String, int>{'number': i + 1},
               duration: Duration(seconds: 1),
             )));
   }
 
   Future<void> run() async {
-    _completer = Completer();
+    _completer = Completer<void>();
     _running = true;
     while (_running) {
       try {
@@ -965,14 +965,14 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
 
 /// An object that performs interruptable sleep.
 class Sleeper {
-  Completer? _blockingCompleter;
+  Completer<void>? _blockingCompleter;
 
   /// Sleep for a duration. If sleep is interrupted, a
   /// [SleeperInterruptedException] will be thrown.
   Future<void> sleep([Duration? duration]) async {
     _blockingCompleter = Completer();
     if (duration != null) {
-      await Future.any([Future.delayed(duration), _blockingCompleter!.future]);
+      await Future.any<void>([Future.delayed(duration), _blockingCompleter!.future]);
     } else {
       await _blockingCompleter!.future;
     }
@@ -997,7 +997,7 @@ class SleeperInterruptedException {}
 /// complete.
 class Tts {
   final FlutterTts _flutterTts = new FlutterTts();
-  Completer? _speechCompleter;
+  Completer<void>? _speechCompleter;
   bool _interruptRequested = false;
   bool _playing = false;
 
