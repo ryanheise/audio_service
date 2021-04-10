@@ -89,7 +89,9 @@ class AudioServiceWeb extends AudioServicePlatform {
                   milliseconds: (ev.seekTime * 1000).round(),
                 )));
               }));
-            } catch (e) {}
+            } catch (e) {
+              // TODO: handle this somehow?
+            }
             break;
           default:
             // no-op

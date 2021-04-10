@@ -888,6 +888,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
         } else {
           await _sleeper.sleep();
         }
+      // ignore: empty_catches
       } on SleeperInterruptedException {} on TtsInterruptedException {}
     }
     _index = 0;
@@ -996,7 +997,7 @@ class SleeperInterruptedException {}
 /// A wrapper around FlutterTts that makes it easier to wait for speech to
 /// complete.
 class Tts {
-  final FlutterTts _flutterTts = new FlutterTts();
+  final FlutterTts _flutterTts = FlutterTts();
   Completer<void>? _speechCompleter;
   bool _interruptRequested = false;
   bool _playing = false;
