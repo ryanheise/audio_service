@@ -11,7 +11,7 @@ import 'package:rxdart/rxdart.dart';
 
 AudioServicePlatform _platform = AudioServicePlatform.instance;
 
-/// The different buttons on a headset.
+/// The buttons on a headset.
 enum MediaButton {
   media,
   next,
@@ -46,13 +46,27 @@ enum MediaAction {
   seekForward,
 }
 
-/// The different states during audio processing.
+/// The states of audio processing.
 enum AudioProcessingState {
+  /// There hasn't been any resource loaded yet.
   idle,
+
+  /// Resource is being loaded.
   loading,
+
+  /// Resource is being buffered.
   buffering,
+
+  /// Resource is buffered enough and available for playback.
   ready,
+
+  /// The end of resource was reached.
   completed,
+
+  /// There was an error loading resource.
+  ///
+  /// [PlaybackState.errorCode] and [PlaybackState.errorMessage] will be not null
+  /// in this state.
   error,
 }
 
@@ -61,7 +75,7 @@ enum AudioProcessingState {
 /// the currently enabled actions to be shown in the Android notification or the
 /// iOS control center.
 class PlaybackState {
-  /// The audio processing state e.g. [BasicPlaybackState.buffering].
+  /// The audio processing state e.g. [AudioProcessingState.buffering].
   final AudioProcessingState processingState;
 
   /// Whether audio is either playing, or will play as soon as [processingState]
@@ -112,10 +126,9 @@ class PlaybackState {
   /// activate the continuous seeking behaviour.
   ///
   /// When enabling the seek bar, also note that some Android devices will not
-  /// render the seek bar correctly unless your
-  /// [AudioServiceConfig.androidNotificationIcon] is a monochrome white icon on
-  /// a transparent background, and your [AudioServiceConfig.notificationColor]
-  /// is a non-transparent color.
+  /// render the seek bar correctly unless your [AudioServiceConfig.androidNotificationIcon]
+  /// is a monochrome white icon on a transparent background, and your
+  /// [AudioServiceConfig.notificationColor] is a non-transparent color.
   final Set<MediaAction> systemActions;
 
   /// The playback position at [updateTime].
@@ -157,7 +170,7 @@ class PlaybackState {
   final int? queueIndex;
 
   /// Creates a [PlaybackState] with given field values, and with [updateTime]
-  /// defaulting to [DateTime.now()].
+  /// defaulting to [DateTime.now].
   PlaybackState({
     this.processingState = AudioProcessingState.idle,
     this.playing = false,
@@ -179,9 +192,10 @@ class PlaybackState {
         this.updateTime = updateTime ?? DateTime.now();
 
   /// Creates a copy of this state with given fields replaced by new values,
-  /// with [updateTime] set to [DateTime.now()], and unless otherwise replaced,
-  /// with [updatePosition] set to [this.position]. [errorCode] and
-  /// [errorMessage] will be set to null unless [processingState] is
+  /// with [updateTime] set to [DateTime.now], and unless otherwise replaced,
+  /// with [updatePosition] set to [position].
+  ///
+  /// The [errorCode] and [errorMessage] will be set to null unless [processingState] is
   /// [AudioProcessingState.error].
   PlaybackState copyWith({
     AudioProcessingState? processingState,
@@ -227,11 +241,12 @@ class PlaybackState {
   Duration get position {
     if (playing && processingState == AudioProcessingState.ready) {
       return Duration(
-          milliseconds: (updatePosition.inMilliseconds +
-                  ((DateTime.now().millisecondsSinceEpoch -
-                          updateTime.millisecondsSinceEpoch) *
-                      speed))
-              .toInt());
+        milliseconds: (updatePosition.inMilliseconds +
+                speed *
+                    (DateTime.now().millisecondsSinceEpoch -
+                        updateTime.millisecondsSinceEpoch))
+            .toInt(),
+      );
     } else {
       return updatePosition;
     }
@@ -265,7 +280,7 @@ class PlaybackState {
 enum RatingStyle {
   /// Indicates a rating style is not supported.
   ///
-  /// A Rating will never have this type, but can be used by other classes
+  /// A [Rating] will never have this type, but can be used by other classes
   /// to indicate they do not support Rating.
   none,
 
@@ -293,89 +308,97 @@ enum RatingStyle {
 /// A rating to attach to a MediaItem.
 class Rating {
   final RatingStyle _type;
-  final dynamic _value;
+  final Object? _value;
 
-  const Rating._internal(this._type, this._value);
+  const Rating._(this._type, this._value);
 
   /// Creates a new heart rating.
   const Rating.newHeartRating(bool hasHeart)
-      : this._internal(RatingStyle.heart, hasHeart);
+      : this._(RatingStyle.heart, hasHeart);
 
   /// Creates a new percentage rating.
-  factory Rating.newPercentageRating(double percent) {
-    if (percent < 0 || percent > 100) throw ArgumentError();
-    return Rating._internal(RatingStyle.percentage, percent);
-  }
+  const Rating.newPercentageRating(double percent)
+      : assert(
+          percent >= 0 && percent <= 100,
+          'Percentage must be in range from 0 to 100',
+        ),
+        _type = RatingStyle.percentage,
+        _value = percent;
 
   /// Creates a new star rating.
-  factory Rating.newStarRating(RatingStyle starRatingStyle, int starRating) {
-    if (starRatingStyle != RatingStyle.range3stars &&
-        starRatingStyle != RatingStyle.range4stars &&
-        starRatingStyle != RatingStyle.range5stars) {
-      throw ArgumentError();
-    }
-    if (starRating > starRatingStyle.index || starRating < 0)
-      throw ArgumentError();
-    return Rating._internal(starRatingStyle, starRating);
-  }
+  Rating.newStarRating(RatingStyle style, int rating)
+      : assert(
+          style == RatingStyle.range3stars ||
+              style == RatingStyle.range4stars ||
+              style == RatingStyle.range5stars,
+          'Invalid rating style',
+        ),
+        assert(rating >= 0 && rating <= style.index),
+        _type = style,
+        _value = rating;
 
   /// Creates a new thumb rating.
   const Rating.newThumbRating(bool isThumbsUp)
-      : this._internal(RatingStyle.thumbUpDown, isThumbsUp);
+      : this._(RatingStyle.thumbUpDown, isThumbsUp);
 
   /// Creates a new unrated rating.
   const Rating.newUnratedRating(RatingStyle ratingStyle)
-      : this._internal(ratingStyle, null);
+      : this._(ratingStyle, null);
 
   /// Return the rating style.
   RatingStyle getRatingStyle() => _type;
 
-  /// Returns a percentage rating value greater or equal to 0.0f, or a
+  /// Returns a percentage rating value greater or equal to `0.0`, or a
   /// negative value if the rating style is not percentage-based, or
   /// if it is unrated.
   double getPercentRating() {
     if (_type != RatingStyle.percentage) return -1;
-    if (_value < 0 || _value > 100) return -1;
-    return _value ?? -1;
+    final localValue = _value as double?;
+    if (localValue == null || localValue < 0 || localValue > 100) return -1;
+    return localValue;
   }
 
-  /// Returns a rating value greater or equal to 0.0f, or a negative
+  /// Returns a rating value greater or equal to `0.0`, or a negative
   /// value if the rating style is not star-based, or if it is
   /// unrated.
   int getStarRating() {
     if (_type != RatingStyle.range3stars &&
         _type != RatingStyle.range4stars &&
-        _type != RatingStyle.range5stars) return -1;
-    return _value ?? -1;
+        _type != RatingStyle.range5stars) {
+      return -1;
+    }
+    return _value as int? ?? -1;
   }
 
   /// Returns true if the rating is "heart selected" or false if the
-  /// rating is "heart unselected", if the rating style is not [heart]
+  /// rating is "heart unselected", if the rating style is not [RatingStyle.heart]
   /// or if it is unrated.
   bool hasHeart() {
     if (_type != RatingStyle.heart) return false;
-    return _value ?? false;
+    return _value as bool? ?? false;
   }
 
   /// Returns true if the rating is "thumb up" or false if the rating
-  /// is "thumb down", if the rating style is not [thumbUpDown] or if
+  /// is "thumb down", if the rating style is not [RatingStyle.thumbUpDown] or if
   /// it is unrated.
   bool isThumbUp() {
     if (_type != RatingStyle.thumbUpDown) return false;
-    return _value ?? false;
+    return _value as bool? ?? false;
   }
 
   /// Return whether there is a rating value available.
   bool isRated() => _value != null;
 
   RatingMessage _toMessage() => RatingMessage(
-      type: RatingStyleMessage.values[_type.index], value: _value);
+        type: RatingStyleMessage.values[_type.index],
+        value: _value,
+      );
 
   @override
   String toString() => '${_toMessage().toMap()}';
 }
 
-/// Metadata about an audio item that can be played, or a folder containing
+/// Metadata of an audio item that can be played, or a folder containing
 /// audio items.
 class MediaItem {
   /// A unique id.
@@ -411,7 +434,7 @@ class MediaItem {
   /// Override the default description for display purposes.
   final String? displayDescription;
 
-  /// The rating of the MediaItem.
+  /// The rating of the media item.
   final Rating? rating;
 
   /// A map of additional metadata for the media item.
@@ -421,8 +444,7 @@ class MediaItem {
 
   /// Creates a [MediaItem].
   ///
-  /// [id], [album] and [title] must not be null, and [id] must be unique for
-  /// each instance.
+  /// The [id] must be unique for each instance.
   const MediaItem({
     required this.id,
     required this.album,
@@ -611,7 +633,8 @@ class MediaControl {
 /// during initialisation to register the [AudioHandler] that will service all
 /// requests to play audio.
 class AudioService {
-  /// The cache to use when loading artwork. Defaults to [DefaultCacheManager].
+  /// The cache to use when loading artwork.
+  /// Defaults to [DefaultCacheManager].
   static BaseCacheManager get cacheManager => _cacheManager!;
   static BaseCacheManager? _cacheManager;
 
@@ -903,7 +926,8 @@ class AudioService {
     _handler.androidPlaybackInfo
         .listen((AndroidPlaybackInfo playbackInfo) async {
       await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
-          playbackInfo: playbackInfo._toMessage()));
+        playbackInfo: playbackInfo._toMessage(),
+      ));
     });
     _handler.queue.listen((List<MediaItem>? queue) async {
       if (queue == null) return;
@@ -933,17 +957,19 @@ class AudioService {
   static Stream<Duration> getPositionStream() {
     if (_positionSubject == null) {
       _positionSubject = BehaviorSubject<Duration>(sync: true);
-      _positionSubject!.addStream(createPositionStream(
-          steps: 800,
-          minPeriod: Duration(milliseconds: 16),
-          maxPeriod: Duration(milliseconds: 200)));
+      _positionSubject!.addStream(
+        createPositionStream(
+            steps: 800,
+            minPeriod: Duration(milliseconds: 16),
+            maxPeriod: Duration(milliseconds: 200)),
+      );
     }
     return _positionSubject!.stream;
   }
 
   /// Creates a new stream periodically tracking the current position. The
   /// stream will aim to emit [steps] position updates at intervals of
-  /// [duration] / [steps]. This interval will be clipped between [minPeriod]
+  /// current [MediaItem.duration] / [steps]. This interval will be clipped between [minPeriod]
   /// and [maxPeriod]. This stream will not emit values while audio playback is
   /// paused or stalled.
   ///
@@ -1013,7 +1039,8 @@ class AudioService {
   /// automatically qualify your app to receive media button events.
   static Future<void> androidForceEnableMediaButtons() async {
     await _platform.androidForceEnableMediaButtons(
-        AndroidForceEnableMediaButtonsRequest());
+      const AndroidForceEnableMediaButtonsRequest(),
+    );
   }
 
   /// Stops the service.
@@ -1024,7 +1051,7 @@ class AudioService {
     } catch (e) {
       print("While deactivating audio session: $e");
     }
-    await _platform.stopService(StopServiceRequest());
+    await _platform.stopService(const StopServiceRequest());
   }
 
   static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
@@ -1073,7 +1100,7 @@ class AudioService {
   static ValueStream<PlaybackState> get playbackStateStream =>
       _handler.playbackState;
 
-  /// Deprecated. Use [AudioHandler.playbackState.value] instead.
+  /// Deprecated. Use `value` of  [AudioHandler.playbackState] instead.
   @deprecated
   static PlaybackState get playbackState =>
       _handler.playbackState.value ?? PlaybackState();
@@ -1083,7 +1110,7 @@ class AudioService {
   static ValueStream<MediaItem?> get currentMediaItemStream =>
       _handler.mediaItem;
 
-  /// Deprecated. Use [AudioHandler.mediaItem.value] instead.
+  /// Deprecated. Use `value` of [AudioHandler.mediaItem] instead.
   @deprecated
   static MediaItem? get currentMediaItem => _handler.mediaItem.value;
 
@@ -1091,7 +1118,7 @@ class AudioService {
   @deprecated
   static ValueStream<List<MediaItem>?> get queueStream => _handler.queue;
 
-  /// Deprecated. Use [AudioHandler.queue.value] instead.
+  /// Deprecated. Use `value` of [AudioHandler.queue] instead.
   @deprecated
   static List<MediaItem>? get queue => _handler.queue.value;
 
@@ -1105,7 +1132,7 @@ class AudioService {
           .map((state) => state.processingState != AudioProcessingState.idle)
       as ValueStream<bool>;
 
-  /// Deprecated. Use [AudioHandler.playbackState.value.processingState] instead.
+  /// Deprecated. Use [PlaybackState.processingState] of [AudioHandler.playbackState] instead.
   @deprecated
   static bool get running => runningStream.value ?? false;
 
@@ -1129,7 +1156,7 @@ class AudioService {
   @deprecated
   static final addQueueItem = _handler.addQueueItem;
 
-  /// Deprecated. Use [AudioHandler.addQueueItemAt] instead.
+  /// Deprecated. Use [AudioHandler.insertQueueItem] instead.
   @deprecated
   static Future<void> addQueueItemAt(MediaItem mediaItem, int index) async {
     await _handler.insertQueueItem(index, mediaItem);
@@ -1251,17 +1278,15 @@ class AudioService {
 /// This class is deprecated. Use [BaseAudioHandler] instead.
 @deprecated
 abstract class BackgroundAudioTask extends BaseAudioHandler {
-  /// Deprecated
+  /// Deprecated. Use [AudioServiceConfig.fastForwardInterval] from [AudioService.config] instead.
   Duration get fastForwardInterval => AudioService.config.fastForwardInterval;
 
-  /// Deprecated
+  /// Deprecated. Use [AudioServiceConfig.rewindInterval] from [AudioService.config] instead.
   Duration get rewindInterval => AudioService.config.rewindInterval;
 
-  /// Depricated. Replaced by [AudioHandler.stop].
+  /// Deprecated. Replaced by [AudioHandler.stop].
   @mustCallSuper
-  Future<void> onStop() async {
-    await super.stop();
-  }
+  Future<void> onStop() => super.stop();
 
   /// Deprecated. Replaced by [AudioHandler.getChildren].
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
@@ -1333,7 +1358,7 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
   /// Deprecated. Replaced by [AudioHandler.skipToQueueItem].
   Future<void> onSkipToQueueItem(String mediaId) async {}
 
-  /// Deprecated. Replaced by [AudioHandler.seekTo].
+  /// Deprecated. Replaced by [AudioHandler.seek].
   Future<void> onSeekTo(Duration position) async {}
 
   /// Deprecated. Replaced by [AudioHandler.setRating].
@@ -1368,9 +1393,9 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
     final mediaItem = this.mediaItem.value;
     if (mediaItem == null) return;
     final queue = this.queue.value ?? <MediaItem>[];
-    int i = queue.indexOf(mediaItem);
+    final i = queue.indexOf(mediaItem);
     if (i == -1) return;
-    int newIndex = i + offset;
+    final newIndex = i + offset;
     if (newIndex >= 0 && newIndex < queue.length)
       await onSkipToQueueItem(queue[newIndex].id);
   }
@@ -1450,7 +1475,7 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
     final queue = this.queue.value ?? <MediaItem>[];
     if (index < 0 || index >= queue.length) return;
     final mediaItem = queue[index];
-    return onSkipToQueueItem(mediaItem.id);
+    await onSkipToQueueItem(mediaItem.id);
   }
 
   @override
@@ -1557,7 +1582,7 @@ abstract class AudioHandler {
   /// Remove [mediaItem] from the queue.
   Future<void> removeQueueItem(MediaItem mediaItem);
 
-  /// Remove at media item from the queue at the specified [index].
+  /// Remove media item from the queue at the specified [index].
   Future<void> removeQueueItemAt(int index);
 
   /// Skip to the next item in the queue.
@@ -1629,8 +1654,8 @@ abstract class AudioHandler {
   /// [RemoteAndroidPlaybackInfo].
   Future<void> androidSetRemoteVolume(int volumeIndex);
 
-  /// Adjust the remote volume on Android. This works only when
-  /// [AndroidPlaybackInfo.playbackType] is [AndroidPlaybackType.remote].
+  /// Adjust the remote volume on Android. This works only when using
+  /// [RemoteAndroidPlaybackInfo].
   Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction);
 
   /// A value stream of playback states.
@@ -2190,16 +2215,19 @@ class _IsolateAudioHandler extends AudioHandler {
 }
 
 /// Base class for implementations of [AudioHandler]. It provides default
-/// implementations of all methods and provides controllers for emitting stream
-/// events:
+/// implementations of all methods and provides controllers for holding playback state and
+/// broadcasting it as stream events.
 ///
-/// * [playbackStateSubject] is a [BehaviorSubject] that emits events to
-/// [playbackStateStream].
-/// * [queueSubject] is a [BehaviorSubject] that emits events to [queueStream].
-/// * [mediaItemSubject] is a [BehaviorSubject] that emits events to
-/// [mediaItemStream].
-/// * [customEventSubject] is a [PublishSubject] that emits events to
-/// [customEvent].
+/// These are [BehaviorSubject]s provided by this class:
+///
+/// * [playbackState]
+/// * [queue]
+/// * [queueTitle]
+/// * [androidPlaybackInfo]
+/// * [ratingStyle]
+///
+/// Besides them, there's also [customEventSubject] that is a [PublishSubject]
+/// that emits events to [customEvent].
 ///
 /// You can choose to implement all methods yourself, or you may leverage some
 /// mixins to provide default implementations of certain behaviours:
@@ -2303,8 +2331,9 @@ class BaseAudioHandler extends AudioHandler {
   // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
-  /// A controller for broadcasting a custom event to the app's UI. Example
-  /// usage:
+  /// A controller for broadcasting a custom event to the app's UI.
+  /// A shorthand for the event stream is [customEvent].
+  /// Example usage:
   ///
   /// ```dart
   /// customEventSubject.add(MyCustomEvent(arg: 3));
@@ -2620,11 +2649,11 @@ mixin QueueHandler on BaseAudioHandler {
   }
 
   /// This should be overridden to instruct how to skip to the queue item at
-  /// [index]. By default, this will broadcast [index] as
+  /// [index].
+  ///
+  /// By default, this will broadcast [index] as
   /// [PlaybackState.queueIndex] via the [playbackState] stream, and will
-  /// broadcast [queue] element [index] via the stream [mediaItem]. Your
-  /// implementation may call super to reuse this default implementation, or
-  /// else provide equivalent behaviour.
+  /// broadcast [queue] element [index] via the stream [mediaItem].
   @override
   Future<void> skipToQueueItem(int index) async {
     playbackState.add(playbackState.value!.copyWith(queueIndex: index));
@@ -2636,7 +2665,7 @@ mixin QueueHandler on BaseAudioHandler {
     final queue = this.queue.value!;
     final index = playbackState.value!.queueIndex!;
     if (index < 0 || index >= queue.length) return;
-    await skipToQueueItem(index + offset);
+    return skipToQueueItem(index + offset);
   }
 }
 
@@ -2656,16 +2685,25 @@ enum AudioServiceRepeatMode {
   /// Playback will continue looping through all media items in the current list.
   all,
 
-  /// [Unimplemented] This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
+  /// UNIMPLEMENTED - see https://github.com/ryanheise/audio_service/issues/560
+  ///
+  /// This corresponds to Android's [REPEAT_MODE_GROUP](https://developer.android.com/reference/androidx/media2/common/SessionPlayer#REPEAT_MODE_GROUP).
   ///
   /// This could represent a playlist that is a smaller subset of all media items.
   group,
 }
 
-/// The configuration options to use when registering an [AudioHandler].
+/// The configuration options to use when intializing the [AudioService].
 class AudioServiceConfig {
+  // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
+
+  // A name of the media notification channel, that is
+  // visible to user in settings of your app.
   final String androidNotificationChannelName;
+
+  // A description of the media notification channel, that is
+  // visible to user in settings of your app.
   final String? androidNotificationChannelDescription;
 
   /// The color to use on the background of the notification on Android. This
@@ -2680,7 +2718,15 @@ class AudioServiceConfig {
   /// Whether notification badges (also known as notification dots) should
   /// appear on a launcher icon when the app has an active notification.
   final bool androidShowNotificationBadge;
+
+  /// Whether the application activity will be opened on click on notification.
   final bool androidNotificationClickStartsActivity;
+
+  /// Whether the notification can be swiped away.
+  ///
+  /// If you set this to true, [androidStopForegroundOnPause] must be true as well,
+  /// otherwise this will not do anything, because when foreground service is active,
+  /// it forces notification to be ongoing.
   final bool androidNotificationOngoing;
 
   /// Whether the Android service should switch to a lower priority state when
@@ -2715,14 +2761,19 @@ class AudioServiceConfig {
   /// If your app will run on Android and has a queue, you should set this to
   /// true.
   final bool androidEnableQueue;
+
+  /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
+  ///
+  /// If set to `true`, artworks for items start loading as soon as they are added to
+  /// [AudioHandler.queue].
   final bool preloadArtwork;
 
   /// Extras to report on Android in response to an `onGetRoot` request.
   final Map<String, dynamic>? androidBrowsableRootExtras;
 
-  AudioServiceConfig({
+  const AudioServiceConfig({
     this.androidResumeOnClick = true,
-    this.androidNotificationChannelName = "Notifications",
+    this.androidNotificationChannelName = 'Notifications',
     this.androidNotificationChannelDescription,
     this.notificationColor,
     this.androidNotificationIcon = 'mipmap/ic_launcher',
@@ -2739,7 +2790,11 @@ class AudioServiceConfig {
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
         assert(fastForwardInterval > Duration.zero),
-        assert(rewindInterval > Duration.zero);
+        assert(rewindInterval > Duration.zero),
+        assert(
+          !androidNotificationOngoing || androidStopForegroundOnPause,
+          'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
+        );
 
   AudioServiceConfigMessage _toMessage() => AudioServiceConfigMessage(
         androidResumeOnClick: androidResumeOnClick,
@@ -2826,7 +2881,7 @@ extension MediaItemMessageExtension on MediaItemMessage {
 }
 
 extension RatingMessageExtension on RatingMessage {
-  Rating toPlugin() => Rating._internal(RatingStyle.values[type.index], value);
+  Rating toPlugin() => Rating._(RatingStyle.values[type.index], value);
 }
 
 extension AndroidVolumeDirectionMessageExtension
@@ -2899,7 +2954,7 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
 
 class LocalAndroidPlaybackInfo extends AndroidPlaybackInfo {
   LocalAndroidPlaybackInfoMessage _toMessage() =>
-      LocalAndroidPlaybackInfoMessage();
+      const LocalAndroidPlaybackInfoMessage();
 }
 
 @deprecated
@@ -2946,7 +3001,7 @@ class AudioServiceBackground {
   /// notification button should be specified in the [systemActions] parameter. For
   /// example:
   ///
-  /// * [MediaAction.seekTo] (enable a seek bar)
+  /// * [MediaAction.seek] (enable a seek bar)
   /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
   /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
   ///
@@ -2955,7 +3010,7 @@ class AudioServiceBackground {
   /// Control Center. However, on Android, the distinction is important as clickable
   /// buttons in the notification require you to specify your own icon.
   ///
-  /// Note that specifying [MediaAction.seekTo] in [systemActions] will enable
+  /// Note that specifying [MediaAction.seek] in [systemActions] will enable
   /// a seek bar in both the Android notification and the iOS control center.
   /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
   /// behaviour on iOS in which if you have already enabled the
@@ -2973,7 +3028,7 @@ class AudioServiceBackground {
   /// broadcasting such a position change, the [updateTime] specifies the time
   /// of that change, allowing clients to project the realtime value of the
   /// position as `position + (DateTime.now() - updateTime)`. As a convenience,
-  /// this calculation is provided by [PlaybackState.currentPosition].
+  /// this calculation is provided by [PlaybackState.position].
   ///
   /// The playback [speed] is given as a double where 1.0 means normal speed.
   static Future<void> setState({
@@ -3008,7 +3063,9 @@ class AudioServiceBackground {
       {bool preloadArtwork = false}) async {
     if (preloadArtwork) {
       print(
-          'WARNING: preloadArtwork is not enabled. Must be set via AudioService.init()');
+        'WARNING: preloadArtwork is not enabled! '
+        'This is deprecated and must be set via AudioService.init()',
+      );
     }
     _handler.queue.add(queue);
   }
@@ -3045,7 +3102,7 @@ class AudioServiceBackground {
   /// Sends a custom event to the Flutter UI.
   ///
   /// The event parameter can contain any data permitted by Dart's
-  /// SendPort/ReceivePort API. Please consult the relevant documentation for
+  /// [SendPort]/[ReceivePort] API. Please consult the relevant documentation for
   /// further information.
   static void sendCustomEvent(dynamic event) {
     _handler.customEventSubject.add(event);
@@ -3228,7 +3285,8 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
       .updateQueue(request.queue.map((item) => item.toPlugin()).toList());
 
   final Map<String, ValueStream<Map<String, dynamic>?>> _childrenSubscriptions =
-      <String, ValueStream<Map<String, dynamic>>>{};
+      {};
+
   Future<List<MediaItem>> _onLoadChildren(
       String parentMediaId, Map<String, dynamic>? options) async {
     var childrenSubscription = _childrenSubscriptions[parentMediaId];

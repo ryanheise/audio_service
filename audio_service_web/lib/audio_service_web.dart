@@ -29,25 +29,25 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.play:
             session.setActionHandler(
               'play',
-              () => handlerCallbacks?.play(PlayRequest()),
+              () => handlerCallbacks?.play(const PlayRequest()),
             );
             break;
           case MediaActionMessage.pause:
             session.setActionHandler(
               'pause',
-              () => handlerCallbacks?.pause(PauseRequest()),
+              () => handlerCallbacks?.pause(const PauseRequest()),
             );
             break;
           case MediaActionMessage.skipToPrevious:
             session.setActionHandler(
               'previoustrack',
-              () => handlerCallbacks?.skipToPrevious(SkipToPreviousRequest()),
+              () => handlerCallbacks?.skipToPrevious(const SkipToPreviousRequest()),
             );
             break;
           case MediaActionMessage.skipToNext:
             session.setActionHandler(
               'nexttrack',
-              () => handlerCallbacks?.skipToNext(SkipToNextRequest()),
+              () => handlerCallbacks?.skipToNext(const SkipToNextRequest()),
             );
             break;
           // The naming convention here is a bit odd but seekbackward seems more
@@ -55,19 +55,19 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.rewind:
             session.setActionHandler(
               'seekbackward',
-              () => handlerCallbacks?.rewind(RewindRequest()),
+              () => handlerCallbacks?.rewind(const RewindRequest()),
             );
             break;
           case MediaActionMessage.fastForward:
             session.setActionHandler(
               'seekforward',
-              () => handlerCallbacks?.fastForward(FastForwardRequest()),
+              () => handlerCallbacks?.fastForward(const FastForwardRequest()),
             );
             break;
           case MediaActionMessage.stop:
             session.setActionHandler(
               'stop',
-              () => handlerCallbacks?.stop(StopRequest()),
+              () => handlerCallbacks?.stop(const StopRequest()),
             );
             break;
           default:

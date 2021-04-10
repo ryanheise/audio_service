@@ -35,3 +35,5 @@ class PositionState {
 
 @JS('metadata')
 external set metadata(html.MediaMetadata metadata);
+
+// TODO: document this also create a library-level doc comment (dartdoc shows a warning related to this)
