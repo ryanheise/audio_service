@@ -1036,7 +1036,6 @@ class Tts {
       _interruptRequested = true;
       stop();
     }
-    // f
   }
 }
 
