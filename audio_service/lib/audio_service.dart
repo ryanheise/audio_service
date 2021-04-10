@@ -170,7 +170,7 @@ class PlaybackState {
   final int? queueIndex;
 
   /// Creates a [PlaybackState] with given field values, and with [updateTime]
-  /// defaulting to [DateTime.now()].
+  /// defaulting to [DateTime.now].
   PlaybackState({
     this.processingState = AudioProcessingState.idle,
     this.playing = false,
@@ -192,7 +192,7 @@ class PlaybackState {
         this.updateTime = updateTime ?? DateTime.now();
 
   /// Creates a copy of this state with given fields replaced by new values,
-  /// with [updateTime] set to [DateTime.now()], and unless otherwise replaced,
+  /// with [updateTime] set to [DateTime.now], and unless otherwise replaced,
   /// with [updatePosition] set to [position].
   ///
   /// The [errorCode] and [errorMessage] will be set to null unless [processingState] is
@@ -2215,10 +2215,19 @@ class _IsolateAudioHandler extends AudioHandler {
 }
 
 /// Base class for implementations of [AudioHandler]. It provides default
-/// implementations of all methods and provides various [BehaviorSubject]s, that contain values
-/// and behave like streams: [playbackState], [queue] and [mediaItem].
+/// implementations of all methods and provides controllers for holding playback state and
+/// broadcasting it as stream events.
 ///
-/// The [customEventSubject] is a [PublishSubject] that emits events to [customEvent].
+/// These are [BehaviorSubject]s provided by this class:
+///
+/// * [playbackState]
+/// * [queue]
+/// * [queueTitle]
+/// * [androidPlaybackInfo]
+/// * [ratingStyle]
+///
+/// Besides them, there's also [customEventSubject] that is a [PublishSubject]
+/// that emits events to [customEvent].
 ///
 /// You can choose to implement all methods yourself, or you may leverage some
 /// mixins to provide default implementations of certain behaviours:
@@ -2322,8 +2331,9 @@ class BaseAudioHandler extends AudioHandler {
   // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
-  /// A controller for broadcasting a custom event to the app's UI. Example
-  /// usage:
+  /// A controller for broadcasting a custom event to the app's UI.
+  /// A shorthand for the event stream is [customEvent].
+  /// Example usage:
   ///
   /// ```dart
   /// customEventSubject.add(MyCustomEvent(arg: 3));
@@ -3049,7 +3059,14 @@ class AudioServiceBackground {
   }
 
   /// Sets the current queue and notifies all clients.
-  static Future<void> setQueue(List<MediaItem> queue) async {
+  static Future<void> setQueue(List<MediaItem> queue,
+      {bool preloadArtwork = false}) async {
+    if (preloadArtwork) {
+      print(
+        'WARNING: preloadArtwork is not enabled! '
+        'This is deprecated and must be set via AudioService.init()',
+      );
+    }
     _handler.queue.add(queue);
   }
 
@@ -3064,9 +3081,8 @@ class AudioServiceBackground {
   /// If [parentMediaId] is unspecified, the root parent will be used.
   static Future<void> notifyChildrenChanged(
       [String parentMediaId = AudioService.browsableRootId]) async {
-    await _platform.notifyChildrenChanged(NotifyChildrenChangedRequest(
-      parentMediaId: parentMediaId,
-    ));
+    await _platform.notifyChildrenChanged(
+        NotifyChildrenChangedRequest(parentMediaId: parentMediaId));
   }
 
   /// In Android, forces media button events to be routed to your active media
@@ -3094,8 +3110,9 @@ class AudioServiceBackground {
 }
 
 class _HandlerCallbacks extends AudioHandlerCallbacks {
-  _HandlerCallbacks(this.handler);
   final AudioHandler handler;
+
+  _HandlerCallbacks(this.handler);
 
   @override
   Future<void> addQueueItem(AddQueueItemRequest request) =>
