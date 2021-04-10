@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-part 'method_channel_audio_service.dart';
-part 'utils.dart';
+import 'method_channel_audio_service.dart';
 
 abstract class AudioServicePlatform extends PlatformInterface {
   /// Constructs an AudioServicePlatform.
@@ -1524,3 +1523,10 @@ class AudioServiceConfigMessage {
         'androidBrowsableRootExtras': androidBrowsableRootExtras,
       };
 }
+
+/// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
+/// 
+/// Used mostly to unwrap [MethodCall.arguments] which in case with maps
+/// is always `Map<Object?, Object?>`.
+@pragma('vm:prefer-inline')
+Map<String, dynamic>? _castMap(Map? map) => map?.cast<String, dynamic>();

@@ -1,4 +1,5 @@
-part of 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
+import 'package:flutter/services.dart';
+import 'audio_service_platform_interface.dart';
 
 class MethodChannelAudioService extends AudioServicePlatform {
   final MethodChannel _clientChannel =
@@ -267,3 +268,10 @@ class MethodChannelAudioService extends AudioServicePlatform {
     });
   }
 }
+
+/// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
+/// 
+/// Used mostly to unwrap [MethodCall.arguments] which in case with maps
+/// is always `Map<Object?, Object?>`.
+@pragma('vm:prefer-inline')
+Map<String, dynamic>? _castMap(Map? map) => map?.cast<String, dynamic>();
