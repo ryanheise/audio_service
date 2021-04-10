@@ -127,16 +127,16 @@ abstract class AudioHandlerCallbacks {
   /// Add [AddQueueItemsRequest.queue] to the queue.
   Future<void> addQueueItems(AddQueueItemsRequest request);
 
-  /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [index].
+  /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [InsertQueueItemRequest.index].
   Future<void> insertQueueItem(InsertQueueItemRequest request);
 
   /// Update to the queue to [UpdateQueueRequest.queue].
   Future<void> updateQueue(UpdateQueueRequest request);
 
-  /// Update the properties of [mediaItem].
+  /// Update the properties of [UpdateMediaItemRequest.mediaItem].
   Future<void> updateMediaItem(UpdateMediaItemRequest request);
 
-  /// Remove [mediaItem] from the queue.
+  /// Remove [RemoveQueueItemRequest.mediaItem] from the queue.
   Future<void> removeQueueItem(RemoveQueueItemRequest request);
 
   /// Remove media item from the queue at the specified [RemoveQueueItemAtRequest.index].
@@ -148,10 +148,10 @@ abstract class AudioHandlerCallbacks {
   /// Skip to the previous item in the queue.
   Future<void> skipToPrevious(SkipToPreviousRequest request);
 
-  /// Jump forward by [AudioServiceConfig.fastForwardInterval].
+  /// Jump forward by [AudioServiceConfigMessage.fastForwardInterval].
   Future<void> fastForward(FastForwardRequest request);
 
-  /// Jump backward by [AudioServiceConfig.rewindInterval]. Note: this value
+  /// Jump backward by [AudioServiceConfigMessage.rewindInterval]. Note: this value
   /// must be positive.
   Future<void> rewind(RewindRequest request);
 
@@ -202,11 +202,11 @@ abstract class AudioHandlerCallbacks {
   Future<SearchResponse> search(SearchRequest request);
 
   /// Set the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfo].
+  /// [RemoteAndroidPlaybackInfoMessage].
   Future<void> androidSetRemoteVolume(AndroidSetRemoteVolumeRequest request);
 
   /// Adjust the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfo].
+  /// [RemoteAndroidPlaybackInfoMessage].
   Future<void> androidAdjustRemoteVolume(
       AndroidAdjustRemoteVolumeRequest request);
 }
@@ -310,7 +310,7 @@ class PlaybackStateMessage {
 
   /// The list of currently enabled controls which should be shown in the media
   /// notification. Each control represents a clickable button with a
-  /// [MediaAction] that must be one of:
+  /// [MediaActionMessage] that must be one of:
   ///
   /// * [MediaActionMessage.stop]
   /// * [MediaActionMessage.pause]
@@ -328,25 +328,25 @@ class PlaybackStateMessage {
   final List<int>? androidCompactActionIndices;
 
   /// The set of system actions currently enabled. This is for specifying any
-  /// other [MediaAction]s that are not supported by [controls], because they do
+  /// other [MediaActionMessage]s that are not supported by [controls], because they do
   /// not represent clickable buttons. For example:
   ///
-  /// * [MediaAction.seek] (enable a seek bar)
-  /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
-  /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
+  /// * [MediaActionMessage.seek] (enable a seek bar)
+  /// * [MediaActionMessage.seekForward] (enable press-and-hold fast-forward control)
+  /// * [MediaActionMessage.seekBackward] (enable press-and-hold rewind control)
   ///
-  /// Note that specifying [MediaAction.seek] in [systemActions] will enable
+  /// Note that specifying [MediaActionMessage.seek] in [systemActions] will enable
   /// a seek bar in both the Android notification and the iOS control center.
-  /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
+  /// [MediaActionMessage.seekForward] and [MediaActionMessage.seekBackward] have a special
   /// behaviour on iOS in which if you have already enabled the
-  /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
+  /// [MediaActionMessage.skipToNext] and [MediaActionMessage.skipToPrevious] buttons, these
   /// additional actions will allow the user to press and hold the buttons to
   /// activate the continuous seeking behaviour.
   ///
   /// When enabling the seek bar, also note that some Android devices will not
-  /// render the seek bar correctly unless your [AudioServiceConfig.androidNotificationIcon]
+  /// render the seek bar correctly unless your [AudioServiceConfigMessage.androidNotificationIcon]
   /// is a monochrome white icon on a transparent background, and your
-  /// [AudioServiceConfig.notificationColor] is a non-transparent color.
+  /// [AudioServiceConfigMessage.notificationColor] is a non-transparent color.
   final Set<MediaActionMessage> systemActions;
 
   /// The playback position at [updateTime].
@@ -356,8 +356,7 @@ class PlaybackStateMessage {
   /// of time is disrupted, such as during a seek, buffering and seeking. When
   /// broadcasting such a position change, the [updateTime] specifies the time
   /// of that change, allowing clients to project the realtime value of the
-  /// position as `position + (DateTime.now() - updateTime)`. As a convenience,
-  /// this calculation is provided by the [position] getter.
+  /// position as `position + (DateTime.now() - updateTime)`.
   final Duration updatePosition;
 
   /// The buffered position.
@@ -369,10 +368,10 @@ class PlaybackStateMessage {
   /// The time at which the playback position was last updated.
   final DateTime updateTime;
 
-  /// The error code when [processingState] is [AudioProcessingState.error].
+  /// The error code when [processingState] is [AudioProcessingStateMessage.error].
   final int? errorCode;
 
-  /// The error message when [processingState] is [AudioProcessingState.error].
+  /// The error message when [processingState] is [AudioProcessingStateMessage.error].
   final String? errorMessage;
 
   /// The current repeat mode.
@@ -387,8 +386,8 @@ class PlaybackStateMessage {
   /// The index of the current item in the queue, if any.
   final int? queueIndex;
 
-  /// Creates a [PlaybackState] with given field values, and with [updateTime]
-  /// defaulting to [DateTime.now()].
+  /// Creates a [PlaybackStateMessage] with given field values, and with [updateTime]
+  /// defaulting to [DateTime.now].
   PlaybackStateMessage({
     this.processingState = AudioProcessingStateMessage.idle,
     this.playing = false,
@@ -721,7 +720,7 @@ class RatingMessage {
   }
 
   // Even though this should take a Map<String, dynamic>, that makes an error.
-  RatingMessage.fromMap(Map<String, dynamic> raw)
+  RatingMessage.fromMap(Map raw)
       : this(
           type: RatingStyleMessage.values[raw['type'] as int],
           value: raw['value'],
@@ -1390,7 +1389,7 @@ class ConfigureRequest {
 /// from the result of a native call, and thus will be always runtime (and because `fromMap`
 /// should not return constants as well).
 class ConfigureResponse {
-  static ConfigureResponse fromMap(Map<String, dynamic> map) => ConfigureResponse();
+  static ConfigureResponse fromMap(Map map) => ConfigureResponse();
 }
 
 /// The options to use when configuring the [AudioServicePlatform].
