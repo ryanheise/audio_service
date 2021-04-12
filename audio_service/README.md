@@ -46,19 +46,20 @@ dependencies:
     git: 
       url: https://github.com/ryanheise/audio_service.git
       ref: one-isolate
+      path: audio_service
 ```
 
 Basic migration steps:
 
-1. On Android, update your app's activity class as per the "Android setup" section of this README.
+1. On Android, edit your `AndroidManifest.xml` file by setting the `android:name` attribute of your `<activity>` element to `com.ryanheise.audioservice.AudioServiceActivity` as outlined in the "Android setup" section of this README.
 2. Call `AudioService.init()` in your app's `main()` as per the example below, passing any configuration options and callbacks you previously passed into `AudioService.start()`.
-4. Remove any call to `AudioService.start()`. The media notification should now show automatically on the first time you call `play()`.
-5. Remove your corresponding implementation of `onStart()` and move any initialisation code into the constructor or other callbacks as appropriate.
-6. If you use `customAction/onCustomAction`, the second argument is now required to be a `Map`.
+3. Remove any call to `AudioService.start()`. The media notification should now show automatically on the first time you call `play()`.
+4. Remove your corresponding implementation of `onStart()` and move any initialisation code into the constructor or other callbacks as appropriate.
+5. If you use `customAction`/`onCustomAction`, the second argument is now required to be a `Map`.
 
 Optional (recommended) step:
 
-7. `BackgroundAudioTask` is deprecated and replaced by `AudioHandler`, a new composable and mixable API allowing functionality from multiple audio handlers to be combined. To migrate, change your base class from `BackgroundAudioTask` to `BaseAudioHandler` and remove the `on` prefix from each method name (e.g. rename `onPlay` to `play`).
+6. `BackgroundAudioTask` is deprecated and replaced by `AudioHandler`, a new composable and mixable API allowing functionality from multiple audio handlers to be combined. To migrate, change your base class from `BackgroundAudioTask` to `BaseAudioHandler`, remove the `on` prefix from each method name (e.g. rename `onPlay` to `play`), and instead of using `AudioServiceBackground.setState/setMediaItem/setQueue`, use `playbackState/mediaItem/queue.add`.
 
 Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for more details (TODO!).
 
