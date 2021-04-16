@@ -990,7 +990,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         MediaDescriptionCompat description = mediaMetadata.getDescription();
         Map<String, Object> raw = new HashMap<String, Object>();
         raw.put("id", description.getMediaId());
-        raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
+        if (mediaMetadata.containsKey(MediaMetadataCompat.METADATA_KEY_ALBUM))
+            raw.put("album", mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
         raw.put("title", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_TITLE));
         if (description.getIconUri() != null)
             raw.put("artUri", description.getIconUri().toString());

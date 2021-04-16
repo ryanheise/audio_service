@@ -376,7 +376,9 @@ static MPMediaItemArtwork* artwork = nil;
     NSMutableDictionary *nowPlayingInfo = [NSMutableDictionary new];
     if (mediaItem) {
         nowPlayingInfo[MPMediaItemPropertyTitle] = mediaItem[@"title"];
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+        if (mediaItem[@"album"] != [NSNull null]) {
+            nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
+        }
         if (mediaItem[@"artist"] != [NSNull null]) {
             nowPlayingInfo[MPMediaItemPropertyArtist] = mediaItem[@"artist"];
         }

@@ -251,16 +251,14 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public int getPlaybackState() {
         switch (processingState) {
-        case none: return PlaybackStateCompat.STATE_NONE;
         case connecting: return PlaybackStateCompat.STATE_CONNECTING;
-        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+        case ready: case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case buffering: return PlaybackStateCompat.STATE_BUFFERING;
         case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
         case rewinding: return PlaybackStateCompat.STATE_REWINDING;
         case skippingToPrevious: return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
         case skippingToNext: return PlaybackStateCompat.STATE_SKIPPING_TO_NEXT;
         case skippingToQueueItem: return PlaybackStateCompat.STATE_SKIPPING_TO_QUEUE_ITEM;
-        case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case stopped: return PlaybackStateCompat.STATE_STOPPED;
         case error: return PlaybackStateCompat.STATE_ERROR;
         default: return PlaybackStateCompat.STATE_NONE;
@@ -385,10 +383,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     static MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
         if (artist != null)
             builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+        if (album != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
         if (genre != null)
             builder.putString(MediaMetadataCompat.METADATA_KEY_GENRE, genre);
         if (duration != null)
