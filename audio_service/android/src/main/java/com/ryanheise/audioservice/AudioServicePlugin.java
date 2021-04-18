@@ -77,14 +77,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     public static synchronized FlutterEngine getFlutterEngine(Context context) {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine == null) {
-            System.out.println("### Creating new FlutterEngine");
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
             flutterEngine = new FlutterEngine(context.getApplicationContext());
             flutterEngine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
             FlutterEngineCache.getInstance().put(flutterEngineId, flutterEngine);
-        } else {
-            System.out.println("### Reusing existing FlutterEngine");
         }
         return flutterEngine;
     }
@@ -92,7 +89,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     public static void disposeFlutterEngine() {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine != null) {
-            System.out.println("### FlutterEngine.destroy()");
             flutterEngine.destroy();
             FlutterEngineCache.getInstance().remove(flutterEngineId);
         }
@@ -170,7 +166,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
         @Override
         public void onConnected() {
-            System.out.println("### onConnected");
             try {
                 MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
                 mediaController = new MediaControllerCompat(applicationContext, token);
@@ -179,7 +174,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     MediaControllerCompat.setMediaController(activity, mediaController);
                 }
                 mediaController.registerCallback(controllerCallback);
-                System.out.println("### registered mediaController callback");
                 PlaybackStateCompat state = mediaController.getPlaybackState();
                 controllerCallback.onPlaybackStateChanged(state);
                 MediaMetadataCompat metadata = mediaController.getMetadata();
@@ -193,7 +187,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
-            System.out.println("### onConnected returned");
         }
 
         @Override
@@ -229,12 +222,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onAttachedToEngine(FlutterPluginBinding binding) {
-        System.out.println("### onAttachedToEngine");
         flutterPluginBinding = binding;
         clientInterface = new ClientInterface(flutterPluginBinding.getBinaryMessenger());
         clientInterface.setContext(flutterPluginBinding.getApplicationContext());
         clientInterfaces.add(clientInterface);
-        System.out.println("### " + clientInterfaces.size() + " client handlers");
         if (applicationContext == null) {
             applicationContext = flutterPluginBinding.getApplicationContext();
         }
@@ -248,13 +239,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         if (mediaBrowser == null) {
             connect();
         }
-        System.out.println("### onAttachedToEngine completed");
     }
 
     @Override
     public void onDetachedFromEngine(FlutterPluginBinding binding) {
-        System.out.println("### onDetachedFromEngine");
-        System.out.println("### " + clientInterfaces.size() + " client handlers");
         if (clientInterfaces.size() == 1) {
             disconnect();
         }
@@ -267,7 +255,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             audioHandlerInterface.destroy();
             audioHandlerInterface = null;
         }
-        System.out.println("### onDetachedFromEngine completed");
     }
 
     //
@@ -276,7 +263,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onAttachedToActivity(ActivityPluginBinding binding) {
-        System.out.println("### mainClientInterface set");
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         clientInterface.setContext(binding.getActivity());
@@ -292,7 +278,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivityForConfigChanges() {
-        System.out.println("### onDetachedFromActivityForConfigChanges");
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         clientInterface.setActivity(null);
@@ -301,7 +286,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
-        System.out.println("### onReattachedToActivityForConfigChanges");
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         clientInterface.setContext(binding.getActivity());
@@ -310,7 +294,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivity() {
-        System.out.println("### onDetachedFromActivity");
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         newIntentListener = null;
@@ -327,7 +310,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void connect() {
-        System.out.println("### connect");
         /* Activity activity = mainClientInterface.activity; */
         /* if (activity != null) { */
         /*     if (clientInterface.wasLaunchedFromRecents()) { */
@@ -344,11 +326,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     null);
             mediaBrowser.connect();
         }
-        System.out.println("### connect returned");
     }
 
     private void disconnect() {
-        System.out.println("### disconnect");
         Activity activity = mainClientInterface != null ? mainClientInterface.activity : null;
         if (activity != null) {
             // Since the activity enters paused state, we set the intent with ACTION_MAIN.
@@ -363,7 +343,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             mediaBrowser.disconnect();
             mediaBrowser = null;
         }
-        System.out.println("### disconnect returned");
     }
 
     private void registerOnNewIntentListener() {
@@ -419,7 +398,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onMethodCall(MethodCall call, final Result result) {
             try {
-                System.out.println("### ClientInterface message: " + call.method);
                 switch (call.method) {
                 case "configure":
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
@@ -476,7 +454,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         private byte[] silence;
 
         public AudioHandlerInterface(BinaryMessenger messenger, boolean enableQueue) {
-            System.out.println("### new AudioHandlerInterface");
             this.enableQueue = enableQueue;
             this.messenger = messenger;
             channel = new MethodChannel(messenger, CHANNEL_HANDLER);
@@ -592,7 +569,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onClick(MediaControl mediaControl) {
-            System.out.println("### sending click map: " + mapOf("button", mediaControl.ordinal()));
             invokeMethod("click", mapOf("button", mediaControl.ordinal()));
         }
 
@@ -779,7 +755,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onMethodCall(MethodCall call, Result result) {
-            System.out.println("### AudioHandlerInterface message: " + call.method);
             Context context = AudioService.instance;
             Map<?, ?> args = (Map<?, ?>)call.arguments;
             switch (call.method) {

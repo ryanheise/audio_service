@@ -687,7 +687,6 @@ class AudioService {
   }) async {
     assert(_cacheManager == null);
     config ??= AudioServiceConfig();
-    print("### AudioService.init");
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
@@ -3133,7 +3132,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> click(ClickRequest request) {
-    print('### calling handler.click(${request.button.toPlugin()})');
     return handler.click(request.button.toPlugin());
   }
 
