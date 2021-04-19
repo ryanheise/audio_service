@@ -197,45 +197,7 @@ class PlaybackState {
   ///
   /// The [errorCode] and [errorMessage] will be set to null unless [processingState] is
   /// [AudioProcessingState.error].
-  PlaybackState copyWith({
-    AudioProcessingState? processingState,
-    bool? playing,
-    List<MediaControl>? controls,
-    List<int>? androidCompactActionIndices,
-    Set<MediaAction>? systemActions,
-    Duration? updatePosition,
-    Duration? bufferedPosition,
-    double? speed,
-    int? errorCode,
-    String? errorMessage,
-    AudioServiceRepeatMode? repeatMode,
-    AudioServiceShuffleMode? shuffleMode,
-    bool? captioningEnabled,
-    int? queueIndex,
-  }) {
-    processingState ??= this.processingState;
-    return PlaybackState(
-      processingState: processingState,
-      playing: playing ?? this.playing,
-      controls: controls ?? this.controls,
-      androidCompactActionIndices:
-          androidCompactActionIndices ?? this.androidCompactActionIndices,
-      systemActions: systemActions ?? this.systemActions,
-      updatePosition: updatePosition ?? this.position,
-      bufferedPosition: bufferedPosition ?? this.bufferedPosition,
-      speed: speed ?? this.speed,
-      errorCode: processingState != AudioProcessingState.error
-          ? null
-          : (errorCode ?? this.errorCode),
-      errorMessage: processingState != AudioProcessingState.error
-          ? null
-          : (errorMessage ?? this.errorMessage),
-      repeatMode: repeatMode ?? this.repeatMode,
-      shuffleMode: shuffleMode ?? this.shuffleMode,
-      captioningEnabled: captioningEnabled ?? this.captioningEnabled,
-      queueIndex: queueIndex ?? this.queueIndex,
-    );
-  }
+  PlaybackStateCopyWith get copyWith => _PlaybackStateCopyWith(this);
 
   /// The current playback position.
   Duration get position {
@@ -275,6 +237,92 @@ class PlaybackState {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+}
+
+/// The `copyWith` function type for [PlaybackState].
+abstract class PlaybackStateCopyWith {
+  PlaybackState call({
+    AudioProcessingState? processingState,
+    bool? playing,
+    List<MediaControl>? controls,
+    List<int>? androidCompactActionIndices,
+    Set<MediaAction>? systemActions,
+    Duration? updatePosition,
+    Duration? bufferedPosition,
+    double? speed,
+    int? errorCode,
+    String? errorMessage,
+    AudioServiceRepeatMode? repeatMode,
+    AudioServiceShuffleMode? shuffleMode,
+    bool? captioningEnabled,
+    int? queueIndex,
+  });
+}
+
+/// The implementation of [PlaybackState]'s `copyWith` function allowing
+/// parameters to be explicitly set to null.
+class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
+  static const _fakeNull = Object();
+
+  /// The [PlaybackState] object this function applies to.
+  final PlaybackState value;
+
+  _PlaybackStateCopyWith(this.value);
+
+  @override
+  PlaybackState call({
+    Object? processingState = _fakeNull,
+    Object? playing = _fakeNull,
+    Object? controls = _fakeNull,
+    Object? androidCompactActionIndices = _fakeNull,
+    Object? systemActions = _fakeNull,
+    Object? updatePosition = _fakeNull,
+    Object? bufferedPosition = _fakeNull,
+    Object? speed = _fakeNull,
+    Object? errorCode = _fakeNull,
+    Object? errorMessage = _fakeNull,
+    Object? repeatMode = _fakeNull,
+    Object? shuffleMode = _fakeNull,
+    Object? captioningEnabled = _fakeNull,
+    Object? queueIndex = _fakeNull,
+  }) =>
+      PlaybackState(
+        processingState: processingState == _fakeNull
+            ? value.processingState
+            : processingState as AudioProcessingState,
+        playing: playing == _fakeNull ? value.playing : playing as bool,
+        controls: controls == _fakeNull
+            ? value.controls
+            : controls as List<MediaControl>,
+        androidCompactActionIndices: androidCompactActionIndices == _fakeNull
+            ? value.androidCompactActionIndices
+            : androidCompactActionIndices as List<int>?,
+        systemActions: systemActions == _fakeNull
+            ? value.systemActions
+            : systemActions as Set<MediaAction>,
+        updatePosition: updatePosition == _fakeNull
+            ? value.updatePosition
+            : updatePosition as Duration,
+        bufferedPosition: bufferedPosition == _fakeNull
+            ? value.bufferedPosition
+            : bufferedPosition as Duration,
+        speed: speed == _fakeNull ? value.speed : speed as double,
+        errorCode: errorCode == _fakeNull ? value.errorCode : errorCode as int?,
+        errorMessage: errorMessage == _fakeNull
+            ? value.errorMessage
+            : errorMessage as String?,
+        repeatMode: repeatMode == _fakeNull
+            ? value.repeatMode
+            : repeatMode as AudioServiceRepeatMode,
+        shuffleMode: shuffleMode == _fakeNull
+            ? value.shuffleMode
+            : shuffleMode as AudioServiceShuffleMode,
+        captioningEnabled: captioningEnabled == _fakeNull
+            ? value.captioningEnabled
+            : captioningEnabled as bool,
+        queueIndex:
+            queueIndex == _fakeNull ? value.queueIndex : queueIndex as int?,
+      );
 }
 
 enum RatingStyle {
