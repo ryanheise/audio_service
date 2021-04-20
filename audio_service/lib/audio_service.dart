@@ -242,19 +242,19 @@ class PlaybackState {
 /// The `copyWith` function type for [PlaybackState].
 abstract class PlaybackStateCopyWith {
   PlaybackState call({
-    AudioProcessingState? processingState,
-    bool? playing,
-    List<MediaControl>? controls,
+    AudioProcessingState processingState,
+    bool playing,
+    List<MediaControl> controls,
     List<int>? androidCompactActionIndices,
-    Set<MediaAction>? systemActions,
-    Duration? updatePosition,
-    Duration? bufferedPosition,
-    double? speed,
+    Set<MediaAction> systemActions,
+    Duration updatePosition,
+    Duration bufferedPosition,
+    double speed,
     int? errorCode,
     String? errorMessage,
-    AudioServiceRepeatMode? repeatMode,
-    AudioServiceShuffleMode? shuffleMode,
-    bool? captioningEnabled,
+    AudioServiceRepeatMode repeatMode,
+    AudioServiceShuffleMode shuffleMode,
+    bool captioningEnabled,
     int? queueIndex,
   });
 }
@@ -511,36 +511,7 @@ class MediaItem {
 
   /// Creates a copy of this [MediaItem] with with the given fields replaced by
   /// new values.
-  MediaItem copyWith({
-    String? id,
-    String? album,
-    String? title,
-    String? artist,
-    String? genre,
-    Duration? duration,
-    Uri? artUri,
-    bool? playable,
-    String? displayTitle,
-    String? displaySubtitle,
-    String? displayDescription,
-    Rating? rating,
-    Map<String, dynamic>? extras,
-  }) =>
-      MediaItem(
-        id: id ?? this.id,
-        album: album ?? this.album,
-        title: title ?? this.title,
-        artist: artist ?? this.artist,
-        genre: genre ?? this.genre,
-        duration: duration ?? this.duration,
-        artUri: artUri ?? this.artUri,
-        playable: playable ?? this.playable,
-        displayTitle: displayTitle ?? this.displayTitle,
-        displaySubtitle: displaySubtitle ?? this.displaySubtitle,
-        displayDescription: displayDescription ?? this.displayDescription,
-        rating: rating ?? this.rating,
-        extras: extras ?? this.extras,
-      );
+  MediaItemCopyWith get copyWith => _MediaItemCopyWith(this);
 
   @override
   int get hashCode => id.hashCode;
@@ -566,6 +537,77 @@ class MediaItem {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+}
+
+/// The `copyWith` function type for [MediaItem].
+abstract class MediaItemCopyWith {
+  MediaItem call({
+    String id,
+    String album,
+    String title,
+    String? artist,
+    String? genre,
+    Duration? duration,
+    Uri? artUri,
+    bool? playable,
+    String? displayTitle,
+    String? displaySubtitle,
+    String? displayDescription,
+    Rating? rating,
+    Map<String, dynamic>? extras,
+  });
+}
+
+/// The implementation of [MediaItem]'s `copyWith` function allowing
+/// parameters to be explicitly set to null.
+class _MediaItemCopyWith extends MediaItemCopyWith {
+  static const _fakeNull = Object();
+
+  /// The [MediaItem] object this function applies to.
+  final MediaItem value;
+
+  _MediaItemCopyWith(this.value);
+
+  @override
+  MediaItem call({
+    Object? id = _fakeNull,
+    Object? album = _fakeNull,
+    Object? title = _fakeNull,
+    Object? artist = _fakeNull,
+    Object? genre = _fakeNull,
+    Object? duration = _fakeNull,
+    Object? artUri = _fakeNull,
+    Object? playable = _fakeNull,
+    Object? displayTitle = _fakeNull,
+    Object? displaySubtitle = _fakeNull,
+    Object? displayDescription = _fakeNull,
+    Object? rating = _fakeNull,
+    Object? extras = _fakeNull,
+  }) =>
+      MediaItem(
+        id: id == _fakeNull ? value.id : id as String,
+        album: album == _fakeNull ? value.album : album as String,
+        title: title == _fakeNull ? value.title : title as String,
+        artist: artist == _fakeNull ? value.artist : artist as String?,
+        genre: genre == _fakeNull ? value.genre : genre as String?,
+        duration:
+            duration == _fakeNull ? value.duration : duration as Duration?,
+        artUri: artUri == _fakeNull ? value.artUri : artUri as Uri?,
+        playable: playable == _fakeNull ? value.playable : playable as bool?,
+        displayTitle: displayTitle == _fakeNull
+            ? value.displayTitle
+            : displayTitle as String?,
+        displaySubtitle: displaySubtitle == _fakeNull
+            ? value.displaySubtitle
+            : displaySubtitle as String?,
+        displayDescription: displayDescription == _fakeNull
+            ? value.displayDescription
+            : displayDescription as String?,
+        rating: rating == _fakeNull ? value.rating : rating as Rating?,
+        extras: extras == _fakeNull
+            ? value.extras
+            : extras as Map<String, dynamic>?,
+      );
 }
 
 /// A button to appear in the Android notification, lock screen, Android smart
@@ -3091,17 +3133,19 @@ class AudioServiceBackground {
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
   }) async {
-    _handler.playbackState.add(_handler.playbackState.value!.copyWith(
-      controls: controls,
-      systemActions: systemActions?.toSet(),
-      processingState: processingState,
-      playing: playing,
-      updatePosition: position,
-      bufferedPosition: bufferedPosition,
-      speed: speed,
-      androidCompactActionIndices: androidCompactActions,
-      repeatMode: repeatMode,
-      shuffleMode: shuffleMode,
+    final oldState = _handler.playbackState.value!;
+    _handler.playbackState.add(PlaybackState(
+      controls: controls ?? oldState.controls,
+      systemActions: systemActions?.toSet() ?? oldState.systemActions,
+      processingState: processingState ?? oldState.processingState,
+      playing: playing ?? oldState.playing,
+      updatePosition: position ?? oldState.position,
+      bufferedPosition: bufferedPosition ?? oldState.bufferedPosition,
+      speed: speed ?? oldState.speed,
+      androidCompactActionIndices:
+          androidCompactActions ?? oldState.androidCompactActionIndices,
+      repeatMode: repeatMode ?? oldState.repeatMode,
+      shuffleMode: shuffleMode ?? oldState.shuffleMode,
     ));
   }
 
