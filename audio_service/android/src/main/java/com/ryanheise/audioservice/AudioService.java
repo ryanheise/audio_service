@@ -521,7 +521,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private boolean enterPlayingState() {
-        startService(new Intent(AudioService.this, AudioService.class));
+        startForegroundService(new Intent(AudioService.this, AudioService.class));
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 
