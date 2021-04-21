@@ -31,6 +31,7 @@ import android.util.LruCache;
 import android.view.KeyEvent;
 
 import androidx.annotation.RequiresApi;
+import androidx.core.content.ContextCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.MediaBrowserServiceCompat.BrowserRoot;
@@ -521,7 +522,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private boolean enterPlayingState() {
-        startForegroundService(new Intent(AudioService.this, AudioService.class));
+        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 
