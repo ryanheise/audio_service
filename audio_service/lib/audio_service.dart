@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
+export 'package:rxdart/rxdart.dart' show ValueStreamExtensions;
+
 AudioServicePlatform _platform = AudioServicePlatform.instance;
 
 /// The buttons on a headset.
