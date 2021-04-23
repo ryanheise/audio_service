@@ -2739,16 +2739,24 @@ mixin QueueHandler on BaseAudioHandler {
     await super.skipToPrevious();
   }
 
-  /// This should be overridden to instruct how to skip to the queue item at
-  /// [index].
+  /// This should be overridden to skip to the queue item at [index].
+  /// Implementations should broadcast the new queue index via [playbackState],
+  /// broadcast the new media item via [mediaItem], and potentially issue
+  /// instructions to start the new item playing. Some implementations may
+  /// choose to automatically play when skipping to a queue item while others
+  /// may prefer to play the new item only if the player was already playing
+  /// another item beforehand.
   ///
-  /// By default, this will broadcast [index] as
-  /// [PlaybackState.queueIndex] via the [playbackState] stream, and will
-  /// broadcast [queue] element [index] via the stream [mediaItem].
+  /// An example implementation may look like:
+  ///
+  /// ```dart
+  /// playbackState.add(playbackState.value!.copyWith(queueIndex: index));
+  /// mediaItem.add(queue.value![index]);
+  /// player.playAtIndex(index); // use your player's respective API
+  /// await super.skipToQueueItem(index);
+  /// ```
   @override
   Future<void> skipToQueueItem(int index) async {
-    playbackState.add(playbackState.value!.copyWith(queueIndex: index));
-    mediaItem.add(queue.value![index]);
     await super.skipToQueueItem(index);
   }
 
