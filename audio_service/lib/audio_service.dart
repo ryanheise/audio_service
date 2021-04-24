@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
+export 'package:rxdart/rxdart.dart' show ValueStreamExtensions;
+
 AudioServicePlatform _platform = AudioServicePlatform.instance;
 
 /// The buttons on a headset.
@@ -197,45 +199,7 @@ class PlaybackState {
   ///
   /// The [errorCode] and [errorMessage] will be set to null unless [processingState] is
   /// [AudioProcessingState.error].
-  PlaybackState copyWith({
-    AudioProcessingState? processingState,
-    bool? playing,
-    List<MediaControl>? controls,
-    List<int>? androidCompactActionIndices,
-    Set<MediaAction>? systemActions,
-    Duration? updatePosition,
-    Duration? bufferedPosition,
-    double? speed,
-    int? errorCode,
-    String? errorMessage,
-    AudioServiceRepeatMode? repeatMode,
-    AudioServiceShuffleMode? shuffleMode,
-    bool? captioningEnabled,
-    int? queueIndex,
-  }) {
-    processingState ??= this.processingState;
-    return PlaybackState(
-      processingState: processingState,
-      playing: playing ?? this.playing,
-      controls: controls ?? this.controls,
-      androidCompactActionIndices:
-          androidCompactActionIndices ?? this.androidCompactActionIndices,
-      systemActions: systemActions ?? this.systemActions,
-      updatePosition: updatePosition ?? position,
-      bufferedPosition: bufferedPosition ?? this.bufferedPosition,
-      speed: speed ?? this.speed,
-      errorCode: processingState != AudioProcessingState.error
-          ? null
-          : (errorCode ?? this.errorCode),
-      errorMessage: processingState != AudioProcessingState.error
-          ? null
-          : (errorMessage ?? this.errorMessage),
-      repeatMode: repeatMode ?? this.repeatMode,
-      shuffleMode: shuffleMode ?? this.shuffleMode,
-      captioningEnabled: captioningEnabled ?? this.captioningEnabled,
-      queueIndex: queueIndex ?? this.queueIndex,
-    );
-  }
+  PlaybackStateCopyWith get copyWith => _PlaybackStateCopyWith(this);
 
   /// The current playback position.
   Duration get position {
@@ -275,6 +239,92 @@ class PlaybackState {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+}
+
+/// The `copyWith` function type for [PlaybackState].
+abstract class PlaybackStateCopyWith {
+  PlaybackState call({
+    AudioProcessingState processingState,
+    bool playing,
+    List<MediaControl> controls,
+    List<int>? androidCompactActionIndices,
+    Set<MediaAction> systemActions,
+    Duration updatePosition,
+    Duration bufferedPosition,
+    double speed,
+    int? errorCode,
+    String? errorMessage,
+    AudioServiceRepeatMode repeatMode,
+    AudioServiceShuffleMode shuffleMode,
+    bool captioningEnabled,
+    int? queueIndex,
+  });
+}
+
+/// The implementation of [PlaybackState]'s `copyWith` function allowing
+/// parameters to be explicitly set to null.
+class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
+  static const _fakeNull = Object();
+
+  /// The [PlaybackState] object this function applies to.
+  final PlaybackState value;
+
+  _PlaybackStateCopyWith(this.value);
+
+  @override
+  PlaybackState call({
+    Object? processingState = _fakeNull,
+    Object? playing = _fakeNull,
+    Object? controls = _fakeNull,
+    Object? androidCompactActionIndices = _fakeNull,
+    Object? systemActions = _fakeNull,
+    Object? updatePosition = _fakeNull,
+    Object? bufferedPosition = _fakeNull,
+    Object? speed = _fakeNull,
+    Object? errorCode = _fakeNull,
+    Object? errorMessage = _fakeNull,
+    Object? repeatMode = _fakeNull,
+    Object? shuffleMode = _fakeNull,
+    Object? captioningEnabled = _fakeNull,
+    Object? queueIndex = _fakeNull,
+  }) =>
+      PlaybackState(
+        processingState: processingState == _fakeNull
+            ? value.processingState
+            : processingState as AudioProcessingState,
+        playing: playing == _fakeNull ? value.playing : playing as bool,
+        controls: controls == _fakeNull
+            ? value.controls
+            : controls as List<MediaControl>,
+        androidCompactActionIndices: androidCompactActionIndices == _fakeNull
+            ? value.androidCompactActionIndices
+            : androidCompactActionIndices as List<int>?,
+        systemActions: systemActions == _fakeNull
+            ? value.systemActions
+            : systemActions as Set<MediaAction>,
+        updatePosition: updatePosition == _fakeNull
+            ? value.updatePosition
+            : updatePosition as Duration,
+        bufferedPosition: bufferedPosition == _fakeNull
+            ? value.bufferedPosition
+            : bufferedPosition as Duration,
+        speed: speed == _fakeNull ? value.speed : speed as double,
+        errorCode: errorCode == _fakeNull ? value.errorCode : errorCode as int?,
+        errorMessage: errorMessage == _fakeNull
+            ? value.errorMessage
+            : errorMessage as String?,
+        repeatMode: repeatMode == _fakeNull
+            ? value.repeatMode
+            : repeatMode as AudioServiceRepeatMode,
+        shuffleMode: shuffleMode == _fakeNull
+            ? value.shuffleMode
+            : shuffleMode as AudioServiceShuffleMode,
+        captioningEnabled: captioningEnabled == _fakeNull
+            ? value.captioningEnabled
+            : captioningEnabled as bool,
+        queueIndex:
+            queueIndex == _fakeNull ? value.queueIndex : queueIndex as int?,
+      );
 }
 
 enum RatingStyle {
@@ -463,36 +513,7 @@ class MediaItem {
 
   /// Creates a copy of this [MediaItem] with with the given fields replaced by
   /// new values.
-  MediaItem copyWith({
-    String? id,
-    String? album,
-    String? title,
-    String? artist,
-    String? genre,
-    Duration? duration,
-    Uri? artUri,
-    bool? playable,
-    String? displayTitle,
-    String? displaySubtitle,
-    String? displayDescription,
-    Rating? rating,
-    Map<String, dynamic>? extras,
-  }) =>
-      MediaItem(
-        id: id ?? this.id,
-        album: album ?? this.album,
-        title: title ?? this.title,
-        artist: artist ?? this.artist,
-        genre: genre ?? this.genre,
-        duration: duration ?? this.duration,
-        artUri: artUri ?? this.artUri,
-        playable: playable ?? this.playable,
-        displayTitle: displayTitle ?? this.displayTitle,
-        displaySubtitle: displaySubtitle ?? this.displaySubtitle,
-        displayDescription: displayDescription ?? this.displayDescription,
-        rating: rating ?? this.rating,
-        extras: extras ?? this.extras,
-      );
+  MediaItemCopyWith get copyWith => _MediaItemCopyWith(this);
 
   @override
   int get hashCode => id.hashCode;
@@ -518,6 +539,77 @@ class MediaItem {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+}
+
+/// The `copyWith` function type for [MediaItem].
+abstract class MediaItemCopyWith {
+  MediaItem call({
+    String id,
+    String album,
+    String title,
+    String? artist,
+    String? genre,
+    Duration? duration,
+    Uri? artUri,
+    bool? playable,
+    String? displayTitle,
+    String? displaySubtitle,
+    String? displayDescription,
+    Rating? rating,
+    Map<String, dynamic>? extras,
+  });
+}
+
+/// The implementation of [MediaItem]'s `copyWith` function allowing
+/// parameters to be explicitly set to null.
+class _MediaItemCopyWith extends MediaItemCopyWith {
+  static const _fakeNull = Object();
+
+  /// The [MediaItem] object this function applies to.
+  final MediaItem value;
+
+  _MediaItemCopyWith(this.value);
+
+  @override
+  MediaItem call({
+    Object? id = _fakeNull,
+    Object? album = _fakeNull,
+    Object? title = _fakeNull,
+    Object? artist = _fakeNull,
+    Object? genre = _fakeNull,
+    Object? duration = _fakeNull,
+    Object? artUri = _fakeNull,
+    Object? playable = _fakeNull,
+    Object? displayTitle = _fakeNull,
+    Object? displaySubtitle = _fakeNull,
+    Object? displayDescription = _fakeNull,
+    Object? rating = _fakeNull,
+    Object? extras = _fakeNull,
+  }) =>
+      MediaItem(
+        id: id == _fakeNull ? value.id : id as String,
+        album: album == _fakeNull ? value.album : album as String,
+        title: title == _fakeNull ? value.title : title as String,
+        artist: artist == _fakeNull ? value.artist : artist as String?,
+        genre: genre == _fakeNull ? value.genre : genre as String?,
+        duration:
+            duration == _fakeNull ? value.duration : duration as Duration?,
+        artUri: artUri == _fakeNull ? value.artUri : artUri as Uri?,
+        playable: playable == _fakeNull ? value.playable : playable as bool?,
+        displayTitle: displayTitle == _fakeNull
+            ? value.displayTitle
+            : displayTitle as String?,
+        displaySubtitle: displaySubtitle == _fakeNull
+            ? value.displaySubtitle
+            : displaySubtitle as String?,
+        displayDescription: displayDescription == _fakeNull
+            ? value.displayDescription
+            : displayDescription as String?,
+        rating: rating == _fakeNull ? value.rating : rating as Rating?,
+        extras: extras == _fakeNull
+            ? value.extras
+            : extras as Map<String, dynamic>?,
+      );
 }
 
 /// A button to appear in the Android notification, lock screen, Android smart
@@ -687,7 +779,6 @@ class AudioService {
   }) async {
     assert(_cacheManager == null);
     config ??= AudioServiceConfig();
-    print("### AudioService.init");
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
@@ -2683,16 +2774,24 @@ mixin QueueHandler on BaseAudioHandler {
     await super.skipToPrevious();
   }
 
-  /// This should be overridden to instruct how to skip to the queue item at
-  /// [index].
+  /// This should be overridden to skip to the queue item at [index].
+  /// Implementations should broadcast the new queue index via [playbackState],
+  /// broadcast the new media item via [mediaItem], and potentially issue
+  /// instructions to start the new item playing. Some implementations may
+  /// choose to automatically play when skipping to a queue item while others
+  /// may prefer to play the new item only if the player was already playing
+  /// another item beforehand.
   ///
-  /// By default, this will broadcast [index] as
-  /// [PlaybackState.queueIndex] via the [playbackState] stream, and will
-  /// broadcast [queue] element [index] via the stream [mediaItem].
+  /// An example implementation may look like:
+  ///
+  /// ```dart
+  /// playbackState.add(playbackState.value!.copyWith(queueIndex: index));
+  /// mediaItem.add(queue.value![index]);
+  /// player.playAtIndex(index); // use your player's respective API
+  /// await super.skipToQueueItem(index);
+  /// ```
   @override
   Future<void> skipToQueueItem(int index) async {
-    playbackState.add(playbackState.value!.copyWith(queueIndex: index));
-    mediaItem.add(queue.value![index]);
     await super.skipToQueueItem(index);
   }
 
@@ -3080,17 +3179,19 @@ class AudioServiceBackground {
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
   }) async {
-    _handler.playbackState.add(_handler.playbackState.value!.copyWith(
-      controls: controls,
-      systemActions: systemActions?.toSet(),
-      processingState: processingState,
-      playing: playing,
-      updatePosition: position,
-      bufferedPosition: bufferedPosition,
-      speed: speed,
-      androidCompactActionIndices: androidCompactActions,
-      repeatMode: repeatMode,
-      shuffleMode: shuffleMode,
+    final oldState = _handler.playbackState.value!;
+    _handler.playbackState.add(PlaybackState(
+      controls: controls ?? oldState.controls,
+      systemActions: systemActions?.toSet() ?? oldState.systemActions,
+      processingState: processingState ?? oldState.processingState,
+      playing: playing ?? oldState.playing,
+      updatePosition: position ?? oldState.position,
+      bufferedPosition: bufferedPosition ?? oldState.bufferedPosition,
+      speed: speed ?? oldState.speed,
+      androidCompactActionIndices:
+          androidCompactActions ?? oldState.androidCompactActionIndices,
+      repeatMode: repeatMode ?? oldState.repeatMode,
+      shuffleMode: shuffleMode ?? oldState.shuffleMode,
     ));
   }
 
@@ -3169,7 +3270,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> click(ClickRequest request) {
-    print('### calling handler.click(${request.button.toPlugin()})');
     return handler.click(request.button.toPlugin());
   }
 

@@ -95,18 +95,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
           return (await callbacks.getMediaItem(GetMediaItemRequest(
               mediaId: call.arguments['mediaId'] as String)));
         case 'click':
-          print('### received click: ${call.arguments}');
-          try {
-            print('button value is "${call.arguments['button']}"');
-            print('type: ${call.arguments['button'].runtimeType}');
-            await callbacks.click(ClickRequest(
-                button: MediaButtonMessage
-                    .values[call.arguments['button'] as int]));
-          } catch (e, stackTrace) {
-            print(e);
-            print(stackTrace);
-          }
-          print('### called callbacks.click');
+          await callbacks.click(ClickRequest(
+              button: MediaButtonMessage.values[call.arguments['button'] as int]));
           return null;
         case 'stop':
           await callbacks.stop(const StopRequest());

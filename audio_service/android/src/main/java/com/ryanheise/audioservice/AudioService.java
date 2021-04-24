@@ -235,7 +235,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onCreate() {
-        System.out.println("### onCreate");
         super.onCreate();
         instance = this;
         notificationChannelId = getApplication().getPackageName() + ".channel";
@@ -260,10 +259,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         mediaSession = new MediaSessionCompat(this, "media-session");
         if (!config.androidResumeOnClick) {
-            System.out.println("### AudioService will not resume on click");
             mediaSession.setMediaButtonReceiver(null);
-        } else {
-            System.out.println("### AudioService will resume on click");
         }
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
@@ -299,7 +295,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public int onStartCommand(final Intent intent, int flags, int startId) {
-        System.out.println("### onStartCommand");
         MediaButtonReceiver.handleIntent(mediaSession, intent);
         return START_NOT_STICKY;
     }
@@ -311,7 +306,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onDestroy() {
-        System.out.println("### onDestroy");
         super.onDestroy();
         listener.onDestroy();
         listener = null;
@@ -569,9 +563,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void deactivateMediaSession() {
-        System.out.println("### deactivateMediaSession");
         if (mediaSession.isActive()) {
-            System.out.println("### deactivate mediaSession");
             mediaSession.setActive(false);
         }
         // Force cancellation of the notification
@@ -580,10 +572,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void releaseMediaSession() {
-        System.out.println("### releaseMediaSession");
         if (mediaSession == null) return;
         deactivateMediaSession();
-        System.out.println("### release mediaSession");
         mediaSession.release();
         mediaSession = null;
     }
@@ -611,7 +601,6 @@ public class AudioService extends MediaBrowserServiceCompat {
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
         Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
         if (isRecentRequest == null) isRecentRequest = false;
-        System.out.println("### onGetRoot. isRecentRequest=" + isRecentRequest);
         Bundle extras = config.getBrowsableRootExtras();
         return new BrowserRoot(isRecentRequest ? RECENT_ROOT_ID : BROWSABLE_ROOT_ID, extras);
         // The response must be given synchronously, and we can't get a
@@ -622,7 +611,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
-        System.out.println("### onLoadChildren");
         onLoadChildren(parentMediaId, result, null);
     }
 
@@ -688,7 +676,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public void onPrepare() {
-            System.out.println("### onPrepare. listener: " + listener);
             if (listener == null) return;
             if (!mediaSession.isActive())
                 mediaSession.setActive(true);
@@ -721,7 +708,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public void onPlay() {
-            System.out.println("### onPlay. listener: " + listener);
             if (listener == null) return;
             listener.onPlay();
         }
@@ -746,8 +732,6 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
-            System.out.println("### onMediaButtonEvent: " + (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT));
-            System.out.println("### listener = " + listener);
             if (listener == null) return false;
             final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -782,10 +766,8 @@ public class AudioService extends MediaBrowserServiceCompat {
                     // These are the "genuine" media button click events
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                 case KeyEvent.KEYCODE_HEADSETHOOK:
-                    System.out.println("### calling onClick");
                     MediaControllerCompat controller = mediaSession.getController();
                     listener.onClick(mediaControl(event));
-                    System.out.println("### called onClick");
                     break;
                 }
             }
@@ -808,28 +790,24 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public void onPause() {
-            System.out.println("### onPause. listener: " + listener);
             if (listener == null) return;
             listener.onPause();
         }
 
         @Override
         public void onStop() {
-            System.out.println("### onStop. listener: " + listener);
             if (listener == null) return;
             listener.onStop();
         }
 
         @Override
         public void onSkipToNext() {
-            System.out.println("### onSkipToNext");
             if (listener == null) return;
             listener.onSkipToNext();
         }
 
         @Override
         public void onSkipToPrevious() {
-            System.out.println("### onSkipToPrevious");
             if (listener == null) return;
             listener.onSkipToPrevious();
         }
