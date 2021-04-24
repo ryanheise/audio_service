@@ -15,13 +15,6 @@ enum AudioProcessingState {
     ApsError
 };
 
-enum AudioInterruption {
-    AIPause,
-    AITemporaryPause,
-    AITemporaryDuck,
-    AIUnknownPause
-};
-
 enum MediaAction {
     AStop,
     APause,

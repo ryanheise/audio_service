@@ -1,24 +1,17 @@
 package com.ryanheise.audioservice;
 
-import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
@@ -33,21 +26,16 @@ import android.view.KeyEvent;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
-import androidx.media.MediaBrowserServiceCompat.BrowserRoot;
 import androidx.media.VolumeProviderCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.embedding.engine.FlutterEngineCache;
 import android.net.Uri;
-import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class AudioService extends MediaBrowserServiceCompat {
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
@@ -75,10 +63,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     static AudioService instance;
     private static PendingIntent contentIntent;
     private static ServiceListener listener;
-    private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
-    private static int queueIndex = -1;
-    private static Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
-    private static Set<String> artUriBlacklist = new HashSet<>();
+    private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
+    private static final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
     public static void init(ServiceListener listener) {
         AudioService.listener = listener;
@@ -203,13 +189,10 @@ public class AudioService extends MediaBrowserServiceCompat {
     private PowerManager.WakeLock wakeLock;
     private MediaSessionCompat mediaSession;
     private MediaSessionCallback mediaSessionCallback;
-    private MediaMetadataCompat preparedMedia;
-    private List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
+    private List<NotificationCompat.Action> actions = new ArrayList<>();
     private int[] compactActionIndices;
     private MediaMetadataCompat mediaMetadata;
-    private Object audioFocusRequest;
     private String notificationChannelId;
-    private Handler handler = new Handler(Looper.getMainLooper());
     private LruCache<String, Bitmap> artBitmapCache;
     private boolean playing = false;
     private AudioProcessingState processingState = AudioProcessingState.idle;
@@ -311,7 +294,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         listener = null;
         mediaMetadata = null;
         queue.clear();
-        queueIndex = -1;
         mediaMetadataCache.clear();
         actions.clear();
         artBitmapCache.evictAll();
@@ -475,8 +457,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.setOngoing(true);
         }
         builder.setStyle(style);
-        Notification notification = builder.build();
-        return notification;
+        return builder.build();
     }
 
     private NotificationCompat.Builder getNotificationBuilder() {
@@ -520,7 +501,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         notificationManager.notify(NOTIFICATION_ID, buildNotification());
     }
 
-    private boolean enterPlayingState() {
+    private void enterPlayingState() {
         startService(new Intent(AudioService.this, AudioService.class));
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
@@ -528,7 +509,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         acquireWakeLock();
         mediaSession.setSessionActivity(contentIntent);
         internalStartForeground();
-        return true;
     }
 
     private void exitPlayingState() {
@@ -617,7 +597,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
         if (listener == null) {
-            result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
+            result.sendResult(new ArrayList<>());
             return;
         }
         listener.onLoadChildren(parentMediaId, result, options);
@@ -635,7 +615,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result) {
         if (listener == null) {
-            result.sendResult(new ArrayList<MediaBrowserCompat.MediaItem>());
+            result.sendResult(new ArrayList<>());
             return;
         }
         listener.onSearch(query, extras, result);
@@ -766,7 +746,6 @@ public class AudioService extends MediaBrowserServiceCompat {
                     // These are the "genuine" media button click events
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                 case KeyEvent.KEYCODE_HEADSETHOOK:
-                    MediaControllerCompat controller = mediaSession.getController();
                     listener.onClick(mediaControl(event));
                     break;
                 }
@@ -882,7 +861,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    public static interface ServiceListener {
+    public interface ServiceListener {
         //BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints);
         void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options);
         void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result);

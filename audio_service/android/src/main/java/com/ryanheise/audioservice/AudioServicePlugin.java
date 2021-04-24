@@ -1,7 +1,5 @@
 package com.ryanheise.audioservice;
 
-import io.flutter.embedding.engine.plugins.service.*;
-
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -12,6 +10,7 @@ import android.media.AudioTrack;
 import android.os.Bundle;
 import android.os.SystemClock;
 
+import androidx.annotation.UiThread;
 import androidx.core.app.NotificationCompat;
 
 import android.support.v4.media.MediaBrowserCompat;
@@ -26,41 +25,28 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.flutter.app.FlutterApplication;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.NewIntentListener;
-import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterMain;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
-
-import androidx.annotation.NonNull;
 
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.plugin.common.BinaryMessenger;
 
-import android.app.Service;
-
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.dart.DartExecutor;
-import io.flutter.embedding.engine.dart.DartExecutor.DartCallback;
-import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
-import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterRunArguments;
 
 import android.net.Uri;
-import android.content.res.AssetManager;
 
 /**
  * AudioservicePlugin
@@ -98,12 +84,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static final String CHANNEL_HANDLER = "com.ryanheise.audio_service.handler.methods";
 
     private static Context applicationContext;
-    private static Set<ClientInterface> clientInterfaces = new HashSet<ClientInterface>();
+    private static final Set<ClientInterface> clientInterfaces = new HashSet<>();
     private static ClientInterface mainClientInterface;
     private static AudioHandlerInterface audioHandlerInterface;
-    private static volatile Result startResult;
-    private static volatile Result stopResult;
-    private static long bootTime;
+    private static final long bootTime;
     private static Result configureResult;
 
     static {
@@ -117,10 +101,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     private static MediaBrowserCompat mediaBrowser;
     private static MediaControllerCompat mediaController;
-    private static MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
+    private static final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
         @Override
         public void onMetadataChanged(MediaMetadataCompat metadata) {
-            Map<String, Object> map = new HashMap<String, Object>();
+            Map<String, Object> map = new HashMap<>();
             map.put("mediaItem", mediaMetadata2raw(metadata));
             invokeClientMethod("onMediaItemChanged", map);
         }
@@ -131,12 +115,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             // On the flutter side, we represent the update time relative to the epoch.
             long updateTimeSinceBoot = state.getLastPositionUpdateTime();
             long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
-            Map<String, Object> stateMap = new HashMap<String, Object>();
+            Map<String, Object> stateMap = new HashMap<>();
             stateMap.put("processingState", AudioService.instance.getProcessingState().ordinal());
             stateMap.put("playing", AudioService.instance.isPlaying());
-            stateMap.put("controls", new ArrayList<Object>());
+            stateMap.put("controls", new ArrayList<>());
             long actionBits = state.getActions();
-            List<Object> systemActions = new ArrayList<Object>();
+            List<Object> systemActions = new ArrayList<>();
             for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
                 if ((actionBits & (1 << actionIndex)) != 0) {
                     systemActions.add(actionIndex);
@@ -149,14 +133,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             stateMap.put("updateTime", updateTimeSinceEpoch);
             stateMap.put("repeatMode", AudioService.instance.getRepeatMode());
             stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
-            Map<String, Object> map = new HashMap<String, Object>();
+            Map<String, Object> map = new HashMap<>();
             map.put("state", stateMap);
             invokeClientMethod("onPlaybackStateChanged", map);
         }
 
         @Override
         public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
-            Map<String, Object> map = new HashMap<String, Object>();
+            Map<String, Object> map = new HashMap<>();
             map.put("queue", queue2raw(queue));
             invokeClientMethod("onQueueChanged", map);
         }
@@ -201,6 +185,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             System.out.println("### UNHANDLED: onConnectionFailed");
         }
     };
+
     private static void invokeClientMethod(String method, Object arg) {
         for (ClientInterface clientInterface : clientInterfaces) {
             clientInterface.channel.invokeMethod(method, arg);
@@ -346,12 +331,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void registerOnNewIntentListener() {
-        activityPluginBinding.addOnNewIntentListener(newIntentListener = new NewIntentListener() {
-            @Override
-            public boolean onNewIntent(Intent intent) {
-                clientInterface.activity.setIntent(intent);
-                return true;
-            }
+        activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
+             clientInterface.activity.setIntent(intent);
+             return true;
         });
     }
 
@@ -359,22 +341,19 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         private Context context;
         private Activity activity;
         public final BinaryMessenger messenger;
-        private MethodChannel channel;
-        public long fastForwardInterval;
-        public long rewindInterval;
-        public Map<String, Object> params;
+        private final MethodChannel channel;
 
-        private final MediaBrowserCompat.SubscriptionCallback subscriptionCallback = new MediaBrowserCompat.SubscriptionCallback() {
-            @Override
-            public void onChildrenLoaded(String parentId, List<MediaBrowserCompat.MediaItem> children) {
-                // This is implemented in Dart already.
-                // But we may need to bring this back if we want to connect to another process's media session.
-                /* Map<String, Object> map = new HashMap<String, Object>(); */
-                /* map.put("parentMediaId", parentId); */
-                /* map.put("children", mediaItems2raw(children)); */
-                /* invokeClientMethod("onChildrenLoaded", map); */
-            }
-        };
+        // This is implemented in Dart already.
+        // But we may need to bring this back if we want to connect to another process's media session.
+//        private final MediaBrowserCompat.SubscriptionCallback subscriptionCallback = new MediaBrowserCompat.SubscriptionCallback() {
+//            @Override
+//            public void onChildrenLoaded(@NonNull String parentId, @NonNull List<MediaBrowserCompat.MediaItem> children) {
+//                Map<String, Object> map = new HashMap<String, Object>();
+//                map.put("parentMediaId", parentId);
+//                map.put("children", mediaItems2raw(children));
+//                invokeClientMethod("onChildrenLoaded", map);
+//            }
+//        };
 
         public ClientInterface(BinaryMessenger messenger) {
             this.messenger = messenger;
@@ -451,7 +430,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public MethodChannel channel;
         private AudioTrack silenceAudioTrack;
         private static final int SILENCE_SAMPLE_RATE = 44100;
-        private byte[] silence;
 
         public AudioHandlerInterface(BinaryMessenger messenger, boolean enableQueue) {
             this.enableQueue = enableQueue;
@@ -470,7 +448,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
             if (audioHandlerInterface != null) {
-                Map<String, Object> args = new HashMap<String, Object>();
+                Map<String, Object> args = new HashMap<>();
                 args.put("parentMediaId", parentMediaId);
                 args.put("options", bundleToMap(options));
                 audioHandlerInterface.channel.invokeMethod("getChildren", args, new MethodChannel.Result() {
@@ -487,8 +465,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     @Override
                     public void success(Object obj) {
                         Map<?, ?> response = (Map<?, ?>)obj;
-                        List<Map<?, ?>> rawMediaItems = (List<Map<?, ?>>)response.get("children");
-                        List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
+                        @SuppressWarnings("unchecked") List<Map<?, ?>> rawMediaItems = (List<Map<?, ?>>)response.get("children");
+                        List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<>();
                         for (Map<?, ?> rawMediaItem : rawMediaItems) {
                             MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
                             mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
@@ -503,7 +481,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onLoadItem(String itemId, final MediaBrowserServiceCompat.Result<MediaBrowserCompat.MediaItem> result) {
             if (audioHandlerInterface != null) {
-                Map<String, Object> args = new HashMap<String, Object>();
+                Map<String, Object> args = new HashMap<>();
                 args.put("mediaId", itemId);
 
                 audioHandlerInterface.channel.invokeMethod("getMediaItem", args, new MethodChannel.Result() {
@@ -537,7 +515,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onSearch(String query, Bundle extras, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
             if (audioHandlerInterface != null) {
-                Map<String, Object> args = new HashMap<String, Object>();
+                Map<String, Object> args = new HashMap<>();
                 args.put("query", query);
                 args.put("extras", bundleToMap(extras));
                 audioHandlerInterface.channel.invokeMethod("onSearch", args, new MethodChannel.Result() {
@@ -554,8 +532,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     @Override
                     public void success(Object obj) {
                         Map<?, ?> response = (Map<?, ?>)obj;
-                        List<Map<?, ?>> rawMediaItems = (List<Map<?, ?>>)response.get("mediaItems");
-                        List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<MediaBrowserCompat.MediaItem>();
+                        @SuppressWarnings("unchecked") List<Map<?, ?>> rawMediaItems = (List<Map<?, ?>>)response.get("mediaItems");
+                        List<MediaBrowserCompat.MediaItem> mediaItems = new ArrayList<>();
                         for (Map<?, ?> rawMediaItem : rawMediaItems) {
                             MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
                             mediaItems.add(new MediaBrowserCompat.MediaItem(mediaMetadata.getDescription(), (Boolean)rawMediaItem.get("playable") ? MediaBrowserCompat.MediaItem.FLAG_PLAYABLE : MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
@@ -724,7 +702,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void onSetRating(RatingCompat rating, Bundle extras) {
             invokeMethod("setRating", mapOf(
                         "rating", rating2raw(rating),
-                        // XXX: ? was extras.getSerializable("extrasMap")
                         "extras", bundleToMap(extras)));
         }
 
@@ -755,7 +732,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onMethodCall(MethodCall call, Result result) {
-            Context context = AudioService.instance;
             Map<?, ?> args = (Map<?, ?>)call.arguments;
             switch (call.method) {
             case "setMediaItem": {
@@ -766,7 +742,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 break;
             }
             case "setQueue": {
-                List<Map<?, ?>> rawQueue = (List<Map<?, ?>>)args.get("queue");
+                @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>)args.get("queue");
                 List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
                 AudioService.instance.setQueue(queue);
                 result.success(null);
@@ -776,9 +752,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<?, ?> stateMap = (Map<?, ?>)args.get("state");
                 AudioProcessingState processingState = AudioProcessingState.values()[(Integer)stateMap.get("processingState")];
                 boolean playing = (Boolean)stateMap.get("playing");
-                List<Map<?, ?>> rawControls = (List<Map<?, ?>>)stateMap.get("controls");
-                List<Object> compactActionIndexList = (List<Object>)stateMap.get("androidCompactActionIndices");
-                List<Integer> rawSystemActions = (List<Integer>)stateMap.get("systemActions");
+                @SuppressWarnings("unchecked") List<Map<?, ?>> rawControls = (List<Map<?, ?>>)stateMap.get("controls");
+                @SuppressWarnings("unchecked") List<Object> compactActionIndexList = (List<Object>)stateMap.get("androidCompactActionIndices");
+                @SuppressWarnings("unchecked") List<Integer> rawSystemActions = (List<Integer>)stateMap.get("systemActions");
                 long position = getLong(stateMap.get("updatePosition"));
                 long bufferedPosition = getLong(stateMap.get("bufferedPosition"));
                 float speed = (float)((double)((Double)stateMap.get("speed")));
@@ -794,7 +770,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 // On the native side, we must represent the update time relative to the boot time.
                 long updateTimeSinceBoot = updateTimeSinceEpoch - bootTime;
 
-                List<NotificationCompat.Action> actions = new ArrayList<NotificationCompat.Action>();
+                List<NotificationCompat.Action> actions = new ArrayList<>();
                 int actionBits = 0;
                 for (Map<?, ?> rawControl : rawControls) {
                     String resource = (String)rawControl.get("androidIcon");
@@ -853,7 +829,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 // media buttons to us.
                 // See: https://issuetracker.google.com/issues/65344811
                 if (silenceAudioTrack == null) {
-                    silence = new byte[2048];
+                    byte[] silence = new byte[2048];
                     silenceAudioTrack = new AudioTrack(
                             AudioManager.STREAM_MUSIC,
                             SILENCE_SAMPLE_RATE,
@@ -878,10 +854,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             }
         }
 
+        @UiThread
         public void invokeMethod(String method, Object arg) {
             channel.invokeMethod(method, arg);
         }
 
+        @UiThread
         public void invokeMethod(final Result result, String method, Object arg) {
             channel.invokeMethod(method, arg, result);
         }
@@ -893,7 +871,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static List<Map<?, ?>> mediaItems2raw(List<MediaBrowserCompat.MediaItem> mediaItems) {
-        List<Map<?, ?>> rawMediaItems = new ArrayList<Map<?, ?>>();
+        List<Map<?, ?>> rawMediaItems = new ArrayList<>();
         for (MediaBrowserCompat.MediaItem mediaItem : mediaItems) {
             MediaDescriptionCompat description = mediaItem.getDescription();
             MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
@@ -904,7 +882,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     private static List<Map<?, ?>> queue2raw(List<MediaSessionCompat.QueueItem> queue) {
         if (queue == null) return null;
-        List<Map<?, ?>> rawQueue = new ArrayList<Map<?, ?>>();
+        List<Map<?, ?>> rawQueue = new ArrayList<>();
         for (MediaSessionCompat.QueueItem queueItem : queue) {
             MediaDescriptionCompat description = queueItem.getDescription();
             MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
@@ -938,7 +916,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static HashMap<String, Object> rating2raw(RatingCompat rating) {
-        HashMap<String, Object> raw = new HashMap<String, Object>();
+        HashMap<String, Object> raw = new HashMap<>();
         raw.put("type", rating.getRatingStyle());
         if (rating.isRated()) {
             switch (rating.getRatingStyle()) {
@@ -975,7 +953,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static Map<?, ?> mediaMetadata2raw(MediaMetadataCompat mediaMetadata) {
         if (mediaMetadata == null) return null;
         MediaDescriptionCompat description = mediaMetadata.getDescription();
-        Map<String, Object> raw = new HashMap<String, Object>();
+        Map<String, Object> raw = new HashMap<>();
         raw.put("id", description.getMediaId());
         raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
         raw.put("title", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_TITLE));
@@ -1000,7 +978,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static MediaMetadataCompat createMediaMetadata(Map<?, ?> rawMediaItem) {
-        return AudioService.instance.createMediaMetadata(
+       //noinspection unchecked
+       return AudioService.instance.createMediaMetadata(
                 (String)rawMediaItem.get("id"),
                 (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("title"),
@@ -1018,7 +997,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static List<MediaSessionCompat.QueueItem> raw2queue(List<Map<?, ?>> rawQueue) {
-        List<MediaSessionCompat.QueueItem> queue = new ArrayList<MediaSessionCompat.QueueItem>();
+        List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
         int i = 0;
         for (Map<?, ?> rawMediaItem : rawQueue) {
             MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
@@ -1030,16 +1009,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     public static Long getLong(Object o) {
-        return (o == null || o instanceof Long) ? (Long)o : new Long(((Integer)o).intValue());
+        return (o == null || o instanceof Long) ? (Long)o : Long.valueOf((Integer) o);
     }
 
     public static Integer getInt(Object o) {
-        return (o == null || o instanceof Integer) ? (Integer)o : new Integer((int)((Long)o).longValue());
+        return (o == null || o instanceof Integer) ? (Integer)o : Integer.valueOf((int)((Long)o).longValue());
     }
 
     static Map<String, Object> bundleToMap(Bundle bundle) {
         if (bundle == null) return null;
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         for (String key : bundle.keySet()) {
             Object value = bundle.get(key);
             if (value instanceof Integer
@@ -1070,7 +1049,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     static Map<String, Object> mapOf(Object... args) {
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         for (int i = 0; i < args.length; i += 2) {
             map.put((String)args[i], args[i + 1]);
         }
