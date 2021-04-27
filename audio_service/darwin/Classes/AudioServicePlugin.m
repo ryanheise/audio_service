@@ -190,7 +190,9 @@ static MPMediaItemArtwork* artwork = nil;
             actionBits |= actionCode;
         }
         processingState = [stateMap[@"processingState"] intValue];
-        BOOL wasPlaying = playing;
+        BOOL oldPlaying = playing;
+        NSNumber *oldSpeed = speed;
+        NSNumber *oldPosition = position;
         playing = [stateMap[@"playing"] boolValue];
         position = stateMap[@"updatePosition"];
         bufferedPosition = stateMap[@"bufferedPosition"];
@@ -206,7 +208,9 @@ static MPMediaItemArtwork* artwork = nil;
         }
         [self broadcastPlaybackState];
         [self updateControls];
-        if (playing != wasPlaying) {
+        if (playing != oldPlaying ||
+            speed.doubleValue != oldSpeed.doubleValue ||
+            position.unsignedLongValue != oldPosition.unsignedLongValue) {
             [self updateNowPlayingInfo];
         }
         result(@{});
@@ -287,19 +291,40 @@ static MPMediaItemArtwork* artwork = nil;
         nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
         if (mediaItem[@"artist"] != [NSNull null]) {
             nowPlayingInfo[MPMediaItemPropertyArtist] = mediaItem[@"artist"];
-        }
-        if (mediaItem[@"duration"] != [NSNull null]) {
-            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithLongLong: ([mediaItem[@"duration"] longLongValue] / 1000)];
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithUnsignedLong: ([mediaItem[@"duration"] unsignedLongValue] / 1000)];
         }
         if (@available(iOS 3.0, macOS 10.13.2, *)) {
             if (artwork) {
                 nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork;
             }
         }
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithInt:([position intValue] / 1000)];
     }
+
+    MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
+    nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = @(MPNowPlayingInfoMediaTypeAudio);
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = playing ? speed: [NSNumber numberWithDouble: 0.0];
-    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithUnsignedLong:([position unsignedLongValue] / 1000)];
+    center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
+    center.nowPlayingInfo = nowPlayingInfo;
+  
+    // List of all unused "nowPlayingInfo" keys, we probably want to use these
+    // at some point:
+    //
+    // * MPNowPlayingInfoCollectionIdentifier
+    // * MPNowPlayingInfoPropertyAvailableLanguageOptions
+    // * MPNowPlayingInfoPropertyAssetURL
+    // * MPNowPlayingInfoPropertyChapterCount
+    // * MPNowPlayingInfoPropertyChapterNumber
+    // * MPNowPlayingInfoPropertyCurrentLanguageOptions
+    // * MPNowPlayingInfoPropertyDefaultPlaybackRate
+    // * MPNowPlayingInfoPropertyCurrentPlaybackDate
+    // * MPNowPlayingInfoPropertyExternalContentIdentifier
+    // * MPNowPlayingInfoPropertyExternalUserProfileIdentifier
+    // * MPNowPlayingInfoPropertyIsLiveStream
+    // * MPNowPlayingInfoPropertyPlaybackProgress
+    // * MPNowPlayingInfoPropertyPlaybackQueueCount
+    // * MPNowPlayingInfoPropertyPlaybackQueueIndex
+    // * MPNowPlayingInfoPropertyServiceIdentifier
 }
 
 - (void) updateControls {
