@@ -210,7 +210,7 @@ static MPMediaItemArtwork* artwork = nil;
         [self updateControls];
         if (playing != oldPlaying ||
             speed.doubleValue != oldSpeed.doubleValue ||
-            position.unsignedLongValue != oldPosition.unsignedLongValue) {
+            position.longLongValue != oldPosition.longLongValue) {
             [self updateNowPlayingInfo];
         }
         result(@{});
@@ -291,7 +291,7 @@ static MPMediaItemArtwork* artwork = nil;
         nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = mediaItem[@"album"];
         if (mediaItem[@"artist"] != [NSNull null]) {
             nowPlayingInfo[MPMediaItemPropertyArtist] = mediaItem[@"artist"];
-            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithUnsignedLong: ([mediaItem[@"duration"] unsignedLongValue] / 1000)];
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithDouble: ([mediaItem[@"duration"] doubleValue] / 1000)];
         }
         if (@available(iOS 3.0, macOS 10.13.2, *)) {
             if (artwork) {
@@ -300,15 +300,14 @@ static MPMediaItemArtwork* artwork = nil;
         }
     }
 
-    MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
     nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = @(MPNowPlayingInfoMediaTypeAudio);
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = playing ? speed: [NSNumber numberWithDouble: 0.0];
-    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithUnsignedLong:([position unsignedLongValue] / 1000)];
+    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithDouble:([position doubleValue] / 1000)];
+    MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
     center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
     center.nowPlayingInfo = nowPlayingInfo;
   
-    // List of all unused "nowPlayingInfo" keys, we probably want to use these
-    // at some point:
+    // TODO: List of all unused "nowPlayingInfo" keys, we might want to use these at some point:
     //
     // * MPNowPlayingInfoCollectionIdentifier
     // * MPNowPlayingInfoPropertyAvailableLanguageOptions
