@@ -20,6 +20,7 @@ class AudioServiceWeb extends AudioServicePlatform {
     // throw UnimplementedError('configure() has not been implemented.');
   }
 
+  @override
   Future<void> setState(SetStateRequest request) async {
     print('Setting state');
     final session = html.window.navigator.mediaSession!;
@@ -74,8 +75,10 @@ class AudioServiceWeb extends AudioServicePlatform {
             // no-op
             break;
         }
-      } catch (e) {}
-      for (MediaActionMessage message in request.state.systemActions) {
+      } catch (e) {
+        // TODO: handle this somehow?
+      }
+      for (final message in request.state.systemActions) {
         switch (message) {
           case MediaActionMessage.seek:
             try {
@@ -86,7 +89,9 @@ class AudioServiceWeb extends AudioServicePlatform {
                   milliseconds: (ev.seekTime * 1000).round(),
                 )));
               }));
-            } catch (e) {}
+            } catch (e) {
+              // TODO: handle this somehow?
+            }
             break;
           default:
             // no-op
@@ -113,10 +118,12 @@ class AudioServiceWeb extends AudioServicePlatform {
     }
   }
 
+  @override
   Future<void> setQueue(SetQueueRequest request) async {
     //no-op there is not a queue concept on the web
   }
 
+  @override
   Future<void> setMediaItem(SetMediaItemRequest request) async {
     mediaItem = request.mediaItem;
     final artUri = mediaItem!.artUri;
@@ -124,7 +131,7 @@ class AudioServiceWeb extends AudioServicePlatform {
     print('setting media item!');
 
     try {
-      metadata = html.MediaMetadata({
+      metadata = html.MediaMetadata(<String, dynamic>{
         'album': mediaItem!.album,
         'title': mediaItem!.title,
         'artist': mediaItem!.artist,
@@ -140,6 +147,7 @@ class AudioServiceWeb extends AudioServicePlatform {
     }
   }
 
+  @override
   Future<void> stopService(StopServiceRequest request) async {
     final session = html.window.navigator.mediaSession!;
     session.metadata = null;
@@ -149,8 +157,10 @@ class AudioServiceWeb extends AudioServicePlatform {
     // throw UnimplementedError('stopService() has not been implemented.');
   }
 
+  @override
   void setClientCallbacks(AudioClientCallbacks callbacks) {}
 
+  @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
     // Save this here so that we can modify which handlers are set based
     // on which actions are enabled
