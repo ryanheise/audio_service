@@ -17,7 +17,8 @@ late AudioHandler _audioHandler;
 extension DemoAudioHandler on AudioHandler {
   Future<void> switchToHandler(int? index) async {
     if (index == null) return;
-    await _audioHandler.customAction('switchToHandler', {'index': index});
+    await _audioHandler
+        .customAction('switchToHandler', <String, dynamic>{'index': index});
   }
 }
 
@@ -76,7 +77,8 @@ class MainScreen extends StatelessWidget {
                     StreamBuilder<dynamic>(
                       stream: _audioHandler.customState,
                       builder: (context, snapshot) {
-                        final handlerIndex = snapshot.data?.handlerIndex ?? 0;
+                        final handlerIndex =
+                            (snapshot.data?.handlerIndex as int?) ?? 0;
                         return DropdownButton<int>(
                           value: handlerIndex,
                           items: [
@@ -158,7 +160,7 @@ class MainScreen extends StatelessWidget {
               },
             ),
             // Display the latest custom event.
-            StreamBuilder(
+            StreamBuilder<dynamic>(
               stream: _audioHandler.customEvent,
               builder: (context, snapshot) {
                 return Text("custom event: ${snapshot.data}");
@@ -197,8 +199,8 @@ class MainScreen extends StatelessWidget {
 
   ElevatedButton startButton(String label, VoidCallback onPressed) =>
       ElevatedButton(
-        child: Text(label),
         onPressed: onPressed,
+        child: Text(label),
       );
 
   IconButton playButton() => IconButton(
@@ -314,7 +316,8 @@ class CustomEvent {
 class MainSwitchHandler extends SwitchAudioHandler {
   final List<AudioHandler> handlers;
   @override
-  BehaviorSubject<dynamic> customState = BehaviorSubject.seeded(CustomEvent(0));
+  BehaviorSubject<dynamic> customState =
+      BehaviorSubject<dynamic>.seeded(CustomEvent(0));
 
   MainSwitchHandler(this.handlers) : super(handlers.first) {
     // Configure the app's audio category and attributes for speech.
@@ -329,7 +332,7 @@ class MainSwitchHandler extends SwitchAudioHandler {
     switch (name) {
       case 'switchToHandler':
         stop();
-        final int index = extras!['index'];
+        final index = extras!['index'] as int;
         inner = handlers[index];
         customState.add(CustomEvent(index));
         return null;
@@ -359,10 +362,10 @@ class LoggingAudioHandler extends CompositeAudioHandler {
     androidPlaybackInfo.listen((androidPlaybackInfo) {
       _log('androidPlaybackInfo changed: $androidPlaybackInfo');
     });
-    customEvent.listen((customEventStream) {
+    customEvent.listen((dynamic customEventStream) {
       _log('customEvent changed: $customEventStream');
     });
-    customState.listen((customState) {
+    customState.listen((dynamic customState) {
       _log('customState changed: $customState');
     });
   }
@@ -522,7 +525,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  Future<void> setRating(Rating rating, Map<dynamic, dynamic>? extras) {
+  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) {
     _log('setRating($rating, $extras)');
     return super.setRating(rating, extras);
   }
@@ -567,7 +570,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   Future<dynamic> customAction(
       String name, Map<String, dynamic>? extras) async {
     _log('customAction($name, extras)');
-    final result = await super.customAction(name, extras);
+    final dynamic result = await super.customAction(name, extras);
     _log('customAction -> $result');
     return result;
   }
@@ -703,9 +706,10 @@ class AudioPlayerHandler extends BaseAudioHandler
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     switch (parentMediaId) {
       case AudioService.recentRootId:
-        return _recentSubject.map((_) => {});
+        return _recentSubject.map((_) => <String, dynamic>{});
       default:
-        return Stream.value(_mediaLibrary.items[parentMediaId]).map((_) => {})
+        return Stream.value(_mediaLibrary.items[parentMediaId])
+                .map((_) => <String, dynamic>{})
             as ValueStream<Map<String, dynamic>>;
     }
   }
@@ -810,7 +814,7 @@ class MediaLibrary {
 class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   final _tts = Tts();
   final _sleeper = Sleeper();
-  Completer? _completer;
+  Completer<void>? _completer;
   var _index = 0;
   bool _interrupted = false;
   var _running = false;
@@ -855,13 +859,13 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
               album: 'Numbers',
               title: 'Number ${i + 1}',
               artist: 'Sample Artist',
-              extras: {'number': i + 1},
+              extras: <String, int>{'number': i + 1},
               duration: Duration(seconds: 1),
             )));
   }
 
   Future<void> run() async {
-    _completer = Completer();
+    _completer = Completer<void>();
     _running = true;
     while (_running) {
       try {
@@ -884,6 +888,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
         } else {
           await _sleeper.sleep();
         }
+      // ignore: empty_catches
       } on SleeperInterruptedException {} on TtsInterruptedException {}
     }
     _index = 0;
@@ -961,14 +966,14 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
 
 /// An object that performs interruptable sleep.
 class Sleeper {
-  Completer? _blockingCompleter;
+  Completer<void>? _blockingCompleter;
 
   /// Sleep for a duration. If sleep is interrupted, a
   /// [SleeperInterruptedException] will be thrown.
   Future<void> sleep([Duration? duration]) async {
     _blockingCompleter = Completer();
     if (duration != null) {
-      await Future.any([Future.delayed(duration), _blockingCompleter!.future]);
+      await Future.any<void>([Future.delayed(duration), _blockingCompleter!.future]);
     } else {
       await _blockingCompleter!.future;
     }
@@ -992,8 +997,8 @@ class SleeperInterruptedException {}
 /// A wrapper around FlutterTts that makes it easier to wait for speech to
 /// complete.
 class Tts {
-  final FlutterTts _flutterTts = new FlutterTts();
-  Completer? _speechCompleter;
+  final FlutterTts _flutterTts = FlutterTts();
+  Completer<void>? _speechCompleter;
   bool _interruptRequested = false;
   bool _playing = false;
 
