@@ -1167,12 +1167,6 @@ class AudioService {
 
   /// Stops the service.
   static Future<void> _stop() async {
-    final audioSession = await AudioSession.instance;
-    try {
-      await audioSession.setActive(false);
-    } catch (e) {
-      print("While deactivating audio session: $e");
-    }
     await _platform.stopService(const StopServiceRequest());
   }
 
@@ -1411,7 +1405,15 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
 
   /// Deprecated. Replaced by [AudioHandler.stop].
   @mustCallSuper
-  Future<void> onStop() => super.stop();
+  Future<void> onStop() async {
+    final audioSession = await AudioSession.instance;
+    try {
+      await audioSession.setActive(false);
+    } catch (e) {
+      print("While deactivating audio session: $e");
+    }
+    return super.stop();
+  }
 
   /// Deprecated. Replaced by [AudioHandler.getChildren].
   Future<List<MediaItem>> onLoadChildren(String parentMediaId) async => [];
@@ -1553,11 +1555,7 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
       onClick(button);
 
   @override
-  Future<void> stop() async {
-    await onStop();
-    // This is redunant, but we must call super here.
-    super.stop();
-  }
+  Future<void> stop() => onStop();
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) => onAddQueueItem(mediaItem);
