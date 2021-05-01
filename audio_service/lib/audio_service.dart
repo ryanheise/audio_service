@@ -1059,6 +1059,9 @@ class AudioService {
     _handler.playbackState.listen((PlaybackState playbackState) async {
       await _platform
           .setState(SetStateRequest(state: playbackState._toMessage()));
+      if (playbackState.processingState == AudioProcessingState.idle) {
+        await AudioService._stop();
+      }
     });
 
     return handler;
@@ -2343,8 +2346,9 @@ class _IsolateAudioHandler extends AudioHandler {
 }
 
 /// Base class for implementations of [AudioHandler]. It provides default
-/// implementations of all methods and provides controllers for holding playback state and
-/// broadcasting it as stream events.
+/// implementations of all methods and streams. Each stream in this class is
+/// specialized as either a [BehaviorSubject] or [PublishSubject] providing an
+/// additional `add` method for emitting values on those streams.
 ///
 /// These are [BehaviorSubject]s provided by this class:
 ///
@@ -2382,8 +2386,7 @@ class _IsolateAudioHandler extends AudioHandler {
 ///
 /// The underlying Android service enters the `started` state whenever
 /// [PlaybackState.playing] becomes `true`, and enters the `stopped` state
-/// whenever [stop] is called. If you override [stop], you must call `super` to
-/// ensure that the service is stopped.
+/// whenever [PlaybackState.processingState] becomes `idle`.
 ///
 /// ### Create/destroy lifecycle
 ///
@@ -2401,8 +2404,11 @@ class BaseAudioHandler extends AudioHandler {
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// playbackState.add(playbackState.copyWith(playing: true));
+  /// playbackState.add(playbackState.value!.copyWith(playing: true));
   /// ```
+  ///
+  /// The state changes broadcast via this stream can be listened to via the
+  /// Flutter app's UI
   @override
   // ignore: close_sinks
   final BehaviorSubject<PlaybackState> playbackState =
@@ -2412,7 +2418,7 @@ class BaseAudioHandler extends AudioHandler {
   /// notification and other clients. Example usage:
   ///
   /// ```dart
-  /// queue.add(queue + [additionalItem]);
+  /// queue.add(queue.value! + [additionalItem]);
   /// ```
   @override
   final BehaviorSubject<List<MediaItem>?> queue =
@@ -2453,7 +2459,7 @@ class BaseAudioHandler extends AudioHandler {
   /// media notification and other clients. Example usage:
   ///
   /// ```dart
-  /// ratingStyle.add(item);
+  /// ratingStyle.add(style);
   /// ```
   @override
   // ignore: close_sinks
@@ -2535,10 +2541,17 @@ class BaseAudioHandler extends AudioHandler {
     }
   }
 
+  /// Stop playback and release resources.
+  ///
+  /// The default implementation (which may be overridden) updates
+  /// [playbackState] by setting the processing state to
+  /// [AudioProcessingState.idle] which disables the system notification.
   @override
-  @mustCallSuper
   Future<void> stop() async {
-    await AudioService._stop();
+    playbackState.add(playbackState.value!
+        .copyWith(processingState: AudioProcessingState.idle));
+    await playbackState.firstWhere(
+        (state) => state.processingState == AudioProcessingState.idle);
   }
 
   @override

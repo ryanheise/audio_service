@@ -737,7 +737,8 @@ class AudioPlayerHandler extends BaseAudioHandler
   @override
   Future<void> stop() async {
     await _player.stop();
-    await super.stop();
+    await playbackState.firstWhere(
+        (state) => state.processingState == AudioProcessingState.idle);
   }
 
   /// Broadcasts the current state to all clients.
@@ -888,7 +889,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
         } else {
           await _sleeper.sleep();
         }
-      // ignore: empty_catches
+        // ignore: empty_catches
       } on SleeperInterruptedException {} on TtsInterruptedException {}
     }
     _index = 0;
@@ -973,7 +974,8 @@ class Sleeper {
   Future<void> sleep([Duration? duration]) async {
     _blockingCompleter = Completer();
     if (duration != null) {
-      await Future.any<void>([Future.delayed(duration), _blockingCompleter!.future]);
+      await Future.any<void>(
+          [Future.delayed(duration), _blockingCompleter!.future]);
     } else {
       await _blockingCompleter!.future;
     }
