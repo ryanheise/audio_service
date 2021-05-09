@@ -111,6 +111,6 @@ public class AudioServiceConfig {
             .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
             .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)
             .putString(KEY_BROWSABLE_ROOT_EXTRAS, browsableRootExtras)
-            .commit();
+            .apply();
     }
 }
