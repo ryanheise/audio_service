@@ -289,7 +289,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (BOOL)updateNowPlayingField:(NSString *)field value:(id)value {
     if (![value isEqual:nowPlayingInfo[field]]) {
-        if (value != [NSNull null]) {
+        if (value != nil && value != [NSNull null]) {
             NSLog(@"### %@ = '%@'", field, value);
             nowPlayingInfo[field] = value;
         } else {
@@ -309,14 +309,12 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         updated |= [self updateNowPlayingField:MPMediaItemPropertyArtist value:mediaItem[@"artist"]];
         updated |= [self updateNowPlayingField:MPMediaItemPropertyPlaybackDuration value:([NSNumber numberWithDouble: ([mediaItem[@"duration"] doubleValue] / 1000)])];
         if (@available(iOS 3.0, macOS 10.13.2, *)) {
-            if (artwork) {
-                updated |= [self updateNowPlayingField:MPMediaItemPropertyArtwork value:artwork];
-            }
+            updated |= [self updateNowPlayingField:MPMediaItemPropertyArtwork value:artwork];
         }
     }
 
     updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyMediaType value:@(MPNowPlayingInfoMediaTypeAudio)];
-    updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyPlaybackRate value:(playing ? speed: [NSNumber numberWithDouble: 0.0])];
+    updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyPlaybackRate value:(playing ? speed : [NSNumber numberWithDouble: 0.0])];
     updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyElapsedPlaybackTime value:[NSNumber numberWithDouble:([position doubleValue] / 1000)]];
     MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
     center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
