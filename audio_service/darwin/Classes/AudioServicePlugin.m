@@ -307,17 +307,23 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         updated |= [self updateNowPlayingField:MPMediaItemPropertyTitle value:mediaItem[@"title"]];
         updated |= [self updateNowPlayingField:MPMediaItemPropertyAlbumTitle value:mediaItem[@"album"]];
         updated |= [self updateNowPlayingField:MPMediaItemPropertyArtist value:mediaItem[@"artist"]];
-        updated |= [self updateNowPlayingField:MPMediaItemPropertyPlaybackDuration value:([NSNumber numberWithDouble: ([mediaItem[@"duration"] doubleValue] / 1000)])];
+        NSNumber *duration = mediaItem[@"duration"];
+        if (duration == (id)[NSNull null]) duration = @(0);
+        updated |= [self updateNowPlayingField:MPMediaItemPropertyPlaybackDuration value:([NSNumber numberWithDouble: ([duration doubleValue] / 1000)])];
         if (@available(iOS 3.0, macOS 10.13.2, *)) {
             updated |= [self updateNowPlayingField:MPMediaItemPropertyArtwork value:artwork];
         }
     }
 
-    updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyMediaType value:@(MPNowPlayingInfoMediaTypeAudio)];
+    if (@available(iOS 10.0, macOS 10.12.2, *)) {
+        updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyMediaType value:@(MPNowPlayingInfoMediaTypeAudio)];
+    }
     updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyPlaybackRate value:(playing ? speed : [NSNumber numberWithDouble: 0.0])];
     updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyElapsedPlaybackTime value:[NSNumber numberWithDouble:([position doubleValue] / 1000)]];
     MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
-    center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
+    if (@available(iOS 13.0, macOS 10.12.2, *)) {
+        center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
+    }
     if (updated) {
         NSLog(@"### updating nowPlayingInfo");
         center.nowPlayingInfo = nowPlayingInfo;
