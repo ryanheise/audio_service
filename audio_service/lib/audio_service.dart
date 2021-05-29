@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
-export 'package:rxdart/rxdart.dart' show ValueStreamExtensions;
-
 AudioServicePlatform _platform = AudioServicePlatform.instance;
 
 /// The buttons on a headset.
@@ -1120,8 +1118,8 @@ class AudioService {
     }
 
     void yieldPosition(Timer? timer) {
-      if (last != _handler.playbackState.value?.position) {
-        controller.add((last = _handler.playbackState.value?.position)!);
+      if (last != _handler.playbackState.nvalue?.position) {
+        controller.add((last = _handler.playbackState.nvalue?.position)!);
       }
     }
 
@@ -1221,7 +1219,7 @@ class AudioService {
   /// Deprecated. Use `value` of  [AudioHandler.playbackState] instead.
   @deprecated
   static PlaybackState get playbackState =>
-      _handler.playbackState.value ?? PlaybackState();
+      _handler.playbackState.nvalue ?? PlaybackState();
 
   /// Deprecated. Use [AudioHandler.mediaItem] instead.
   @deprecated
@@ -1252,7 +1250,7 @@ class AudioService {
 
   /// Deprecated. Use [PlaybackState.processingState] of [AudioHandler.playbackState] instead.
   @deprecated
-  static bool get running => runningStream.value ?? false;
+  static bool get running => runningStream.nvalue ?? false;
 
   static StreamSubscription? _childrenSubscription;
 
@@ -1422,7 +1420,7 @@ abstract class BackgroundAudioTask extends BaseAudioHandler {
   Future<void> onClick(MediaButton? button) async {
     switch (button!) {
       case MediaButton.media:
-        if (playbackState.value!.playing) {
+        if (playbackState.nvalue!.playing) {
           await onPause();
         } else {
           await onPlay();
@@ -2524,7 +2522,7 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> click([MediaButton button = MediaButton.media]) async {
     switch (button) {
       case MediaButton.media:
-        if (playbackState.value?.playing == true) {
+        if (playbackState.nvalue?.playing == true) {
           await pause();
         } else {
           await play();
@@ -2546,7 +2544,7 @@ class BaseAudioHandler extends AudioHandler {
   /// [AudioProcessingState.idle] which disables the system notification.
   @override
   Future<void> stop() async {
-    playbackState.add(playbackState.value!
+    playbackState.add(playbackState.nvalue!
         .copyWith(processingState: AudioProcessingState.idle));
     await playbackState.firstWhere(
         (state) => state.processingState == AudioProcessingState.idle);
@@ -2673,7 +2671,7 @@ mixin SeekHandler on BaseAudioHandler {
 
   /// Jumps away from the current position by [offset].
   Future<void> _seekRelative(Duration offset) async {
-    var newPosition = playbackState.value!.position + offset;
+    var newPosition = playbackState.nvalue!.position + offset;
     // Make sure we don't jump out of bounds.
     if (newPosition < Duration.zero) {
       newPosition = Duration.zero;
@@ -2717,7 +2715,7 @@ class _Seeker {
     _running = true;
     while (_running) {
       var newPosition =
-          handler.playbackState.value!.position + positionInterval;
+          handler.playbackState.nvalue!.position + positionInterval;
       if (newPosition < Duration.zero) newPosition = Duration.zero;
       if (newPosition > duration) newPosition = duration;
       handler.seek(newPosition);
@@ -2808,7 +2806,7 @@ mixin QueueHandler on BaseAudioHandler {
 
   Future<void> _skip(int offset) async {
     final queue = this.queue.value!;
-    final index = playbackState.value!.queueIndex!;
+    final index = playbackState.nvalue!.queueIndex!;
     if (index < 0 || index >= queue.length) return;
     return skipToQueueItem(index + offset);
   }
@@ -3112,7 +3110,7 @@ class AudioServiceBackground {
   ///
   /// This is the value most recently set via [setMediaItem].
   static PlaybackState get state =>
-      _handler.playbackState.value ?? PlaybackState();
+      _handler.playbackState.nvalue ?? PlaybackState();
 
   /// The current queue.
   ///
@@ -3190,7 +3188,7 @@ class AudioServiceBackground {
     AudioServiceRepeatMode? repeatMode,
     AudioServiceShuffleMode? shuffleMode,
   }) async {
-    final oldState = _handler.playbackState.value!;
+    final oldState = _handler.playbackState.nvalue!;
     _handler.playbackState.add(PlaybackState(
       controls: controls ?? oldState.controls,
       systemActions: systemActions?.toSet() ?? oldState.systemActions,
@@ -3492,4 +3490,10 @@ class _ClientCallbacks extends AudioClientCallbacks {
   //  // TODO: implement onChildrenLoaded
   //  throw UnimplementedError();
   //}
+}
+
+/// Backwards compatible extensions on rxdart's ValueStream
+extension _ValueStreamExtension<T> on ValueStream<T> {
+  /// Backwards compatible version of valueOrNull.
+  T? get nvalue => hasValue ? value : null;
 }

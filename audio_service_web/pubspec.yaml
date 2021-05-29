@@ -22,7 +22,7 @@ dependencies:
   # Use these deps when publishing.
   # audio_service_platform_interface: ^1.0.0
 
-  rxdart: ^0.26.0
+  rxdart: '>=0.26.0 <0.28.0'
   js: ^0.6.3
   flutter:
     sdk: flutter

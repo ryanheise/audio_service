@@ -641,7 +641,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   // ignore: close_sinks
   final BehaviorSubject<List<MediaItem>> _recentSubject =
-      BehaviorSubject<List<MediaItem>>();
+      BehaviorSubject.seeded(<MediaItem>[]);
   final _mediaLibrary = MediaLibrary();
   final _player = AudioPlayer();
 
@@ -693,7 +693,7 @@ class AudioPlayerHandler extends BaseAudioHandler
         // When the user resumes a media session, tell the system what the most
         // recently played item was.
         print("### get recent children: ${_recentSubject.value}:");
-        return _recentSubject.value ?? [];
+        return _recentSubject.value;
       default:
         // Allow client to browse the media library.
         print(
@@ -744,7 +744,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// Broadcasts the current state to all clients.
   void _broadcastState(PlaybackEvent event) {
     final playing = _player.playing;
-    playbackState.add(playbackState.value!.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
@@ -820,7 +820,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   bool _interrupted = false;
   var _running = false;
 
-  bool get _playing => playbackState.value?.playing ?? false;
+  bool get _playing => playbackState.value.playing;
 
   TextPlayerHandler() {
     _init();
@@ -872,7 +872,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
       try {
         if (_playing) {
           mediaItem.add(queue.value![_index]);
-          playbackState.add(playbackState.value!.copyWith(
+          playbackState.add(playbackState.value.copyWith(
             updatePosition: Duration.zero,
             queueIndex: _index,
           ));
@@ -894,10 +894,10 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     }
     _index = 0;
     mediaItem.add(queue.value![_index]);
-    playbackState.add(playbackState.value!.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       updatePosition: Duration.zero,
     ));
-    if (playbackState.value!.processingState != AudioProcessingState.idle) {
+    if (playbackState.value.processingState != AudioProcessingState.idle) {
       stop();
     }
     _completer?.complete();
@@ -920,7 +920,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     if (await session.setActive(true)) {
       // If we successfully activated the session, set the state to playing
       // and resume playback.
-      playbackState.add(playbackState.value!.copyWith(
+      playbackState.add(playbackState.value.copyWith(
         controls: [MediaControl.pause, MediaControl.stop],
         processingState: AudioProcessingState.ready,
         playing: true,
@@ -936,7 +936,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
   @override
   Future<void> pause() async {
     _interrupted = false;
-    playbackState.add(playbackState.value!.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [MediaControl.play, MediaControl.stop],
       processingState: AudioProcessingState.ready,
       playing: false,
@@ -946,7 +946,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
 
   @override
   Future<void> stop() async {
-    playbackState.add(playbackState.value!.copyWith(
+    playbackState.add(playbackState.value.copyWith(
       controls: [],
       processingState: AudioProcessingState.idle,
       playing: false,
