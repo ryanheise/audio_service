@@ -8,8 +8,8 @@ environment:
   flutter: ">=1.12.13+hotfix.5"
 
 dependencies:
-  audio_session: ^0.1.0
-  rxdart: ^0.26.0
+  audio_session: ^0.1.2
+  rxdart: '>=0.26.0 <0.28.0'
   flutter_isolate: ^2.0.0
   flutter_cache_manager: ^3.0.0
   js: ^0.6.3
