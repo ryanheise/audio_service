@@ -535,7 +535,7 @@ class AudioService {
 
   /// The children of the current browse media parent.
   static List<MediaItem>? get browseMediaChildren =>
-      _browseMediaChildrenSubject.value;
+      _browseMediaChildrenSubject.nvalue;
 
   static final _playbackStateSubject = BehaviorSubject<PlaybackState>();
 
@@ -545,7 +545,7 @@ class AudioService {
 
   /// The current playback state.
   static PlaybackState get playbackState =>
-      _playbackStateSubject.value ?? AudioServiceBackground._noneState;
+      _playbackStateSubject.nvalue ?? AudioServiceBackground._noneState;
 
   static final _currentMediaItemSubject = BehaviorSubject<MediaItem?>();
 
@@ -554,7 +554,7 @@ class AudioService {
       _currentMediaItemSubject.stream;
 
   /// The current [MediaItem].
-  static MediaItem? get currentMediaItem => _currentMediaItemSubject.value;
+  static MediaItem? get currentMediaItem => _currentMediaItemSubject.nvalue;
 
   static final _queueSubject = BehaviorSubject<List<MediaItem>?>();
 
@@ -562,7 +562,7 @@ class AudioService {
   static ValueStream<List<MediaItem>?> get queueStream => _queueSubject.stream;
 
   /// The current queue.
-  static List<MediaItem>? get queue => _queueSubject.value;
+  static List<MediaItem>? get queue => _queueSubject.nvalue;
 
   static final _notificationSubject = BehaviorSubject.seeded(false);
 
@@ -571,7 +571,8 @@ class AudioService {
       _notificationSubject.stream;
 
   /// The status of the notificationClick event.
-  static bool get notificationClickEvent => _notificationSubject.value ?? false;
+  static bool get notificationClickEvent =>
+      _notificationSubject.nvalue ?? false;
 
   static final _customEventSubject = PublishSubject<dynamic>();
 
@@ -686,7 +687,7 @@ class AudioService {
         }
         await _channel.invokeMethod("connect");
         final running = (await _channel.invokeMethod<bool>("isRunning"))!;
-        if (running != _runningSubject.value) {
+        if (running != _runningSubject.nvalue) {
           _runningSubject.add(running);
         }
         _connected = true;
@@ -717,7 +718,7 @@ class AudioService {
   static ValueStream<bool> get runningStream => _runningSubject.stream;
 
   /// True if the background audio task is running.
-  static bool get running => _runningSubject.value ?? false;
+  static bool get running => _runningSubject.nvalue ?? false;
 
   /// Starts a background audio task which will continue running even when the
   /// UI is not visible or the screen is turned off. Only one background audio task
@@ -2010,3 +2011,9 @@ class _AsyncTaskQueueEntry {
 typedef _AsyncTask = Future<dynamic> Function();
 
 bool get _testMode => !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
+
+/// Backwards compatible extensions on rxdart's ValueStream
+extension _ValueStreamExtension<T> on ValueStream<T> {
+  /// Backwards compatible version of valueOrNull.
+  T? get nvalue => hasValue ? value : null;
+}
