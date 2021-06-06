@@ -186,7 +186,7 @@ class MainScreen extends StatelessWidget {
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem?, Duration, MediaState>(
           _audioHandler.mediaItem,
-          AudioService.getPositionStream(),
+          AudioService.positionStream,
           (mediaItem, position) => MediaState(mediaItem, position));
 
   /// A stream reporting the combined state of the current queue and the current
@@ -722,7 +722,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: index);
     // Demonstrate custom events.
-    customEventSubject.add('skip to $index');
+    customEvent.add('skip to $index');
   }
 
   @override
