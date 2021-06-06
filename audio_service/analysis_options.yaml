@@ -4,8 +4,11 @@ analyzer:
   strong-mode:
     implicit-casts: false
     implicit-dynamic: false
+  exclude:
+    - 'example/**'
 
 linter:
   rules:
     prefer_single_quotes: false
     unawaited_futures: false
+    public_member_api_docs: true
