@@ -1,14 +1,15 @@
 package com.ryanheise.audioservice;
 
 import android.content.Context;
+
+import androidx.annotation.NonNull;
+
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.embedding.engine.FlutterEngineCache;
-import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class AudioServiceActivity extends FlutterActivity {
     @Override
-    public FlutterEngine provideFlutterEngine(Context context) {
+    public FlutterEngine provideFlutterEngine(@NonNull Context context) {
         return AudioServicePlugin.getFlutterEngine(context);
     }
 }

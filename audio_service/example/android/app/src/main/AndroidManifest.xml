@@ -16,7 +16,8 @@
          FlutterApplication and put your custom class here. -->
     <application
         android:label="Audio Service Demo"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:name=".Application">
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"
             android:launchMode="singleTop"

@@ -23,6 +23,8 @@ import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.LruCache;
 import android.view.KeyEvent;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.NotificationCompat;
@@ -579,7 +581,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     @Override
-    public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
+    public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, Bundle rootHints) {
         Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
         if (isRecentRequest == null) isRecentRequest = false;
         Bundle extras = config.getBrowsableRootExtras();
@@ -591,12 +593,12 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     @Override
-    public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
+    public void onLoadChildren(@NonNull final String parentMediaId, @NonNull final Result<List<MediaBrowserCompat.MediaItem>> result) {
         onLoadChildren(parentMediaId, result, null);
     }
 
     @Override
-    public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
+    public void onLoadChildren(@NonNull final String parentMediaId, @NonNull final Result<List<MediaBrowserCompat.MediaItem>> result, @NonNull Bundle options) {
         if (listener == null) {
             result.sendResult(new ArrayList<>());
             return;
@@ -605,7 +607,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     @Override
-    public void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result) {
+    public void onLoadItem(String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result) {
         if (listener == null) {
             result.sendResult(null);
             return;
@@ -614,7 +616,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     @Override
-    public void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result) {
+    public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
         if (listener == null) {
             result.sendResult(new ArrayList<>());
             return;
@@ -863,10 +865,10 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public interface ServiceListener {
-        //BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints);
-        void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options);
-        void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result);
-        void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result);
+//        BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, Bundle rootHints);
+        void onLoadChildren(@NonNull String parentMediaId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result, @Nullable Bundle options);
+        void onLoadItem(String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result);
+        void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result);
         void onClick(MediaControl mediaControl);
         void onPrepare();
         void onPrepareFromMediaId(String mediaId, Bundle extras);
@@ -887,7 +889,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         void onSetRating(RatingCompat rating);
         void onSetRating(RatingCompat rating, Bundle extras);
         void onSetRepeatMode(int repeatMode);
-        //void onSetShuffleModeEnabled(boolean enabled);
         void onSetShuffleMode(int shuffleMode);
         void onCustomAction(String action, Bundle extras);
         void onAddQueueItem(MediaMetadataCompat metadata);
@@ -903,11 +904,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         //
 
         void onPlayMediaItem(MediaMetadataCompat metadata);
-
         void onTaskRemoved();
-
         void onClose();
-
         void onDestroy();
     }
 }

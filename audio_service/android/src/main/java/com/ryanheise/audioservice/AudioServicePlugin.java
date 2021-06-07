@@ -3,13 +3,14 @@ package com.ryanheise.audioservice;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
 import android.os.SystemClock;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.core.app.NotificationCompat;
 
@@ -26,11 +27,11 @@ import android.support.v4.media.session.PlaybackStateCompat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 
+import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -49,197 +50,203 @@ import io.flutter.embedding.engine.dart.DartExecutor;
 import android.net.Uri;
 
 /**
- * AudioservicePlugin
+ * A connection bridge between {@link AudioService} and dart,
+ * therefore creates and manages a {@link FlutterEngine} instance.
+ *
+ * With that mechanism AudioService can be start alone, creating the plugin, and then later
+ * FlutterActivity attached to it, as well as FlutterActivity may be launched first
+ * and create the AudioService.
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
-    private static String flutterEngineId = "audio_service_engine";
-    /** Must be called BEFORE any FlutterEngine is created. e.g. in Application class. */
-    public static void setFlutterEngineId(String id) {
-        flutterEngineId = id;
-    }
-    public static String getFlutterEngineId() {
-        return flutterEngineId;
-    }
-    public static synchronized FlutterEngine getFlutterEngine(Context context) {
-        FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
-        if (flutterEngine == null) {
-            // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
-            // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
-            flutterEngine = new FlutterEngine(context.getApplicationContext());
-            flutterEngine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
-            FlutterEngineCache.getInstance().put(flutterEngineId, flutterEngine);
-        }
-        return flutterEngine;
-    }
-
-    public static void disposeFlutterEngine() {
-        FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
-        if (flutterEngine != null) {
-            flutterEngine.destroy();
-            FlutterEngineCache.getInstance().remove(flutterEngineId);
-        }
-    }
-
+    private static final String DEFAULT_ENGINE_ID = "audio_service_engine";
     private static final String CHANNEL_CLIENT = "com.ryanheise.audio_service.client.methods";
     private static final String CHANNEL_HANDLER = "com.ryanheise.audio_service.handler.methods";
 
-    private static Context applicationContext;
-    private static final Set<ClientInterface> clientInterfaces = new HashSet<>();
-    private static ClientInterface mainClientInterface;
-    private static AudioHandlerInterface audioHandlerInterface;
-    private static final long bootTime;
-    private static Result configureResult;
+    static FlutterEngineFactory.EngineConfig engineConfig;
+    @Nullable private static FlutterEngineFactory engineFactory;
+    /**
+     * Sets a custom factory for {@link FlutterEngine}.
+     *
+     * <p>By default the engine will be created with default ID and
+     * will be pre-warmed and managed internally.
+     */
+    public static void setEngineFactory(@Nullable FlutterEngineFactory value) {
+        engineFactory = value;
+    }
 
+    /** Factory callback for {@link FlutterEngine}. */
+    public interface FlutterEngineFactory {
+        /** Runs the factory */
+        EngineConfig create();
+
+        /** Config of the {@link FlutterEngine} for the plugin. */
+        class EngineConfig {
+            private String id;
+            private FlutterEngine engine;
+
+            /**
+             * Creates config with ID.
+             * Engine will be pre-warmed and managed internally.
+             */
+            public EngineConfig(String id) {
+                this.id = id;
+            }
+
+            /**
+             * Creates config with pre-warmed engine.
+             * The provided engine must be managed by its creator.
+             *
+             * <p>The following illustrates how to pre-warm and cache a {@link FlutterEngine}:
+             *
+             * <pre>{@code
+             * // Create and pre-warm a FlutterEngine.
+             * FlutterEngine flutterEngine = new FlutterEngine(context);
+             * flutterEngine.getDartExecutor().executeDartEntrypoint(DartEntrypoint.createDefault());
+             *
+             * // Cache the pre-warmed FlutterEngine in the FlutterEngineCache.
+             * FlutterEngineCache.getInstance().put("my_engine", flutterEngine);
+             * }</pre>
+             *
+             */
+            public EngineConfig(FlutterEngine engine) {
+                this.engine = engine;
+            }
+
+            private EngineConfig(EngineConfig other) {
+                id = other.id;
+                engine = other.engine;
+                if (id == null && engine == null) {
+                    id = DEFAULT_ENGINE_ID;
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns an ID if engine should be created from ID, otherwise
+     * returns null
+     */
+    private static String getId() {
+        if (engineConfig == null)
+            return DEFAULT_ENGINE_ID;
+        if (engineConfig.engine != null)
+            return null;
+        if (engineConfig.id == null)
+            return DEFAULT_ENGINE_ID;
+        return engineConfig.id;
+    }
+
+    /**
+     * Creates and pre-warms a {@link FlutterEngine}. This engine
+     * is saved and will be kept intact until the {@link #destroy}
+     * is called.
+     *
+     * <p>To bind the service to flutter activity, override the
+     * {@link FlutterActivity#provideFlutterEngine(Context)} to return
+     * the result of this method call.
+     *
+     * <p>Alternatively, you can just use {@link AudioServiceActivity}, which
+     * does that for you.
+     */
+    public static synchronized FlutterEngine getFlutterEngine(Context context) {
+        FlutterEngine engine;
+        if (engineFactory != null && engineConfig == null) {
+            engineConfig = new FlutterEngineFactory.EngineConfig(engineFactory.create());
+        }
+        String id = getId();
+        if (id != null) {
+            engine = FlutterEngineCache.getInstance().get(id);
+            if (engine == null) {
+                engine = new FlutterEngine(context.getApplicationContext(), null);
+                engine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
+                FlutterEngineCache.getInstance().put(id, engine);
+            }
+        } else {
+            engine = engineConfig.engine;
+        }
+        return engine;
+    }
+
+    private static boolean destroyed;
+    /**
+     * Destroys the plugin and all the resources it holds,
+     * stops the {@link AudioService}.
+     *
+     * <p>If engine was created by the plugin (with ID), it will be
+     * destroyed.
+     */
+    public static void destroy() {
+        if (!destroyed) {
+            destroyed = true;
+            engineConfig = null;
+            detachFromEngine();
+            destroyEngine();
+        }
+    }
+
+    private static void detachFromEngine() {
+        disconnect();
+        flutterPluginBinding = null;
+        clientInterface = null;
+        audioHandlerInterface = null;
+        AudioService.instance.stop();
+    }
+
+    private static void destroyEngine() {
+        String id = getId();
+        if (id != null) {
+            FlutterEngine engine = FlutterEngineCache.getInstance().get(id);
+            if (engine != null) {
+                engine.destroy();
+                FlutterEngineCache.getInstance().remove(id);
+            }
+        }
+    }
+
+    private static Result configureResult;
+    private static ClientInterface clientInterface;
+    private static AudioHandlerInterface audioHandlerInterface;
+    private static MediaBrowserCompat mediaBrowser;
+    private static MediaControllerCompat mediaController;
+    private static MediaControllerCompat.Callback controllerCallback;
+
+    private static final long bootTime;
     static {
         bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
     }
 
-    static AudioHandlerInterface audioHandlerInterface() throws Exception {
-        if (audioHandlerInterface == null) throw new Exception("Background audio task not running");
-        return audioHandlerInterface;
-    }
-
-    private static MediaBrowserCompat mediaBrowser;
-    private static MediaControllerCompat mediaController;
-    private static final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("mediaItem", mediaMetadata2raw(metadata));
-            invokeClientMethod("onMediaItemChanged", map);
-        }
-
-        @Override
-        public void onPlaybackStateChanged(PlaybackStateCompat state) {
-            // On the native side, we represent the update time relative to the boot time.
-            // On the flutter side, we represent the update time relative to the epoch.
-            long updateTimeSinceBoot = state.getLastPositionUpdateTime();
-            long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
-            Map<String, Object> stateMap = new HashMap<>();
-            stateMap.put("processingState", AudioService.instance.getProcessingState().ordinal());
-            stateMap.put("playing", AudioService.instance.isPlaying());
-            stateMap.put("controls", new ArrayList<>());
-            long actionBits = state.getActions();
-            List<Object> systemActions = new ArrayList<>();
-            for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
-                if ((actionBits & (1 << actionIndex)) != 0) {
-                    systemActions.add(actionIndex);
-                }
-            }
-            stateMap.put("systemActions", systemActions);
-            stateMap.put("updatePosition", state.getPosition());
-            stateMap.put("bufferedPosition", state.getBufferedPosition());
-            stateMap.put("speed", state.getPlaybackSpeed());
-            stateMap.put("updateTime", updateTimeSinceEpoch);
-            stateMap.put("repeatMode", AudioService.instance.getRepeatMode());
-            stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
-            Map<String, Object> map = new HashMap<>();
-            map.put("state", stateMap);
-            invokeClientMethod("onPlaybackStateChanged", map);
-        }
-
-        @Override
-        public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("queue", queue2raw(queue));
-            invokeClientMethod("onQueueChanged", map);
-        }
-
-        // TODO: Add more callbacks.
-    };
-    private static final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
-        @Override
-        public void onConnected() {
-            try {
-                MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
-                mediaController = new MediaControllerCompat(applicationContext, token);
-                Activity activity = mainClientInterface != null ? mainClientInterface.activity : null;
-                if (activity != null) {
-                    MediaControllerCompat.setMediaController(activity, mediaController);
-                }
-                mediaController.registerCallback(controllerCallback);
-                PlaybackStateCompat state = mediaController.getPlaybackState();
-                controllerCallback.onPlaybackStateChanged(state);
-                MediaMetadataCompat metadata = mediaController.getMetadata();
-                controllerCallback.onQueueChanged(mediaController.getQueue());
-                controllerCallback.onMetadataChanged(metadata);
-                if (configureResult != null) {
-                    configureResult.success(mapOf());
-                    configureResult = null;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public void onConnectionSuspended() {
-            // TODO: Handle this
-            System.out.println("### UNHANDLED: onConnectionSuspended");
-        }
-
-        @Override
-        public void onConnectionFailed() {
-            // TODO: Handle this
-            System.out.println("### UNHANDLED: onConnectionFailed");
-        }
-    };
-
+    @UiThread
     private static void invokeClientMethod(String method, Object arg) {
-        for (ClientInterface clientInterface : clientInterfaces) {
-            clientInterface.channel.invokeMethod(method, arg);
-        }
+        clientInterface.channel.invokeMethod(method, arg);
     }
-
-    //
-    // INSTANCE FIELDS AND METHODS
-    //
-
-    private FlutterPluginBinding flutterPluginBinding;
-    private ActivityPluginBinding activityPluginBinding;
-    private NewIntentListener newIntentListener;
-    private ClientInterface clientInterface;
 
     //
     // FlutterPlugin callbacks
     //
 
+    private static FlutterPluginBinding flutterPluginBinding;
+    private static ActivityPluginBinding activityPluginBinding;
+    private static NewIntentListener newIntentListener;
+
     @Override
-    public void onAttachedToEngine(FlutterPluginBinding binding) {
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        if (destroyed)
+            return;
+        if (flutterPluginBinding != null) {
+            throw new IllegalArgumentException("Plugin instance supports being attached maximum to one Flutter engine");
+        }
         flutterPluginBinding = binding;
         clientInterface = new ClientInterface(flutterPluginBinding.getBinaryMessenger());
-        clientInterface.setContext(flutterPluginBinding.getApplicationContext());
-        clientInterfaces.add(clientInterface);
-        if (applicationContext == null) {
-            applicationContext = flutterPluginBinding.getApplicationContext();
-        }
-        if (audioHandlerInterface == null) {
-            // We don't know yet whether this is the right engine that hosts the BackgroundAudioTask,
-            // but we need to register a MethodCallHandler now just in case. If we're wrong, we
-            // detect and correct this when receiving the "configure" message.
-            audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger(), true /*androidEnableQueue*/);
-            AudioService.init(audioHandlerInterface);
-        }
+        audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger(), true);
+        AudioService.init(audioHandlerInterface);
         if (mediaBrowser == null) {
             connect();
         }
     }
 
     @Override
-    public void onDetachedFromEngine(FlutterPluginBinding binding) {
-        if (clientInterfaces.size() == 1) {
-            disconnect();
-        }
-        clientInterfaces.remove(clientInterface);
-        clientInterface.setContext(null);
-        flutterPluginBinding = null;
-        clientInterface = null;
-        applicationContext = null;
-        if (audioHandlerInterface != null) {
-            audioHandlerInterface.destroy();
-            audioHandlerInterface = null;
-        }
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        destroy();
     }
 
     //
@@ -248,81 +255,82 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onAttachedToActivity(ActivityPluginBinding binding) {
+        if (destroyed)
+            return;
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
-        clientInterface.setContext(binding.getActivity());
-        mainClientInterface = clientInterface;
         registerOnNewIntentListener();
         if (mediaController != null) {
-            MediaControllerCompat.setMediaController(mainClientInterface.activity, mediaController);
+            MediaControllerCompat.setMediaController(clientInterface.activity, mediaController);
         }
-        if (mediaBrowser == null) {
-            connect();
-        }
+        connect();
     }
 
     @Override
     public void onDetachedFromActivityForConfigChanges() {
+        if (destroyed)
+            return;
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         clientInterface.setActivity(null);
-        clientInterface.setContext(flutterPluginBinding.getApplicationContext());
     }
 
     @Override
     public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+        if (destroyed)
+            return;
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
-        clientInterface.setContext(binding.getActivity());
         registerOnNewIntentListener();
     }
 
     @Override
     public void onDetachedFromActivity() {
+        if (destroyed)
+            return;
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         newIntentListener = null;
         clientInterface.setActivity(null);
-        clientInterface.setContext(flutterPluginBinding.getApplicationContext());
-        if (clientInterfaces.size() == 1) {
-            // This unbinds from the service allowing AudioService.onDestroy to
-            // happen which in turn allows the FlutterEngine to be destroyed.
-            disconnect();
-        }
-        if (clientInterface == mainClientInterface) {
-            mainClientInterface = null;
-        }
+        disconnect();
     }
 
+    private void registerOnNewIntentListener() {
+        activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
+            clientInterface.activity.setIntent(intent);
+            return true;
+        });
+    }
+
+    /** Connects to the service. */
     private void connect() {
-        /* Activity activity = mainClientInterface.activity; */
-        /* if (activity != null) { */
-        /*     if (clientInterface.wasLaunchedFromRecents()) { */
-        /*         // We do this to avoid using the old intent. */
-        /*         activity.setIntent(new Intent(Intent.ACTION_MAIN)); */
-        /*     } */
-        /*     if (activity.getIntent().getAction() != null) */
-        /*         invokeClientMethod("notificationClicked", activity.getIntent().getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION)); */
-        /* } */
+        // Activity activity = clientInterface.activity;
+        // boolean launchedFromRecents = (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) ==
+        //         Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
+        // if (!launchedFromRecents) {
+        //     invokeClientMethod("notificationClicked", activity.getIntent().getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION));
+        // }
         if (mediaBrowser == null) {
-            mediaBrowser = new MediaBrowserCompat(applicationContext,
+            Context applicationContext = flutterPluginBinding.getApplicationContext();
+            mediaBrowser = new MediaBrowserCompat(
+                    applicationContext,
                     new ComponentName(applicationContext, AudioService.class),
-                    connectionCallback,
-                    null);
+                    connectionCallback(),
+                    null
+            );
             mediaBrowser.connect();
         }
     }
 
-    private void disconnect() {
-        Activity activity = mainClientInterface != null ? mainClientInterface.activity : null;
-        if (activity != null) {
-            // Since the activity enters paused state, we set the intent with ACTION_MAIN.
-            activity.setIntent(new Intent(Intent.ACTION_MAIN));
-        }
-
+    /**
+     * Disconnects from the service, allowing {@link AudioService#onDestroy} to
+     * happen which in turn allows the FlutterEngine to be destroyed.
+     */
+    private static void disconnect() {
         if (mediaController != null) {
             mediaController.unregisterCallback(controllerCallback);
             mediaController = null;
+            controllerCallback = null;
         }
         if (mediaBrowser != null) {
             mediaBrowser.disconnect();
@@ -330,15 +338,99 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private void registerOnNewIntentListener() {
-        activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
-             clientInterface.activity.setIntent(intent);
-             return true;
-        });
+    private static MediaBrowserCompat.ConnectionCallback connectionCallback() {
+        return new MediaBrowserCompat.ConnectionCallback() {
+            @Override
+            public void onConnected() {
+                try {
+                    MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
+                    mediaController = new MediaControllerCompat(flutterPluginBinding.getApplicationContext(), token);
+                    if (clientInterface.activity != null) {
+                        // TODO: check this
+                        MediaControllerCompat.setMediaController(clientInterface.activity, mediaController);
+                    }
+                    if (controllerCallback == null) {
+                        controllerCallback = controllerCallback();
+                    }
+                    mediaController.registerCallback(controllerCallback);
+                    PlaybackStateCompat state = mediaController.getPlaybackState();
+                    controllerCallback.onPlaybackStateChanged(state);
+                    controllerCallback.onQueueChanged(mediaController.getQueue());
+                    controllerCallback.onMetadataChanged( mediaController.getMetadata());
+                    if (configureResult != null) {
+                        configureResult.success(mapOf());
+                        configureResult = null;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void onConnectionSuspended() {
+                // TODO: Handle this
+                System.out.println("### UNHANDLED: onConnectionSuspended");
+            }
+
+            @Override
+            public void onConnectionFailed() {
+                // TODO: Handle this
+                System.out.println("### UNHANDLED: onConnectionFailed");
+            }
+        };
+    }
+
+    private static MediaControllerCompat.Callback controllerCallback()  {
+        return new MediaControllerCompat.Callback() {
+            @Override
+            public void onMetadataChanged(MediaMetadataCompat metadata) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("mediaItem", mediaMetadata2raw(metadata));
+                invokeClientMethod("onMediaItemChanged", map);
+            }
+
+            @Override
+            public void onPlaybackStateChanged(PlaybackStateCompat state) {
+                // On the native side, we represent the update time relative to the boot time.
+                // On the flutter side, we represent the update time relative to the epoch.
+                long updateTimeSinceBoot = state.getLastPositionUpdateTime();
+                long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
+                Map<String, Object> stateMap = new HashMap<>();
+                stateMap.put("processingState", AudioService.instance.getProcessingState().ordinal());
+                stateMap.put("playing", AudioService.instance.isPlaying());
+                stateMap.put("controls", new ArrayList<>());
+                long actionBits = state.getActions();
+                List<Object> systemActions = new ArrayList<>();
+                for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
+                    if ((actionBits & (1 << actionIndex)) != 0) {
+                        systemActions.add(actionIndex);
+                    }
+                }
+                stateMap.put("systemActions", systemActions);
+                stateMap.put("updatePosition", state.getPosition());
+                stateMap.put("bufferedPosition", state.getBufferedPosition());
+                stateMap.put("speed", state.getPlaybackSpeed());
+                stateMap.put("updateTime", updateTimeSinceEpoch);
+                stateMap.put("repeatMode", AudioService.instance.getRepeatMode());
+                stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
+                Map<String, Object> map = new HashMap<>();
+                map.put("state", stateMap);
+                invokeClientMethod("onPlaybackStateChanged", map);
+            }
+
+            @Override
+            public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("queue", queue2raw(queue));
+                invokeClientMethod("onQueueChanged", map);
+            }
+
+            // TODO: Add more callbacks.
+        };
     }
 
     private static class ClientInterface implements MethodCallHandler {
-        private Context context;
         private Activity activity;
         public final BinaryMessenger messenger;
         private final MethodChannel channel;
@@ -361,27 +453,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             channel.setMethodCallHandler(this);
         }
 
-        private void setContext(Context context) {
-            this.context = context;
-        }
-
         private void setActivity(Activity activity) {
             this.activity = activity;
         }
 
-        // See: https://stackoverflow.com/questions/13135545/android-activity-is-using-old-intent-if-launching-app-from-recent-task
-        protected boolean wasLaunchedFromRecents() {
-            return (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
-        }
-
         @Override
-        public void onMethodCall(MethodCall call, final Result result) {
+        public void onMethodCall(@NonNull MethodCall call, @NonNull final Result result) {
             try {
                 switch (call.method) {
                 case "configure":
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");
-                    AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());
+                    AudioServiceConfig config = new AudioServiceConfig(flutterPluginBinding.getApplicationContext());
                     config.androidNotificationClickStartsActivity = (Boolean)configMap.get("androidNotificationClickStartsActivity");
                     config.androidNotificationOngoing = (Boolean)configMap.get("androidNotificationOngoing");
                     config.androidResumeOnClick = (Boolean)configMap.get("androidResumeOnClick");
@@ -401,15 +484,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     if (AudioService.instance != null) {
                         AudioService.instance.configure(config);
                     }
-                    mainClientInterface = ClientInterface.this;
-                    if (audioHandlerInterface == null) {
-                        audioHandlerInterface = new AudioHandlerInterface(messenger, true /*androidEnableQueue*/);
-                        AudioService.init(audioHandlerInterface);
-                    } else if (audioHandlerInterface.messenger != messenger) {
-                        // We've detected this is the real engine hosting the AudioHandler,
-                        // so update AudioHandlerInterface to connect to it.
-                        audioHandlerInterface.switchToMessenger(messenger);
-                    }
                     if (mediaController != null) {
                         result.success(mapOf());
                     } else {
@@ -424,7 +498,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private static class AudioHandlerInterface implements MethodCallHandler, AudioService.ServiceListener {
+    private class AudioHandlerInterface implements MethodCallHandler, AudioService.ServiceListener {
         private boolean enableQueue;
         public BinaryMessenger messenger;
         public MethodChannel channel;
@@ -438,20 +512,28 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             channel.setMethodCallHandler(this);
         }
 
-        public void switchToMessenger(BinaryMessenger messenger) {
-            channel.setMethodCallHandler(null);
-            this.messenger = messenger;
-            channel = new MethodChannel(messenger, CHANNEL_HANDLER);
-            channel.setMethodCallHandler(this);
+        @UiThread
+        public void invokeMethod(String method, Object arg) {
+            channel.invokeMethod(method, arg);
+        }
+
+        @UiThread
+        public void invokeMethod(String method, Object arg, final Result result) {
+            channel.invokeMethod(method, arg, result);
+        }
+
+        private void destroy() {
+            if (silenceAudioTrack != null)
+                silenceAudioTrack.release();
         }
 
         @Override
-        public void onLoadChildren(final String parentMediaId, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
+        public void onLoadChildren(@NonNull String parentMediaId, @NonNull MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, @Nullable Bundle options) {
             if (audioHandlerInterface != null) {
                 Map<String, Object> args = new HashMap<>();
                 args.put("parentMediaId", parentMediaId);
                 args.put("options", bundleToMap(options));
-                audioHandlerInterface.channel.invokeMethod("getChildren", args, new MethodChannel.Result() {
+                invokeMethod("getChildren", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -479,12 +561,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
-        public void onLoadItem(String itemId, final MediaBrowserServiceCompat.Result<MediaBrowserCompat.MediaItem> result) {
+        public void onLoadItem(String itemId, @NonNull MediaBrowserServiceCompat.Result<MediaBrowserCompat.MediaItem> result) {
             if (audioHandlerInterface != null) {
                 Map<String, Object> args = new HashMap<>();
                 args.put("mediaId", itemId);
-
-                audioHandlerInterface.channel.invokeMethod("getMediaItem", args, new MethodChannel.Result() {
+                invokeMethod("getMediaItem", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -513,12 +594,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
-        public void onSearch(String query, Bundle extras, final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
+        public void onSearch(@NonNull String query, Bundle extras, @NonNull MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
             if (audioHandlerInterface != null) {
                 Map<String, Object> args = new HashMap<>();
                 args.put("query", query);
                 args.put("extras", bundleToMap(extras));
-                audioHandlerInterface.channel.invokeMethod("onSearch", args, new MethodChannel.Result() {
+                invokeMethod("onSearch", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -727,7 +808,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onDestroy() {
-            disposeFlutterEngine();
+            AudioServicePlugin.destroy();
+//            destroy();
         }
 
         @Override
@@ -852,21 +934,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 break;
             }
             }
-        }
-
-        @UiThread
-        public void invokeMethod(String method, Object arg) {
-            channel.invokeMethod(method, arg);
-        }
-
-        @UiThread
-        public void invokeMethod(final Result result, String method, Object arg) {
-            channel.invokeMethod(method, arg, result);
-        }
-
-        private void destroy() {
-            if (silenceAudioTrack != null)
-                silenceAudioTrack.release();
         }
     }
 
