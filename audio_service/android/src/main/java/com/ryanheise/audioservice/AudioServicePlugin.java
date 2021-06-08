@@ -345,7 +345,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
                 mediaController = new MediaControllerCompat(flutterPluginBinding.getApplicationContext(), token);
                 if (clientInterface.activity != null) {
-                    // TODO: check this
                     MediaControllerCompat.setMediaController(clientInterface.activity, mediaController);
                 }
                 if (controllerCallback == null) {
