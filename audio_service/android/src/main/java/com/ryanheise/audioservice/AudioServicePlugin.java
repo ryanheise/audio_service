@@ -236,7 +236,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
         if (flutterPluginBinding != null) {
-            throw new IllegalArgumentException("Plugin instance supports being attached maximum to one Flutter engine");
+            throw new IllegalArgumentException(
+                "Plugin supports being attached maximum to one Flutter engine. \n" +
+                "This error indicates an error in the plugin's code, since it should not " +
+                "be reached when plugin is already bound to a Flutter engine."
+            );
         }
         flutterPluginBinding = binding;
         clientInterface = new ClientInterface(flutterPluginBinding.getBinaryMessenger());
@@ -291,7 +295,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         disconnect();
     }
 
-    private void registerOnNewIntentListener() {
+    private static void registerOnNewIntentListener() {
         activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
             clientInterface.activity.setIntent(intent);
             return true;
@@ -299,7 +303,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     /** Connects to the service. */
-    private void connect() {
+    private static void connect() {
         // Activity activity = clientInterface.activity;
         // boolean launchedFromRecents = (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) ==
         //         Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
@@ -311,7 +315,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             mediaBrowser = new MediaBrowserCompat(
                     applicationContext,
                     new ComponentName(applicationContext, AudioService.class),
-                    connectionCallback(),
+                    connectionCallback,
                     null
             );
             mediaBrowser.connect();
@@ -334,48 +338,46 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private static MediaBrowserCompat.ConnectionCallback connectionCallback() {
-        return new MediaBrowserCompat.ConnectionCallback() {
-            @Override
-            public void onConnected() {
-                try {
-                    MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
-                    mediaController = new MediaControllerCompat(flutterPluginBinding.getApplicationContext(), token);
-                    if (clientInterface.activity != null) {
-                        // TODO: check this
-                        MediaControllerCompat.setMediaController(clientInterface.activity, mediaController);
-                    }
-                    if (controllerCallback == null) {
-                        controllerCallback = controllerCallback();
-                    }
-                    mediaController.registerCallback(controllerCallback);
-                    PlaybackStateCompat state = mediaController.getPlaybackState();
-                    controllerCallback.onPlaybackStateChanged(state);
-                    controllerCallback.onQueueChanged(mediaController.getQueue());
-                    controllerCallback.onMetadataChanged( mediaController.getMetadata());
-                    if (configureResult != null) {
-                        configureResult.success(mapOf());
-                        configureResult = null;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
+    private static final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
+        @Override
+        public void onConnected() {
+            try {
+                MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
+                mediaController = new MediaControllerCompat(flutterPluginBinding.getApplicationContext(), token);
+                if (clientInterface.activity != null) {
+                    // TODO: check this
+                    MediaControllerCompat.setMediaController(clientInterface.activity, mediaController);
                 }
+                if (controllerCallback == null) {
+                    controllerCallback = controllerCallback();
+                }
+                mediaController.registerCallback(controllerCallback);
+                PlaybackStateCompat state = mediaController.getPlaybackState();
+                controllerCallback.onPlaybackStateChanged(state);
+                controllerCallback.onQueueChanged(mediaController.getQueue());
+                controllerCallback.onMetadataChanged( mediaController.getMetadata());
+                if (configureResult != null) {
+                    configureResult.success(mapOf());
+                    configureResult = null;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
             }
+        }
 
-            @Override
-            public void onConnectionSuspended() {
-                // TODO: Handle this
-                System.out.println("### UNHANDLED: onConnectionSuspended");
-            }
+        @Override
+        public void onConnectionSuspended() {
+            // TODO: Handle this
+            System.out.println("### UNHANDLED: onConnectionSuspended");
+        }
 
-            @Override
-            public void onConnectionFailed() {
-                // TODO: Handle this
-                System.out.println("### UNHANDLED: onConnectionFailed");
-            }
-        };
-    }
+        @Override
+        public void onConnectionFailed() {
+            // TODO: Handle this
+            System.out.println("### UNHANDLED: onConnectionFailed");
+        }
+    };
 
     private static MediaControllerCompat.Callback controllerCallback()  {
         return new MediaControllerCompat.Callback() {
