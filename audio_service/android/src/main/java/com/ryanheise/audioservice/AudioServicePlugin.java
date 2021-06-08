@@ -236,7 +236,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
         if (flutterPluginBinding != null) {
-            throw new IllegalArgumentException(
+            throw new IllegalStateException(
                 "Plugin supports being attached maximum to one Flutter engine. \n" +
                 "This exception indicates an error in the plugin's code, since it should not " +
                 "be reached when plugin is already bound to a Flutter engine."
