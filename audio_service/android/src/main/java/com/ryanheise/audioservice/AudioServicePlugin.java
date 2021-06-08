@@ -138,7 +138,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     /**
      * Creates and pre-warms a {@link FlutterEngine}. This engine
      * is saved and will be kept intact until the {@link #destroy}
-     * is called.
+     * is called, after calling that method the new engine
+     * will be created.
      *
      * <p>To bind the service to flutter activity, override the
      * {@link FlutterActivity#provideFlutterEngine(Context)} to return
@@ -148,35 +149,39 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
      * does that for you.
      */
     public static synchronized FlutterEngine getFlutterEngine(Context context) {
-        FlutterEngine engine;
-        if (engineFactory != null && engineConfig == null) {
-            engineConfig = new FlutterEngineFactory.EngineConfig(engineFactory.create());
-        }
-        String id = getId();
-        if (id != null) {
-            engine = FlutterEngineCache.getInstance().get(id);
-            if (engine == null) {
-                engine = new FlutterEngine(context.getApplicationContext(), null);
-                engine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
-                FlutterEngineCache.getInstance().put(id, engine);
+        if (engine == null) {
+            if (engineFactory != null) {
+                engineConfig = new FlutterEngineFactory.EngineConfig(engineFactory.create());
             }
-        } else {
-            engine = engineConfig.engine;
+            String id = getId();
+            if (id != null) {
+                engine = FlutterEngineCache.getInstance().get(id);
+                if (engine == null) {
+                    engine = new FlutterEngine(context.getApplicationContext(), null);
+                    engine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
+                    FlutterEngineCache.getInstance().put(id, engine);
+                }
+            } else {
+                engine = engineConfig.engine;
+            }
         }
         return engine;
     }
+    private static FlutterEngine engine;
 
-    private static boolean destroyed;
     /**
      * Destroys the plugin and all the resources it holds,
      * stops the {@link AudioService}.
      *
+     * After that, the next call to {@link #getFlutterEngine(Context)}
+     * will create a new engine.
+     *
      * <p>If engine was created by the plugin (with ID), it will be
      * destroyed.
      */
-    public static void destroy() {
-        if (!destroyed) {
-            destroyed = true;
+    public static synchronized void destroy() {
+        if (engine != null) {
+            engine = null;
             engineConfig = null;
             detachFromEngine();
             destroyEngine();
@@ -187,6 +192,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         disconnect();
         flutterPluginBinding = null;
         clientInterface = null;
+        audioHandlerInterface.destroy();
         audioHandlerInterface = null;
         AudioService.instance.stop();
     }
@@ -229,8 +235,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-        if (destroyed)
-            return;
         if (flutterPluginBinding != null) {
             throw new IllegalArgumentException("Plugin instance supports being attached maximum to one Flutter engine");
         }
@@ -243,6 +247,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
+
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         destroy();
@@ -254,8 +259,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onAttachedToActivity(ActivityPluginBinding binding) {
-        if (destroyed)
-            return;
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         registerOnNewIntentListener();
@@ -267,8 +270,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivityForConfigChanges() {
-        if (destroyed)
-            return;
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         clientInterface.setActivity(null);
@@ -276,8 +277,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
-        if (destroyed)
-            return;
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         registerOnNewIntentListener();
@@ -285,8 +284,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivity() {
-        if (destroyed)
-            return;
         activityPluginBinding.removeOnNewIntentListener(newIntentListener);
         activityPluginBinding = null;
         newIntentListener = null;
@@ -513,17 +510,23 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @UiThread
         public void invokeMethod(String method, Object arg) {
-            channel.invokeMethod(method, arg);
+            if (channel != null) {
+                channel.invokeMethod(method, arg);
+            }
         }
 
         @UiThread
         public void invokeMethod(String method, Object arg, final Result result) {
-            channel.invokeMethod(method, arg, result);
+            if (channel != null) {
+                channel.invokeMethod(method, arg, result);
+            }
         }
 
         private void destroy() {
-            if (silenceAudioTrack != null)
+            channel = null;
+            if (silenceAudioTrack != null) {
                 silenceAudioTrack.release();
+            }
         }
 
         @Override
@@ -807,8 +810,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onDestroy() {
-            AudioServicePlugin.destroy();
-//            destroy();
+            destroy();
         }
 
         @Override
