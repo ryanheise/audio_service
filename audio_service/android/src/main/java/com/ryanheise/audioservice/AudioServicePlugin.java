@@ -80,8 +80,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private static final String CHANNEL_CLIENT = "com.ryanheise.audio_service.client.methods";
-    private static final String CHANNEL_HANDLER = "com.ryanheise.audio_service.handler.methods";
+    private static final String CHANNEL_ID = "com.ryanheise.audio_service.methods";
 
     private static Context applicationContext;
     private static final Set<ClientInterface> clientInterfaces = new HashSet<>();
@@ -102,13 +101,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static MediaBrowserCompat mediaBrowser;
     private static MediaControllerCompat mediaController;
     private static final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("mediaItem", mediaMetadata2raw(metadata));
-            invokeClientMethod("onMediaItemChanged", map);
-        }
-
         @Override
         public void onPlaybackStateChanged(PlaybackStateCompat state) {
             // On the native side, we represent the update time relative to the boot time.
@@ -135,14 +127,21 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
             Map<String, Object> map = new HashMap<>();
             map.put("state", stateMap);
-            invokeClientMethod("onPlaybackStateChanged", map);
+            invokeClientMethod("updatePlaybackState", map);
         }
 
         @Override
         public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
             Map<String, Object> map = new HashMap<>();
             map.put("queue", queue2raw(queue));
-            invokeClientMethod("onQueueChanged", map);
+            invokeClientMethod("updateQueue", map);
+        }
+
+        @Override
+        public void onMetadataChanged(MediaMetadataCompat metadata) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("mediaItem", mediaMetadata2raw(metadata));
+            invokeClientMethod("updateMediaItem", map);
         }
 
         // TODO: Add more callbacks.
@@ -337,7 +336,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         });
     }
 
-    private static class ClientInterface implements MethodCallHandler {
+    private static class ClientInterface implements MethodCallHandler, AudioService.ServiceListener {
         private Context context;
         private Activity activity;
         public final BinaryMessenger messenger;
@@ -357,7 +356,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         public ClientInterface(BinaryMessenger messenger) {
             this.messenger = messenger;
-            channel = new MethodChannel(messenger, CHANNEL_CLIENT);
+            channel = new MethodChannel(messenger, CHANNEL_ID);
             channel.setMethodCallHandler(this);
         }
 

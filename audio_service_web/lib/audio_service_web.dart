@@ -11,17 +11,16 @@ class AudioServiceWeb extends AudioServicePlatform {
     AudioServicePlatform.instance = AudioServiceWeb();
   }
 
-  AudioHandlerCallbacks? handlerCallbacks;
+  AudioServicePlatformCallbacks? platformCallbacks;
   MediaItemMessage? mediaItem;
 
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
     return ConfigureResponse();
-    // throw UnimplementedError('configure() has not been implemented.');
   }
 
   @override
-  Future<void> setState(SetStateRequest request) async {
+  Future<void> updatePlaybackState(UpdatePlaybackStateRequest request) async {
     print('Setting state');
     final session = html.window.navigator.mediaSession!;
     for (final control in request.state.controls) {
@@ -30,25 +29,26 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.play:
             session.setActionHandler(
               'play',
-              () => handlerCallbacks?.play(const PlayRequest()),
+              () => platformCallbacks?.play(const PlayRequest()),
             );
             break;
           case MediaActionMessage.pause:
             session.setActionHandler(
               'pause',
-              () => handlerCallbacks?.pause(const PauseRequest()),
+              () => platformCallbacks?.pause(const PauseRequest()),
             );
             break;
           case MediaActionMessage.skipToPrevious:
             session.setActionHandler(
               'previoustrack',
-              () => handlerCallbacks?.skipToPrevious(const SkipToPreviousRequest()),
+              () => platformCallbacks
+                  ?.skipToPrevious(const SkipToPreviousRequest()),
             );
             break;
           case MediaActionMessage.skipToNext:
             session.setActionHandler(
               'nexttrack',
-              () => handlerCallbacks?.skipToNext(const SkipToNextRequest()),
+              () => platformCallbacks?.skipToNext(const SkipToNextRequest()),
             );
             break;
           // The naming convention here is a bit odd but seekbackward seems more
@@ -56,19 +56,19 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.rewind:
             session.setActionHandler(
               'seekbackward',
-              () => handlerCallbacks?.rewind(const RewindRequest()),
+              () => platformCallbacks?.rewind(const RewindRequest()),
             );
             break;
           case MediaActionMessage.fastForward:
             session.setActionHandler(
               'seekforward',
-              () => handlerCallbacks?.fastForward(const FastForwardRequest()),
+              () => platformCallbacks?.fastForward(const FastForwardRequest()),
             );
             break;
           case MediaActionMessage.stop:
             session.setActionHandler(
               'stop',
-              () => handlerCallbacks?.stop(const StopRequest()),
+              () => platformCallbacks?.stop(const StopRequest()),
             );
             break;
           default:
@@ -84,7 +84,7 @@ class AudioServiceWeb extends AudioServicePlatform {
             try {
               setActionHandler('seekto', js.allowInterop((ActionResult ev) {
                 // Chrome uses seconds for whatever reason
-                handlerCallbacks?.seek(SeekRequest(
+                platformCallbacks?.seek(SeekRequest(
                     position: Duration(
                   milliseconds: (ev.seekTime * 1000).round(),
                 )));
@@ -119,12 +119,12 @@ class AudioServiceWeb extends AudioServicePlatform {
   }
 
   @override
-  Future<void> setQueue(SetQueueRequest request) async {
+  Future<void> setQueue(UpdateQueueRequest request) async {
     //no-op there is not a queue concept on the web
   }
 
   @override
-  Future<void> setMediaItem(SetMediaItemRequest request) async {
+  Future<void> setMediaItem(UpdateMediaItemRequest request) async {
     mediaItem = request.mediaItem;
     final artUri = mediaItem!.artUri;
 
@@ -158,12 +158,9 @@ class AudioServiceWeb extends AudioServicePlatform {
   }
 
   @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {}
-
-  @override
-  void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
+  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {
     // Save this here so that we can modify which handlers are set based
     // on which actions are enabled
-    handlerCallbacks = callbacks;
+    platformCallbacks = callbacks;
   }
 }

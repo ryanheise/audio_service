@@ -1028,11 +1028,11 @@ class AudioService {
             break;
           case 'subscribeToChildren':
             final parentMediaId = request.arguments![0] as String;
-            final sendPort = request.arguments![1] as SendPort?;
+            final sendPort = request.arguments![1] as SendPort;
             _handler
                 .subscribeToChildren(parentMediaId)
                 .listen((Map<String, dynamic>? options) {
-              sendPort!.send(options);
+              sendPort.send(options);
             });
             break;
           case 'getMediaItem':

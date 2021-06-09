@@ -2,107 +2,79 @@ import 'package:flutter/services.dart';
 import 'audio_service_platform_interface.dart';
 
 class MethodChannelAudioService extends AudioServicePlatform {
-  final MethodChannel _clientChannel =
-      MethodChannel('com.ryanheise.audio_service.client.methods');
-  final MethodChannel _handlerChannel =
-      MethodChannel('com.ryanheise.audio_service.handler.methods');
+  final MethodChannel _channel =
+      MethodChannel('com.ryanheise.audio_service.methods');
 
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    return ConfigureResponse.fromMap((await _clientChannel
+    return ConfigureResponse.fromMap((await _channel
         .invokeMapMethod<String, dynamic>('configure', request.toMap()))!);
   }
 
   @override
-  Future<void> setState(SetStateRequest request) async {
-    await _handlerChannel.invokeMethod<void>('setState', request.toMap());
+  Future<void> updatePlaybackState(UpdatePlaybackStateRequest request) async {
+    await _channel.invokeMethod<void>('updatePlaybackState', request.toMap());
   }
 
   @override
-  Future<void> setQueue(SetQueueRequest request) async {
-    await _handlerChannel.invokeMethod<void>('setQueue', request.toMap());
+  Future<void> updateQueue(UpdateQueueRequest request) async {
+    await _channel.invokeMethod<void>('updateQueue', request.toMap());
   }
 
   @override
-  Future<void> setMediaItem(SetMediaItemRequest request) async {
-    await _handlerChannel.invokeMethod<void>('setMediaItem', request.toMap());
+  Future<void> updateMediaItem(UpdateMediaItemRequest request) async {
+    await _channel.invokeMethod<void>('updateMediaItem', request.toMap());
   }
 
   @override
   Future<void> stopService(StopServiceRequest request) async {
-    await _handlerChannel.invokeMethod<void>('stopService', request.toMap());
+    await _channel.invokeMethod<void>('stopService', request.toMap());
+  }
+
+  @override
+  Future<void> setAndroidPlaybackInfo(
+      SetAndroidPlaybackInfoRequest request) async {
+    await _channel.invokeMethod<void>(
+        'setAndroidPlaybackInfo', request.toMap());
   }
 
   @override
   Future<void> androidForceEnableMediaButtons(
       AndroidForceEnableMediaButtonsRequest request) async {
-    await _handlerChannel.invokeMethod<void>(
+    await _channel.invokeMethod<void>(
         'androidForceEnableMediaButtons', request.toMap());
   }
 
   @override
   Future<void> notifyChildrenChanged(
       NotifyChildrenChangedRequest request) async {
-    await _handlerChannel.invokeMethod<void>(
-        'notifyChildrenChanged', request.toMap());
+    await _channel.invokeMethod<void>('notifyChildrenChanged', request.toMap());
   }
 
   @override
-  Future<void> setAndroidPlaybackInfo(
-      SetAndroidPlaybackInfoRequest request) async {
-    await _handlerChannel.invokeMethod<void>(
-        'setAndroidPlaybackInfo', request.toMap());
-  }
-
-  @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {
-    _clientChannel.setMethodCallHandler((call) async {
+  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {
+    _channel.setMethodCallHandler((call) async {
       switch (call.method) {
-        case 'onPlaybackStateChanged':
-          callbacks.onPlaybackStateChanged(
-            OnPlaybackStateChangedRequest.fromMap(
-                _castMap(call.arguments as Map)!),
-          );
-          break;
-        case 'onMediaItemChanged':
-          callbacks.onMediaItemChanged(
-            OnMediaItemChangedRequest.fromMap(_castMap(call.arguments as Map)!),
-          );
-          break;
-        case 'onQueueChanged':
-          callbacks.onQueueChanged(
-            OnQueueChangedRequest.fromMap(_castMap(call.arguments as Map)!),
-          );
-          break;
-        //case 'onChildrenLoaded':
-        //  callbacks.onChildrenLoaded(
-        //      OnChildrenLoadedRequest.fromMap(call.arguments));
-        //  break;
-      }
-    });
-  }
-
-  @override
-  void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
-    _handlerChannel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'getChildren':
-          return (await callbacks.getChildren(GetChildrenRequest(
-                  parentMediaId: call.arguments['parentMediaId'] as String,
-                  options: _castMap(call.arguments['options'] as Map?))))
-              .toMap();
-        case 'getMediaItem':
-          return (await callbacks.getMediaItem(GetMediaItemRequest(
-              mediaId: call.arguments['mediaId'] as String)));
-        case 'click':
-          await callbacks.click(ClickRequest(
-              button: MediaButtonMessage.values[call.arguments['button'] as int]));
+        case 'updatePlaybackState':
+          await callbacks.updatePlaybackState(UpdatePlaybackStateRequest(
+              state: PlaybackStateMessage.fromMap(
+                  _castMap(call.arguments['state'] as Map)!)));
           return null;
-        case 'stop':
-          await callbacks.stop(const StopRequest());
+        case 'updateQueue':
+          await callbacks.updateQueue(UpdateQueueRequest(
+              queue: call.arguments['queue'] == null
+                  ? []
+                  : (call.arguments['queue'] as List)
+                      .map((dynamic raw) =>
+                          MediaItemMessage.fromMap(_castMap(raw as Map)!))
+                      .toList()));
           return null;
-        case 'pause':
-          await callbacks.pause(const PauseRequest());
+        case 'updateMediaItem':
+          await callbacks.updateMediaItem(UpdateMediaItemRequest(
+              mediaItem: call.arguments['mediaItem'] == null
+                  ? null
+                  : MediaItemMessage.fromMap(
+                      _castMap(call.arguments['mediaItem'] as Map)!)));
           return null;
         case 'prepare':
           await callbacks.prepare(const PrepareRequest());
@@ -145,6 +117,17 @@ class MethodChannelAudioService extends AudioServicePlatform {
               mediaItem: MediaItemMessage.fromMap(
                   _castMap(call.arguments['mediaItem'] as Map)!)));
           return null;
+        case 'pause':
+          await callbacks.pause(const PauseRequest());
+          return null;
+        case 'click':
+          await callbacks.click(ClickRequest(
+              button:
+                  MediaButtonMessage.values[call.arguments['button'] as int]));
+          return null;
+        case 'stop':
+          await callbacks.stop(const StopRequest());
+          return null;
         case 'addQueueItem':
           await callbacks.addQueueItem(AddQueueItemRequest(
               mediaItem: MediaItemMessage.fromMap(
@@ -153,18 +136,6 @@ class MethodChannelAudioService extends AudioServicePlatform {
         case 'insertQueueItem':
           await callbacks.insertQueueItem(InsertQueueItemRequest(
               index: call.arguments['index'] as int,
-              mediaItem: MediaItemMessage.fromMap(
-                  _castMap(call.arguments['mediaItem'] as Map)!)));
-          return null;
-        case 'updateQueue':
-          await callbacks.updateQueue(UpdateQueueRequest(
-              queue: (call.arguments['queue'] as List)
-                  .map((dynamic raw) =>
-                      MediaItemMessage.fromMap(_castMap(raw as Map)!))
-                  .toList()));
-          return null;
-        case 'updateMediaItem':
-          await callbacks.updateMediaItem(UpdateMediaItemRequest(
               mediaItem: MediaItemMessage.fromMap(
                   _castMap(call.arguments['mediaItem'] as Map)!)));
           return null;
@@ -230,6 +201,29 @@ class MethodChannelAudioService extends AudioServicePlatform {
           await callbacks.setSpeed(
               SetSpeedRequest(speed: call.arguments['speed'] as double));
           return null;
+        case 'customAction':
+          await callbacks.customAction(CustomActionRequest(
+              name: call.arguments['name'] as String,
+              extras: _castMap(call.arguments['extras'] as Map?)));
+          return null;
+        case 'onTaskRemoved':
+          await callbacks.onTaskRemoved(const OnTaskRemovedRequest());
+          return null;
+        case 'onNotificationDeleted':
+          await callbacks
+              .onNotificationDeleted(const OnNotificationDeletedRequest());
+          return null;
+        case 'getChildren':
+          return (await callbacks.getChildren(GetChildrenRequest(
+                  parentMediaId: call.arguments['parentMediaId'] as String,
+                  options: _castMap(call.arguments['options'] as Map?))))
+              .toMap();
+        case 'getMediaItem':
+          return (await callbacks.getMediaItem(GetMediaItemRequest(
+              mediaId: call.arguments['mediaId'] as String)));
+        case 'search':
+          return (await callbacks
+              .search(SearchRequest(query: call.arguments['query'] as String)));
         case 'setVolumeTo':
           await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
               volumeIndex: call.arguments['volumeIndex'] as int));
@@ -240,18 +234,6 @@ class MethodChannelAudioService extends AudioServicePlatform {
                   direction: AndroidVolumeDirectionMessage
                       .values[call.arguments['direction']]!));
           return null;
-        case 'onTaskRemoved':
-          await callbacks.onTaskRemoved(const OnTaskRemovedRequest());
-          return null;
-        case 'onNotificationDeleted':
-          await callbacks
-              .onNotificationDeleted(const OnNotificationDeletedRequest());
-          return null;
-        case 'customAction':
-          await callbacks.customAction(CustomActionRequest(
-              name: call.arguments['name'] as String,
-              extras: _castMap(call.arguments['extras'] as Map?)));
-          return null;
         default:
           throw PlatformException(code: 'Unimplemented');
       }
@@ -260,7 +242,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
 }
 
 /// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
-/// 
+///
 /// Used mostly to unwrap [MethodCall.arguments] which in case with maps
 /// is always `Map<Object?, Object?>`.
 @pragma('vm:prefer-inline')

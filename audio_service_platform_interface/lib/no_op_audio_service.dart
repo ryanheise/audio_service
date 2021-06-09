@@ -1,22 +1,26 @@
 import 'audio_service_platform_interface.dart';
 
-class NoOpAudioService extends AudioServicePlatform {
+class NoOpAudioService implements AudioServicePlatform {
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
     return ConfigureResponse();
   }
 
   @override
-  Future<void> setState(SetStateRequest request) async {}
+  Future<void> updatePlaybackState(UpdatePlaybackStateRequest request) async {}
 
   @override
-  Future<void> setQueue(SetQueueRequest request) async {}
+  Future<void> updateQueue(UpdateQueueRequest request) async {}
 
   @override
-  Future<void> setMediaItem(SetMediaItemRequest request) async {}
+  Future<void> updateMediaItem(UpdateMediaItemRequest request) async {}
 
   @override
   Future<void> stopService(StopServiceRequest request) async {}
+
+  @override
+  Future<void> setAndroidPlaybackInfo(
+      SetAndroidPlaybackInfoRequest request) async {}
 
   @override
   Future<void> androidForceEnableMediaButtons(
@@ -27,12 +31,5 @@ class NoOpAudioService extends AudioServicePlatform {
       NotifyChildrenChangedRequest request) async {}
 
   @override
-  Future<void> setAndroidPlaybackInfo(
-      SetAndroidPlaybackInfoRequest request) async {}
-
-  @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {}
-
-  @override
-  void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {}
+  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {}
 }
