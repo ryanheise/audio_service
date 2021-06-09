@@ -46,6 +46,11 @@ class MethodChannelAudioService extends AudioServicePlatform {
   }
 
   @override
+  Future<void> setConfig(SetConfigRequest request) {
+    return _channel.invokeMethod<void>('setConfig', request.toMap());
+  }
+
+  @override
   Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request) {
     return _channel.invokeMethod<void>(
         'androidForceEnableMediaButtons', request.toMap());
@@ -74,27 +79,27 @@ class MethodChannelAudioService extends AudioServicePlatform {
 
   Future<dynamic> _handler(MethodCall call) async {
     switch (call.method) {
-      case 'updatePlaybackState':
-        await callbacks.updatePlaybackState(UpdatePlaybackStateRequest(
-            state: PlaybackStateMessage.fromMap(
-                _castMap(call.arguments['state'] as Map)!)));
-        return null;
-      case 'updateQueue':
-        await callbacks.updateQueue(UpdateQueueRequest(
-            queue: call.arguments['queue'] == null
-                ? []
-                : (call.arguments['queue'] as List)
-                    .map((dynamic raw) =>
-                        MediaItemMessage.fromMap(_castMap(raw as Map)!))
-                    .toList()));
-        return null;
-      case 'updateMediaItem':
-        await callbacks.updateMediaItem(UpdateMediaItemRequest(
-            mediaItem: call.arguments['mediaItem'] == null
-                ? null
-                : MediaItemMessage.fromMap(
-                    _castMap(call.arguments['mediaItem'] as Map)!)));
-        return null;
+      // case 'onPlaybackStateChanged':
+      //   await listener?.onPlaybackStateChanged(UpdatePlaybackStateRequest(
+      //       state: PlaybackStateMessage.fromMap(
+      //           _castMap(call.arguments['state'] as Map)!)));
+      //   return null;
+      // case 'onQueueChanged':
+      //   await listener?.onQueueChanged(UpdateQueueRequest(
+      //       queue: call.arguments['queue'] == null
+      //           ? []
+      //           : (call.arguments['queue'] as List)
+      //               .map((dynamic raw) =>
+      //                   MediaItemMessage.fromMap(_castMap(raw as Map)!))
+      //               .toList()));
+      //   return null;
+      // case 'onMediaItemChanged':
+      //   await listener?.onMediaItemChanged(UpdateMediaItemRequest(
+      //       mediaItem: call.arguments['mediaItem'] == null
+      //           ? null
+      //           : MediaItemMessage.fromMap(
+      //               _castMap(call.arguments['mediaItem'] as Map)!)));
+      //   return null;
       case 'prepare':
         await callbacks.prepare(const PrepareRequest());
         return null;
@@ -232,6 +237,16 @@ class MethodChannelAudioService extends AudioServicePlatform {
         await callbacks
             .onNotificationDeleted(const OnNotificationDeletedRequest());
         return null;
+      case 'setVolumeTo':
+        await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
+            volumeIndex: call.arguments['volumeIndex'] as int));
+        return null;
+      case 'adjustVolume':
+        await callbacks.androidAdjustRemoteVolume(
+            AndroidAdjustRemoteVolumeRequest(
+                direction: AndroidVolumeDirectionMessage
+                    .values[call.arguments['direction']]!));
+        return null;
       case 'getChildren':
         return (await callbacks.getChildren(GetChildrenRequest(
                 parentMediaId: call.arguments['parentMediaId'] as String,
@@ -243,16 +258,6 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'search':
         return (await callbacks
             .search(SearchRequest(query: call.arguments['query'] as String)));
-      case 'setVolumeTo':
-        await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
-            volumeIndex: call.arguments['volumeIndex'] as int));
-        return null;
-      case 'adjustVolume':
-        await callbacks.androidAdjustRemoteVolume(
-            AndroidAdjustRemoteVolumeRequest(
-                direction: AndroidVolumeDirectionMessage
-                    .values[call.arguments['direction']]!));
-        return null;
       default:
         throw PlatformException(code: 'Unimplemented');
     }

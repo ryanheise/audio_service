@@ -57,22 +57,18 @@ abstract class AudioServicePluginPlatform extends PlatformInterface {
   }
 }
 
-abstract class AudioServicePlatform
-    implements AudioServiceTwoSidePlatformCallbacks {
+abstract class AudioServicePlatform {
   final ComponentName name;
 
   const AudioServicePlatform({required this.name});
+
+  Future<void> setConfig(SetConfigRequest request);
 
   /// Set playback info on Android.
   Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request);
 
   /// Notify listeners that the children have changed.
   Future<void> notifyChildrenChanged(NotifyChildrenChangedRequest request);
-}
-
-/// Callbacks from that can be sent from both the platform and the dart code.
-abstract class AudioServiceTwoSidePlatformCallbacks {
-  const AudioServiceTwoSidePlatformCallbacks();
 
   /// Update playback state.
   Future<void> updatePlaybackState(UpdatePlaybackStateRequest request);
@@ -84,20 +80,16 @@ abstract class AudioServiceTwoSidePlatformCallbacks {
   Future<void> updateMediaItem(UpdateMediaItemRequest request);
 }
 
+/// Listens to events in platform code.
+// abstract class AudioServicePlatformListener {
+//   Future<void> onPlaybackStateChanged(UpdatePlaybackStateRequest request);
+//   Future<void> onQueueChanged(UpdateQueueRequest request);
+//   Future<void> onMediaItemChanged(UpdateMediaItemRequest request);
+//   // TODO: more callbacks
+// }
+
 /// Callbacks from the platform to the dart code.
-abstract class AudioServicePlatformCallbacks
-    implements AudioServiceTwoSidePlatformCallbacks {
-  const AudioServicePlatformCallbacks();
-
-  /// Get the children of a parent media item.
-  Future<GetChildrenResponse> getChildren(GetChildrenRequest request);
-
-  /// Get a particular media item.
-  Future<GetMediaItemResponse> getMediaItem(GetMediaItemRequest request);
-
-  /// Search for media items.
-  Future<SearchResponse> search(SearchRequest request);
-
+abstract class AudioServicePlatformCallbacks {
   /// Prepare media items for playback.
   Future<void> prepare(PrepareRequest request);
 
@@ -209,6 +201,15 @@ abstract class AudioServicePlatformCallbacks
   /// [setAndroidPlaybackInfo].
   Future<void> androidAdjustRemoteVolume(
       AndroidAdjustRemoteVolumeRequest request);
+
+  /// Get the children of a parent media item.
+  Future<GetChildrenResponse> getChildren(GetChildrenRequest request);
+
+  /// Get a particular media item.
+  Future<GetMediaItemResponse> getMediaItem(GetMediaItemRequest request);
+
+  /// Search for media items.
+  Future<SearchResponse> search(SearchRequest request);
 }
 
 abstract class AudioControllerPlatform {
@@ -798,17 +799,25 @@ class InitAudioControllerRequest {
 }
 
 class DisposeAudioServiceRequest {
-  @literal
-  const DisposeAudioServiceRequest();
+  final ComponentName name;
 
-  Map<String, dynamic> toMap() => <String, dynamic>{};
+  @literal
+  const DisposeAudioServiceRequest({required this.name});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name.toMap(),
+      };
 }
 
 class DisposeAudioControllerRequest {
-  @literal
-  const DisposeAudioControllerRequest();
+  final ComponentName name;
 
-  Map<String, dynamic> toMap() => <String, dynamic>{};
+  @literal
+  const DisposeAudioControllerRequest({required this.name});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name.toMap(),
+      };
 }
 
 class AndroidForceEnableMediaButtonsRequest {
@@ -816,6 +825,17 @@ class AndroidForceEnableMediaButtonsRequest {
   const AndroidForceEnableMediaButtonsRequest();
 
   Map<String, dynamic> toMap() => <String, dynamic>{};
+}
+
+class SetConfigRequest {
+  final AudioServiceConfigMessage config;
+
+  @literal
+  const SetConfigRequest({required this.config});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'config': config.toMap(),
+      };
 }
 
 class SetAndroidPlaybackInfoRequest {
@@ -896,76 +916,6 @@ class OnChildrenLoadedRequest {
                 MediaItemMessage.fromMap(_castMap(raw as Map)!))
             .toList(),
       );
-}
-
-class GetChildrenRequest {
-  final String parentMediaId;
-  final Map<String, dynamic>? options;
-
-  @literal
-  const GetChildrenRequest({required this.parentMediaId, this.options});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'parentMediaId': parentMediaId,
-        'options': options,
-      };
-}
-
-class GetChildrenResponse {
-  final List<MediaItemMessage> children;
-
-  @literal
-  const GetChildrenResponse({required this.children});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'children': children.map((item) => item.toMap()).toList(),
-      };
-}
-
-class GetMediaItemRequest {
-  final String mediaId;
-
-  @literal
-  const GetMediaItemRequest({required this.mediaId});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaId': mediaId,
-      };
-}
-
-class GetMediaItemResponse {
-  final MediaItemMessage? mediaItem;
-
-  @literal
-  const GetMediaItemResponse({required this.mediaItem});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItem': mediaItem?.toMap(),
-      };
-}
-
-class SearchRequest {
-  final String query;
-  final Map<String, dynamic>? extras;
-
-  @literal
-  const SearchRequest({required this.query, this.extras});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'query': query,
-        'extras': extras,
-      };
-}
-
-class SearchResponse {
-  final List<MediaItemMessage> mediaItems;
-
-  @literal
-  const SearchResponse({required this.mediaItems});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItems': mediaItems.map((item) => item.toMap()).toList(),
-      };
 }
 
 class PrepareRequest {
@@ -1345,6 +1295,76 @@ class AndroidAdjustRemoteVolumeRequest {
       };
 }
 
+class GetChildrenRequest {
+  final String parentMediaId;
+  final Map<String, dynamic>? options;
+
+  @literal
+  const GetChildrenRequest({required this.parentMediaId, this.options});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'parentMediaId': parentMediaId,
+        'options': options,
+      };
+}
+
+class GetChildrenResponse {
+  final List<MediaItemMessage> children;
+
+  @literal
+  const GetChildrenResponse({required this.children});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'children': children.map((item) => item.toMap()).toList(),
+      };
+}
+
+class GetMediaItemRequest {
+  final String mediaId;
+
+  @literal
+  const GetMediaItemRequest({required this.mediaId});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaId': mediaId,
+      };
+}
+
+class GetMediaItemResponse {
+  final MediaItemMessage? mediaItem;
+
+  @literal
+  const GetMediaItemResponse({required this.mediaItem});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaItem': mediaItem?.toMap(),
+      };
+}
+
+class SearchRequest {
+  final String query;
+  final Map<String, dynamic>? extras;
+
+  @literal
+  const SearchRequest({required this.query, this.extras});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'query': query,
+        'extras': extras,
+      };
+}
+
+class SearchResponse {
+  final List<MediaItemMessage> mediaItems;
+
+  @literal
+  const SearchResponse({required this.mediaItems});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaItems': mediaItems.map((item) => item.toMap()).toList(),
+      };
+}
+
 class ComponentName {
   final String package;
   final String className;
@@ -1361,6 +1381,17 @@ class ComponentName {
         'package': package,
         'className': className,
       };
+
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) return false;
+    return other is ComponentName &&
+        other.package == package &&
+        other.className == className;
+  }
+
+  @override
+  int get hashCode => hashValues(package, className);
 }
 
 /// The options to use when configuring the [AudioServicePlatform].

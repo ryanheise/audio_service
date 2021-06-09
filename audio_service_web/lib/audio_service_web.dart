@@ -55,6 +55,11 @@ class AudioServiceWeb extends AudioServicePlatform {
   }) : super(name: name);
 
   @override
+  Future<void> setConfig(SetConfigRequest request) {
+    return SynchronousFuture(null);
+  }
+
+  @override
   Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request) {
     return SynchronousFuture(null);
   }
@@ -151,7 +156,7 @@ class AudioServiceWeb extends AudioServicePlatform {
 
           // Chrome looks for seconds for some reason
           setPositionState(PositionState(
-            duration: (mediaItem!.duration?.inMilliseconds ?? 0) / 1000,
+            duration: (mediaItem.duration?.inMilliseconds ?? 0) / 1000,
             playbackRate: request.state.speed,
             position: request.state.updatePosition.inMilliseconds / 1000,
           ));

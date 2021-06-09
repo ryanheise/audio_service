@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
+import 'package:audio_service_platform_interface/method_channel_audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
-AudioServicePlatform _platform = AudioServicePlatform.instance;
+AudioServicePluginPlatform _plugin = AudioServicePluginPlatform.instance;
 
 /// The buttons on a headset.
 enum MediaButton {
@@ -775,20 +777,159 @@ class MediaControl {
   String toString() => '${_toMessage().toMap()}';
 }
 
-/// Provides an API to manage the app's [AudioHandler]. An app must call [init]
-/// during initialisation to register the [AudioHandler] that will service all
-/// requests to play audio.
+/// An audio service a unique [name].
+///
+/// Must be created during the app's initialisation so that it is prepared to handle
+/// audio requests immediately after a cold restart (for example, if the user clicks
+/// on the play button in the media notification while your app is not running
+/// and your app needs to be woken up).
+///
+/// As soon as the service is created, it becomes the "main" instance
+/// of the service with the given [name] and later can be reached out by other
+/// isolates with [AudioService.connectFromIsolate].
+///
+/// On Android, it's also possible to spawn multiple services with [AudioService.custom].
+///
+/// You may optionally specify a [cacheManager] to use when loading artwork to
+/// display in the media notification and lock screen. This defaults to
+/// [DefaultCacheManager].
 class AudioService {
+  /// Creates a default audio service.
+  AudioService({
+    required AudioHandler handler,
+    AudioServiceConfig? config,
+    BaseCacheManager? cacheManager,
+  })  : name = _defaultName,
+        _handler = handler,
+        _config = config ?? AudioServiceConfig(),
+        cacheManager = cacheManager ?? DefaultCacheManager(),
+        _receivePort = ReceivePort(),
+        _platform = MethodChannelAudioService(
+            name: _defaultName, callbacks: _HandlerCallbacks(handler)) {
+    assert(() {
+      _assertNotRunning();
+      return true;
+    }());
+    _init();
+  }
+
+  /// Android-only - creates a service from a component name.
+  ///
+  /// This allows to run multiple services, and/or subclass the
+  /// native `AudioService`.
+  AudioService.custom({
+    required this.name,
+    required AudioHandler handler,
+    AudioServiceConfig? config,
+    BaseCacheManager? cacheManager,
+  })  : assert(
+          !kIsWeb && Platform.isAndroid,
+          "Custom service is supported only on Android",
+        ),
+        assert(
+          name != _defaultName,
+          "The name happend to be the default AudioService name, chances are, you "
+          "have used by mistake. Change the service name to be something else, "
+          "or use the default constructor",
+        ),
+        _handler = handler,
+        _config = config ?? AudioServiceConfig(),
+        cacheManager = cacheManager ?? DefaultCacheManager(),
+        _receivePort = ReceivePort(),
+        _platform = MethodChannelAudioService(
+            name: name, callbacks: _HandlerCallbacks(handler)) {
+    assert(() {
+      _assertNotRunning();
+      return true;
+    }());
+    _init();
+  }
+
+  void _assertNotRunning() {
+    assert(
+      IsolateNameServer.lookupPortByName(_mainIsolateName) == null,
+      "The service is already running",
+    );
+  }
+
+  /// Connects from isolate to the running service, which was
+  /// created with other constructors.
+  ///
+  /// The [name] parameter can be used to specify the
+  AudioService.connectFromIsolate({ComponentName name = _defaultName})
+      : assert(
+          !kIsWeb,
+          "Isolates are not supported on web",
+        ),
+        name = name,
+        _config = null,
+        _receivePort = null,
+        cacheManager = DefaultCacheManager() {
+    _handler = _IsolateAudioHandler(this);
+  }
+
+  late MethodChannelAudioService _platform;
+  final ReceivePort? _receivePort;
+
+  /// The service unique name.
+  /// Can be set with [AudioService.custom].
+  final ComponentName name;
+
+  /// Service handler.
+  AudioHandler get handler => _handler;
+  late final AudioHandler _handler;
+
+  String get _mainIsolateName {
+    assert(_connected);
+    return 'com.ryanheise.audioservice.port' + name.toString();
+  }
+
+  /// Whether isolate is connected to another main one.
+  bool get _connected => _config == null;
+
+  /// Retruns current service configuration.
+  Future<AudioServiceConfig> getConfig() async {
+    if (_connected) {
+      final result = await _send('getConfig') as AudioServiceConfig;
+      return result;
+    }
+    return _config!;
+  }
+
+  AudioServiceConfig? _config;
+
+  /// Updates the service configuration.
+  Future<void> setConfig(AudioServiceConfig config) async {
+    if (_connected) {
+      await _send('setConfig', <dynamic>[_config]);
+    } else {
+      _platform.setConfig(SetConfigRequest(config: config._toMessage()));
+      _config = config;
+    }
+  }
+
   /// The cache to use when loading artwork.
   /// Defaults to [DefaultCacheManager].
-  static BaseCacheManager get cacheManager => _cacheManager!;
-  static BaseCacheManager? _cacheManager;
+  final BaseCacheManager cacheManager;
 
-  static late AudioServiceConfig _config;
-  static late AudioHandler _handler;
+  /// Sends a method to the main isolate
+  Future<dynamic> _send(String method, [List<dynamic>? arguments]) async {
+    final sendPort = IsolateNameServer.lookupPortByName(_mainIsolateName);
+    if (sendPort == null) {
+      throw StateError("Could not find isolate");
+    }
+    final receivePort = ReceivePort();
+    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
+    final dynamic result = await receivePort.first;
+    print("isolate result received: $result");
+    receivePort.close();
+    return result;
+  }
 
-  /// The current configuration.
-  static AudioServiceConfig get config => _config;
+  static const _defaultName = ComponentName(
+    package: 'com.ryanheise.audioservice',
+    className: 'AudioService',
+  );
 
   /// The root media ID for browsing media provided by the background
   /// task.
@@ -797,58 +938,86 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  // ignore: close_sinks
-  static final BehaviorSubject<bool> _notificationClickEvent =
-      BehaviorSubject.seeded(false);
+  BehaviorSubject<Duration>? _positionSubject;
 
-  /// A stream that broadcasts the status of the notificationClick event.
-  static ValueStream<bool> get notificationClickEvent =>
-      _notificationClickEvent;
-
-  // ignore: close_sinks
-  static BehaviorSubject<Duration>? _positionSubject;
-
-  static late ReceivePort _customActionReceivePort;
-
-  /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
-  /// must have been initialised via [init] prior to connecting.
-  static Future<AudioHandler> connectFromIsolate() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    return _IsolateAudioHandler();
+  void _init() {
+    _setupPort();
+    _handler.mediaItem.listen((MediaItem? mediaItem) async {
+      if (mediaItem == null) return;
+      final artUri = mediaItem.artUri;
+      if (artUri != null) {
+        // We potentially need to fetch the art.
+        String? filePath;
+        if (artUri.scheme == 'file') {
+          filePath = artUri.toFilePath();
+        } else {
+          final fileInfo =
+              await cacheManager.getFileFromMemory(artUri.toString());
+          filePath = fileInfo?.file.path;
+          if (filePath == null) {
+            // We haven't fetched the art yet, so show the metadata now, and again
+            // after we load the art.
+            await _platform.updateMediaItem(
+                UpdateMediaItemRequest(mediaItem: mediaItem._toMessage()));
+            // Load the art
+            filePath = await _loadArtwork(mediaItem);
+            // If we failed to download the art, abort.
+            if (filePath == null) return;
+            // If we've already set a new media item, cancel this request.
+            // XXX: Test this
+            //if (mediaItem != _handler.mediaItem.value) return;
+          }
+        }
+        final extras =
+            Map<String, dynamic>.of(mediaItem.extras ?? <String, dynamic>{});
+        extras['artCacheFile'] = filePath;
+        final platformMediaItem = mediaItem.copyWith(extras: extras);
+        // Show the media item after the art is loaded.
+        await _platform.updateMediaItem(
+            UpdateMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+      } else {
+        await _platform.updateMediaItem(
+            UpdateMediaItemRequest(mediaItem: mediaItem._toMessage()));
+      }
+    });
+    _handler.androidPlaybackInfo
+        .listen((AndroidPlaybackInfo playbackInfo) async {
+      await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
+        playbackInfo: playbackInfo._toMessage(),
+      ));
+    });
+    _handler.queue.listen((List<MediaItem>? queue) async {
+      if (queue == null) return;
+      if (_config!.preloadArtwork) {
+        _loadAllArtwork(queue);
+      }
+      await _platform.updateQueue(UpdateQueueRequest(
+          queue: queue.map((item) => item._toMessage()).toList()));
+    });
+    _handler.playbackState.listen((PlaybackState playbackState) async {
+      await _platform.updatePlaybackState(
+          UpdatePlaybackStateRequest(state: playbackState._toMessage()));
+      if (playbackState.processingState == AudioProcessingState.idle) {
+        await AudioService._stop();
+      }
+    });
   }
 
-  static final _compatibilitySwitcher = SwitchAudioHandler();
-
-  /// Register the app's [AudioHandler] with configuration options. This must be
-  /// called during the app's initialisation so that it is prepared to handle
-  /// audio requests immediately after a cold restart (e.g. if the user clicks
-  /// on the play button in the media notification while your app is not running
-  /// and your app needs to be woken up).
-  ///
-  /// You may optionally specify a [cacheManager] to use when loading artwork to
-  /// display in the media notification and lock screen. This defaults to
-  /// [DefaultCacheManager].
-  static Future<T> init<T extends AudioHandler>({
-    required T Function() builder,
-    AudioServiceConfig? config,
-    BaseCacheManager? cacheManager,
-  }) async {
-    assert(_cacheManager == null);
-    config ??= AudioServiceConfig();
-    WidgetsFlutterBinding.ensureInitialized();
-    _cacheManager = (cacheManager ??= DefaultCacheManager());
-    await _platform.configure(ConfigureRequest(config: config._toMessage()));
-    _config = config;
-    final handler = builder();
-    _handler = handler;
-
-    _platform.setHandlerCallbacks(_HandlerCallbacks(handler));
-    // This port listens to connections from other isolates.
+  /// Sets up a port to list messages sent from other isolates
+  /// with the [_send].
+  void _setupPort() {
     if (!kIsWeb) {
-      _customActionReceivePort = ReceivePort();
-      _customActionReceivePort.listen((dynamic event) async {
+      _receivePort!.listen((dynamic event) async {
         final request = event as _IsolateRequest;
         switch (request.method) {
+          case 'getConfig':
+            request.sendPort.send(await getConfig());
+            break;
+          case 'setConfig':
+            await setConfig(request.arguments![0] as AudioServiceConfig);
+            request.sendPort.send(null);
+            break;
+          //-------------Handler----------------//
           case 'prepare':
             await _handler.prepare();
             request.sendPort.send(null);
@@ -929,15 +1098,6 @@ class AudioService {
               request.arguments![0] as int,
               request.arguments![1] as MediaItem,
             );
-            request.sendPort.send(null);
-            break;
-          case 'updateQueue':
-            await _handler
-                .updateQueue(request.arguments![0] as List<MediaItem>);
-            request.sendPort.send(null);
-            break;
-          case 'updateMediaItem':
-            await _handler.updateMediaItem(request.arguments![0] as MediaItem);
             request.sendPort.send(null);
             break;
           case 'removeQueueItem':
@@ -1056,71 +1216,11 @@ class AudioService {
             break;
         }
       });
-      //IsolateNameServer.removePortNameMapping(_isolatePortName);
       IsolateNameServer.registerPortWithName(
-          _customActionReceivePort.sendPort, _isolatePortName);
+        _receivePort!.sendPort,
+        _mainIsolateName,
+      );
     }
-    _handler.mediaItem.listen((MediaItem? mediaItem) async {
-      if (mediaItem == null) return;
-      final artUri = mediaItem.artUri;
-      if (artUri != null) {
-        // We potentially need to fetch the art.
-        String? filePath;
-        if (artUri.scheme == 'file') {
-          filePath = artUri.toFilePath();
-        } else {
-          final fileInfo =
-              await cacheManager!.getFileFromMemory(artUri.toString());
-          filePath = fileInfo?.file.path;
-          if (filePath == null) {
-            // We haven't fetched the art yet, so show the metadata now, and again
-            // after we load the art.
-            await _platform.setMediaItem(
-                SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-            // Load the art
-            filePath = await _loadArtwork(mediaItem);
-            // If we failed to download the art, abort.
-            if (filePath == null) return;
-            // If we've already set a new media item, cancel this request.
-            // XXX: Test this
-            //if (mediaItem != _handler.mediaItem.value) return;
-          }
-        }
-        final extras =
-            Map<String, dynamic>.of(mediaItem.extras ?? <String, dynamic>{});
-        extras['artCacheFile'] = filePath;
-        final platformMediaItem = mediaItem.copyWith(extras: extras);
-        // Show the media item after the art is loaded.
-        await _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-      } else {
-        await _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-      }
-    });
-    _handler.androidPlaybackInfo
-        .listen((AndroidPlaybackInfo playbackInfo) async {
-      await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
-        playbackInfo: playbackInfo._toMessage(),
-      ));
-    });
-    _handler.queue.listen((List<MediaItem>? queue) async {
-      if (queue == null) return;
-      if (_config.preloadArtwork) {
-        _loadAllArtwork(queue);
-      }
-      await _platform.setQueue(SetQueueRequest(
-          queue: queue.map((item) => item._toMessage()).toList()));
-    });
-    _handler.playbackState.listen((PlaybackState playbackState) async {
-      await _platform
-          .setState(SetStateRequest(state: playbackState._toMessage()));
-      if (playbackState.processingState == AudioProcessingState.idle) {
-        await AudioService._stop();
-      }
-    });
-
-    return handler;
   }
 
   /// A stream tracking the current position, suitable for animating a seek bar.
@@ -1132,7 +1232,7 @@ class AudioService {
   ///
   /// See [createPositionStream] for more control over the stream parameters.
   //static Stream<Duration> _positionStream;
-  static Stream<Duration> get positionStream {
+  Stream<Duration> get positionStream {
     if (_positionSubject == null) {
       _positionSubject = BehaviorSubject<Duration>(sync: true);
       _positionSubject!.addStream(
@@ -1154,7 +1254,7 @@ class AudioService {
   /// Note: each time this method is called, a new stream is created. If you
   /// intend to use this stream multiple times, you should hold a reference to
   /// the returned stream.
-  static Stream<Duration> createPositionStream({
+  Stream<Duration> createPositionStream({
     int steps = 800,
     Duration minPeriod = const Duration(milliseconds: 200),
     Duration maxPeriod = const Duration(milliseconds: 200),
@@ -1205,34 +1305,13 @@ class AudioService {
     return controller.stream;
   }
 
-  /// In Android, forces media button events to be routed to your active media
-  /// session.
-  ///
-  /// This is necessary if you want to play TextToSpeech in the background and
-  /// still respond to media button events. You should call it just before
-  /// playing TextToSpeech.
-  ///
-  /// This is not necessary if you are playing normal audio in the background
-  /// such as music because this kind of "normal" audio playback will
-  /// automatically qualify your app to receive media button events.
-  static Future<void> androidForceEnableMediaButtons() async {
-    await _platform.androidForceEnableMediaButtons(
-      const AndroidForceEnableMediaButtonsRequest(),
-    );
-  }
-
-  /// Stops the service.
-  static Future<void> _stop() async {
-    await _platform.stopService(const StopServiceRequest());
-  }
-
-  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
+  Future<void> _loadAllArtwork(List<MediaItem> queue) async {
     for (var mediaItem in queue) {
       await _loadArtwork(mediaItem);
     }
   }
 
-  static Future<String?> _loadArtwork(MediaItem mediaItem) async {
+  Future<String?> _loadArtwork(MediaItem mediaItem) async {
     try {
       final artUri = mediaItem.artUri;
       if (artUri != null) {
@@ -1250,7 +1329,30 @@ class AudioService {
     return null;
   }
 
+  /// Disposes the service.
+  Future<void> _dispose() async {
+    await _plugin.disposeService(DisposeAudioServiceRequest(name: name));
+  }
+
+  /// In Android, forces media button events to be routed to your active media
+  /// session.
+  ///
+  /// This is necessary if you want to play TextToSpeech in the background and
+  /// still respond to media button events. You should call it just before
+  /// playing TextToSpeech.
+  ///
+  /// This is not necessary if you are playing normal audio in the background
+  /// such as music because this kind of "normal" audio playback will
+  /// automatically qualify your app to receive media button events.
+  static Future<void> androidForceEnableMediaButtons() async {
+    await _plugin.androidForceEnableMediaButtons(
+      const AndroidForceEnableMediaButtonsRequest(),
+    );
+  }
+
   // DEPRECATED members
+
+  static final _compatibilitySwitcher = SwitchAudioHandler();
 
   /// Deprecated. Use [browsableRootId] instead.
   @Deprecated("Use browsableRootId instead.")
@@ -1860,6 +1962,14 @@ abstract class BackgroundAudioTask {
 abstract class AudioHandler {
   AudioHandler._();
 
+  /// Audio handler is being initalized by the service.
+  @mustCallSuper
+  Future<void> init();
+
+  /// Audio service cleans up the handler resources.
+  @mustCallSuper
+  Future<void> dispose();
+
   /// Prepare media items for playback.
   Future<void> prepare();
 
@@ -1906,12 +2016,6 @@ abstract class AudioHandler {
 
   /// Insert [mediaItem] into the queue at position [index].
   Future<void> insertQueueItem(int index, MediaItem mediaItem);
-
-  /// Update to the queue to [queue].
-  Future<void> updateQueue(List<MediaItem> queue);
-
-  /// Update the properties of [mediaItem].
-  Future<void> updateMediaItem(MediaItem mediaItem);
 
   /// Remove [mediaItem] from the queue.
   Future<void> removeQueueItem(MediaItem mediaItem);
@@ -1968,6 +2072,14 @@ abstract class AudioHandler {
   /// Handle the notification being swiped away (Android).
   Future<void> onNotificationDeleted();
 
+  /// Set the remote volume on Android. This works only when using
+  /// [RemoteAndroidPlaybackInfo].
+  Future<void> androidSetRemoteVolume(int volumeIndex);
+
+  /// Adjust the remote volume on Android. This works only when using
+  /// [RemoteAndroidPlaybackInfo].
+  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction);
+
   /// Get the children of a parent media item.
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic>? options]);
@@ -1984,14 +2096,6 @@ abstract class AudioHandler {
 
   /// Search for media items.
   Future<List<MediaItem>> search(String query, [Map<String, dynamic>? extras]);
-
-  /// Set the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfo].
-  Future<void> androidSetRemoteVolume(int volumeIndex);
-
-  /// Adjust the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfo].
-  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction);
 
   /// A value stream of playback states.
   ValueStream<PlaybackState> get playbackState;
@@ -2184,15 +2288,6 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> updateQueue(List<MediaItem> queue) => _inner.updateQueue(queue);
-
-  @override
-  @mustCallSuper
-  Future<void> updateMediaItem(MediaItem mediaItem) =>
-      _inner.updateMediaItem(mediaItem);
-
-  @override
-  @mustCallSuper
   Future<void> removeQueueItem(MediaItem mediaItem) =>
       _inner.removeQueueItem(mediaItem);
 
@@ -2271,6 +2366,16 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
+  Future<void> androidSetRemoteVolume(int volumeIndex) =>
+      _inner.androidSetRemoteVolume(volumeIndex);
+
+  @override
+  @mustCallSuper
+  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
+      _inner.androidAdjustRemoteVolume(direction);
+
+  @override
+  @mustCallSuper
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic>? options]) =>
       _inner.getChildren(parentMediaId, options);
@@ -2291,16 +2396,6 @@ class CompositeAudioHandler extends AudioHandler {
   Future<List<MediaItem>> search(String query,
           [Map<String, dynamic>? extras]) =>
       _inner.search(query, extras);
-
-  @override
-  @mustCallSuper
-  Future<void> androidSetRemoteVolume(int volumeIndex) =>
-      _inner.androidSetRemoteVolume(volumeIndex);
-
-  @override
-  @mustCallSuper
-  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
-      _inner.androidAdjustRemoteVolume(direction);
 
   @override
   ValueStream<PlaybackState> get playbackState => _inner.playbackState;
@@ -2337,48 +2432,52 @@ class _IsolateRequest {
   _IsolateRequest(this.sendPort, this.method, [this.arguments]);
 }
 
-const _isolatePortName = 'com.ryanheise.audioservice.port';
-
 class _IsolateAudioHandler extends AudioHandler {
+  final AudioService service;
+
+  _IsolateAudioHandler(this.service) : super._();
+
+  @override
+  Future<void> init() {
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> dispose() {
+    return SynchronousFuture(null);
+  }
+
+  Future<dynamic> _send(String method, [List<dynamic>? arguments]) =>
+      service._send(method, arguments);
+
   final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>?>>{};
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<PlaybackState> playbackState =
       BehaviorSubject.seeded(PlaybackState());
+
   @override
-  // ignore: close_sinks
   final BehaviorSubject<List<MediaItem>?> queue =
       BehaviorSubject.seeded(<MediaItem>[]);
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
+
   @override
-  // ignore: close_sinks
   final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
-
-  _IsolateAudioHandler() : super._() {
-    _platform.setClientCallbacks(_ClientCallbacks(this));
-  }
 
   @override
   Future<void> prepare() => _send('prepare');
@@ -2513,6 +2612,14 @@ class _IsolateAudioHandler extends AudioHandler {
   Future<void> onNotificationDeleted() => _send('onNotificationDeleted');
 
   @override
+  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
+      _send('androidAdjustRemoteVolume', <dynamic>[direction]);
+
+  @override
+  Future<void> androidSetRemoteVolume(int volumeIndex) =>
+      _send('androidSetRemoteVolume', <dynamic>[volumeIndex]);
+
+  @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic>? options]) async =>
       (await _send('getChildren', <dynamic>[parentMediaId, options]))
@@ -2541,25 +2648,6 @@ class _IsolateAudioHandler extends AudioHandler {
   Future<List<MediaItem>> search(String query,
           [Map<String, dynamic>? extras]) async =>
       (await _send('search', <dynamic>[query, extras])) as List<MediaItem>;
-
-  @override
-  Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
-      _send('androidAdjustRemoteVolume', <dynamic>[direction]);
-
-  @override
-  Future<void> androidSetRemoteVolume(int volumeIndex) =>
-      _send('androidSetRemoteVolume', <dynamic>[volumeIndex]);
-
-  Future<dynamic> _send(String method, [List<dynamic>? arguments]) async {
-    final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
-    if (sendPort == null) return null;
-    final receivePort = ReceivePort();
-    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
-    final dynamic result = await receivePort.first;
-    print("isolate result received: $result");
-    receivePort.close();
-    return result;
-  }
 }
 
 /// Base class for implementations of [AudioHandler]. It provides default
@@ -2844,6 +2932,13 @@ class BaseAudioHandler extends AudioHandler {
   }
 
   @override
+  Future<void> androidAdjustRemoteVolume(
+      AndroidVolumeDirection direction) async {}
+
+  @override
+  Future<void> androidSetRemoteVolume(int volumeIndex) async {}
+
+  @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic>? options]) async =>
       [];
@@ -2859,13 +2954,6 @@ class BaseAudioHandler extends AudioHandler {
   Future<List<MediaItem>> search(String query,
           [Map<String, dynamic>? extras]) async =>
       [];
-
-  @override
-  Future<void> androidAdjustRemoteVolume(
-      AndroidVolumeDirection direction) async {}
-
-  @override
-  Future<void> androidSetRemoteVolume(int volumeIndex) async {}
 }
 
 /// This mixin provides default implementations of [fastForward], [rewind],
@@ -3463,7 +3551,7 @@ class AudioServiceBackground {
   }
 }
 
-class _HandlerCallbacks extends AudioHandlerCallbacks {
+class _HandlerCallbacks extends AudioServicePlatformCallbacks {
   final AudioHandler handler;
 
   _HandlerCallbacks(this.handler);
@@ -3473,8 +3561,9 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
       handler.addQueueItem(request.mediaItem.toPlugin());
 
   @override
-  Future<void> addQueueItems(AddQueueItemsRequest request) => handler
-      .addQueueItems(request.queue.map((item) => item.toPlugin()).toList());
+  Future<void> addQueueItems(AddQueueItemsRequest request) =>
+      handler.addQueueItems(
+          request.mediaItems.map((item) => item.toPlugin()).toList());
 
   @override
   Future<void> androidAdjustRemoteVolume(
@@ -3631,7 +3720,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> updateMediaItem(UpdateMediaItemRequest request) =>
-      handler.updateMediaItem(request.mediaItem.toPlugin());
+      handler.updateMediaItem(request.mediaItem!.toPlugin());
 
   @override
   Future<void> updateQueue(UpdateQueueRequest request) => handler
