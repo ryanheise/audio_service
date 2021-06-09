@@ -1,22 +1,67 @@
 import 'dart:async';
+import 'dart:js' as js;
 import 'dart:html' as html;
 
 import 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'dart:js' as js;
 import 'js/media_session_web.dart';
 
-class AudioServiceWeb extends AudioServicePlatform {
+class AudioServiceWebPlugin extends AudioServicePluginPlatform {
   static void registerWith(Registrar registrar) {
-    AudioServicePlatform.instance = AudioServiceWeb();
+    AudioServicePluginPlatform.instance = AudioServiceWebPlugin();
   }
 
   AudioServicePlatformCallbacks? platformCallbacks;
   MediaItemMessage? mediaItem;
 
   @override
-  Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    return ConfigureResponse();
+  Future<void> initService(InitAudioServiceRequest request) {
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> initController(InitAudioControllerRequest request) {
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> disposeService(DisposeAudioServiceRequest request) {
+    final session = html.window.navigator.mediaSession!;
+    session.metadata = null;
+    mediaItem = null;
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> disposeController(DisposeAudioControllerRequest request) {
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> androidForceEnableMediaButtons(
+      AndroidForceEnableMediaButtonsRequest request) {
+    return SynchronousFuture(null);
+  }
+}
+
+class AudioServiceWeb extends AudioServicePlatform {
+  final AudioServicePlatformCallbacks callbacks;
+  late MediaItemMessage mediaItem;
+
+  AudioServiceWeb({
+    required ComponentName name,
+    required this.callbacks,
+  }) : super(name: name);
+
+  @override
+  Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request) {
+    return SynchronousFuture(null);
+  }
+
+  @override
+  Future<void> notifyChildrenChanged(NotifyChildrenChangedRequest request) {
+    return SynchronousFuture(null);
   }
 
   @override
@@ -29,26 +74,25 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.play:
             session.setActionHandler(
               'play',
-              () => platformCallbacks?.play(const PlayRequest()),
+              () => callbacks.play(const PlayRequest()),
             );
             break;
           case MediaActionMessage.pause:
             session.setActionHandler(
               'pause',
-              () => platformCallbacks?.pause(const PauseRequest()),
+              () => callbacks.pause(const PauseRequest()),
             );
             break;
           case MediaActionMessage.skipToPrevious:
             session.setActionHandler(
               'previoustrack',
-              () => platformCallbacks
-                  ?.skipToPrevious(const SkipToPreviousRequest()),
+              () => callbacks.skipToPrevious(const SkipToPreviousRequest()),
             );
             break;
           case MediaActionMessage.skipToNext:
             session.setActionHandler(
               'nexttrack',
-              () => platformCallbacks?.skipToNext(const SkipToNextRequest()),
+              () => callbacks.skipToNext(const SkipToNextRequest()),
             );
             break;
           // The naming convention here is a bit odd but seekbackward seems more
@@ -56,19 +100,19 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.rewind:
             session.setActionHandler(
               'seekbackward',
-              () => platformCallbacks?.rewind(const RewindRequest()),
+              () => callbacks.rewind(const RewindRequest()),
             );
             break;
           case MediaActionMessage.fastForward:
             session.setActionHandler(
               'seekforward',
-              () => platformCallbacks?.fastForward(const FastForwardRequest()),
+              () => callbacks.fastForward(const FastForwardRequest()),
             );
             break;
           case MediaActionMessage.stop:
             session.setActionHandler(
               'stop',
-              () => platformCallbacks?.stop(const StopRequest()),
+              () => callbacks.stop(const StopRequest()),
             );
             break;
           default:
@@ -84,7 +128,7 @@ class AudioServiceWeb extends AudioServicePlatform {
             try {
               setActionHandler('seekto', js.allowInterop((ActionResult ev) {
                 // Chrome uses seconds for whatever reason
-                platformCallbacks?.seek(SeekRequest(
+                callbacks.seek(SeekRequest(
                     position: Duration(
                   milliseconds: (ev.seekTime * 1000).round(),
                 )));
@@ -119,22 +163,20 @@ class AudioServiceWeb extends AudioServicePlatform {
   }
 
   @override
-  Future<void> setQueue(UpdateQueueRequest request) async {
-    //no-op there is not a queue concept on the web
+  Future<void> updateQueue(UpdateQueueRequest request) {
+    // There's no queue on web
+    return SynchronousFuture(null);
   }
 
   @override
-  Future<void> setMediaItem(UpdateMediaItemRequest request) async {
-    mediaItem = request.mediaItem;
-    final artUri = mediaItem!.artUri;
-
-    print('setting media item!');
-
+  Future<void> updateMediaItem(UpdateMediaItemRequest request) async {
+    mediaItem = request.mediaItem!;
+    final artUri = mediaItem.artUri;
     try {
       metadata = html.MediaMetadata(<String, dynamic>{
-        'album': mediaItem!.album,
-        'title': mediaItem!.title,
-        'artist': mediaItem!.artist,
+        'album': mediaItem.album,
+        'title': mediaItem.title,
+        'artist': mediaItem.artist,
         'artwork': [
           {
             'src': artUri,
@@ -145,22 +187,5 @@ class AudioServiceWeb extends AudioServicePlatform {
     } catch (e) {
       print('Metadata failed $e');
     }
-  }
-
-  @override
-  Future<void> stopService(StopServiceRequest request) async {
-    final session = html.window.navigator.mediaSession!;
-    session.metadata = null;
-    mediaItem = null;
-
-    // Not sure if anything needs to happen here
-    // throw UnimplementedError('stopService() has not been implemented.');
-  }
-
-  @override
-  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {
-    // Save this here so that we can modify which handlers are set based
-    // on which actions are enabled
-    platformCallbacks = callbacks;
   }
 }

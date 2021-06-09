@@ -1,35 +1,31 @@
+import 'package:flutter/foundation.dart';
+
 import 'audio_service_platform_interface.dart';
 
-class NoOpAudioService implements AudioServicePlatform {
+class NoOpAudioServicePlugin extends AudioServicePluginPlatform {
   @override
-  Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    return ConfigureResponse();
+  Future<void> initService(InitAudioServiceRequest request) {
+    return SynchronousFuture(null);
   }
 
   @override
-  Future<void> updatePlaybackState(UpdatePlaybackStateRequest request) async {}
+  Future<void> initController(InitAudioControllerRequest request) {
+    return SynchronousFuture(null);
+  }
 
   @override
-  Future<void> updateQueue(UpdateQueueRequest request) async {}
+  Future<void> disposeService(DisposeAudioServiceRequest request) {
+    return SynchronousFuture(null);
+  }
 
   @override
-  Future<void> updateMediaItem(UpdateMediaItemRequest request) async {}
-
-  @override
-  Future<void> stopService(StopServiceRequest request) async {}
-
-  @override
-  Future<void> setAndroidPlaybackInfo(
-      SetAndroidPlaybackInfoRequest request) async {}
+  Future<void> disposeController(DisposeAudioControllerRequest request) {
+    return SynchronousFuture(null);
+  }
 
   @override
   Future<void> androidForceEnableMediaButtons(
-      AndroidForceEnableMediaButtonsRequest request) async {}
-
-  @override
-  Future<void> notifyChildrenChanged(
-      NotifyChildrenChangedRequest request) async {}
-
-  @override
-  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {}
+      AndroidForceEnableMediaButtonsRequest request) {
+    return SynchronousFuture(null);
+  }
 }

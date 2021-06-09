@@ -9,58 +9,45 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_audio_service.dart';
 
-abstract class AudioServicePlatform extends PlatformInterface
-    implements _TwoSideCallbacks {
+abstract class AudioServicePluginPlatform extends PlatformInterface {
   /// Constructs an AudioServicePlatform.
-  AudioServicePlatform() : super(token: _token);
+  AudioServicePluginPlatform() : super(token: _token);
 
   static final Object _token = Object();
 
-  static AudioServicePlatform _instance =
+  static AudioServicePluginPlatform _instance =
       (!kIsWeb && (Platform.isWindows || Platform.isLinux))
-          ? NoOpAudioService()
-          : MethodChannelAudioService();
+          ? NoOpAudioServicePlugin()
+          : MethodChannelAudioServicePlugin();
 
   /// The default instance of [AudioServicePlatform] to use.
   ///
   /// Defaults to [MethodChannelAudioService].
-  static AudioServicePlatform get instance => _instance;
+  static AudioServicePluginPlatform get instance => _instance;
 
   /// Platform-specific plugins should set this with their own platform-specific
   /// class that extends [AudioServicePlatform] when they register themselves.
   //
   // TODO: rewrite when https://github.com/flutter/flutter/issues/43368 is resolved.
-  static set instance(AudioServicePlatform instance) {
+  static set instance(AudioServicePluginPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
   }
 
-  Future<ConfigureResponse> configure(ConfigureRequest request) {
-    throw UnimplementedError('configure() has not been implemented.');
+  Future<void> initService(InitAudioServiceRequest request) {
+    throw UnimplementedError('initService() has not been implemented.');
   }
 
-  @override
-  Future<void> updatePlaybackState(UpdatePlaybackStateRequest request) {
-    throw UnimplementedError('updatePlaybackState() has not been implemented.');
+  Future<void> initController(InitAudioControllerRequest request) {
+    throw UnimplementedError('initController() has not been implemented.');
   }
 
-  @override
-  Future<void> updateQueue(UpdateQueueRequest request) {
-    throw UnimplementedError('updateQueue() has not been implemented.');
+  Future<void> disposeService(DisposeAudioServiceRequest request) {
+    throw UnimplementedError('disposeService() has not been implemented.');
   }
 
-  @override
-  Future<void> updateMediaItem(UpdateMediaItemRequest request) {
-    throw UnimplementedError('updateMediaItem() has not been implemented.');
-  }
-
-  Future<void> stopService(StopServiceRequest request) {
-    throw UnimplementedError('stopService() has not been implemented.');
-  }
-
-  Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request) {
-    throw UnimplementedError(
-        'setAndroidPlaybackInfo() has not been implemented.');
+  Future<void> disposeController(DisposeAudioControllerRequest request) {
+    throw UnimplementedError('disposeController() has not been implemented.');
   }
 
   Future<void> androidForceEnableMediaButtons(
@@ -68,21 +55,25 @@ abstract class AudioServicePlatform extends PlatformInterface
     throw UnimplementedError(
         'androidForceEnableMediaButtons() has not been implemented.');
   }
+}
 
-  Future<void> notifyChildrenChanged(
-      NotifyChildrenChangedRequest request) async {
-    throw UnimplementedError(
-        'notifyChildrenChanged() has not been implemented.');
-  }
+abstract class AudioServicePlatform
+    implements AudioServiceTwoSidePlatformCallbacks {
+  final ComponentName name;
 
-  /// Handles calls from from the platform to the dart code.
-  void handlePlatformCall(AudioServicePlatformCallbacks callbacks) {
-    throw UnimplementedError('handlePlatformCall() has not been implemented.');
-  }
+  const AudioServicePlatform({required this.name});
+
+  /// Set playback info on Android.
+  Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request);
+
+  /// Notify listeners that the children have changed.
+  Future<void> notifyChildrenChanged(NotifyChildrenChangedRequest request);
 }
 
 /// Callbacks from that can be sent from both the platform and the dart code.
-abstract class _TwoSideCallbacks {
+abstract class AudioServiceTwoSidePlatformCallbacks {
+  const AudioServiceTwoSidePlatformCallbacks();
+
   /// Update playback state.
   Future<void> updatePlaybackState(UpdatePlaybackStateRequest request);
 
@@ -94,7 +85,19 @@ abstract class _TwoSideCallbacks {
 }
 
 /// Callbacks from the platform to the dart code.
-abstract class AudioServicePlatformCallbacks implements _TwoSideCallbacks {
+abstract class AudioServicePlatformCallbacks
+    implements AudioServiceTwoSidePlatformCallbacks {
+  const AudioServicePlatformCallbacks();
+
+  /// Get the children of a parent media item.
+  Future<GetChildrenResponse> getChildren(GetChildrenRequest request);
+
+  /// Get a particular media item.
+  Future<GetMediaItemResponse> getMediaItem(GetMediaItemRequest request);
+
+  /// Search for media items.
+  Future<SearchResponse> search(SearchRequest request);
+
   /// Prepare media items for playback.
   Future<void> prepare(PrepareRequest request);
 
@@ -198,23 +201,20 @@ abstract class AudioServicePlatformCallbacks implements _TwoSideCallbacks {
   // TODO: implement
   Future<void> onNotificationClicked(OnNotificationClickedRequest request);
 
-  /// Get the children of a parent media item.
-  Future<GetChildrenResponse> getChildren(GetChildrenRequest request);
-
-  /// Get a particular media item.
-  Future<GetMediaItemResponse> getMediaItem(GetMediaItemRequest request);
-
-  /// Search for media items.
-  Future<SearchResponse> search(SearchRequest request);
-
   /// Set the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfoMessage].
+  /// [setAndroidPlaybackInfo].
   Future<void> androidSetRemoteVolume(AndroidSetRemoteVolumeRequest request);
 
   /// Adjust the remote volume on Android. This works only when using
-  /// [RemoteAndroidPlaybackInfoMessage].
+  /// [setAndroidPlaybackInfo].
   Future<void> androidAdjustRemoteVolume(
       AndroidAdjustRemoteVolumeRequest request);
+}
+
+abstract class AudioControllerPlatform {
+  final ComponentName name;
+
+  const AudioControllerPlatform({required this.name});
 }
 
 /// The states of audio processing.
@@ -765,25 +765,84 @@ enum RatingStyleMessage {
   percentage,
 }
 
-class ConfigureRequest {
+class InitAudioServiceRequest {
+  final ComponentName name;
   final AudioServiceConfigMessage config;
 
   @literal
-  const ConfigureRequest({required this.config});
+  const InitAudioServiceRequest({
+    required this.name,
+    required this.config,
+  });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name.toMap(),
         'config': config.toMap(),
       };
 }
 
-/// The result of [AudioServicePlatform.configure].
-///
-/// Doesn't have `const` constructor, because it's only supposed to be instantiated
-/// from the result of a native call, and thus will be always runtime (and because `fromMap`
-/// should not return constants as well).
-class ConfigureResponse {
-  static ConfigureResponse fromMap(Map<String, dynamic> map) =>
-      ConfigureResponse();
+class InitAudioControllerRequest {
+  final ComponentName name;
+  final AudioServiceConfigMessage config;
+
+  @literal
+  const InitAudioControllerRequest({
+    required this.name,
+    required this.config,
+  });
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name.toMap(),
+        'config': config.toMap(),
+      };
+}
+
+class DisposeAudioServiceRequest {
+  @literal
+  const DisposeAudioServiceRequest();
+
+  Map<String, dynamic> toMap() => <String, dynamic>{};
+}
+
+class DisposeAudioControllerRequest {
+  @literal
+  const DisposeAudioControllerRequest();
+
+  Map<String, dynamic> toMap() => <String, dynamic>{};
+}
+
+class AndroidForceEnableMediaButtonsRequest {
+  @literal
+  const AndroidForceEnableMediaButtonsRequest();
+
+  Map<String, dynamic> toMap() => <String, dynamic>{};
+}
+
+class SetAndroidPlaybackInfoRequest {
+  final AndroidPlaybackInfoMessage playbackInfo;
+
+  @literal
+  const SetAndroidPlaybackInfoRequest({required this.playbackInfo});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'playbackInfo': playbackInfo.toMap(),
+      };
+}
+
+class NotifyChildrenChangedRequest {
+  final String parentMediaId;
+  final Map<String, dynamic>? options;
+
+  @literal
+  const NotifyChildrenChangedRequest({
+    required this.parentMediaId,
+    this.options,
+  });
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'parentMediaId': parentMediaId,
+        'options': options,
+      };
 }
 
 class UpdatePlaybackStateRequest {
@@ -818,6 +877,7 @@ class UpdateMediaItemRequest {
       };
 }
 
+// TODO: what is this?
 class OnChildrenLoadedRequest {
   final String parentMediaId;
   final List<MediaItemMessage> children;
@@ -838,60 +898,73 @@ class OnChildrenLoadedRequest {
       );
 }
 
-class OnNotificationClickedRequest {
-  final bool clicked;
-
-  @literal
-  const OnNotificationClickedRequest({required this.clicked});
-
-  factory OnNotificationClickedRequest.fromMap(Map<String, dynamic> map) =>
-      OnNotificationClickedRequest(
-        clicked: map['clicked'] == null,
-      );
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'clicked': clicked,
-      };
-}
-
-class StopServiceRequest {
-  @literal
-  const StopServiceRequest();
-
-  Map<String, dynamic> toMap() => <String, dynamic>{};
-}
-
-class SetAndroidPlaybackInfoRequest {
-  final AndroidPlaybackInfoMessage playbackInfo;
-
-  @literal
-  const SetAndroidPlaybackInfoRequest({required this.playbackInfo});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'playbackInfo': playbackInfo.toMap(),
-      };
-}
-
-class AndroidForceEnableMediaButtonsRequest {
-  @literal
-  const AndroidForceEnableMediaButtonsRequest();
-
-  Map<String, dynamic> toMap() => <String, dynamic>{};
-}
-
-class NotifyChildrenChangedRequest {
+class GetChildrenRequest {
   final String parentMediaId;
   final Map<String, dynamic>? options;
 
   @literal
-  const NotifyChildrenChangedRequest({
-    required this.parentMediaId,
-    this.options,
-  });
+  const GetChildrenRequest({required this.parentMediaId, this.options});
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'parentMediaId': parentMediaId,
         'options': options,
+      };
+}
+
+class GetChildrenResponse {
+  final List<MediaItemMessage> children;
+
+  @literal
+  const GetChildrenResponse({required this.children});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'children': children.map((item) => item.toMap()).toList(),
+      };
+}
+
+class GetMediaItemRequest {
+  final String mediaId;
+
+  @literal
+  const GetMediaItemRequest({required this.mediaId});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaId': mediaId,
+      };
+}
+
+class GetMediaItemResponse {
+  final MediaItemMessage? mediaItem;
+
+  @literal
+  const GetMediaItemResponse({required this.mediaItem});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaItem': mediaItem?.toMap(),
+      };
+}
+
+class SearchRequest {
+  final String query;
+  final Map<String, dynamic>? extras;
+
+  @literal
+  const SearchRequest({required this.query, this.extras});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'query': query,
+        'extras': extras,
+      };
+}
+
+class SearchResponse {
+  final List<MediaItemMessage> mediaItems;
+
+  @literal
+  const SearchResponse({required this.mediaItems});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'mediaItems': mediaItems.map((item) => item.toMap()).toList(),
       };
 }
 
@@ -1234,73 +1307,19 @@ class OnNotificationDeletedRequest {
   Map<String, dynamic> toMap() => <String, dynamic>{};
 }
 
-class GetChildrenRequest {
-  final String parentMediaId;
-  final Map<String, dynamic>? options;
+class OnNotificationClickedRequest {
+  final bool clicked;
 
   @literal
-  const GetChildrenRequest({required this.parentMediaId, this.options});
+  const OnNotificationClickedRequest({required this.clicked});
+
+  factory OnNotificationClickedRequest.fromMap(Map<String, dynamic> map) =>
+      OnNotificationClickedRequest(
+        clicked: map['clicked'] == null,
+      );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'parentMediaId': parentMediaId,
-        'options': options,
-      };
-}
-
-class GetChildrenResponse {
-  final List<MediaItemMessage> children;
-
-  @literal
-  const GetChildrenResponse({required this.children});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'children': children.map((item) => item.toMap()).toList(),
-      };
-}
-
-class GetMediaItemRequest {
-  final String mediaId;
-
-  @literal
-  const GetMediaItemRequest({required this.mediaId});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaId': mediaId,
-      };
-}
-
-class GetMediaItemResponse {
-  final MediaItemMessage? mediaItem;
-
-  @literal
-  const GetMediaItemResponse({required this.mediaItem});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItem': mediaItem?.toMap(),
-      };
-}
-
-class SearchRequest {
-  final String query;
-  final Map<String, dynamic>? extras;
-
-  @literal
-  const SearchRequest({required this.query, this.extras});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'query': query,
-        'extras': extras,
-      };
-}
-
-class SearchResponse {
-  final List<MediaItemMessage> mediaItems;
-
-  @literal
-  const SearchResponse({required this.mediaItems});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItems': mediaItems.map((item) => item.toMap()).toList(),
+        'clicked': clicked,
       };
 }
 
@@ -1323,6 +1342,24 @@ class AndroidAdjustRemoteVolumeRequest {
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'direction': direction.index,
+      };
+}
+
+class ComponentName {
+  final String package;
+  final String className;
+
+  const ComponentName({
+    required this.package,
+    required this.className,
+  });
+
+  @override
+  String toString() => '$package.$className';
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'package': package,
+        'className': className,
       };
 }
 
@@ -1381,12 +1418,12 @@ class AudioServiceConfigMessage {
   /// [artDownscaleWidth] must also be specified.
   final int? artDownscaleHeight;
 
-  /// The interval to be used in [AudioHandlerCallbacks.fastForward]. This value will
+  /// The interval to be used in [AudioServicePlatformCallbacks.fastForward]. This value will
   /// also be used on iOS to render the skip-forward button. This value must be
   /// positive.
   final Duration fastForwardInterval;
 
-  /// The interval to be used in [AudioHandlerCallbacks.rewind]. This value will also be
+  /// The interval to be used in [AudioServicePlatformCallbacks.rewind]. This value will also be
   /// used on iOS to render the skip-backward button. This value must be
   /// positive.
   final Duration rewindInterval;
@@ -1396,10 +1433,10 @@ class AudioServiceConfigMessage {
   /// true.
   final bool androidEnableQueue;
 
-  /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
+  /// By default artworks are loaded only when the item is fed into [AudioService.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
-  /// [AudioHandler.queue].
+  /// [AudioService.queue].
   ///
   /// TODO: remove https://github.com/ryanheise/audio_service/pull/640#issuecomment-816850268
   final bool preloadArtwork;
