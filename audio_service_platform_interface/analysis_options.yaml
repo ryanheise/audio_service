@@ -9,3 +9,4 @@ linter:
   rules:
     prefer_single_quotes: false
     unawaited_futures: false
+    prefer_const_constructors: true

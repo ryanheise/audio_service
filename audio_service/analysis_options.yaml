@@ -12,3 +12,4 @@ linter:
     prefer_single_quotes: false
     unawaited_futures: false
     public_member_api_docs: true
+    prefer_const_constructors: true
