@@ -569,11 +569,11 @@ class MediaItemMessage {
   /// A unique id.
   final String id;
 
-  /// The album this media item belongs to.
-  final String album;
-
   /// The title of this media item.
   final String title;
+
+  /// The album this media item belongs to.
+  final String? album;
 
   /// The artist of this media item.
   final String? artist;
@@ -613,8 +613,8 @@ class MediaItemMessage {
   @literal
   const MediaItemMessage({
     required this.id,
-    required this.album,
     required this.title,
+    this.album,
     this.artist,
     this.genre,
     this.duration,
@@ -632,8 +632,8 @@ class MediaItemMessage {
   factory MediaItemMessage.fromMap(Map<String, dynamic> raw) =>
       MediaItemMessage(
         id: raw['id'] as String,
-        album: raw['album'] as String,
         title: raw['title'] as String,
+        album: raw['album'] as String,
         artist: raw['artist'] as String,
         genre: raw['genre'] as String,
         duration: raw['duration'] != null
@@ -655,8 +655,8 @@ class MediaItemMessage {
   /// the fields of this class.
   Map<String, dynamic> toMap() => <String, dynamic>{
         'id': id,
-        'album': album,
         'title': title,
+        'album': album,
         'artist': artist,
         'genre': genre,
         'duration': duration?.inMilliseconds,

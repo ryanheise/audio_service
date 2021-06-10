@@ -945,7 +945,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     private static String metadataToString(MediaMetadataCompat mediaMetadata, String key) {
         CharSequence value = mediaMetadata.getText(key);
-        if (value != null && value.length() > 0)
+        if (value != null)
             return value.toString();
         return null;
     }
@@ -955,8 +955,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         MediaDescriptionCompat description = mediaMetadata.getDescription();
         Map<String, Object> raw = new HashMap<>();
         raw.put("id", description.getMediaId());
-        raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
         raw.put("title", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_TITLE));
+        raw.put("album", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ALBUM));
         if (description.getIconUri() != null)
             raw.put("artUri", description.getIconUri().toString());
         raw.put("artist", metadataToString(mediaMetadata, MediaMetadataCompat.METADATA_KEY_ARTIST));
@@ -981,8 +981,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
        //noinspection unchecked
        return AudioService.instance.createMediaMetadata(
                 (String)rawMediaItem.get("id"),
-                (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("title"),
+                (String)rawMediaItem.get("album"),
                 (String)rawMediaItem.get("artist"),
                 (String)rawMediaItem.get("genre"),
                 getLong(rawMediaItem.get("duration")),
