@@ -3,9 +3,9 @@ import 'audio_service_platform_interface.dart';
 
 class MethodChannelAudioService extends AudioServicePlatform {
   final MethodChannel _clientChannel =
-      MethodChannel('com.ryanheise.audio_service.client.methods');
+      const MethodChannel('com.ryanheise.audio_service.client.methods');
   final MethodChannel _handlerChannel =
-      MethodChannel('com.ryanheise.audio_service.handler.methods');
+      const MethodChannel('com.ryanheise.audio_service.handler.methods');
 
   @override
   Future<ConfigureResponse> configure(ConfigureRequest request) async {
@@ -96,7 +96,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
               mediaId: call.arguments['mediaId'] as String)));
         case 'click':
           await callbacks.click(ClickRequest(
-              button: MediaButtonMessage.values[call.arguments['button'] as int]));
+              button:
+                  MediaButtonMessage.values[call.arguments['button'] as int]));
           return null;
         case 'stop':
           await callbacks.stop(const StopRequest());
@@ -260,7 +261,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
 }
 
 /// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
-/// 
+///
 /// Used mostly to unwrap [MethodCall.arguments] which in case with maps
 /// is always `Map<Object?, Object?>`.
 @pragma('vm:prefer-inline')
