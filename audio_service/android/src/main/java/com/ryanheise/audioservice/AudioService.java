@@ -84,8 +84,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
+        if (album != null)
+            builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
         if (artist != null)
             builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
         if (genre != null)

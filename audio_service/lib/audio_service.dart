@@ -506,11 +506,11 @@ class MediaItem {
   /// A unique id.
   final String id;
 
-  /// The album this media item belongs to.
-  final String album;
-
   /// The title of this media item.
   final String title;
+
+  /// The album this media item belongs to.
+  final String? album;
 
   /// The artist of this media item.
   final String? artist;
@@ -549,8 +549,8 @@ class MediaItem {
   /// The [id] must be unique for each instance.
   const MediaItem({
     required this.id,
-    required this.album,
     required this.title,
+    this.album,
     this.artist,
     this.genre,
     this.duration,
