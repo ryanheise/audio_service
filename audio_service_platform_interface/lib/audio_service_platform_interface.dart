@@ -55,17 +55,30 @@ abstract class AudioServicePlatform extends PlatformInterface {
   }
 
   Future<void> setAndroidPlaybackInfo(
-      SetAndroidPlaybackInfoRequest request) async {}
+      SetAndroidPlaybackInfoRequest request) async {
+    throw UnimplementedError(
+        'setAndroidPlaybackInfo() has not been implemented.');
+  }
 
   Future<void> androidForceEnableMediaButtons(
-      AndroidForceEnableMediaButtonsRequest request) async {}
+      AndroidForceEnableMediaButtonsRequest request) async {
+    throw UnimplementedError(
+        'androidForceEnableMediaButtons() has not been implemented.');
+  }
 
   Future<void> notifyChildrenChanged(
-      NotifyChildrenChangedRequest request) async {}
+      NotifyChildrenChangedRequest request) async {
+    throw UnimplementedError(
+        'notifyChildrenChanged() has not been implemented.');
+  }
 
-  void setClientCallbacks(AudioClientCallbacks callbacks);
+  void setClientCallbacks(AudioClientCallbacks callbacks) {
+    throw UnimplementedError('setClientCallbacks() has not been implemented.');
+  }
 
-  void setHandlerCallbacks(AudioHandlerCallbacks callbacks);
+  void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
+    throw UnimplementedError('setHandlerCallbacks() has not been implemented.');
+  }
 }
 
 /// Callbacks from the platform to a client running in another isolate.
@@ -131,15 +144,18 @@ abstract class AudioHandlerCallbacks {
   Future<void> addQueueItem(AddQueueItemRequest request);
 
   /// Add [AddQueueItemsRequest.queue] to the queue.
+  /// TODO: implement
   Future<void> addQueueItems(AddQueueItemsRequest request);
 
   /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [InsertQueueItemRequest.index].
   Future<void> insertQueueItem(InsertQueueItemRequest request);
 
   /// Update to the queue to [UpdateQueueRequest.queue].
+  /// TODO: remove
   Future<void> updateQueue(UpdateQueueRequest request);
 
   /// Update the properties of [UpdateMediaItemRequest.mediaItem].
+  /// TODO: remove
   Future<void> updateMediaItem(UpdateMediaItemRequest request);
 
   /// Remove [RemoveQueueItemRequest.mediaItem] from the queue.
@@ -196,6 +212,7 @@ abstract class AudioHandlerCallbacks {
   /// Handle the notification being swiped away (Android).
   Future<void> onNotificationDeleted(OnNotificationDeletedRequest request);
 
+  // TODO: implement
   Future<void> onNotificationClicked(OnNotificationClickedRequest request);
 
   /// Get the children of a parent media item.
@@ -430,14 +447,14 @@ class PlaybackStateMessage {
         speed: map['speed'] as double,
         updateTime:
             DateTime.fromMillisecondsSinceEpoch(map['updateTime'] as int),
-        errorCode: map['errorCode'] as int,
-        errorMessage: map['errorMessage'] as String,
+        errorCode: map['errorCode'] as int?,
+        errorMessage: map['errorMessage'] as String?,
         repeatMode:
             AudioServiceRepeatModeMessage.values[map['repeatMode'] as int],
         shuffleMode:
             AudioServiceShuffleModeMessage.values[map['shuffleMode'] as int],
         captioningEnabled: map['captioningEnabled'] as bool,
-        queueIndex: map['queueIndex'] as int,
+        queueIndex: map['queueIndex'] as int?,
       );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
@@ -633,18 +650,18 @@ class MediaItemMessage {
       MediaItemMessage(
         id: raw['id'] as String,
         title: raw['title'] as String,
-        album: raw['album'] as String,
-        artist: raw['artist'] as String,
-        genre: raw['genre'] as String,
+        album: raw['album'] as String?,
+        artist: raw['artist'] as String?,
+        genre: raw['genre'] as String?,
         duration: raw['duration'] != null
             ? Duration(milliseconds: raw['duration'] as int)
             : null,
         artUri:
             raw['artUri'] != null ? Uri.parse(raw['artUri'] as String) : null,
-        playable: raw['playable'] as bool,
-        displayTitle: raw['displayTitle'] as String,
-        displaySubtitle: raw['displaySubtitle'] as String,
-        displayDescription: raw['displayDescription'] as String,
+        playable: raw['playable'] as bool?,
+        displayTitle: raw['displayTitle'] as String?,
+        displaySubtitle: raw['displaySubtitle'] as String?,
+        displayDescription: raw['displayDescription'] as String?,
         rating: raw['rating'] != null
             ? RatingMessage.fromMap(_castMap(raw['rating'] as Map)!)
             : null,
@@ -726,7 +743,6 @@ class RatingMessage {
     };
   }
 
-  // Even though this should take a Map<String, dynamic>, that makes an error.
   RatingMessage.fromMap(Map<String, dynamic> raw)
       : this(
           type: RatingStyleMessage.values[raw['type'] as int],
@@ -740,8 +756,8 @@ class RatingMessage {
 enum RatingStyleMessage {
   /// Indicates a rating style is not supported.
   ///
-  /// A Rating will never have this type, but can be used by other classes
-  /// to indicate they do not support Rating.
+  /// A [RatingMessage] will never have this type, but can be used by other classes
+  /// to indicate they do not support [RatingMessage].
   none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".
@@ -1025,7 +1041,7 @@ class PlayMediaItemRequest {
   const PlayMediaItemRequest({required this.mediaItem});
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItem': mediaItem.toString(),
+        'mediaItem': mediaItem.toMap(),
       };
 }
 
@@ -1394,13 +1410,13 @@ class ConfigureRequest {
 }
 
 /// The result of [AudioServicePlatform.configure].
-///
-/// Doesn't have `const` constructor, because it's only supposed to be instantiated
-/// from the result of a native call, and thus will be always runtime (and because `fromMap`
-/// should not return constants as well).
 class ConfigureResponse {
-  static ConfigureResponse fromMap(Map<String, dynamic> map) =>
+  ConfigureResponse();
+
+  factory ConfigureResponse.fromMap(Map<String, dynamic> map) =>
       ConfigureResponse();
+
+  Map<String, dynamic> toMap() => <String, dynamic>{};
 }
 
 /// The options to use when configuring the [AudioServicePlatform].
