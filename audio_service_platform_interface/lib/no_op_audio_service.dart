@@ -4,8 +4,8 @@ import 'audio_service_platform_interface.dart';
 
 class NoOpAudioService extends AudioServicePlatform {
   @override
-  Future<ConfigureResponse> configure(ConfigureRequest request) {
-    return SynchronousFuture(ConfigureResponse());
+  Future<void> configure(ConfigureRequest request) {
+    return SynchronousFuture(null);
   }
 
   @override
@@ -43,9 +43,6 @@ class NoOpAudioService extends AudioServicePlatform {
   Future<void> setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest request) {
     return SynchronousFuture(null);
   }
-
-  @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {}
 
   @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {}

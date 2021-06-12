@@ -11,9 +11,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
       const MethodChannel('com.ryanheise.audio_service.handler.methods');
 
   @override
-  Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    return ConfigureResponse.fromMap((await _clientChannel
-        .invokeMapMethod<String, dynamic>('configure', request.toMap()))!);
+  Future<void> configure(ConfigureRequest request) async {
+    await _clientChannel.invokeMethod<void>('configure', request.toMap());
   }
 
   @override
@@ -55,34 +54,6 @@ class MethodChannelAudioService extends AudioServicePlatform {
       SetAndroidPlaybackInfoRequest request) async {
     await handlerChannel.invokeMethod<void>(
         'setAndroidPlaybackInfo', request.toMap());
-  }
-
-  @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {
-    _clientChannel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'onPlaybackStateChanged':
-          callbacks.onPlaybackStateChanged(
-            OnPlaybackStateChangedRequest.fromMap(
-                _castMap(call.arguments as Map)!),
-          );
-          break;
-        case 'onMediaItemChanged':
-          callbacks.onMediaItemChanged(
-            OnMediaItemChangedRequest.fromMap(_castMap(call.arguments as Map)!),
-          );
-          break;
-        case 'onQueueChanged':
-          callbacks.onQueueChanged(
-            OnQueueChangedRequest.fromMap(_castMap(call.arguments as Map)!),
-          );
-          break;
-        //case 'onChildrenLoaded':
-        //  callbacks.onChildrenLoaded(
-        //      OnChildrenLoadedRequest.fromMap(call.arguments));
-        //  break;
-      }
-    });
   }
 
   @override
@@ -157,18 +128,6 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'insertQueueItem':
         await callbacks.insertQueueItem(InsertQueueItemRequest(
             index: call.arguments['index'] as int,
-            mediaItem: MediaItemMessage.fromMap(
-                _castMap(call.arguments['mediaItem'] as Map)!)));
-        return null;
-      case 'updateQueue':
-        await callbacks.updateQueue(UpdateQueueRequest(
-            queue: (call.arguments['queue'] as List)
-                .map((dynamic raw) =>
-                    MediaItemMessage.fromMap(_castMap(raw as Map)!))
-                .toList()));
-        return null;
-      case 'updateMediaItem':
-        await callbacks.updateMediaItem(UpdateMediaItemRequest(
             mediaItem: MediaItemMessage.fromMap(
                 _castMap(call.arguments['mediaItem'] as Map)!)));
         return null;

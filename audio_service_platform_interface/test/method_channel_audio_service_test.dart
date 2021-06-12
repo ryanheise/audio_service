@@ -44,20 +44,15 @@ void main() {
   group('Client channel $asciiSquare to native $asciiSquare', () {
     test('configure', () async {
       final request = ConfigureRequest(config: AudioServiceConfigMessage());
-      final response = ConfigureResponse().toMap();
-      final methods = {'configure': response};
+      final methods = {'configure': null};
       final channel = sendClientChannel.copyWith(methods);
-      final result = await platform.configure(request);
+      await platform.configure(request);
       expect(channel.log, [
         isMethodCall(
           'configure',
           arguments: request.toMap(),
         )
       ]);
-      expect(
-        result.toMap(),
-        equals(response),
-      );
     });
   });
 
