@@ -145,7 +145,21 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 //            invokeClientMethod("onQueueChanged", map);
 //        }
     };
-    private static final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
+    private static void invokeClientMethod(String method, Object arg) {
+        for (ClientInterface clientInterface : clientInterfaces) {
+            clientInterface.channel.invokeMethod(method, arg);
+        }
+    }
+
+    //
+    // INSTANCE FIELDS AND METHODS
+    //
+
+    private FlutterPluginBinding flutterPluginBinding;
+    private ActivityPluginBinding activityPluginBinding;
+    private NewIntentListener newIntentListener;
+    private ClientInterface clientInterface;
+    private final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
         @Override
         public void onConnected() {
             try {
@@ -179,25 +193,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onConnectionFailed() {
-            // TODO: Handle this
-            System.out.println("### UNHANDLED: onConnectionFailed");
+            if (configureResult != null) {
+                configureResult.error("Unable to bind to AudioService. Please ensure you have declared a <service> element as described in the README.", null, null);
+            } else {
+                clientInterface.setServiceConnectionFailed(true);
+            }
         }
     };
 
-    private static void invokeClientMethod(String method, Object arg) {
-        for (ClientInterface clientInterface : clientInterfaces) {
-            clientInterface.channel.invokeMethod(method, arg);
-        }
-    }
-
-    //
-    // INSTANCE FIELDS AND METHODS
-    //
-
-    private FlutterPluginBinding flutterPluginBinding;
-    private ActivityPluginBinding activityPluginBinding;
-    private NewIntentListener newIntentListener;
-    private ClientInterface clientInterface;
 
     //
     // FlutterPlugin callbacks
@@ -344,6 +347,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public final BinaryMessenger messenger;
         private final MethodChannel channel;
         private boolean wrongEngineDetected;
+        private boolean serviceConnectionFailed;
 
         // This is implemented in Dart already.
         // But we may need to bring this back if we want to connect to another process's media session.
@@ -375,6 +379,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             wrongEngineDetected = value;
         }
 
+        public void setServiceConnectionFailed(boolean value) {
+            serviceConnectionFailed = value;
+        }
+
         // See: https://stackoverflow.com/questions/13135545/android-activity-is-using-old-intent-if-launching-app-from-recent-task
         protected boolean wasLaunchedFromRecents() {
             return (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
@@ -383,10 +391,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onMethodCall(MethodCall call, final Result result) {
             try {
+                if (wrongEngineDetected) {
+                    throw new IllegalStateException("The Activity class declared in your AndroidManifest.xml is wrong or has not provided the correct FlutterEngine. Please see the README for instructions.");
+                }
                 switch (call.method) {
                 case "configure":
-                    if (wrongEngineDetected) {
-                        throw new IllegalStateException("The Activity class declared in your AndroidManifest.xml is wrong or has not provided the correct FlutterEngine. Please see the README for instructions.");
+                    if (serviceConnectionFailed) {
+                        throw new IllegalStateException("Unable to bind to AudioService. Please ensure you have declared a <service> element as described in the README.");
                     }
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");

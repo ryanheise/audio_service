@@ -831,8 +831,8 @@ class AudioService {
   /// [DefaultCacheManager].
   ///
   /// This may throw a [PlatformException] on Android if you have not set the
-  /// correct Activity in your `AndroidManifest.xml` file or if your Activity
-  /// does not provide the correct `FlutterEngine`.
+  /// correct Service or Activity in your `AndroidManifest.xml` file or if your
+  /// Activity does not provide the correct `FlutterEngine`.
   static Future<T> init<T extends AudioHandler>({
     required T Function() builder,
     AudioServiceConfig? config,
