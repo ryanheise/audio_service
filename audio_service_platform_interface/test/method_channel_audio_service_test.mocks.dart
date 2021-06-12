@@ -107,16 +107,6 @@ class MockAudioHandlerCallbacks extends _i1.Mock
           returnValue: Future<void>.value(),
           returnValueForMissingStub: Future.value()) as _i3.Future<void>);
   @override
-  _i3.Future<void> updateQueue(_i2.UpdateQueueRequest? request) =>
-      (super.noSuchMethod(Invocation.method(#updateQueue, [request]),
-          returnValue: Future<void>.value(),
-          returnValueForMissingStub: Future.value()) as _i3.Future<void>);
-  @override
-  _i3.Future<void> updateMediaItem(_i2.UpdateMediaItemRequest? request) =>
-      (super.noSuchMethod(Invocation.method(#updateMediaItem, [request]),
-          returnValue: Future<void>.value(),
-          returnValueForMissingStub: Future.value()) as _i3.Future<void>);
-  @override
   _i3.Future<void> removeQueueItem(_i2.RemoveQueueItemRequest? request) =>
       (super.noSuchMethod(Invocation.method(#removeQueueItem, [request]),
           returnValue: Future<void>.value(),
