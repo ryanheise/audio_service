@@ -284,11 +284,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         newIntentListener = null;
         clientInterface.setActivity(null);
         clientInterface.setContext(flutterPluginBinding.getApplicationContext());
-        if (clientInterfaces.size() == 1) {
-            // This unbinds from the service allowing AudioService.onDestroy to
-            // happen which in turn allows the FlutterEngine to be destroyed.
-            disconnect();
-        }
         if (clientInterface == mainClientInterface) {
             mainClientInterface = null;
         }
@@ -313,7 +308,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private void disconnect() {
+    private static void disconnect() {
         Activity activity = mainClientInterface != null ? mainClientInterface.activity : null;
         if (activity != null) {
             // Since the activity enters paused state, we set the intent with ACTION_MAIN.
@@ -727,7 +722,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onDestroy() {
-            disposeFlutterEngine();
+            if (clientInterfaces.size() == 1) {
+                disconnect();
+                disposeFlutterEngine();
+            }
         }
 
         @Override
