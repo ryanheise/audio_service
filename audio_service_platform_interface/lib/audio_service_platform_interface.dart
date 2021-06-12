@@ -34,7 +34,7 @@ abstract class AudioServicePlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<ConfigureResponse> configure(ConfigureRequest request) {
+  Future<void> configure(ConfigureRequest request) {
     throw UnimplementedError('configure() has not been implemented.');
   }
 
@@ -63,29 +63,7 @@ abstract class AudioServicePlatform extends PlatformInterface {
   Future<void> notifyChildrenChanged(
       NotifyChildrenChangedRequest request) async {}
 
-  void setClientCallbacks(AudioClientCallbacks callbacks);
-
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks);
-}
-
-/// Callbacks from the platform to a client running in another isolate.
-abstract class AudioClientCallbacks {
-  const AudioClientCallbacks();
-
-  Future<void> onPlaybackStateChanged(OnPlaybackStateChangedRequest request);
-
-  Future<void> onQueueChanged(OnQueueChangedRequest request);
-
-  Future<void> onMediaItemChanged(OnMediaItemChangedRequest request);
-
-  // We currently implement children notification in Dart through inter-isolate
-  // send/receive ports.
-  // XXX: Could we actually implement the above 3 callbacks in the same way?
-  // If so, then platform->client communication should be reserved for a future
-  // feature where an app can observe another process's media session.
-  //Future<void> onChildrenLoaded(OnChildrenLoadedRequest request);
-
-  // TODO: Add more callbacks
 }
 
 /// Callbacks from the platform to the handler.
@@ -135,12 +113,6 @@ abstract class AudioHandlerCallbacks {
 
   /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [InsertQueueItemRequest.index].
   Future<void> insertQueueItem(InsertQueueItemRequest request);
-
-  /// Update to the queue to [UpdateQueueRequest.queue].
-  Future<void> updateQueue(UpdateQueueRequest request);
-
-  /// Update the properties of [UpdateMediaItemRequest.mediaItem].
-  Future<void> updateMediaItem(UpdateMediaItemRequest request);
 
   /// Remove [RemoveQueueItemRequest.mediaItem] from the queue.
   Future<void> removeQueueItem(RemoveQueueItemRequest request);
@@ -765,80 +737,6 @@ enum RatingStyleMessage {
   percentage,
 }
 
-class OnPlaybackStateChangedRequest {
-  final PlaybackStateMessage state;
-
-  @literal
-  const OnPlaybackStateChangedRequest({required this.state});
-
-  factory OnPlaybackStateChangedRequest.fromMap(Map<String, dynamic> map) =>
-      OnPlaybackStateChangedRequest(
-        state: PlaybackStateMessage.fromMap(_castMap(map['state'] as Map)!),
-      );
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'state': state.toMap(),
-      };
-}
-
-class OnQueueChangedRequest {
-  final List<MediaItemMessage> queue;
-
-  @literal
-  const OnQueueChangedRequest({required this.queue});
-
-  factory OnQueueChangedRequest.fromMap(Map<String, dynamic> map) =>
-      OnQueueChangedRequest(
-          queue: map['queue'] == null
-              ? []
-              : (map['queue'] as List)
-                  .map((dynamic raw) =>
-                      MediaItemMessage.fromMap(_castMap(raw as Map)!))
-                  .toList());
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'queue': queue.map((item) => item.toMap()).toList(),
-      };
-}
-
-class OnMediaItemChangedRequest {
-  final MediaItemMessage? mediaItem;
-
-  @literal
-  const OnMediaItemChangedRequest({required this.mediaItem});
-
-  factory OnMediaItemChangedRequest.fromMap(Map<String, dynamic> map) =>
-      OnMediaItemChangedRequest(
-        mediaItem: map['mediaItem'] == null
-            ? null
-            : MediaItemMessage.fromMap(_castMap(map['mediaItem'] as Map)!),
-      );
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItem': mediaItem?.toMap(),
-      };
-}
-
-class OnChildrenLoadedRequest {
-  final String parentMediaId;
-  final List<MediaItemMessage> children;
-
-  @literal
-  const OnChildrenLoadedRequest({
-    required this.parentMediaId,
-    required this.children,
-  });
-
-  factory OnChildrenLoadedRequest.fromMap(Map<String, dynamic> map) =>
-      OnChildrenLoadedRequest(
-        parentMediaId: map['parentMediaId'] as String,
-        children: (map['queue'] as List)
-            .map((dynamic raw) =>
-                MediaItemMessage.fromMap(_castMap(raw as Map)!))
-            .toList(),
-      );
-}
-
 class OnNotificationClickedRequest {
   final bool clicked;
 
@@ -1086,28 +984,6 @@ class InsertQueueItemRequest {
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'index': index,
-        'mediaItem': mediaItem.toMap(),
-      };
-}
-
-class UpdateQueueRequest {
-  final List<MediaItemMessage> queue;
-
-  @literal
-  const UpdateQueueRequest({required this.queue});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'queue': queue.map((item) => item.toMap()).toList(),
-      };
-}
-
-class UpdateMediaItemRequest {
-  final MediaItemMessage mediaItem;
-
-  @literal
-  const UpdateMediaItemRequest({required this.mediaItem});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
         'mediaItem': mediaItem.toMap(),
       };
 }
@@ -1393,18 +1269,7 @@ class ConfigureRequest {
       };
 }
 
-/// The result of [AudioServicePlatform.configure].
-///
-/// Doesn't have `const` constructor, because it's only supposed to be instantiated
-/// from the result of a native call, and thus will be always runtime (and because `fromMap`
-/// should not return constants as well).
-class ConfigureResponse {
-  static ConfigureResponse fromMap(Map<String, dynamic> map) =>
-      ConfigureResponse();
-}
-
 /// The options to use when configuring the [AudioServicePlatform].
-
 class AudioServiceConfigMessage {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
