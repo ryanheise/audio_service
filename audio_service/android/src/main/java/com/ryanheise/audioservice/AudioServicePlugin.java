@@ -668,6 +668,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @Override
+        public void onSetPlaybackSpeed(float speed) {
+            invokeMethod("setSpeed", mapOf("speed", speed));
+        }
+
+        @Override
         public void onSetCaptioningEnabled(boolean enabled) {
             invokeMethod("setCaptioningEnabled", mapOf("enabled", enabled));
         }
