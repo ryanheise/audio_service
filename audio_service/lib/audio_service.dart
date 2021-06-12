@@ -1036,7 +1036,7 @@ class AudioService {
             final sendPort = request.arguments![1] as SendPort?;
             _handler
                 .subscribeToChildren(parentMediaId)
-                .listen((Map<String, dynamic>? options) {
+                .listen((Map<String, dynamic> options) {
               sendPort!.send(options);
             });
             break;
@@ -1982,7 +1982,7 @@ abstract class AudioHandler {
   /// emitted options may contain information about what changed. A client that
   /// is subscribed to this stream should call [getChildren] to obtain the
   /// changed children.
-  ValueStream<Map<String, dynamic>?> subscribeToChildren(String parentMediaId);
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId);
 
   /// Get a particular media item.
   Future<MediaItem?> getMediaItem(String mediaId);
@@ -2282,8 +2282,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  ValueStream<Map<String, dynamic>?> subscribeToChildren(
-          String parentMediaId) =>
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
       _inner.subscribeToChildren(parentMediaId);
 
   @override
@@ -2345,7 +2344,7 @@ class _IsolateRequest {
 const _isolatePortName = 'com.ryanheise.audioservice.port';
 
 class _IsolateAudioHandler extends AudioHandler {
-  final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>?>>{};
+  final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>>>{};
 
   @override
   // ignore: close_sinks
@@ -2522,13 +2521,13 @@ class _IsolateAudioHandler extends AudioHandler {
           as List<MediaItem>;
 
   @override
-  ValueStream<Map<String, dynamic>?> subscribeToChildren(String parentMediaId) {
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     var childrenSubject = _childrenSubjects[parentMediaId];
     if (childrenSubject == null) {
       childrenSubject = _childrenSubjects[parentMediaId] = BehaviorSubject();
       final receivePort = ReceivePort();
       receivePort.listen((dynamic options) {
-        childrenSubject!.add(options as Map<String, dynamic>?);
+        childrenSubject!.add(options as Map<String, dynamic>);
       });
       _send('subscribeToChildren',
           <dynamic>[parentMediaId, receivePort.sendPort]);
