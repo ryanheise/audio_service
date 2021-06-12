@@ -156,11 +156,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     MediaControllerCompat.setMediaController(activity, mediaController);
                 }
                 mediaController.registerCallback(controllerCallback);
-                PlaybackStateCompat state = mediaController.getPlaybackState();
-                controllerCallback.onPlaybackStateChanged(state);
-                MediaMetadataCompat metadata = mediaController.getMetadata();
-                controllerCallback.onQueueChanged(mediaController.getQueue());
-                controllerCallback.onMetadataChanged(metadata);
+                // PlaybackStateCompat state = mediaController.getPlaybackState();
+                // controllerCallback.onPlaybackStateChanged(state);
+                // MediaMetadataCompat metadata = mediaController.getMetadata();
+                // controllerCallback.onQueueChanged(mediaController.getQueue());
+                // controllerCallback.onMetadataChanged(metadata);
                 if (configureResult != null) {
                     configureResult.success(mapOf());
                     configureResult = null;
