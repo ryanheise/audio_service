@@ -332,7 +332,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  ValueStream<Map<String, dynamic>?> subscribeToChildren(String parentMediaId) {
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     _log('subscribeToChildren($parentMediaId)');
     final result = super.subscribeToChildren(parentMediaId);
     result.listen((options) {
