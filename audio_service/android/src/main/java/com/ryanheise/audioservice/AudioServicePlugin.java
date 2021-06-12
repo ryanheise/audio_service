@@ -249,6 +249,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         clientInterface.setContext(binding.getActivity());
+        // Verify that the app is configured with the correct FlutterEngine.
+        FlutterEngine sharedEngine = getFlutterEngine(binding.getActivity().getApplicationContext());
+        clientInterface.setWrongEngineDetected(flutterPluginBinding.getBinaryMessenger() != sharedEngine.getDartExecutor());
         mainClientInterface = clientInterface;
         registerOnNewIntentListener();
         if (mediaController != null) {
@@ -340,6 +343,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         private Activity activity;
         public final BinaryMessenger messenger;
         private final MethodChannel channel;
+        private boolean wrongEngineDetected;
 
         // This is implemented in Dart already.
         // But we may need to bring this back if we want to connect to another process's media session.
@@ -367,6 +371,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             this.activity = activity;
         }
 
+        public void setWrongEngineDetected(boolean value) {
+            wrongEngineDetected = value;
+        }
+
         // See: https://stackoverflow.com/questions/13135545/android-activity-is-using-old-intent-if-launching-app-from-recent-task
         protected boolean wasLaunchedFromRecents() {
             return (activity.getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY;
@@ -377,6 +385,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             try {
                 switch (call.method) {
                 case "configure":
+                    if (wrongEngineDetected) {
+                        throw new IllegalStateException("The Activity class declared in your AndroidManifest.xml is wrong or has not provided the correct FlutterEngine. Please see the README for instructions.");
+                    }
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");
                     AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());

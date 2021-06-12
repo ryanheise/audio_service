@@ -6,6 +6,7 @@ import 'package:audio_service_platform_interface/audio_service_platform_interfac
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -828,6 +829,10 @@ class AudioService {
   /// You may optionally specify a [cacheManager] to use when loading artwork to
   /// display in the media notification and lock screen. This defaults to
   /// [DefaultCacheManager].
+  ///
+  /// This may throw a [PlatformException] on Android if you have not set the
+  /// correct Activity in your `AndroidManifest.xml` file or if your Activity
+  /// does not provide the correct `FlutterEngine`.
   static Future<T> init<T extends AudioHandler>({
     required T Function() builder,
     AudioServiceConfig? config,
