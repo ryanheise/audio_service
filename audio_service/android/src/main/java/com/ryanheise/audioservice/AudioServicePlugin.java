@@ -664,7 +664,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onSeekTo(long pos) {
-            invokeMethod("seekTo", mapOf("position", pos*1000));
+            invokeMethod("seek", mapOf("position", pos*1000));
         }
 
         @Override
@@ -705,12 +705,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onSetVolumeTo(int volumeIndex) {
-            invokeMethod("setVolumeTo", mapOf("volumeIndex", volumeIndex));
+            invokeMethod("androidSetRemoteVolume", mapOf("volumeIndex", volumeIndex));
         }
 
         @Override
         public void onAdjustVolume(int direction) {
-            invokeMethod("adjustVolume", mapOf("direction", direction));
+            invokeMethod("androidAdjustRemoteVolume", mapOf("direction", direction));
         }
 
         @Override

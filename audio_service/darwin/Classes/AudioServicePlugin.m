@@ -504,7 +504,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
     NSLog(@"changePlaybackPosition");
-    [handlerChannel invokeMethod:@"seekTo" arguments: @{
+    [handlerChannel invokeMethod:@"seek" arguments: @{
         @"position":@((long long) (event.positionTime * 1000000.0))
     }];
     return MPRemoteCommandHandlerStatusSuccess;
