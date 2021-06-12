@@ -102,50 +102,48 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static MediaBrowserCompat mediaBrowser;
     private static MediaControllerCompat mediaController;
     private static final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("mediaItem", mediaMetadata2raw(metadata));
-            invokeClientMethod("onMediaItemChanged", map);
-        }
-
-        @Override
-        public void onPlaybackStateChanged(PlaybackStateCompat state) {
-            // On the native side, we represent the update time relative to the boot time.
-            // On the flutter side, we represent the update time relative to the epoch.
-            long updateTimeSinceBoot = state.getLastPositionUpdateTime();
-            long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
-            Map<String, Object> stateMap = new HashMap<>();
-            stateMap.put("processingState", AudioService.instance.getProcessingState().ordinal());
-            stateMap.put("playing", AudioService.instance.isPlaying());
-            stateMap.put("controls", new ArrayList<>());
-            long actionBits = state.getActions();
-            List<Object> systemActions = new ArrayList<>();
-            for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
-                if ((actionBits & (1 << actionIndex)) != 0) {
-                    systemActions.add(actionIndex);
-                }
-            }
-            stateMap.put("systemActions", systemActions);
-            stateMap.put("updatePosition", state.getPosition());
-            stateMap.put("bufferedPosition", state.getBufferedPosition());
-            stateMap.put("speed", state.getPlaybackSpeed());
-            stateMap.put("updateTime", updateTimeSinceEpoch);
-            stateMap.put("repeatMode", AudioService.instance.getRepeatMode());
-            stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
-            Map<String, Object> map = new HashMap<>();
-            map.put("state", stateMap);
-            invokeClientMethod("onPlaybackStateChanged", map);
-        }
-
-        @Override
-        public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("queue", queue2raw(queue));
-            invokeClientMethod("onQueueChanged", map);
-        }
-
-        // TODO: Add more callbacks.
+//        @Override
+//        public void onMetadataChanged(MediaMetadataCompat metadata) {
+//            Map<String, Object> map = new HashMap<>();
+//            map.put("mediaItem", mediaMetadata2raw(metadata));
+//            invokeClientMethod("onMediaItemChanged", map);
+//        }
+//
+//        @Override
+//        public void onPlaybackStateChanged(PlaybackStateCompat state) {
+//            // On the native side, we represent the update time relative to the boot time.
+//            // On the flutter side, we represent the update time relative to the epoch.
+//            long updateTimeSinceBoot = state.getLastPositionUpdateTime();
+//            long updateTimeSinceEpoch = bootTime + updateTimeSinceBoot;
+//            Map<String, Object> stateMap = new HashMap<>();
+//            stateMap.put("processingState", AudioService.instance.getProcessingState().ordinal());
+//            stateMap.put("playing", AudioService.instance.isPlaying());
+//            stateMap.put("controls", new ArrayList<>());
+//            long actionBits = state.getActions();
+//            List<Object> systemActions = new ArrayList<>();
+//            for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
+//                if ((actionBits & (1 << actionIndex)) != 0) {
+//                    systemActions.add(actionIndex);
+//                }
+//            }
+//            stateMap.put("systemActions", systemActions);
+//            stateMap.put("updatePosition", state.getPosition());
+//            stateMap.put("bufferedPosition", state.getBufferedPosition());
+//            stateMap.put("speed", state.getPlaybackSpeed());
+//            stateMap.put("updateTime", updateTimeSinceEpoch);
+//            stateMap.put("repeatMode", AudioService.instance.getRepeatMode());
+//            stateMap.put("shuffleMode", AudioService.instance.getShuffleMode());
+//            Map<String, Object> map = new HashMap<>();
+//            map.put("state", stateMap);
+//            invokeClientMethod("onPlaybackStateChanged", map);
+//        }
+//
+//        @Override
+//        public void onQueueChanged(List<MediaSessionCompat.QueueItem> queue) {
+//            Map<String, Object> map = new HashMap<>();
+//            map.put("queue", queue2raw(queue));
+//            invokeClientMethod("onQueueChanged", map);
+//        }
     };
     private static final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
         @Override

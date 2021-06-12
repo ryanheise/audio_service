@@ -2376,9 +2376,7 @@ class _IsolateAudioHandler extends AudioHandler {
   // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
-  _IsolateAudioHandler() : super._() {
-    _platform.setClientCallbacks(_ClientCallbacks(this));
-  }
+  _IsolateAudioHandler() : super._();
 
   @override
   Future<void> prepare() => _send('prepare');
@@ -3629,14 +3627,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   @override
   Future<void> stop(StopRequest request) => handler.stop();
 
-  @override
-  Future<void> updateMediaItem(UpdateMediaItemRequest request) =>
-      handler.updateMediaItem(request.mediaItem.toPlugin());
-
-  @override
-  Future<void> updateQueue(UpdateQueueRequest request) => handler
-      .updateQueue(request.queue.map((item) => item.toPlugin()).toList());
-
   final Map<String, ValueStream<Map<String, dynamic>?>> _childrenSubscriptions =
       {};
 
@@ -3656,48 +3646,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
     }
     return await handler.getChildren(parentMediaId, options);
   }
-}
-
-class _ClientCallbacks extends AudioClientCallbacks {
-  final _IsolateAudioHandler handler;
-
-  _ClientCallbacks(this.handler);
-
-  @override
-  Future<void> onMediaItemChanged(OnMediaItemChangedRequest request) async {
-    handler.mediaItem.add(request.mediaItem?.toPlugin());
-  }
-
-  @override
-  Future<void> onPlaybackStateChanged(
-      OnPlaybackStateChangedRequest request) async {
-    final state = request.state;
-    handler.playbackState.add(PlaybackState(
-      processingState: AudioProcessingState.values[state.processingState.index],
-      playing: state.playing,
-      // We can't determine whether they are controls.
-      systemActions: state.systemActions
-          .map((action) => MediaAction.values[action.index])
-          .toSet(),
-      updatePosition: state.updatePosition,
-      bufferedPosition: state.bufferedPosition,
-      speed: state.speed,
-      updateTime: state.updateTime,
-      repeatMode: AudioServiceRepeatMode.values[state.repeatMode.index],
-      shuffleMode: AudioServiceShuffleMode.values[state.shuffleMode.index],
-    ));
-  }
-
-  @override
-  Future<void> onQueueChanged(OnQueueChangedRequest request) async {
-    handler.queue.add(request.queue.map((item) => item.toPlugin()).toList());
-  }
-
-  //@override
-  //Future<void> onChildrenLoaded(OnChildrenLoadedRequest request) {
-  //  // TODO: implement onChildrenLoaded
-  //  throw UnimplementedError();
-  //}
 }
 
 /// Backwards compatible extensions on rxdart's ValueStream
