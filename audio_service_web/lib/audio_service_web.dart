@@ -15,10 +15,7 @@ class AudioServiceWeb extends AudioServicePlatform {
   MediaItemMessage? mediaItem;
 
   @override
-  Future<ConfigureResponse> configure(ConfigureRequest request) async {
-    return ConfigureResponse();
-    // throw UnimplementedError('configure() has not been implemented.');
-  }
+  Future<void> configure(ConfigureRequest request) async {}
 
   @override
   Future<void> setState(SetStateRequest request) async {
@@ -42,7 +39,8 @@ class AudioServiceWeb extends AudioServicePlatform {
           case MediaActionMessage.skipToPrevious:
             session.setActionHandler(
               'previoustrack',
-              () => handlerCallbacks?.skipToPrevious(const SkipToPreviousRequest()),
+              () => handlerCallbacks
+                  ?.skipToPrevious(const SkipToPreviousRequest()),
             );
             break;
           case MediaActionMessage.skipToNext:
@@ -152,13 +150,7 @@ class AudioServiceWeb extends AudioServicePlatform {
     final session = html.window.navigator.mediaSession!;
     session.metadata = null;
     mediaItem = null;
-
-    // Not sure if anything needs to happen here
-    // throw UnimplementedError('stopService() has not been implemented.');
   }
-
-  @override
-  void setClientCallbacks(AudioClientCallbacks callbacks) {}
 
   @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
