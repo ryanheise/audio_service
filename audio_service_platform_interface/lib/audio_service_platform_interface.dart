@@ -1274,6 +1274,11 @@ class AudioServiceConfigMessage {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
 
+  /// The ID of the media notification channel. This should default to
+  /// `<YOUR_PACKAGE_NAME>.channel` where `<YOUR_PACKAGE_NAME>` is the app's
+  /// package name. e.g. `com.mycompany.myapp.channel`.
+  final String? androidNotificationChannelId;
+
   // A name of the media notification channel, that is
   // visible to user in settings of your app.
   final String androidNotificationChannelName;
@@ -1352,6 +1357,7 @@ class AudioServiceConfigMessage {
   @literal
   const AudioServiceConfigMessage({
     this.androidResumeOnClick = true,
+    this.androidNotificationChannelId,
     this.androidNotificationChannelName = 'Notifications',
     this.androidNotificationChannelDescription,
     this.notificationColor,
@@ -1377,6 +1383,7 @@ class AudioServiceConfigMessage {
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'androidResumeOnClick': androidResumeOnClick,
+        'androidNotificationChannelId': androidNotificationChannelId,
         'androidNotificationChannelName': androidNotificationChannelName,
         'androidNotificationChannelDescription':
             androidNotificationChannelDescription,

@@ -3073,7 +3073,23 @@ class AudioServiceConfig {
   // TODO: either fix, or remove this https://github.com/ryanheise/audio_service/issues/638
   final bool androidResumeOnClick;
 
-  /// A name of the media notification channel, that is visible to user in
+  /// The ID of the media notification channel. This will default to
+  /// `<YOUR_PACKAGE_NAME>.channel` where `<YOUR_PACKAGE_NAME>` is your app's
+  /// package name. e.g. `com.mycompany.myapp.channel`.
+  ///
+  /// If your app uses multiple notification channels, make sure each channel
+  /// has a unique ID so that they don't clash. It is recommended to override
+  /// the default ID.
+  ///
+  /// NOTE: After a user installs and runs your app, a channel will be created
+  /// with this ID and will show up in the app's settings. If you subsequently
+  /// change this channel ID here, it will result in a new channel being created
+  /// under the new ID leaving the old channel still visible. Therefore, if your
+  /// app has already been published, you might prefer to keep using the same
+  /// channel ID that you are currently using.
+  final String? androidNotificationChannelId;
+
+  /// The name of the media notification channel, that is visible to user in
   /// settings of your app.
   final String androidNotificationChannelName;
 
@@ -3149,6 +3165,7 @@ class AudioServiceConfig {
   /// Creates a configuration object.
   const AudioServiceConfig({
     this.androidResumeOnClick = true,
+    this.androidNotificationChannelId,
     this.androidNotificationChannelName = 'Notifications',
     this.androidNotificationChannelDescription,
     this.notificationColor,
@@ -3174,6 +3191,7 @@ class AudioServiceConfig {
 
   AudioServiceConfigMessage _toMessage() => AudioServiceConfigMessage(
         androidResumeOnClick: androidResumeOnClick,
+        androidNotificationChannelId: androidNotificationChannelId,
         androidNotificationChannelName: androidNotificationChannelName,
         androidNotificationChannelDescription:
             androidNotificationChannelDescription,

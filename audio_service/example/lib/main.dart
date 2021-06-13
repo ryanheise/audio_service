@@ -34,7 +34,8 @@ Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),

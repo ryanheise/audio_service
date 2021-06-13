@@ -114,7 +114,8 @@ main() async {
   _audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'My Audio App',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidEnableQueue: true,
     ),
   );

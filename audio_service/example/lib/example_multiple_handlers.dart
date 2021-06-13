@@ -45,7 +45,8 @@ Future<void> main() async {
       TextPlayerHandler(),
     ])),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),

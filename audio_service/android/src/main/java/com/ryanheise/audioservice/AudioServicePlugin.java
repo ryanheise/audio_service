@@ -405,6 +405,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     config.androidNotificationClickStartsActivity = (Boolean)configMap.get("androidNotificationClickStartsActivity");
                     config.androidNotificationOngoing = (Boolean)configMap.get("androidNotificationOngoing");
                     config.androidResumeOnClick = (Boolean)configMap.get("androidResumeOnClick");
+                    config.androidNotificationChannelId = (String)configMap.get("androidNotificationChannelId");
                     config.androidNotificationChannelName = (String)configMap.get("androidNotificationChannelName");
                     config.androidNotificationChannelDescription = (String)configMap.get("androidNotificationChannelDescription");
                     config.notificationColor = configMap.get("notificationColor") == null ? -1 : getInt(configMap.get("notificationColor"));
