@@ -398,6 +398,8 @@ Insert this in your `Info.plist` file:
 
 The example project may be consulted for context.
 
+Note that the `audio` background mode permits an app to run in the background only for the purpose of playing audio. The OS may kill your process if it sits idly without playing audio, for example, by using a timer to sleep for a few seconds. If your app needs to pause for a few seconds between audio tracks, consider playing a silent audio track to create that effect rather than using an idle timer.
+
 ## macOS setup
 The minimum supported macOS version is 10.12.2 (though this could be changed with some work in the future).  
 Modify the platform line in `macos/Podfile` to look like the following:
