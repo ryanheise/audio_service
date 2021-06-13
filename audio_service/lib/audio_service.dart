@@ -1065,8 +1065,17 @@ class AudioService {
       IsolateNameServer.registerPortWithName(
           _customActionReceivePort.sendPort, _isolatePortName);
     }
-    _handler.mediaItem.listen((MediaItem? mediaItem) async {
-      if (mediaItem == null) return;
+    _observeMediaItem();
+    _observeAndroidPlaybackInfo();
+    _observeQueue();
+    _observePlaybackState();
+
+    return handler;
+  }
+
+  static Future<void> _observeMediaItem() async {
+    await for (var mediaItem in _handler.mediaItem) {
+      if (mediaItem == null) continue;
       final artUri = mediaItem.artUri;
       if (artUri != null) {
         // We potentially need to fetch the art.
@@ -1075,7 +1084,7 @@ class AudioService {
           filePath = artUri.toFilePath();
         } else {
           final fileInfo =
-              await cacheManager!.getFileFromMemory(artUri.toString());
+              await cacheManager.getFileFromMemory(artUri.toString());
           filePath = fileInfo?.file.path;
           if (filePath == null) {
             // We haven't fetched the art yet, so show the metadata now, and again
@@ -1085,10 +1094,10 @@ class AudioService {
             // Load the art
             filePath = await _loadArtwork(mediaItem);
             // If we failed to download the art, abort.
-            if (filePath == null) return;
+            if (filePath == null) continue;
             // If we've already set a new media item, cancel this request.
             // XXX: Test this
-            //if (mediaItem != _handler.mediaItem.value) return;
+            //if (mediaItem != _handler.mediaItem.value) continue;
           }
         }
         final extras =
@@ -1102,30 +1111,39 @@ class AudioService {
         await _platform.setMediaItem(
             SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
       }
-    });
-    _handler.androidPlaybackInfo
-        .listen((AndroidPlaybackInfo playbackInfo) async {
+    }
+  }
+
+  static Future<void> _observeAndroidPlaybackInfo() async {
+    await for (var playbackInfo in _handler.androidPlaybackInfo) {
       await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
         playbackInfo: playbackInfo._toMessage(),
       ));
-    });
-    _handler.queue.listen((List<MediaItem>? queue) async {
-      if (queue == null) return;
+    }
+  }
+
+  static Future<void> _observeQueue() async {
+    await for (var queue in _handler.queue) {
+      if (queue == null) continue;
       if (_config.preloadArtwork) {
         _loadAllArtwork(queue);
       }
       await _platform.setQueue(SetQueueRequest(
           queue: queue.map((item) => item._toMessage()).toList()));
-    });
-    _handler.playbackState.listen((PlaybackState playbackState) async {
+    }
+  }
+
+  static Future<void> _observePlaybackState() async {
+    var previousState = _handler.playbackState.nvalue;
+    await for (var playbackState in _handler.playbackState) {
       await _platform
           .setState(SetStateRequest(state: playbackState._toMessage()));
-      if (playbackState.processingState == AudioProcessingState.idle) {
+      if (playbackState.processingState == AudioProcessingState.idle &&
+          previousState?.processingState != AudioProcessingState.idle) {
         await AudioService._stop();
       }
-    });
-
-    return handler;
+      previousState = playbackState;
+    }
   }
 
   /// A stream tracking the current position, suitable for animating a seek bar.
@@ -1172,7 +1190,7 @@ class AudioService {
     late StreamSubscription<MediaItem?> mediaItemSubscription;
     late StreamSubscription<PlaybackState> playbackStateSubscription;
     Timer? currentTimer;
-    Duration duration() => _handler.mediaItem.value?.duration ?? Duration.zero;
+    Duration duration() => _handler.mediaItem.nvalue?.duration ?? Duration.zero;
     Duration step() {
       var s = duration() ~/ steps;
       if (s < minPeriod) s = minPeriod;
@@ -1272,7 +1290,7 @@ class AudioService {
   /// Deprecated. Use [AudioHandler.getChildren] instead.
   @Deprecated("Use AudioHandler.getChildren instead")
   static List<MediaItem>? get browseMediaChildren =>
-      _browseMediaChildrenSubject.value;
+      _browseMediaChildrenSubject.nvalue;
 
   /// Deprecated. Use [AudioHandler.playbackState] instead.
   @Deprecated("Use AudioHandler.playbackState instead.")
@@ -1297,7 +1315,7 @@ class AudioService {
   /// Deprecated. Use `value` of [AudioHandler.mediaItem] instead.
   @Deprecated("Use AudioHandler.mediaItem.value instead.")
   static MediaItem? get currentMediaItem =>
-      _compatibilitySwitcher.mediaItem.value;
+      _compatibilitySwitcher.mediaItem.nvalue;
 
   /// Deprecated. Use [AudioHandler.queue] instead.
   @Deprecated("Use AudioHandler.queue instead.")
@@ -1306,7 +1324,7 @@ class AudioService {
 
   /// Deprecated. Use `value` of [AudioHandler.queue] instead.
   @Deprecated("Use AudioHandler.queue.value instead.")
-  static List<MediaItem>? get queue => _compatibilitySwitcher.queue.value;
+  static List<MediaItem>? get queue => _compatibilitySwitcher.queue.nvalue;
 
   /// Deprecated. Use [AudioHandler.customEvent] instead.
   @Deprecated("Use AudioHandler.customEvent instead.")
@@ -1466,7 +1484,7 @@ class AudioService {
   /// Deprecated. Use [AudioHandler.skipToQueueItem] instead.
   @Deprecated("Use AudioHandler.skipToQueueItem instead.")
   static Future<void> skipToQueueItem(String mediaId) async {
-    final queue = _compatibilitySwitcher.queue.value!;
+    final queue = _compatibilitySwitcher.queue.nvalue!;
     final index = queue.indexWhere((item) => item.id == mediaId);
     await _compatibilitySwitcher.skipToQueueItem(index);
   }
@@ -1624,7 +1642,7 @@ class _BackgroundAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToQueueItem(int index) async {
-    final queue = this.queue.value ?? <MediaItem>[];
+    final queue = this.queue.nvalue ?? <MediaItem>[];
     if (index < 0 || index >= queue.length) return;
     final mediaItem = queue[index];
     // ignore: deprecated_member_use_from_same_package
@@ -1841,10 +1859,10 @@ abstract class BackgroundAudioTask {
 
   Future<void> _skip(int offset) async {
     print('_skip: $offset');
-    final mediaItem = _handler.mediaItem.value;
+    final mediaItem = _handler.mediaItem.nvalue;
     print('mediaItem: $mediaItem');
     if (mediaItem == null) return;
-    final queue = _handler.queue.value ?? <MediaItem>[];
+    final queue = _handler.queue.nvalue ?? <MediaItem>[];
     final i = queue.indexOf(mediaItem);
     if (i == -1) return;
     final newIndex = i + offset;
@@ -2896,7 +2914,7 @@ mixin SeekHandler on BaseAudioHandler {
     if (newPosition < Duration.zero) {
       newPosition = Duration.zero;
     }
-    final duration = mediaItem.value?.duration ?? Duration.zero;
+    final duration = mediaItem.nvalue?.duration ?? Duration.zero;
     if (newPosition > duration) {
       newPosition = duration;
     }
@@ -2909,9 +2927,9 @@ mixin SeekHandler on BaseAudioHandler {
   /// intervals of 1 second in app time.
   void _seekContinuously(bool begin, int direction) {
     _seeker?.stop();
-    if (begin && mediaItem.value?.duration != null) {
+    if (begin && mediaItem.nvalue?.duration != null) {
       _seeker = _Seeker(this, Duration(seconds: 10 * direction),
-          const Duration(seconds: 1), mediaItem.value!.duration!)
+          const Duration(seconds: 1), mediaItem.nvalue!.duration!)
         ..start();
     }
   }
@@ -2957,37 +2975,37 @@ class _Seeker {
 mixin QueueHandler on BaseAudioHandler {
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
-    queue.add(queue.value!..add(mediaItem));
+    queue.add(queue.nvalue!..add(mediaItem));
     await super.addQueueItem(mediaItem);
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    queue.add(queue.value!..addAll(mediaItems));
+    queue.add(queue.nvalue!..addAll(mediaItems));
     await super.addQueueItems(mediaItems);
   }
 
   @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) async {
-    queue.add(queue.value!..insert(index, mediaItem));
+    queue.add(queue.nvalue!..insert(index, mediaItem));
     await super.insertQueueItem(index, mediaItem);
   }
 
   @override
   Future<void> updateQueue(List<MediaItem> newQueue) async {
-    queue.add(queue.value!..replaceRange(0, queue.value!.length, newQueue));
+    queue.add(queue.nvalue!..replaceRange(0, queue.nvalue!.length, newQueue));
     await super.updateQueue(newQueue);
   }
 
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) async {
-    queue.add(queue.value!..[queue.value!.indexOf(mediaItem)] = mediaItem);
+    queue.add(queue.nvalue!..[queue.nvalue!.indexOf(mediaItem)] = mediaItem);
     await super.updateMediaItem(mediaItem);
   }
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) async {
-    queue.add(queue.value!..remove(mediaItem));
+    queue.add(queue.nvalue!..remove(mediaItem));
     await super.removeQueueItem(mediaItem);
   }
 
@@ -3025,7 +3043,7 @@ mixin QueueHandler on BaseAudioHandler {
   }
 
   Future<void> _skip(int offset) async {
-    final queue = this.queue.value!;
+    final queue = this.queue.nvalue!;
     final index = playbackState.nvalue!.queueIndex!;
     if (index < 0 || index >= queue.length) return;
     return skipToQueueItem(index + offset);

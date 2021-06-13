@@ -381,9 +381,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
             stop();
+        } else if (processingState != AudioProcessingState.idle) {
+            updateNotification();
         }
-
-        updateNotification();
     }
 
     private VolumeProviderCompat volumeProvider;
