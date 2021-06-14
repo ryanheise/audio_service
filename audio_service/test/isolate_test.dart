@@ -133,568 +133,604 @@ Future<void> main() async {
     }
   });
 
-  void expectCall(String method, [List<Object?> arguments = const [null]]) {
-    final actualMethod = handler.log.firstOrNull;
-    final actualArguments = handler.argumentsLog.firstOrNull;
-    expect(actualMethod, method);
-    expect(actualArguments, arguments);
-  }
-
-  test("Subjects receive the most recent update", () async {
-    handler.stubPlaybackState =
-        BehaviorSubject.seeded(playbackStateStreamValues[0]);
-    final receivePort = await runIsolateWithDeferredResult(subjectsAreRecent);
-    final values = <PlaybackState>[];
-    final isolateValues = <PlaybackState>[];
-    handler.stubPlaybackState.listen((value) {
-      values.add(value);
+  group("Connection setup ▮", () {
+    test("throws when attempting to host IsolateAudioHandler", () {
+      expect(
+        () => AudioService.hostHandler(MockIsolateAudioHandler()),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            "Registering IsolateAudioHandler is not allowed, as this will lead "
+                "to an infinite loop when its methods are called",
+          ),
+        ),
+      );
     });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as PlaybackState);
-        if (message.processingState ==
-            playbackStateStreamValues.last.processingState) {
-          completer.complete();
-        }
-      }
+
+    test("throws when attempting to host more than once", () async {
+      expect(
+        () => AudioService.hostHandler(BaseAudioHandler()),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            "Some isolate has already hosted a handler",
+          ),
+        ),
+      );
     });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
-
-    // send our message
-    handler.stubPlaybackState.add(playbackStateStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('playbackState');
-    expect(
-      values.map((e) => e.processingState).toList(),
-      playbackStateStreamValues.map((e) => e.processingState).toList(),
-    );
-    expect(
-      isolateValues.single.processingState,
-      playbackStateStreamValues.last.processingState,
-    );
   });
 
-  test("playbackState", () async {
-    handler.stubPlaybackState =
-        BehaviorSubject.seeded(playbackStateStreamValues[0]);
-    final receivePort =
-        await runIsolateWithDeferredResult(playbackStateSubject);
-    final values = <PlaybackState>[];
-    final isolateValues = <PlaybackState>[];
-    handler.stubPlaybackState.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as PlaybackState);
-        if (isolateValues.length == 3) {
-          completer.complete();
-        }
-      }
-    });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
+  group("IsolateAudioHandler ▮", () {
+    void expectCall(String method, [List<Object?> arguments = const [null]]) {
+      final actualMethod = handler.log.firstOrNull;
+      final actualArguments = handler.argumentsLog.firstOrNull;
+      expect(actualMethod, method);
+      expect(actualArguments, arguments);
+    }
 
-    // send our message
-    handler.stubPlaybackState.add(playbackStateStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('playbackState');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("queue", () async {
-    handler.stubQueue = BehaviorSubject.seeded(queueStreamValues[0]);
-    final receivePort = await runIsolateWithDeferredResult(queueSubject);
-    final values = <List<MediaItem>?>[];
-    final isolateValues = <List<MediaItem>?>[];
-    handler.stubQueue.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as List<MediaItem>?);
-        if (isolateValues.length == 3) {
-          completer.complete();
-        }
-      }
-    });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
-
-    // send our message
-    handler.stubQueue.add(queueStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('queue');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("queueTitle", () async {
-    handler.stubQueueTitle = BehaviorSubject.seeded(queueTitleStreamValues[0]);
-    final receivePort = await runIsolateWithDeferredResult(queueTitleSubject);
-    final values = <String>[];
-    final isolateValues = <String>[];
-    handler.stubQueueTitle.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as String);
-        if (isolateValues.length == 3) {
-          completer.complete();
-        }
-      }
-    });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
-
-    // send our message
-    handler.stubQueueTitle.add(queueTitleStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('queueTitle');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("mediaItem", () async {
-    handler.stubMediaItem = BehaviorSubject.seeded(mediaItemStreamValues[0]);
-    final receivePort = await runIsolateWithDeferredResult(mediaItemSubject);
-    final values = <MediaItem?>[];
-    final isolateValues = <MediaItem?>[];
-    handler.stubMediaItem.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as MediaItem?);
-        if (isolateValues.length == 3) {
-          completer.complete();
-        }
-      }
-    });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
-
-    // send our message
-    handler.stubMediaItem.add(mediaItemStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('mediaItem');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("androidPlaybackInfo", () async {
-    handler.stubAndroidPlaybackInfo =
-        BehaviorSubject.seeded(androidPlaybackInfoStreamValues[0]);
-    final receivePort =
-        await runIsolateWithDeferredResult(androidPlaybackInfoSubject);
-    final values = <AndroidPlaybackInfo>[];
-    final isolateValues = <AndroidPlaybackInfo>[];
-    handler.stubAndroidPlaybackInfo.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message as AndroidPlaybackInfo);
-        if (isolateValues.length == 3) {
-          completer.complete();
-        }
-      }
-    });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
-
-    // send our message
-    handler.stubAndroidPlaybackInfo.add(androidPlaybackInfoStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('androidPlaybackInfo');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("customEvent", () async {
-    handler.stubCustomEvent = PublishSubject();
-    final receivePort = await runIsolateWithDeferredResult(customEventSubject);
-    final values = <Object?>[];
-    final isolateValues = <Object?>[];
-    handler.stubCustomEvent.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message);
-        if (isolateValues.length == 1) {
+    test("subjects receive the most recent update", () async {
+      handler.stubPlaybackState =
+          BehaviorSubject.seeded(playbackStateStreamValues[0]);
+      final receivePort = await runIsolateWithDeferredResult(subjectsAreRecent);
+      final values = <PlaybackState>[];
+      final isolateValues = <PlaybackState>[];
+      handler.stubPlaybackState.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
           completer.complete();
           completer = Completer();
-        } else if (isolateValues.length == 3) {
-          completer.complete();
+        } else {
+          isolateValues.add(message as PlaybackState);
+          if (message.processingState ==
+              playbackStateStreamValues.last.processingState) {
+            completer.complete();
+          }
         }
-      }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubPlaybackState.add(playbackStateStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('playbackState');
+      expect(
+        values.map((e) => e.processingState).toList(),
+        playbackStateStreamValues.map((e) => e.processingState).toList(),
+      );
+      expect(
+        isolateValues.single.processingState,
+        playbackStateStreamValues.last.processingState,
+      );
     });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
 
-    // send our messages
-    handler.stubCustomEvent.add(customEventStreamValues[0]);
-    await completer.future;
-    handler.stubCustomEvent.add(customEventStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('customEvent');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("customState", () async {
-    handler.stubCustomState =
-        BehaviorSubject.seeded(customStateStreamValues[0]);
-    final receivePort = await runIsolateWithDeferredResult(customStateSubject);
-    final values = <Object?>[];
-    final isolateValues = <Object?>[];
-    handler.stubCustomState.listen((value) {
-      values.add(value);
-    });
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        isolateValues.add(message);
-        if (isolateValues.length == 3) {
+    test("playbackState", () async {
+      handler.stubPlaybackState =
+          BehaviorSubject.seeded(playbackStateStreamValues[0]);
+      final receivePort =
+          await runIsolateWithDeferredResult(playbackStateSubject);
+      final values = <PlaybackState>[];
+      final isolateValues = <PlaybackState>[];
+      handler.stubPlaybackState.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
           completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as PlaybackState);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
         }
-      }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubPlaybackState.add(playbackStateStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('playbackState');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
     });
-    // wait until isolate connects and receives first message with data
-    await completer.future;
 
-    // send our messages
-    handler.stubCustomState.add(customStateStreamValues[1]);
-
-    // and the last one is sent from the isolate
-
-    // wait until isolate delivers all results back
-    await completer.future;
-    expectCall('customState');
-    expect(
-      values.map((e) => e.toString()).toList(),
-      isolateValues.map((e) => e.toString()).toList(),
-    );
-  });
-
-  test("prepare", () async {
-    await runIsolate(prepare);
-    expectCall('prepare');
-  });
-
-  test("prepareFromMediaId", () async {
-    await runIsolate(prepareFromMediaId);
-    expectCall('prepareFromMediaId', const [id, map]);
-  });
-
-  test("prepareFromSearch", () async {
-    await runIsolate(prepareFromSearch);
-    expectCall('prepareFromSearch', const [query, map]);
-  });
-
-  test("prepareFromUri", () async {
-    await runIsolate(prepareFromUri);
-    expectCall('prepareFromUri', [uri, map]);
-  });
-
-  test("play", () async {
-    await runIsolate(play);
-    expectCall('play');
-  });
-
-  test("playFromMediaId", () async {
-    await runIsolate(playFromMediaId);
-    expectCall('playFromMediaId', const [id, map]);
-  });
-
-  test("playFromSearch", () async {
-    await runIsolate(playFromSearch);
-    expectCall('playFromSearch', const [query, map]);
-  });
-
-  test("playFromUri", () async {
-    await runIsolate(playFromUri);
-    expectCall('playFromUri', [uri, map]);
-  });
-
-  test("playMediaItem", () async {
-    await runIsolate(playMediaItem);
-    expectCall('playMediaItem', const [mediaItem]);
-  });
-
-  test("pause", () async {
-    await runIsolate(pause);
-    expectCall('pause');
-  });
-
-  test("click", () async {
-    await runIsolate(click);
-    expectCall('click', const [mediaButton]);
-  });
-
-  test("stop", () async {
-    await runIsolate(stop);
-    expectCall('stop');
-  });
-
-  test("addQueueItem", () async {
-    await runIsolate(addQueueItem);
-    expectCall('addQueueItem', const [mediaItem]);
-  });
-
-  test("addQueueItems", () async {
-    await runIsolate(addQueueItems);
-    expectCall('addQueueItems', const [queue]);
-  });
-
-  test("insertQueueItem", () async {
-    await runIsolate(insertQueueItem);
-    expectCall('insertQueueItem', const [0, mediaItem]);
-  });
-
-  test("updateQueue", () async {
-    await runIsolate(updateQueue);
-    expectCall('updateQueue', const [queue]);
-  });
-
-  test("updateMediaItem", () async {
-    await runIsolate(updateMediaItem);
-    expectCall('updateMediaItem', const [mediaItem]);
-  });
-
-  test("removeQueueItem", () async {
-    await runIsolate(removeQueueItem);
-    expectCall('removeQueueItem', const [mediaItem]);
-  });
-
-  test("removeQueueItemAt", () async {
-    await runIsolate(removeQueueItemAt);
-    expectCall('removeQueueItemAt', const [0]);
-  });
-
-  test("skipToNext", () async {
-    await runIsolate(skipToNext);
-    expectCall('skipToNext');
-  });
-
-  test("skipToPrevious", () async {
-    await runIsolate(skipToPrevious);
-    expectCall('skipToPrevious');
-  });
-
-  test("fastForward", () async {
-    await runIsolate(fastForward);
-    expectCall('fastForward');
-  });
-
-  test("rewind", () async {
-    await runIsolate(rewind);
-    expectCall('rewind');
-  });
-
-  test("skipToQueueItem", () async {
-    await runIsolate(skipToQueueItem);
-    expectCall('skipToQueueItem', const [0]);
-  });
-
-  test("seek", () async {
-    await runIsolate(seek);
-    expectCall('seek', const [duration]);
-  });
-
-  test("setRating", () async {
-    await runIsolate(setRating);
-    expectCall('setRating', const [rating, map]);
-  });
-
-  test("setCaptioningEnabled", () async {
-    await runIsolate(setCaptioningEnabled);
-    expectCall('setCaptioningEnabled', const [false]);
-  });
-
-  test("setRepeatMode", () async {
-    await runIsolate(setRepeatMode);
-    expectCall('setRepeatMode', const [repeatMode]);
-  });
-
-  test("setShuffleMode", () async {
-    await runIsolate(setShuffleMode);
-    expectCall('setShuffleMode', const [shuffleMode]);
-  });
-
-  test("seekBackward", () async {
-    await runIsolate(seekBackward);
-    expectCall('seekBackward', const [false]);
-  });
-
-  test("seekForward", () async {
-    await runIsolate(seekForward);
-    expectCall('seekForward', const [false]);
-  });
-
-  test("setSpeed", () async {
-    await runIsolate(setSpeed);
-    expectCall('setSpeed', const [0.1]);
-  });
-
-  test("customAction", () async {
-    final expectedResult = 'custom_action_result';
-    handler.stubCustomAction = expectedResult;
-    final result = await runIsolate(customAction);
-    expectCall('customAction', const [customActionName, customActionArguments]);
-    expect(result, expectedResult);
-  });
-
-  test("onTaskRemoved", () async {
-    await runIsolate(onTaskRemoved);
-    expectCall('onTaskRemoved');
-  });
-
-  test("onNotificationDeleted", () async {
-    await runIsolate(onNotificationDeleted);
-    expectCall('onNotificationDeleted');
-  });
-
-  test("getChildren", () async {
-    final expectedResult = queue;
-    handler.stubGetChildren = expectedResult;
-    final result = await runIsolate(getChildren);
-    expectCall('getChildren', const [id, map]);
-    expect(result, expectedResult);
-  });
-
-  test("subscribeToChildren", () async {
-    final expectedResult = <Map<String, Object?>>[
-      {'key1': 'value1'},
-      {'key2': 'value2'},
-      {'key3': 'value3'}
-    ];
-    handler.stubSubscribeToChildren = BehaviorSubject();
-    final receivePort = await runIsolateWithDeferredResult(subscribeToChildren);
-    final result = <Map<String, Object?>>[];
-    var completer = Completer<void>();
-    receivePort.listen((Object? message) {
-      if (result.isEmpty && message == isolateInitMessage) {
-        completer.complete();
-        completer = Completer();
-      } else {
-        result.add(message as Map<String, Object?>);
-        if (result.length == 3) {
+    test("queue", () async {
+      handler.stubQueue = BehaviorSubject.seeded(queueStreamValues[0]);
+      final receivePort = await runIsolateWithDeferredResult(queueSubject);
+      final values = <List<MediaItem>?>[];
+      final isolateValues = <List<MediaItem>?>[];
+      handler.stubQueue.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
           completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as List<MediaItem>?);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
         }
-      }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubQueue.add(queueStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('queue');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
     });
-    // wait until isolate connects
-    await completer.future;
 
-    for (final options in expectedResult) {
-      handler.stubSubscribeToChildren.add(options);
-    }
-    // wait until isolate delivers all results
-    await completer.future;
-    expectCall('subscribeToChildren', const [id]);
-    expect(result, expectedResult);
-  });
+    test("queueTitle", () async {
+      handler.stubQueueTitle =
+          BehaviorSubject.seeded(queueTitleStreamValues[0]);
+      final receivePort = await runIsolateWithDeferredResult(queueTitleSubject);
+      final values = <String>[];
+      final isolateValues = <String>[];
+      handler.stubQueueTitle.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as String);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
 
-  test("getMediaItem", () async {
-    final expectedResult = mediaItem;
-    handler.stubGetMediaItem = expectedResult;
-    final result = await runIsolate(getMediaItem);
-    expectCall('getMediaItem', const [id]);
-    expect(result, expectedResult);
-  });
+      // send our message
+      handler.stubQueueTitle.add(queueTitleStreamValues[1]);
 
-  test("search", () async {
-    final expectedResult = queue;
-    handler.stubSearch = expectedResult;
-    final result = await runIsolate(search);
-    expectCall('search', const [query, map]);
-    expect(result, expectedResult);
-  });
+      // and the last one is sent from the isolate
 
-  test("androidAdjustRemoteVolume", () async {
-    await runIsolate(androidAdjustRemoteVolume);
-    expectCall('androidAdjustRemoteVolume', [androidVolumeDirection]);
-  });
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('queueTitle');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
 
-  test("androidSetRemoteVolume", () async {
-    await runIsolate(androidSetRemoteVolume);
-    expectCall('androidSetRemoteVolume', [0]);
+    test("mediaItem", () async {
+      handler.stubMediaItem = BehaviorSubject.seeded(mediaItemStreamValues[0]);
+      final receivePort = await runIsolateWithDeferredResult(mediaItemSubject);
+      final values = <MediaItem?>[];
+      final isolateValues = <MediaItem?>[];
+      handler.stubMediaItem.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as MediaItem?);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubMediaItem.add(mediaItemStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('mediaItem');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
+
+    test("androidPlaybackInfo", () async {
+      handler.stubAndroidPlaybackInfo =
+          BehaviorSubject.seeded(androidPlaybackInfoStreamValues[0]);
+      final receivePort =
+          await runIsolateWithDeferredResult(androidPlaybackInfoSubject);
+      final values = <AndroidPlaybackInfo>[];
+      final isolateValues = <AndroidPlaybackInfo>[];
+      handler.stubAndroidPlaybackInfo.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as AndroidPlaybackInfo);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubAndroidPlaybackInfo.add(androidPlaybackInfoStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('androidPlaybackInfo');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
+
+    test("customEvent", () async {
+      handler.stubCustomEvent = PublishSubject();
+      final receivePort =
+          await runIsolateWithDeferredResult(customEventSubject);
+      final values = <Object?>[];
+      final isolateValues = <Object?>[];
+      handler.stubCustomEvent.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message);
+          if (isolateValues.length == 1) {
+            completer.complete();
+            completer = Completer();
+          } else if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our messages
+      handler.stubCustomEvent.add(customEventStreamValues[0]);
+      await completer.future;
+      handler.stubCustomEvent.add(customEventStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('customEvent');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
+
+    test("customState", () async {
+      handler.stubCustomState =
+          BehaviorSubject.seeded(customStateStreamValues[0]);
+      final receivePort =
+          await runIsolateWithDeferredResult(customStateSubject);
+      final values = <Object?>[];
+      final isolateValues = <Object?>[];
+      handler.stubCustomState.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our messages
+      handler.stubCustomState.add(customStateStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('customState');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
+
+    test("prepare", () async {
+      await runIsolate(prepare);
+      expectCall('prepare');
+    });
+
+    test("prepareFromMediaId", () async {
+      await runIsolate(prepareFromMediaId);
+      expectCall('prepareFromMediaId', const [id, map]);
+    });
+
+    test("prepareFromSearch", () async {
+      await runIsolate(prepareFromSearch);
+      expectCall('prepareFromSearch', const [query, map]);
+    });
+
+    test("prepareFromUri", () async {
+      await runIsolate(prepareFromUri);
+      expectCall('prepareFromUri', [uri, map]);
+    });
+
+    test("play", () async {
+      await runIsolate(play);
+      expectCall('play');
+    });
+
+    test("playFromMediaId", () async {
+      await runIsolate(playFromMediaId);
+      expectCall('playFromMediaId', const [id, map]);
+    });
+
+    test("playFromSearch", () async {
+      await runIsolate(playFromSearch);
+      expectCall('playFromSearch', const [query, map]);
+    });
+
+    test("playFromUri", () async {
+      await runIsolate(playFromUri);
+      expectCall('playFromUri', [uri, map]);
+    });
+
+    test("playMediaItem", () async {
+      await runIsolate(playMediaItem);
+      expectCall('playMediaItem', const [mediaItem]);
+    });
+
+    test("pause", () async {
+      await runIsolate(pause);
+      expectCall('pause');
+    });
+
+    test("click", () async {
+      await runIsolate(click);
+      expectCall('click', const [mediaButton]);
+    });
+
+    test("stop", () async {
+      await runIsolate(stop);
+      expectCall('stop');
+    });
+
+    test("addQueueItem", () async {
+      await runIsolate(addQueueItem);
+      expectCall('addQueueItem', const [mediaItem]);
+    });
+
+    test("addQueueItems", () async {
+      await runIsolate(addQueueItems);
+      expectCall('addQueueItems', const [queue]);
+    });
+
+    test("insertQueueItem", () async {
+      await runIsolate(insertQueueItem);
+      expectCall('insertQueueItem', const [0, mediaItem]);
+    });
+
+    test("updateQueue", () async {
+      await runIsolate(updateQueue);
+      expectCall('updateQueue', const [queue]);
+    });
+
+    test("updateMediaItem", () async {
+      await runIsolate(updateMediaItem);
+      expectCall('updateMediaItem', const [mediaItem]);
+    });
+
+    test("removeQueueItem", () async {
+      await runIsolate(removeQueueItem);
+      expectCall('removeQueueItem', const [mediaItem]);
+    });
+
+    test("removeQueueItemAt", () async {
+      await runIsolate(removeQueueItemAt);
+      expectCall('removeQueueItemAt', const [0]);
+    });
+
+    test("skipToNext", () async {
+      await runIsolate(skipToNext);
+      expectCall('skipToNext');
+    });
+
+    test("skipToPrevious", () async {
+      await runIsolate(skipToPrevious);
+      expectCall('skipToPrevious');
+    });
+
+    test("fastForward", () async {
+      await runIsolate(fastForward);
+      expectCall('fastForward');
+    });
+
+    test("rewind", () async {
+      await runIsolate(rewind);
+      expectCall('rewind');
+    });
+
+    test("skipToQueueItem", () async {
+      await runIsolate(skipToQueueItem);
+      expectCall('skipToQueueItem', const [0]);
+    });
+
+    test("seek", () async {
+      await runIsolate(seek);
+      expectCall('seek', const [duration]);
+    });
+
+    test("setRating", () async {
+      await runIsolate(setRating);
+      expectCall('setRating', const [rating, map]);
+    });
+
+    test("setCaptioningEnabled", () async {
+      await runIsolate(setCaptioningEnabled);
+      expectCall('setCaptioningEnabled', const [false]);
+    });
+
+    test("setRepeatMode", () async {
+      await runIsolate(setRepeatMode);
+      expectCall('setRepeatMode', const [repeatMode]);
+    });
+
+    test("setShuffleMode", () async {
+      await runIsolate(setShuffleMode);
+      expectCall('setShuffleMode', const [shuffleMode]);
+    });
+
+    test("seekBackward", () async {
+      await runIsolate(seekBackward);
+      expectCall('seekBackward', const [false]);
+    });
+
+    test("seekForward", () async {
+      await runIsolate(seekForward);
+      expectCall('seekForward', const [false]);
+    });
+
+    test("setSpeed", () async {
+      await runIsolate(setSpeed);
+      expectCall('setSpeed', const [0.1]);
+    });
+
+    test("customAction", () async {
+      final expectedResult = 'custom_action_result';
+      handler.stubCustomAction = expectedResult;
+      final result = await runIsolate(customAction);
+      expectCall(
+          'customAction', const [customActionName, customActionArguments]);
+      expect(result, expectedResult);
+    });
+
+    test("onTaskRemoved", () async {
+      await runIsolate(onTaskRemoved);
+      expectCall('onTaskRemoved');
+    });
+
+    test("onNotificationDeleted", () async {
+      await runIsolate(onNotificationDeleted);
+      expectCall('onNotificationDeleted');
+    });
+
+    test("getChildren", () async {
+      final expectedResult = queue;
+      handler.stubGetChildren = expectedResult;
+      final result = await runIsolate(getChildren);
+      expectCall('getChildren', const [id, map]);
+      expect(result, expectedResult);
+    });
+
+    test("subscribeToChildren", () async {
+      final expectedResult = <Map<String, Object?>>[
+        {'key1': 'value1'},
+        {'key2': 'value2'},
+        {'key3': 'value3'}
+      ];
+      handler.stubSubscribeToChildren = BehaviorSubject();
+      final receivePort =
+          await runIsolateWithDeferredResult(subscribeToChildren);
+      final result = <Map<String, Object?>>[];
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (result.isEmpty && message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          result.add(message as Map<String, Object?>);
+          if (result.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      for (final options in expectedResult) {
+        handler.stubSubscribeToChildren.add(options);
+      }
+      // wait until isolate delivers all results
+      await completer.future;
+      expectCall('subscribeToChildren', const [id]);
+      expect(result, expectedResult);
+    });
+
+    test("getMediaItem", () async {
+      final expectedResult = mediaItem;
+      handler.stubGetMediaItem = expectedResult;
+      final result = await runIsolate(getMediaItem);
+      expectCall('getMediaItem', const [id]);
+      expect(result, expectedResult);
+    });
+
+    test("search", () async {
+      final expectedResult = queue;
+      handler.stubSearch = expectedResult;
+      final result = await runIsolate(search);
+      expectCall('search', const [query, map]);
+      expect(result, expectedResult);
+    });
+
+    test("androidAdjustRemoteVolume", () async {
+      await runIsolate(androidAdjustRemoteVolume);
+      expectCall('androidAdjustRemoteVolume', [androidVolumeDirection]);
+    });
+
+    test("androidSetRemoteVolume", () async {
+      await runIsolate(androidSetRemoteVolume);
+      expectCall('androidSetRemoteVolume', [0]);
+    });
   });
 }
 

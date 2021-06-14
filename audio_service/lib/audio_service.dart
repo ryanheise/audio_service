@@ -816,9 +816,9 @@ class AudioService {
   /// (e.g. if the user clicks on the play button in the media notification
   /// while your app is not running and your app needs to be woken up).
   ///
-  /// Calling this method not from the main isolates may have unintended results,
-  /// for example the isolate may become unreachable, because it was destroyed,
-  /// or its engine was destroyed.
+  /// Calling this method not from the main isolate may have unintended consequences,
+  /// for example the isolate may become unreachable, because of being destroyed,
+  /// or its engine being destroyed.
   ///
   /// This method automatically hosts audio handler. so other isolates can
   /// reach out to the handler with [connectFromIsolate]. For more details
@@ -856,10 +856,10 @@ class AudioService {
   }
 
   /// Port to host the handler on with [hostHandler].
-  static late ReceivePort _hostReceivePort;
+  static ReceivePort? _hostReceivePort;
   static const _hostIsolatePortName = 'com.ryanheise.audioservice.port';
 
-  /// Connect to the [IsolateAudioHandler] from another isolate.
+  /// Connect to the [udioHandler] from another isolate.
   ///
   /// Prior this, some [AudioHandler] must be hosted by calling [init] or
   /// [hostHandler]
@@ -872,18 +872,27 @@ class AudioService {
   /// Must be called from the main isolate, other isolates can connect
   /// to the handler via [connectFromIsolate].
   ///
-  /// Calling this method not from the main isolates may have unintended results,
-  /// for example the isolate may become unreachable, because it was destroyed,
-  /// or its engine was destroyed. After that all the handlers from isolates
-  /// will stop receiving updates and calls to their methods will timeout.
+  /// Calling this method not from the main isolate may have unintended consequences,
+  /// for example the isolate may become unreachable, because of being destroyed,
+  /// or its engine being destroyed. As a result of that, all the handlers from connected
+  /// isolates will stop receiving updates and calls to their methods will timeout.
   ///
-  /// During the time the isolate the handler was hosted from is alive,
-  /// any calls to this method from any isolate will throw. A new handler
-  /// can be registered once more only when this isolate dies.
+  /// During the time the host isolate is alive, any calls to this method from any
+  /// isolate will throw. A new handle can be registered once again only when
+  /// the host isolate dies.
   static Future<void> hostHandler(AudioHandler handler) async {
     if (!kIsWeb) {
       final sendPort = IsolateNameServer.lookupPortByName(_hostIsolatePortName);
-      assert(sendPort == null, "Some isolate has already hosted its handler");
+
+      if (handler is IsolateAudioHandler) {
+        throw ArgumentError(
+          "Registering IsolateAudioHandler is not allowed, as this will lead "
+          "to an infinite loop when its methods are called",
+        );
+      }
+      if (sendPort != null || _hostReceivePort != null) {
+        throw StateError("Some isolate has already hosted a handler");
+      }
 
       void syncStream(Stream<dynamic> stream, IsolateRequest request) {
         final sendPort = request.arguments![0] as SendPort;
@@ -908,7 +917,7 @@ class AudioService {
       }
 
       _hostReceivePort = ReceivePort();
-      _hostReceivePort.listen((dynamic event) async {
+      _hostReceivePort!.listen((dynamic event) async {
         final request = event as IsolateRequest;
         switch (request.method) {
           case 'playbackState':
@@ -1149,7 +1158,7 @@ class AudioService {
         }
       });
       IsolateNameServer.registerPortWithName(
-          _hostReceivePort.sendPort, _hostIsolatePortName);
+          _hostReceivePort!.sendPort, _hostIsolatePortName);
     }
   }
 
