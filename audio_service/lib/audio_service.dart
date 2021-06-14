@@ -859,10 +859,8 @@ class AudioService {
   static ReceivePort? _hostReceivePort;
   static const _hostIsolatePortName = 'com.ryanheise.audioservice.port';
 
-  /// Connect to the [udioHandler] from another isolate.
-  ///
-  /// Prior this, some [AudioHandler] must be hosted by calling [init] or
-  /// [hostHandler]
+  /// Connect to the [AudioHandler], which was hosted by calling [init] or
+  /// [hostHandler], from another isolate.
   static Future<AudioHandler> connectFromIsolate() async {
     return IsolateAudioHandler();
   }
