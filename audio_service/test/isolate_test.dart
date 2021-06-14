@@ -60,6 +60,12 @@ const mediaItemStreamValues = <MediaItem?>[
   MediaItem(id: 'id_3', title: ''),
 ];
 
+const ratingStyleStreamValues = <RatingStyle>[
+  RatingStyle.percentage,
+  RatingStyle.range4stars,
+  RatingStyle.heart,
+];
+
 const androidPlaybackInfoStreamValues = <AndroidPlaybackInfo>[
   LocalAndroidPlaybackInfo(),
   RemoteAndroidPlaybackInfo(
@@ -358,6 +364,45 @@ Future<void> main() async {
       // wait until isolate delivers all results back
       await completer.future;
       expectCall('mediaItem');
+      expect(
+        values.map((e) => e.toString()).toList(),
+        isolateValues.map((e) => e.toString()).toList(),
+      );
+    });
+
+    test("ratingStyle", () async {
+      handler.stubRatingStyle =
+          BehaviorSubject.seeded(ratingStyleStreamValues[0]);
+      final receivePort =
+          await runIsolateWithDeferredResult(ratingStyleSubject);
+      final values = <RatingStyle>[];
+      final isolateValues = <RatingStyle>[];
+      handler.stubRatingStyle.listen((value) {
+        values.add(value);
+      });
+      var completer = Completer<void>();
+      receivePort.listen((Object? message) {
+        if (message == isolateInitMessage) {
+          completer.complete();
+          completer = Completer();
+        } else {
+          isolateValues.add(message as RatingStyle);
+          if (isolateValues.length == 3) {
+            completer.complete();
+          }
+        }
+      });
+      // wait until isolate connects
+      await completer.future;
+
+      // send our message
+      handler.stubRatingStyle.add(ratingStyleStreamValues[1]);
+
+      // and the last one is sent from the isolate
+
+      // wait until isolate delivers all results back
+      await completer.future;
+      expectCall('ratingStyle');
       expect(
         values.map((e) => e.toString()).toList(),
         isolateValues.map((e) => e.toString()).toList(),
@@ -801,6 +846,21 @@ void mediaItemSubject(SendPort port) async {
     updates += 1;
     if (updates == 2) {
       mediaItem.add(mediaItemStreamValues[2]);
+    }
+  });
+}
+
+void ratingStyleSubject(SendPort port) async {
+  final handler = MockIsolateAudioHandler();
+  final ratingStyle = handler.ratingStyle;
+  await handler.syncSubject(ratingStyle, 'ratingStyle');
+  port.send(isolateInitMessage);
+  var updates = 0;
+  ratingStyle.listen((value) {
+    port.send(value);
+    updates += 1;
+    if (updates == 2) {
+      ratingStyle.add(ratingStyleStreamValues[2]);
     }
   });
 }
