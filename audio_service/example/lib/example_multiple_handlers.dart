@@ -45,7 +45,8 @@ Future<void> main() async {
       TextPlayerHandler(),
     ])),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),
@@ -356,8 +357,8 @@ class AudioPlayerHandler extends BaseAudioHandler
         return _recentSubject.map((_) => <String, dynamic>{});
       default:
         return Stream.value(_mediaLibrary.items[parentMediaId])
-                .map((_) => <String, dynamic>{})
-            as ValueStream<Map<String, dynamic>>;
+            .map((_) => <String, dynamic>{})
+            .shareValue();
     }
   }
 

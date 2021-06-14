@@ -156,7 +156,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
         await callbacks.skipToQueueItem(
             SkipToQueueItemRequest(index: call.arguments['index'] as int));
         return null;
-      case 'seekTo':
+      case 'seek':
         await callbacks.seek(SeekRequest(
             position:
                 Duration(microseconds: call.arguments['position'] as int)));
@@ -219,11 +219,11 @@ class MethodChannelAudioService extends AudioServicePlatform {
                 query: call.arguments['query'] as String,
                 extras: _castMap(call.arguments['extras'] as Map)!)))
             .toMap();
-      case 'setVolumeTo':
+      case 'androidSetRemoteVolume':
         await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
             volumeIndex: call.arguments['volumeIndex'] as int));
         return null;
-      case 'adjustVolume':
+      case 'androidAdjustRemoteVolume':
         await callbacks.androidAdjustRemoteVolume(
             AndroidAdjustRemoteVolumeRequest(
                 direction: AndroidVolumeDirectionMessage

@@ -10,6 +10,7 @@ import org.json.JSONObject;
 public class AudioServiceConfig {
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
     private static final String KEY_ANDROID_RESUME_ON_CLICK = "androidResumeOnClick";
+    private static final String KEY_ANDROID_NOTIFICATION_CHANNEL_ID = "androidNotificationChannelId";
     private static final String KEY_ANDROID_NOTIFICATION_CHANNEL_NAME = "androidNotificationChannelName";
     private static final String KEY_ANDROID_NOTIFICATION_CHANNEL_DESCRIPTION = "androidNotificationChannelDescription";
     private static final String KEY_NOTIFICATION_COLOR = "notificationColor";
@@ -25,6 +26,7 @@ public class AudioServiceConfig {
 
     private SharedPreferences preferences;
     public boolean androidResumeOnClick;
+    public String androidNotificationChannelId;
     public String androidNotificationChannelName;
     public String androidNotificationChannelDescription;
     public int notificationColor;
@@ -41,6 +43,7 @@ public class AudioServiceConfig {
     public AudioServiceConfig(Context context) {
         preferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
         androidResumeOnClick = preferences.getBoolean(KEY_ANDROID_RESUME_ON_CLICK, true);
+        androidNotificationChannelId = preferences.getString(KEY_ANDROID_NOTIFICATION_CHANNEL_ID, null);
         androidNotificationChannelName = preferences.getString(KEY_ANDROID_NOTIFICATION_CHANNEL_NAME, null);
         androidNotificationChannelDescription = preferences.getString(KEY_ANDROID_NOTIFICATION_CHANNEL_DESCRIPTION, null);
         notificationColor = preferences.getInt(KEY_NOTIFICATION_COLOR, -1);
@@ -99,6 +102,7 @@ public class AudioServiceConfig {
     public void save() {
         preferences.edit()
             .putBoolean(KEY_ANDROID_RESUME_ON_CLICK, androidResumeOnClick)
+            .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_ID, androidNotificationChannelId)
             .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_NAME, androidNotificationChannelName)
             .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_DESCRIPTION, androidNotificationChannelDescription)
             .putInt(KEY_NOTIFICATION_COLOR, notificationColor)
