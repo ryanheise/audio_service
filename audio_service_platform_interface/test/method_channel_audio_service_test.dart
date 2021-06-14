@@ -451,9 +451,9 @@ void main() {
       );
     });
 
-    test('seekTo', () async {
+    test('seek', () async {
       const request = SeekRequest(position: Duration.zero);
-      await handlerChannel.invokeMethod<void>('seekTo', request.toMap());
+      await handlerChannel.invokeMethod<void>('seek', request.toMap());
       final captured =
           verify(callbacks.seek(captureAny)).captured.first as SeekRequest;
       expect(
@@ -651,7 +651,7 @@ void main() {
 
     test('androidSetRemoteVolume', () async {
       const request = AndroidSetRemoteVolumeRequest(volumeIndex: 0);
-      await handlerChannel.invokeMethod<void>('setVolumeTo', request.toMap());
+      await handlerChannel.invokeMethod<void>('androidSetRemoteVolume', request.toMap());
       final captured = verify(callbacks.androidSetRemoteVolume(captureAny))
           .captured
           .first as AndroidSetRemoteVolumeRequest;
@@ -664,7 +664,7 @@ void main() {
     test('androidAdjustRemoteVolume', () async {
       const request = AndroidAdjustRemoteVolumeRequest(
           direction: AndroidVolumeDirectionMessage.lower);
-      await handlerChannel.invokeMethod<void>('adjustVolume', request.toMap());
+      await handlerChannel.invokeMethod<void>('androidAdjustRemoteVolume', request.toMap());
       final captured = verify(callbacks.androidAdjustRemoteVolume(captureAny))
           .captured
           .first as AndroidAdjustRemoteVolumeRequest;
