@@ -798,7 +798,6 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  // ignore: close_sinks
   static final BehaviorSubject<bool> _notificationClickEvent =
       BehaviorSubject.seeded(false);
 
@@ -806,25 +805,24 @@ class AudioService {
   static ValueStream<bool> get notificationClickEvent =>
       _notificationClickEvent;
 
-  // ignore: close_sinks
   static BehaviorSubject<Duration>? _positionSubject;
-
-  static late ReceivePort _customActionReceivePort;
-
-  /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
-  /// must have been initialised via [init] prior to connecting.
-  static Future<AudioHandler> connectFromIsolate() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    return _IsolateAudioHandler();
-  }
 
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
-  /// Register the app's [AudioHandler] with configuration options. This must be
-  /// called during the app's initialisation so that it is prepared to handle
-  /// audio requests immediately after a cold restart (e.g. if the user clicks
-  /// on the play button in the media notification while your app is not running
-  /// and your app needs to be woken up).
+  /// Register the app's [AudioHandler] with configuration options.
+  ///
+  /// Must be called from the main isolate during the app's initialisation so
+  /// that it is prepared to handle audio requests immediately after a cold restart
+  /// (e.g. if the user clicks on the play button in the media notification
+  /// while your app is not running and your app needs to be woken up).
+  ///
+  /// Calling this method not from the main isolates may have unintended results,
+  /// for example the isolate may become unreachable, because it was destroyed,
+  /// or its engine was destroyed.
+  ///
+  /// This method automatically hosts audio handler. so other isolates can
+  /// reach out to the handler with [connectFromIsolate]. For more details
+  /// on the lifecycle of hosted handler, see [hostHandler] documentation.
   ///
   /// You may optionally specify a [cacheManager] to use when loading artwork to
   /// display in the media notification and lock screen. This defaults to
@@ -848,185 +846,274 @@ class AudioService {
     _handler = handler;
 
     _platform.setHandlerCallbacks(_HandlerCallbacks(handler));
-    // This port listens to connections from other isolates.
+    hostHandler(handler);
+    _observeMediaItem();
+    _observeAndroidPlaybackInfo();
+    _observeQueue();
+    _observePlaybackState();
+
+    return handler;
+  }
+
+  /// Port to host the handler on with [hostHandler].
+  static late ReceivePort _hostReceivePort;
+  static const _hostIsolatePortName = 'com.ryanheise.audioservice.port';
+
+  /// Connect to the [IsolateAudioHandler] from another isolate.
+  ///
+  /// Prior this, some [AudioHandler] must be hosted by calling [init] or
+  /// [hostHandler]
+  static Future<AudioHandler> connectFromIsolate() async {
+    return IsolateAudioHandler();
+  }
+
+  /// Hosts the audio handler to other isolates.
+  ///
+  /// Must be called from the main isolate, other isolates can connect
+  /// to the handler via [connectFromIsolate].
+  ///
+  /// Calling this method not from the main isolates may have unintended results,
+  /// for example the isolate may become unreachable, because it was destroyed,
+  /// or its engine was destroyed. After that all the handlers from isolates
+  /// will stop receiving updates and calls to their methods will timeout.
+  ///
+  /// During the time the isolate the handler was hosted from is alive,
+  /// any calls to this method from any isolate will throw. A new handler
+  /// can be registered once more only when this isolate dies.
+  static Future<void> hostHandler(AudioHandler handler) async {
     if (!kIsWeb) {
-      _customActionReceivePort = ReceivePort();
-      _customActionReceivePort.listen((dynamic event) async {
-        final request = event as _IsolateRequest;
+      final sendPort = IsolateNameServer.lookupPortByName(_hostIsolatePortName);
+      assert(sendPort == null, "Some isolate has already hosted its handler");
+
+      void syncStream(Stream<dynamic> stream, IsolateRequest request) {
+        final sendPort = request.arguments![0] as SendPort;
+        final toSkip = <Object?>[];
+        stream.listen((dynamic event) {
+          if (toSkip.contains(event)) {
+            toSkip.remove(event);
+          } else {
+            sendPort.send(IsolateStreamSyncRequest(event));
+          }
+        });
+        if (stream is StreamController) {
+          final receivePort = ReceivePort();
+          receivePort.listen((dynamic message) {
+            toSkip.add(message);
+            (stream as StreamController).add(message);
+          });
+          request.sendPort.send(receivePort.sendPort);
+        } else {
+          request.sendPort.send(null);
+        }
+      }
+
+      _hostReceivePort = ReceivePort();
+      _hostReceivePort.listen((dynamic event) async {
+        final request = event as IsolateRequest;
         switch (request.method) {
+          case 'playbackState':
+            syncStream(handler.playbackState, request);
+            request.sendPort.send(null);
+            break;
+          case 'queue':
+            syncStream(handler.queue, request);
+            request.sendPort.send(null);
+            break;
+          case 'queueTitle':
+            syncStream(handler.queueTitle, request);
+            request.sendPort.send(null);
+            break;
+          case 'mediaItem':
+            syncStream(handler.mediaItem, request);
+            request.sendPort.send(null);
+            break;
+          case 'androidPlaybackInfo':
+            syncStream(handler.androidPlaybackInfo, request);
+            request.sendPort.send(null);
+            break;
+          case 'ratingStyle':
+            syncStream(handler.ratingStyle, request);
+            request.sendPort.send(null);
+            break;
+          case 'customEvent':
+            syncStream(handler.customEvent, request);
+            request.sendPort.send(null);
+            break;
+          case 'customState':
+            syncStream(handler.customState, request);
+            request.sendPort.send(null);
+            break;
           case 'prepare':
-            await _handler.prepare();
+            await handler.prepare();
             request.sendPort.send(null);
             break;
           case 'prepareFromMediaId':
-            await _handler.prepareFromMediaId(
+            await handler.prepareFromMediaId(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'prepareFromSearch':
-            await _handler.prepareFromSearch(
+            await handler.prepareFromSearch(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'prepareFromUri':
-            await _handler.prepareFromUri(
+            await handler.prepareFromUri(
               request.arguments![0] as Uri,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'play':
-            await _handler.play();
+            await handler.play();
             request.sendPort.send(null);
             break;
           case 'playFromMediaId':
-            await _handler.playFromMediaId(
+            await handler.playFromMediaId(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'playFromSearch':
-            await _handler.playFromSearch(
+            await handler.playFromSearch(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'playFromUri':
-            await _handler.playFromUri(
+            await handler.playFromUri(
               request.arguments![0] as Uri,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'playMediaItem':
-            await _handler.playMediaItem(request.arguments![0] as MediaItem);
+            await handler.playMediaItem(request.arguments![0] as MediaItem);
             request.sendPort.send(null);
             break;
           case 'pause':
-            await _handler.pause();
+            await handler.pause();
             request.sendPort.send(null);
             break;
           case 'click':
-            await _handler.click(request.arguments![0] as MediaButton);
+            await handler.click(request.arguments![0] as MediaButton);
             request.sendPort.send(null);
             break;
           case 'stop':
-            await _handler.stop();
+            await handler.stop();
             request.sendPort.send(null);
             break;
           case 'addQueueItem':
-            await _handler.addQueueItem(request.arguments![0] as MediaItem);
+            await handler.addQueueItem(request.arguments![0] as MediaItem);
             request.sendPort.send(null);
             break;
           case 'addQueueItems':
-            await _handler
+            await handler
                 .addQueueItems(request.arguments![0] as List<MediaItem>);
             request.sendPort.send(null);
             break;
           case 'insertQueueItem':
-            await _handler.insertQueueItem(
+            await handler.insertQueueItem(
               request.arguments![0] as int,
               request.arguments![1] as MediaItem,
             );
             request.sendPort.send(null);
             break;
           case 'updateQueue':
-            await _handler
-                .updateQueue(request.arguments![0] as List<MediaItem>);
+            await handler.updateQueue(request.arguments![0] as List<MediaItem>);
             request.sendPort.send(null);
             break;
           case 'updateMediaItem':
-            await _handler.updateMediaItem(request.arguments![0] as MediaItem);
+            await handler.updateMediaItem(request.arguments![0] as MediaItem);
             request.sendPort.send(null);
             break;
           case 'removeQueueItem':
-            await _handler.removeQueueItem(request.arguments![0] as MediaItem);
+            await handler.removeQueueItem(request.arguments![0] as MediaItem);
             request.sendPort.send(null);
             break;
           case 'removeQueueItemAt':
-            await _handler.removeQueueItemAt(request.arguments![0] as int);
+            await handler.removeQueueItemAt(request.arguments![0] as int);
             request.sendPort.send(null);
             break;
           case 'skipToNext':
-            await _handler.skipToNext();
+            await handler.skipToNext();
             request.sendPort.send(null);
             break;
           case 'skipToPrevious':
-            await _handler.skipToPrevious();
+            await handler.skipToPrevious();
             request.sendPort.send(null);
             break;
           case 'fastForward':
-            await _handler.fastForward();
+            await handler.fastForward();
             request.sendPort.send(null);
             break;
           case 'rewind':
-            await _handler.rewind();
+            await handler.rewind();
             request.sendPort.send(null);
             break;
           case 'skipToQueueItem':
-            await _handler.skipToQueueItem(request.arguments![0] as int);
+            await handler.skipToQueueItem(request.arguments![0] as int);
             request.sendPort.send(null);
             break;
           case 'seek':
-            await _handler.seek(request.arguments![0] as Duration);
+            await handler.seek(request.arguments![0] as Duration);
             request.sendPort.send(null);
             break;
           case 'setRating':
-            await _handler.setRating(
+            await handler.setRating(
               request.arguments![0] as Rating,
               request.arguments![1] as Map<String, dynamic>?,
             );
             request.sendPort.send(null);
             break;
           case 'setCaptioningEnabled':
-            await _handler.setCaptioningEnabled(request.arguments![0] as bool);
+            await handler.setCaptioningEnabled(request.arguments![0] as bool);
             request.sendPort.send(null);
             break;
           case 'setRepeatMode':
-            await _handler
+            await handler
                 .setRepeatMode(request.arguments![0] as AudioServiceRepeatMode);
             request.sendPort.send(null);
             break;
           case 'setShuffleMode':
-            await _handler.setShuffleMode(
+            await handler.setShuffleMode(
                 request.arguments![0] as AudioServiceShuffleMode);
             request.sendPort.send(null);
             break;
           case 'seekBackward':
-            await _handler.seekBackward(request.arguments![0] as bool);
+            await handler.seekBackward(request.arguments![0] as bool);
             request.sendPort.send(null);
             break;
           case 'seekForward':
-            await _handler.seekForward(request.arguments![0] as bool);
+            await handler.seekForward(request.arguments![0] as bool);
             request.sendPort.send(null);
             break;
           case 'setSpeed':
-            await _handler.setSpeed(request.arguments![0] as double);
+            await handler.setSpeed(request.arguments![0] as double);
             request.sendPort.send(null);
             break;
           case 'customAction':
-            await _handler.customAction(
+            request.sendPort.send(await handler.customAction(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
+            ));
             break;
           case 'onTaskRemoved':
-            await _handler.onTaskRemoved();
+            await handler.onTaskRemoved();
             request.sendPort.send(null);
             break;
           case 'onNotificationDeleted':
-            await _handler.onNotificationDeleted();
+            await handler.onNotificationDeleted();
             request.sendPort.send(null);
             break;
           case 'getChildren':
-            request.sendPort.send(await _handler.getChildren(
+            request.sendPort.send(await handler.getChildren(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             ));
@@ -1034,7 +1121,7 @@ class AudioService {
           case 'subscribeToChildren':
             final parentMediaId = request.arguments![0] as String;
             final sendPort = request.arguments![1] as SendPort?;
-            _handler
+            handler
                 .subscribeToChildren(parentMediaId)
                 .listen((Map<String, dynamic> options) {
               sendPort!.send(options);
@@ -1042,35 +1129,28 @@ class AudioService {
             break;
           case 'getMediaItem':
             request.sendPort.send(
-                await _handler.getMediaItem(request.arguments![0] as String));
+                await handler.getMediaItem(request.arguments![0] as String));
             break;
           case 'search':
-            request.sendPort.send(await _handler.search(
+            request.sendPort.send(await handler.search(
               request.arguments![0] as String,
               request.arguments![1] as Map<String, dynamic>?,
             ));
             break;
           case 'androidAdjustRemoteVolume':
-            await _handler.androidAdjustRemoteVolume(
+            await handler.androidAdjustRemoteVolume(
                 request.arguments![0] as AndroidVolumeDirection);
             request.sendPort.send(null);
             break;
           case 'androidSetRemoteVolume':
-            await _handler.androidSetRemoteVolume(request.arguments![0] as int);
+            await handler.androidSetRemoteVolume(request.arguments![0] as int);
             request.sendPort.send(null);
             break;
         }
       });
-      //IsolateNameServer.removePortNameMapping(_isolatePortName);
       IsolateNameServer.registerPortWithName(
-          _customActionReceivePort.sendPort, _isolatePortName);
+          _hostReceivePort.sendPort, _hostIsolatePortName);
     }
-    _observeMediaItem();
-    _observeAndroidPlaybackInfo();
-    _observeQueue();
-    _observePlaybackState();
-
-    return handler;
   }
 
   static Future<void> _observeMediaItem() async {
@@ -1185,7 +1265,6 @@ class AudioService {
     assert(minPeriod <= maxPeriod);
     assert(minPeriod > Duration.zero);
     Duration? last;
-    // ignore: close_sinks
     late StreamController<Duration> controller;
     late StreamSubscription<MediaItem?> mediaItemSubscription;
     late StreamSubscription<PlaybackState> playbackStateSubscription;
@@ -2350,193 +2429,279 @@ class CompositeAudioHandler extends AudioHandler {
   ValueStream<dynamic> get customState => _inner.customState;
 }
 
-class _IsolateRequest {
+/// A message to be sent to the audio handler hosted with [AudioService.hostHandler].
+class IsolateRequest {
   /// The send port for sending the response of this request.
   final SendPort sendPort;
+
+  /// The method of the [AudioHandler].
   final String method;
+
+  /// A list of arguments.
   final List<dynamic>? arguments;
 
-  _IsolateRequest(this.sendPort, this.method, [this.arguments]);
+  /// Creates a request.
+  IsolateRequest(this.sendPort, this.method, [this.arguments]);
 }
 
-const _isolatePortName = 'com.ryanheise.audioservice.port';
+/// A message to be from host isolate to the connected to synchronize
+/// the their streams.
+class IsolateStreamSyncRequest {
+  /// Event data.
+  final dynamic event;
 
-class _IsolateAudioHandler extends AudioHandler {
-  final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>>>{};
+  /// The time this request was sent.
+  final DateTime time;
+
+  /// Creates a request.
+  IsolateStreamSyncRequest(this.event) : time = DateTime.now();
+}
+
+/// Handler that connects to the handler hosted with [AudioService.hostHandler].
+///
+/// Instantiating this class is equal to calling [AudioService.connectFromIsolate].
+class IsolateAudioHandler extends AudioHandler {
+  @override
+  final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
 
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<PlaybackState> playbackState =
-      BehaviorSubject.seeded(PlaybackState());
+  final BehaviorSubject<List<MediaItem>?> queue = BehaviorSubject();
+
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<List<MediaItem>?> queue =
-      BehaviorSubject.seeded(<MediaItem>[]);
+  final BehaviorSubject<String> queueTitle = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
-  final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
+  final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject();
+
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
-  @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
-  _IsolateAudioHandler() : super._();
+  /// Creates an isolate audio handler.
+  IsolateAudioHandler() : super._() {
+    syncSubjects();
+  }
+
+  /// Called in constructor to sync streams with .
+  void syncSubjects() {
+    syncSubject(playbackState, 'playbackState');
+    syncSubject(queue, 'queue');
+    syncSubject(queueTitle, 'queueTitle');
+    syncSubject(mediaItem, 'mediaItem');
+    syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
+    syncSubject(ratingStyle, 'ratingStyle');
+    syncSubject(customEvent, 'customEvent');
+    syncSubject(customState, 'customState');
+  }
+
+  /// Sends a message to hosted audio handler.
+  Future<T> send<T>(String method, [List<dynamic>? arguments]) async {
+    final sendPort =
+        IsolateNameServer.lookupPortByName(AudioService._hostIsolatePortName);
+    if (sendPort == null) {
+      throw StateError(
+        "No isolate was hosted. "
+        "You mast call `AudioService.init` or `AudioService.hostHandler` first",
+      );
+    }
+    final receivePort = ReceivePort();
+    sendPort.send(IsolateRequest(receivePort.sendPort, method, arguments));
+    final result = await (receivePort.first)
+        .timeout(const Duration(seconds: 10), onTimeout: () {
+      print(
+        "The call to the hosted isolate has timed out, the isolate has likely died "
+        "See ${AudioService.hostHandler} for more details",
+      );
+      return null;
+    }) as T;
+    receivePort.close();
+    return result;
+  }
+
+  /// Synchronizes some stream with some in the hosted audio handler by its [name].
+  ///
+  /// It sends a send port to pipe events into, from some stream in hosted handler.
+  /// This port should receive a message on connection.
+  ///
+  /// In return the hosted handler should also return a send port, and pipe the
+  /// messages that are sent over it into the same stream.
+  ///
+  /// The hosted handler may also respond with `null` instead of a send port,
+  /// when it can't pipe the events into the stream.
+  Future<void> syncSubject(Subject subject, String name) async {
+    DateTime? recentUpdate;
+    final receivePort = ReceivePort();
+    final toSkip = <Object?>[];
+    SendPort? sendPort;
+    receivePort.listen((dynamic message) {
+      final request = message as IsolateStreamSyncRequest;
+      if (recentUpdate == null ||
+          request.time.difference(recentUpdate!) > Duration.zero) {
+        recentUpdate = request.time;
+        subject.add(request.event);
+        if (sendPort != null) {
+          toSkip.add(request.event);
+        }
+      }
+    });
+    sendPort = await send<SendPort?>(name, <dynamic>[receivePort.sendPort]);
+    if (sendPort != null) {
+      subject.listen((dynamic event) {
+        if (toSkip.contains(event)) {
+          toSkip.remove(event);
+        } else {
+          recentUpdate = DateTime.now();
+          sendPort!.send(event);
+        }
+      });
+    }
+  }
 
   @override
-  Future<void> prepare() => _send('prepare');
+  Future<void> prepare() => send('prepare');
 
   @override
   Future<void> prepareFromMediaId(String mediaId,
           [Map<String, dynamic>? extras]) =>
-      _send('prepareFromMediaId', <dynamic>[mediaId, extras]);
+      send('prepareFromMediaId', <dynamic>[mediaId, extras]);
 
   @override
   Future<void> prepareFromSearch(String query,
           [Map<String, dynamic>? extras]) =>
-      _send('prepareFromSearch', <dynamic>[query, extras]);
+      send('prepareFromSearch', <dynamic>[query, extras]);
 
   @override
   Future<void> prepareFromUri(Uri uri, [Map<String, dynamic>? extras]) =>
-      _send('prepareFromUri', <dynamic>[uri, extras]);
+      send('prepareFromUri', <dynamic>[uri, extras]);
 
   @override
-  Future<void> play() => _send('play');
+  Future<void> play() => send('play');
 
   @override
   Future<void> playFromMediaId(String mediaId,
           [Map<String, dynamic>? extras]) =>
-      _send('playFromMediaId', <dynamic>[mediaId, extras]);
+      send('playFromMediaId', <dynamic>[mediaId, extras]);
 
   @override
   Future<void> playFromSearch(String query, [Map<String, dynamic>? extras]) =>
-      _send('playFromSearch', <dynamic>[query, extras]);
+      send('playFromSearch', <dynamic>[query, extras]);
 
   @override
   Future<void> playFromUri(Uri uri, [Map<String, dynamic>? extras]) =>
-      _send('playFromUri', <dynamic>[uri, extras]);
+      send('playFromUri', <dynamic>[uri, extras]);
 
   @override
   Future<void> playMediaItem(MediaItem mediaItem) =>
-      _send('playMediaItem', <dynamic>[mediaItem]);
+      send('playMediaItem', <dynamic>[mediaItem]);
 
   @override
-  Future<void> pause() => _send('pause');
+  Future<void> pause() => send('pause');
 
   @override
   Future<void> click([MediaButton button = MediaButton.media]) =>
-      _send('click', <dynamic>[button]);
+      send('click', <dynamic>[button]);
 
   @override
-  @mustCallSuper
-  Future<void> stop() => _send('stop');
+  Future<void> stop() => send('stop');
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) =>
-      _send('addQueueItem', <dynamic>[mediaItem]);
+      send('addQueueItem', <dynamic>[mediaItem]);
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) =>
-      _send('addQueueItems', <dynamic>[mediaItems]);
+      send('addQueueItems', <dynamic>[mediaItems]);
 
   @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) =>
-      _send('insertQueueItem', <dynamic>[index, mediaItem]);
+      send('insertQueueItem', <dynamic>[index, mediaItem]);
 
   @override
   Future<void> updateQueue(List<MediaItem> queue) =>
-      _send('updateQueue', <dynamic>[queue]);
+      send('updateQueue', <dynamic>[queue]);
 
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) =>
-      _send('updateMediaItem', <dynamic>[mediaItem]);
+      send('updateMediaItem', <dynamic>[mediaItem]);
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) =>
-      _send('removeQueueItem', <dynamic>[mediaItem]);
+      send('removeQueueItem', <dynamic>[mediaItem]);
 
   @override
   Future<void> removeQueueItemAt(int index) =>
-      _send('removeQueueItemAt', <dynamic>[index]);
+      send('removeQueueItemAt', <dynamic>[index]);
 
   @override
-  Future<void> skipToNext() => _send('skipToNext');
+  Future<void> skipToNext() => send('skipToNext');
 
   @override
-  Future<void> skipToPrevious() => _send('skipToPrevious');
+  Future<void> skipToPrevious() => send('skipToPrevious');
 
   @override
-  Future<void> fastForward() => _send('fastForward');
+  Future<void> fastForward() => send('fastForward');
 
   @override
-  Future<void> rewind() => _send('rewind');
+  Future<void> rewind() => send('rewind');
 
   @override
   Future<void> skipToQueueItem(int index) =>
-      _send('skipToQueueItem', <dynamic>[index]);
+      send('skipToQueueItem', <dynamic>[index]);
 
   @override
-  Future<void> seek(Duration position) => _send('seek', <dynamic>[position]);
+  Future<void> seek(Duration position) => send('seek', <dynamic>[position]);
 
   @override
   Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
-      _send('setRating', <dynamic>[rating, extras]);
+      send('setRating', <dynamic>[rating, extras]);
 
   @override
   Future<void> setCaptioningEnabled(bool enabled) =>
-      _send('setCaptioningEnabled', <dynamic>[enabled]);
+      send('setCaptioningEnabled', <dynamic>[enabled]);
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
-      _send('setRepeatMode', <dynamic>[repeatMode]);
+      send('setRepeatMode', <dynamic>[repeatMode]);
 
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
-      _send('setShuffleMode', <dynamic>[shuffleMode]);
+      send('setShuffleMode', <dynamic>[shuffleMode]);
 
   @override
   Future<void> seekBackward(bool begin) =>
-      _send('seekBackward', <dynamic>[begin]);
+      send('seekBackward', <dynamic>[begin]);
 
   @override
-  Future<void> seekForward(bool begin) =>
-      _send('seekForward', <dynamic>[begin]);
+  Future<void> seekForward(bool begin) => send('seekForward', <dynamic>[begin]);
 
   @override
-  Future<void> setSpeed(double speed) => _send('setSpeed', <dynamic>[speed]);
+  Future<void> setSpeed(double speed) => send('setSpeed', <dynamic>[speed]);
 
   @override
   Future<dynamic> customAction(String name, Map<String, dynamic>? arguments) =>
-      _send('customAction', <dynamic>[name, arguments]);
+      send<dynamic>('customAction', <dynamic>[name, arguments]);
 
   @override
-  Future<void> onTaskRemoved() => _send('onTaskRemoved');
+  Future<void> onTaskRemoved() => send('onTaskRemoved');
 
   @override
-  Future<void> onNotificationDeleted() => _send('onNotificationDeleted');
+  Future<void> onNotificationDeleted() => send('onNotificationDeleted');
 
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
           [Map<String, dynamic>? options]) async =>
-      (await _send('getChildren', <dynamic>[parentMediaId, options]))
-          as List<MediaItem>;
+      send('getChildren', <dynamic>[parentMediaId, options]);
+
+  final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>>>{};
 
   @override
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
@@ -2547,39 +2712,28 @@ class _IsolateAudioHandler extends AudioHandler {
       receivePort.listen((dynamic options) {
         childrenSubject!.add(options as Map<String, dynamic>);
       });
-      _send('subscribeToChildren',
+      send<void>('subscribeToChildren',
           <dynamic>[parentMediaId, receivePort.sendPort]);
     }
     return childrenSubject;
   }
 
   @override
-  Future<MediaItem?> getMediaItem(String mediaId) async =>
-      (await _send('getMediaItem', <dynamic>[mediaId])) as MediaItem?;
+  Future<MediaItem?> getMediaItem(String mediaId) =>
+      send('getMediaItem', <dynamic>[mediaId]);
 
   @override
   Future<List<MediaItem>> search(String query,
-          [Map<String, dynamic>? extras]) async =>
-      (await _send('search', <dynamic>[query, extras])) as List<MediaItem>;
+          [Map<String, dynamic>? extras]) =>
+      send('search', <dynamic>[query, extras]);
 
   @override
   Future<void> androidAdjustRemoteVolume(AndroidVolumeDirection direction) =>
-      _send('androidAdjustRemoteVolume', <dynamic>[direction]);
+      send('androidAdjustRemoteVolume', <dynamic>[direction]);
 
   @override
   Future<void> androidSetRemoteVolume(int volumeIndex) =>
-      _send('androidSetRemoteVolume', <dynamic>[volumeIndex]);
-
-  Future<dynamic> _send(String method, [List<dynamic>? arguments]) async {
-    final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
-    if (sendPort == null) return null;
-    final receivePort = ReceivePort();
-    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
-    final dynamic result = await receivePort.first;
-    print("isolate result received: $result");
-    receivePort.close();
-    return result;
-  }
+      send('androidSetRemoteVolume', <dynamic>[volumeIndex]);
 }
 
 /// Base class for implementations of [AudioHandler]. It provides default
@@ -2646,7 +2800,6 @@ class BaseAudioHandler extends AudioHandler {
   /// The state changes broadcast via this stream can be listened to via the
   /// Flutter app's UI
   @override
-  // ignore: close_sinks
   final BehaviorSubject<PlaybackState> playbackState =
       BehaviorSubject.seeded(PlaybackState());
 
@@ -2667,7 +2820,6 @@ class BaseAudioHandler extends AudioHandler {
   /// queueTitle.add(newTitle);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
 
   /// A controller for broadcasting the current media item to the app's UI,
@@ -2677,7 +2829,6 @@ class BaseAudioHandler extends AudioHandler {
   /// mediaItem.add(item);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
 
   /// A controller for broadcasting the current [AndroidPlaybackInfo] to the app's UI,
@@ -2687,7 +2838,6 @@ class BaseAudioHandler extends AudioHandler {
   /// androidPlaybackInfo.add(newPlaybackInfo);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
 
@@ -2698,7 +2848,6 @@ class BaseAudioHandler extends AudioHandler {
   /// ratingStyle.add(style);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
   /// A controller for broadcasting a custom event to the app's UI.
@@ -2709,7 +2858,6 @@ class BaseAudioHandler extends AudioHandler {
   /// customEventSubject.add(MyCustomEvent(arg: 3));
   /// ```
   @override
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   /// A controller for broadcasting the current custom state to the app's UI.
@@ -2719,7 +2867,6 @@ class BaseAudioHandler extends AudioHandler {
   /// customState.add(MyCustomState(...));
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
   /// Constructor. Normally this is called from subclasses via `super`.
@@ -3309,16 +3456,16 @@ extension _MediaButtonMessageExtension on MediaButtonMessage {
 /// An enum of volume direction controls on Android.
 class AndroidVolumeDirection {
   /// Lower the ringer volume.
-  static final lower = AndroidVolumeDirection._(-1);
+  static const lower = AndroidVolumeDirection._(-1);
 
   /// Keep the previous ringer volume.
-  static final same = AndroidVolumeDirection._(0);
+  static const same = AndroidVolumeDirection._(0);
 
   /// Raise the ringer volume.
-  static final raise = AndroidVolumeDirection._(1);
+  static const raise = AndroidVolumeDirection._(1);
 
   /// A map of indices to values.
-  static final values = <int, AndroidVolumeDirection>{
+  static const values = <int, AndroidVolumeDirection>{
     -1: lower,
     0: same,
     1: raise,
@@ -3327,7 +3474,7 @@ class AndroidVolumeDirection {
   /// The index for this enum value.
   final int index;
 
-  AndroidVolumeDirection._(this.index);
+  const AndroidVolumeDirection._(this.index);
 
   @override
   String toString() => '$index';
@@ -3348,6 +3495,9 @@ enum AndroidVolumeControlType {
 /// Information about volume control for either local or remote playback
 /// depending on the subclass.
 abstract class AndroidPlaybackInfo {
+  /// Creates information about volume control.
+  const AndroidPlaybackInfo();
+
   AndroidPlaybackInfoMessage _toMessage();
 
   @override
@@ -3368,7 +3518,7 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
   final int volume;
 
   // ignore: public_member_api_docs
-  RemoteAndroidPlaybackInfo({
+  const RemoteAndroidPlaybackInfo({
     required this.volumeControlType,
     required this.maxVolume,
     required this.volume,
@@ -3398,6 +3548,9 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
 
 /// Playback information for local volume handling.
 class LocalAndroidPlaybackInfo extends AndroidPlaybackInfo {
+  // ignore: public_member_api_docs
+  const LocalAndroidPlaybackInfo();
+
   @override
   LocalAndroidPlaybackInfoMessage _toMessage() =>
       const LocalAndroidPlaybackInfoMessage();
