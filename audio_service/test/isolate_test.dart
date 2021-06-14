@@ -6,7 +6,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'mock_audio_handler.dart';
+import 'mock_base_audio_handler.dart';
 
 const isolateInitMessage = Object();
 
