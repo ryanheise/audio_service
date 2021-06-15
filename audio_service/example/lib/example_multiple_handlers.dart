@@ -269,8 +269,8 @@ class MainSwitchHandler extends SwitchAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? extras) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'switchToHandler':
         stop();
