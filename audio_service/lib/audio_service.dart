@@ -1654,7 +1654,7 @@ class _BackgroundAudioHandler extends BaseAudioHandler {
   Future<void> seek(Duration position) => _task.onSeekTo(position);
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       // ignore: deprecated_member_use_from_same_package
       _task.onSetRating(rating, extras);
 
@@ -1681,7 +1681,7 @@ class _BackgroundAudioHandler extends BaseAudioHandler {
   Future<void> setSpeed(double speed) => _task.onSetSpeed(speed);
 
   @override
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras) =>
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
       // ignore: deprecated_member_use_from_same_package
       _task.onCustomAction(name, extras);
 
@@ -1962,7 +1962,7 @@ abstract class AudioHandler {
   Future<void> seek(Duration position);
 
   /// Set the rating.
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras);
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]);
 
   /// Set whether captioning is enabled.
   Future<void> setCaptioningEnabled(bool enabled);
@@ -1983,7 +1983,7 @@ abstract class AudioHandler {
   Future<void> setSpeed(double speed);
 
   /// A mechanism to support app-specific actions.
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras);
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]);
 
   /// Handle the task being swiped away in the task manager (Android).
   Future<void> onTaskRemoved();
@@ -2249,7 +2249,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       _inner.setRating(rating, extras);
 
   @override
@@ -2281,7 +2281,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras) =>
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
       _inner.customAction(name, extras);
 
   @override
@@ -2496,7 +2496,7 @@ class _IsolateAudioHandler extends AudioHandler {
   Future<void> seek(Duration position) => _send('seek', <dynamic>[position]);
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       _send('setRating', <dynamic>[rating, extras]);
 
   @override
@@ -2523,8 +2523,8 @@ class _IsolateAudioHandler extends AudioHandler {
   Future<void> setSpeed(double speed) => _send('setSpeed', <dynamic>[speed]);
 
   @override
-  Future<dynamic> customAction(String name, Map<String, dynamic>? arguments) =>
-      _send('customAction', <dynamic>[name, arguments]);
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
+      _send('customAction', <dynamic>[name, extras]);
 
   @override
   Future<void> onTaskRemoved() => _send('onTaskRemoved');
@@ -2831,7 +2831,7 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> seek(Duration position) async {}
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) async {}
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) async {}
 
   @override
   Future<void> setCaptioningEnabled(bool enabled) async {}
@@ -2852,8 +2852,8 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> setSpeed(double speed) async {}
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? arguments) async {}
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {}
 
   @override
   Future<void> onTaskRemoved() async {}
