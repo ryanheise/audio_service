@@ -925,7 +925,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             case RatingCompat.RATING_HEART:
                 return RatingCompat.newHeartRating((boolean)value);
             case RatingCompat.RATING_PERCENTAGE:
-                return RatingCompat.newPercentageRating((float)value);
+                return RatingCompat.newPercentageRating(((Double)value).floatValue());
             case RatingCompat.RATING_THUMB_UP_DOWN:
                 return RatingCompat.newThumbRating((boolean)value);
             default:
