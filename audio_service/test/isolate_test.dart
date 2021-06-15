@@ -122,28 +122,36 @@ Future<void> main() async {
     return receivePort;
   }
 
+  void killIsolate() {
+    if (isolate != null) {
+      isolate!.kill(priority: Isolate.immediate);
+      isolate = null;
+    }
+  }
+
   setUp(() {
     handler.reset();
   });
 
   tearDown(() {
-    if (isolate != null) {
-      isolate!.kill(priority: Isolate.immediate);
-    }
+    killIsolate();
   });
 
   group("Connection setup ▮", () {
+    tearDown(() {
+      IsolateNameServer.removePortNameMapping(AudioService.hostIsolatePortName);
+    });
+
     test("can host from spawned isolate and connect from the main", () async {
       await runIsolate(hostHandlerIsolate);
       final handler = await AudioService.connectFromIsolate();
       expect(handler.queue.value, const <Object?>[]);
       expect(AudioService.isHosting, true);
-      IsolateNameServer.removePortNameMapping(AudioService.hostIsolatePortName);
     });
 
     test("throws timeout exception when host isolate dies", () async {
       await runIsolate(hostHandlerIsolate);
-      isolate!.kill();
+      killIsolate();
       final handler = IsolateAudioHandler();
       expect(
         () => handler.play(),
@@ -156,7 +164,6 @@ Future<void> main() async {
           ),
         ),
       );
-      IsolateNameServer.removePortNameMapping(AudioService.hostIsolatePortName);
     });
 
     test("throws when no isolate is hosted", () {
@@ -175,10 +182,7 @@ Future<void> main() async {
 
     test("throws when attempting to host IsolateAudioHandler", () {
       expect(
-        () {
-          host();
-          AudioService.hostHandler(IsolateAudioHandler());
-        },
+        () => AudioService.hostHandler(IsolateAudioHandler()),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
@@ -193,7 +197,7 @@ Future<void> main() async {
     test("throws when attempting to host more than once", () async {
       expect(
         () {
-          host();
+          AudioService.hostHandler(BaseAudioHandler());
           AudioService.hostHandler(BaseAudioHandler());
         },
         throwsA(
