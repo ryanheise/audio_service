@@ -857,41 +857,49 @@ class AudioService {
 
   /// Port to host the handler on with [hostHandler].
   static ReceivePort? _hostReceivePort;
-  static const _hostIsolatePortName = 'com.ryanheise.audioservice.port';
+
+  /// Used for testing purposes, don't use this, as it may lead to
+  /// unintended behaviors.
+  @visibleForTesting
+  static const hostIsolatePortName = 'com.ryanheise.audioservice.port';
 
   /// Connect to the [AudioHandler], which was hosted by calling [init] or
   /// [hostHandler], from another isolate.
   static Future<AudioHandler> connectFromIsolate() async {
-    return IsolateAudioHandler();
+    final handler = IsolateAudioHandler();
+    await handler.init();
+    return handler;
+  }
+
+  /// Whether currently there is a hosted handler available.
+  static bool get isHosting {
+    final sendPort = IsolateNameServer.lookupPortByName(hostIsolatePortName);
+    return sendPort != null;
   }
 
   /// Hosts the audio handler to other isolates.
   ///
   /// Must be called from the main isolate, other isolates can connect
-  /// to the handler via [connectFromIsolate].
+  /// to the handler via [connectFromIsolate]. Can be called only once,
+  /// all consecutive calls will throw.
   ///
   /// Calling this method not from the main isolate may have unintended consequences,
   /// for example the isolate may become unreachable, because of being destroyed,
   /// or its engine being destroyed. As a result of that, all the handlers from connected
   /// isolates will stop receiving updates and calls to their methods will timeout.
-  ///
-  /// During the time the host isolate is alive, any calls to this method from any
-  /// isolate will throw. A new handle can be registered once again only when
-  /// the host isolate dies.
-  static Future<void> hostHandler(AudioHandler handler) async {
+  static void hostHandler(AudioHandler handler) {
     if (!kIsWeb) {
-      final sendPort = IsolateNameServer.lookupPortByName(_hostIsolatePortName);
-
       if (handler is IsolateAudioHandler) {
         throw ArgumentError(
           "Registering IsolateAudioHandler is not allowed, as this will lead "
           "to an infinite loop when its methods are called",
         );
       }
-      if (sendPort != null || _hostReceivePort != null) {
+      if (isHosting) {
         throw StateError("Some isolate has already hosted a handler");
       }
 
+      /// More comments on that are available in [IsolateAudioHandler.syncSubject].
       void syncStream(Stream<dynamic> stream, IsolateRequest request) {
         final sendPort = request.arguments![0] as SendPort;
         final toSkip = <Object?>[];
@@ -1156,7 +1164,7 @@ class AudioService {
         }
       });
       IsolateNameServer.registerPortWithName(
-          _hostReceivePort!.sendPort, _hostIsolatePortName);
+          _hostReceivePort!.sendPort, hostIsolatePortName);
     }
   }
 
@@ -2451,7 +2459,7 @@ class IsolateRequest {
   IsolateRequest(this.sendPort, this.method, [this.arguments]);
 }
 
-/// A message to be from host isolate to the connected to synchronize
+/// A message to be sent from host isolate to the connected to synchronize
 /// the their streams.
 class IsolateStreamSyncRequest {
   /// Event data.
@@ -2466,7 +2474,8 @@ class IsolateStreamSyncRequest {
 
 /// Handler that connects to the handler hosted with [AudioService.hostHandler].
 ///
-/// Instantiating this class is equal to calling [AudioService.connectFromIsolate].
+/// For convenience, it's better to use [AudioService.connectFromIsolate] which
+/// creates this class and calls [init].
 class IsolateAudioHandler extends AudioHandler {
   @override
   final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
@@ -2494,56 +2503,63 @@ class IsolateAudioHandler extends AudioHandler {
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
   /// Creates an isolate audio handler.
-  IsolateAudioHandler() : super._() {
-    syncSubjects();
-  }
+  /// You should call the [init] right away after instantiation.
+  IsolateAudioHandler() : super._();
 
-  /// Called in constructor to sync streams with .
-  void syncSubjects() {
-    syncSubject(playbackState, 'playbackState');
-    syncSubject(queue, 'queue');
-    syncSubject(queueTitle, 'queueTitle');
-    syncSubject(mediaItem, 'mediaItem');
-    syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
-    syncSubject(ratingStyle, 'ratingStyle');
-    syncSubject(customEvent, 'customEvent');
-    syncSubject(customState, 'customState');
+  /// Synchronizes the subjects with the hosted isolate.
+  Future<void> init() {
+    return Future.wait([
+      syncSubject(playbackState, 'playbackState'),
+      syncSubject(queue, 'queue'),
+      syncSubject(queueTitle, 'queueTitle'),
+      syncSubject(mediaItem, 'mediaItem'),
+      syncSubject(androidPlaybackInfo, 'androidPlaybackInfo'),
+      syncSubject(ratingStyle, 'ratingStyle'),
+      syncSubject(customEvent, 'customEvent'),
+      syncSubject(customState, 'customState'),
+    ]);
   }
 
   /// Sends a message to hosted audio handler.
   Future<T> send<T>(String method, [List<dynamic>? arguments]) async {
     final sendPort =
-        IsolateNameServer.lookupPortByName(AudioService._hostIsolatePortName);
+        IsolateNameServer.lookupPortByName(AudioService.hostIsolatePortName);
     if (sendPort == null) {
       throw StateError(
         "No isolate was hosted. "
-        "You mast call `AudioService.init` or `AudioService.hostHandler` first",
+        "You must call `AudioService.init` or `AudioService.hostHandler` first",
       );
     }
     final receivePort = ReceivePort();
     sendPort.send(IsolateRequest(receivePort.sendPort, method, arguments));
-    final result = await (receivePort.first)
-        .timeout(const Duration(seconds: 10), onTimeout: () {
-      print(
-        "The call to the hosted isolate has timed out, the isolate has likely died "
-        "See ${AudioService.hostHandler} for more details",
+    final result = await (receivePort.first).timeout(const Duration(seconds: 3),
+        onTimeout: () {
+      throw TimeoutException(
+        "The call to the hosted isolate has timed out, the isolate has likely died. "
+        "See $AudioService.hostHandler for more details",
       );
-      return null;
     }) as T;
     receivePort.close();
     return result;
   }
 
-  /// Synchronizes some stream with some in the hosted audio handler by its [name].
+  /// Synchronizes some stream by its [name] with a corresponding one in the
+  /// hosted audio handler
   ///
-  /// It sends a send port to pipe events into, from some stream in hosted handler.
-  /// This port should receive a message on connection.
-  ///
-  /// In return the hosted handler should also return a send port, and pipe the
-  /// messages that are sent over it into the same stream.
+  /// It sends a send port to feed events into from the remote stream and in
+  /// return the hosted handler should also return a send port, and pipe
+  /// the messages that are sent over it into the same stream.
   ///
   /// The hosted handler may also respond with `null` instead of a send port,
-  /// when it can't pipe the events into the stream.
+  /// when it can't pipe the events into its stream.
+  ///
+  /// The host handler sends to the connected isolates a special [IsolateStreamSyncRequest],
+  /// that has a time record on it, so isolates can check whether they had some
+  /// more recent event in them than what the host isolate has sent.
+  ///
+  /// On both ends the messages that are received via ports should be
+  /// filtered out of the stream listener notifiers, because otherwise it
+  /// will lead to that messages will be sent back and forth forever.
   Future<void> syncSubject(Subject subject, String name) async {
     DateTime? recentUpdate;
     final receivePort = ReceivePort();

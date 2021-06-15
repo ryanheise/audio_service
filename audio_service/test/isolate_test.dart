@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:audio_service/audio_service.dart';
@@ -92,24 +93,16 @@ const customStateStreamValues = <int>[
   3,
 ];
 
-class MockIsolateAudioHandler extends IsolateAudioHandler {
-  final bool _syncSubjects;
-  MockIsolateAudioHandler({bool syncSubjects = false})
-      : _syncSubjects = syncSubjects;
-
-  @override
-  void syncSubjects() {
-    if (_syncSubjects) {
-      super.syncSubjects();
-    }
-  }
-}
-
 Future<void> main() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final handler = MockBaseAudioHandler();
-  await AudioService.hostHandler(handler);
+
+  void host() {
+    if (!AudioService.isHosting) {
+      AudioService.hostHandler(handler);
+    }
+  }
 
   Isolate? isolate;
 
@@ -140,9 +133,52 @@ Future<void> main() async {
   });
 
   group("Connection setup ▮", () {
+    test("can host from spawned isolate and connect from the main", () async {
+      await runIsolate(hostHandlerIsolate);
+      final handler = await AudioService.connectFromIsolate();
+      expect(handler.queue.value, const <Object?>[]);
+      expect(AudioService.isHosting, true);
+      IsolateNameServer.removePortNameMapping(AudioService.hostIsolatePortName);
+    });
+
+    test("throws timeout exception when host isolate dies", () async {
+      await runIsolate(hostHandlerIsolate);
+      isolate!.kill();
+      final handler = IsolateAudioHandler();
+      expect(
+        () => handler.play(),
+        throwsA(
+          isA<TimeoutException>().having(
+            (e) => e.message,
+            'message',
+            "The call to the hosted isolate has timed out, the isolate has likely died. "
+                "See $AudioService.hostHandler for more details",
+          ),
+        ),
+      );
+      IsolateNameServer.removePortNameMapping(AudioService.hostIsolatePortName);
+    });
+
+    test("throws when no isolate is hosted", () {
+      expect(
+        () => AudioService.connectFromIsolate(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            "No isolate was hosted. "
+                "You must call `AudioService.init` or `AudioService.hostHandler` first",
+          ),
+        ),
+      );
+    });
+
     test("throws when attempting to host IsolateAudioHandler", () {
       expect(
-        () => AudioService.hostHandler(MockIsolateAudioHandler()),
+        () {
+          host();
+          AudioService.hostHandler(IsolateAudioHandler());
+        },
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
@@ -156,7 +192,10 @@ Future<void> main() async {
 
     test("throws when attempting to host more than once", () async {
       expect(
-        () => AudioService.hostHandler(BaseAudioHandler()),
+        () {
+          host();
+          AudioService.hostHandler(BaseAudioHandler());
+        },
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -175,6 +214,10 @@ Future<void> main() async {
       expect(actualMethod, method);
       expect(actualArguments, arguments);
     }
+
+    setUpAll(() {
+      host();
+    });
 
     test("subjects receive the most recent update", () async {
       handler.stubPlaybackState =
@@ -779,8 +822,13 @@ Future<void> main() async {
   });
 }
 
+void hostHandlerIsolate(SendPort port) async {
+  AudioService.hostHandler(BaseAudioHandler());
+  port.send(isolateInitMessage);
+}
+
 void subjectsAreRecent(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final playbackState = handler.playbackState;
   await handler.syncSubject(playbackState, 'playbackState');
   port.send(isolateInitMessage);
@@ -791,7 +839,7 @@ void subjectsAreRecent(SendPort port) async {
 }
 
 void playbackStateSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final playbackState = handler.playbackState;
   await handler.syncSubject(playbackState, 'playbackState');
   port.send(isolateInitMessage);
@@ -806,7 +854,7 @@ void playbackStateSubject(SendPort port) async {
 }
 
 void queueSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final queue = handler.queue;
   await handler.syncSubject(queue, 'queue');
   port.send(isolateInitMessage);
@@ -821,7 +869,7 @@ void queueSubject(SendPort port) async {
 }
 
 void queueTitleSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final queueTitle = handler.queueTitle;
   await handler.syncSubject(queueTitle, 'queueTitle');
   port.send(isolateInitMessage);
@@ -836,7 +884,7 @@ void queueTitleSubject(SendPort port) async {
 }
 
 void mediaItemSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final mediaItem = handler.mediaItem;
   await handler.syncSubject(mediaItem, 'mediaItem');
   port.send(isolateInitMessage);
@@ -851,7 +899,7 @@ void mediaItemSubject(SendPort port) async {
 }
 
 void ratingStyleSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final ratingStyle = handler.ratingStyle;
   await handler.syncSubject(ratingStyle, 'ratingStyle');
   port.send(isolateInitMessage);
@@ -866,7 +914,7 @@ void ratingStyleSubject(SendPort port) async {
 }
 
 void androidPlaybackInfoSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final androidPlaybackInfo = handler.androidPlaybackInfo;
   await handler.syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
   port.send(isolateInitMessage);
@@ -881,7 +929,7 @@ void androidPlaybackInfoSubject(SendPort port) async {
 }
 
 void customEventSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final customEvent = handler.customEvent;
   await handler.syncSubject(customEvent, 'customEvent');
   port.send(isolateInitMessage);
@@ -896,7 +944,7 @@ void customEventSubject(SendPort port) async {
 }
 
 void customStateSubject(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final customState = handler.customState;
   await handler.syncSubject(customState, 'customState');
   port.send(isolateInitMessage);
@@ -911,199 +959,199 @@ void customStateSubject(SendPort port) async {
 }
 
 void prepare(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.prepare();
   port.send(isolateInitMessage);
 }
 
 void prepareFromMediaId(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.prepareFromMediaId(id, map);
   port.send(isolateInitMessage);
 }
 
 void prepareFromSearch(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.prepareFromSearch(query, map);
   port.send(isolateInitMessage);
 }
 
 void prepareFromUri(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.prepareFromUri(uri, map);
   port.send(isolateInitMessage);
 }
 
 void play(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.play();
   port.send(isolateInitMessage);
 }
 
 void playFromMediaId(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.playFromMediaId(id, map);
   port.send(isolateInitMessage);
 }
 
 void playFromSearch(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.playFromSearch(query, map);
   port.send(isolateInitMessage);
 }
 
 void playFromUri(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.playFromUri(uri, map);
   port.send(isolateInitMessage);
 }
 
 void playMediaItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.playMediaItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void pause(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.pause();
   port.send(isolateInitMessage);
 }
 
 void click(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.click(MediaButton.next);
   port.send(isolateInitMessage);
 }
 
 void stop(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.stop();
   port.send(isolateInitMessage);
 }
 
 void addQueueItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.addQueueItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void addQueueItems(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.addQueueItems(queue);
   port.send(isolateInitMessage);
 }
 
 void insertQueueItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.insertQueueItem(0, mediaItem);
   port.send(isolateInitMessage);
 }
 
 void updateQueue(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.updateQueue(queue);
   port.send(isolateInitMessage);
 }
 
 void updateMediaItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.updateMediaItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void removeQueueItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.removeQueueItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void removeQueueItemAt(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.removeQueueItemAt(0);
   port.send(isolateInitMessage);
 }
 
 void skipToNext(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.skipToNext();
   port.send(isolateInitMessage);
 }
 
 void skipToPrevious(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.skipToPrevious();
   port.send(isolateInitMessage);
 }
 
 void fastForward(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.fastForward();
   port.send(isolateInitMessage);
 }
 
 void rewind(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.rewind();
   port.send(isolateInitMessage);
 }
 
 void skipToQueueItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.skipToQueueItem(0);
   port.send(isolateInitMessage);
 }
 
 void seek(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.seek(duration);
   port.send(isolateInitMessage);
 }
 
 void setRating(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.setRating(rating, map);
   port.send(isolateInitMessage);
 }
 
 void setCaptioningEnabled(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.setCaptioningEnabled(false);
   port.send(isolateInitMessage);
 }
 
 void setRepeatMode(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.setRepeatMode(repeatMode);
   port.send(isolateInitMessage);
 }
 
 void setShuffleMode(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.setShuffleMode(shuffleMode);
   port.send(isolateInitMessage);
 }
 
 void seekBackward(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.seekBackward(false);
   port.send(isolateInitMessage);
 }
 
 void seekForward(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.seekForward(false);
   port.send(isolateInitMessage);
 }
 
 void setSpeed(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.setSpeed(0.1);
   port.send(isolateInitMessage);
 }
 
 void customAction(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   port.send(await handler.customAction(
     customActionName,
     customActionArguments,
@@ -1111,24 +1159,24 @@ void customAction(SendPort port) async {
 }
 
 void onTaskRemoved(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.onTaskRemoved();
   port.send(isolateInitMessage);
 }
 
 void onNotificationDeleted(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.onNotificationDeleted();
   port.send(isolateInitMessage);
 }
 
 void getChildren(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   port.send(await handler.getChildren(id, map));
 }
 
 void subscribeToChildren(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   final result = handler.subscribeToChildren(id);
   port.send(isolateInitMessage);
   result.listen((event) {
@@ -1137,23 +1185,23 @@ void subscribeToChildren(SendPort port) async {
 }
 
 void getMediaItem(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   port.send(await handler.getMediaItem(id));
 }
 
 void search(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   port.send(await handler.search(query, map));
 }
 
 void androidAdjustRemoteVolume(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.androidAdjustRemoteVolume(androidVolumeDirection);
   port.send(isolateInitMessage);
 }
 
 void androidSetRemoteVolume(SendPort port) async {
-  final handler = MockIsolateAudioHandler();
+  final handler = IsolateAudioHandler();
   await handler.androidSetRemoteVolume(0);
   port.send(isolateInitMessage);
 }
