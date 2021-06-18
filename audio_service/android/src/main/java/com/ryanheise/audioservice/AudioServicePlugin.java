@@ -539,7 +539,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<String, Object> args = new HashMap<>();
                 args.put("query", query);
                 args.put("extras", bundleToMap(extras));
-                audioHandlerInterface.channel.invokeMethod("onSearch", args, new MethodChannel.Result() {
+                audioHandlerInterface.channel.invokeMethod("search", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -707,7 +707,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onCustomAction(String action, Bundle extras) {
-            invokeMethod("onCustomAction", mapOf(
+            invokeMethod("customAction", mapOf(
                         "name", action,
                         "extras", bundleToMap(extras)));
         }
