@@ -64,7 +64,13 @@ class MethodChannelAudioService extends AudioServicePlatform {
               .toMap();
         case 'getMediaItem':
           return (await callbacks.getMediaItem(GetMediaItemRequest(
-              mediaId: call.arguments['mediaId'] as String)));
+                  mediaId: call.arguments['mediaId'] as String)))
+              .toMap();
+        case 'search':
+          return (await callbacks.search(SearchRequest(
+                  query: call.arguments['query'] as String,
+                  extras: _castMap(call.arguments['extras'] as Map?))))
+              .toMap();
         case 'click':
           await callbacks.click(ClickRequest(
               button:
