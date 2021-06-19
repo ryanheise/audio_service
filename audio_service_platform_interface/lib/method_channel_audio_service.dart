@@ -205,6 +205,10 @@ class MethodChannelAudioService extends AudioServicePlatform {
         await callbacks
             .onNotificationDeleted(const OnNotificationDeletedRequest());
         return null;
+      case 'onNotificationClicked':
+        await callbacks.onNotificationClicked(OnNotificationClickedRequest(
+            clicked: call.arguments['clicked'] as bool));
+        return null;
       case 'getChildren':
         return (await callbacks.getChildren(GetChildrenRequest(
                 parentMediaId: call.arguments['parentMediaId'] as String,
