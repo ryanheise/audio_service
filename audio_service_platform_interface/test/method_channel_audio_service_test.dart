@@ -596,6 +596,21 @@ void main() {
       );
     });
 
+    test('onNotificationClicked', () async {
+      for (var clicked in [true, false]) {
+        final request = OnNotificationClickedRequest(clicked: clicked);
+        await handlerChannel.invokeMethod<void>(
+            'onNotificationClicked', request.toMap());
+        final captured = verify(callbacks.onNotificationClicked(captureAny))
+            .captured
+            .first as OnNotificationClickedRequest;
+        expect(
+          captured.toMap(),
+          equals(request.toMap()),
+        );
+      }
+    });
+
     test('getChildren', () async {
       final request = const GetChildrenRequest(
         parentMediaId: Stubs.parentMediaId,
