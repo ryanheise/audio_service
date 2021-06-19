@@ -384,7 +384,7 @@ enum RatingStyle {
   /// Indicates a rating style is not supported.
   ///
   /// A [Rating] will never have this type, but can be used by other classes
-  /// to indicate they do not support Rating.
+  /// to indicate they do not support [Rating].
   none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".
@@ -799,12 +799,11 @@ class AudioService {
   static const String recentRootId = 'recent';
 
   // ignore: close_sinks
-  static final BehaviorSubject<bool> _notificationClickEvent =
+  static final BehaviorSubject<bool> _notificationClicked =
       BehaviorSubject.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
-  static ValueStream<bool> get notificationClickEvent =>
-      _notificationClickEvent;
+  static ValueStream<bool> get notificationClicked => _notificationClicked;
 
   // ignore: close_sinks
   static BehaviorSubject<Duration>? _positionSubject;
@@ -1297,10 +1296,10 @@ class AudioService {
   static ValueStream<PlaybackState> get playbackStateStream =>
       _compatibilitySwitcher.playbackState;
 
-  /// Deprecated. Use [notificationClickEvent] instead.
-  @Deprecated("Use notificationClickEvent instead.")
+  /// Deprecated. Use [notificationClicked] instead.
+  @Deprecated("Use notificationClicked instead.")
   static ValueStream<bool> get notificationClickEventStream =>
-      notificationClickEvent;
+      notificationClicked;
 
   /// Deprecated. Use `value` of  [AudioHandler.playbackState] instead.
   @Deprecated("Use AudioHandler.playbackState.value instead.")
@@ -3511,10 +3510,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
       handler.addQueueItem(request.mediaItem.toPlugin());
 
   @override
-  Future<void> addQueueItems(AddQueueItemsRequest request) => handler
-      .addQueueItems(request.queue.map((item) => item.toPlugin()).toList());
-
-  @override
   Future<void> androidAdjustRemoteVolume(
           AndroidAdjustRemoteVolumeRequest request) =>
       handler.androidAdjustRemoteVolume(request.direction.toPlugin());
@@ -3556,7 +3551,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   @override
   Future<void> onNotificationClicked(
       OnNotificationClickedRequest request) async {
-    AudioService._notificationClickEvent.add(request.clicked);
+    AudioService._notificationClicked.add(request.clicked);
   }
 
   @override

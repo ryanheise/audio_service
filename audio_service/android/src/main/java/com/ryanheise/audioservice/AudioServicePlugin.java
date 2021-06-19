@@ -145,11 +145,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 //            invokeClientMethod("onQueueChanged", map);
 //        }
     };
-    private static void invokeClientMethod(String method, Object arg) {
-        for (ClientInterface clientInterface : clientInterfaces) {
-            clientInterface.channel.invokeMethod(method, arg);
-        }
-    }
+//    private static void invokeClientMethod(String method, Object arg) {
+//        for (ClientInterface clientInterface : clientInterfaces) {
+//            clientInterface.channel.invokeMethod(method, arg);
+//        }
+//    }
 
     //
     // INSTANCE FIELDS AND METHODS
@@ -216,7 +216,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             applicationContext = flutterPluginBinding.getApplicationContext();
         }
         if (audioHandlerInterface == null) {
-            // We don't know yet whether this is the right engine that hosts the BackgroundAudioTask,
+            // We don't know yet whether this is the right engine that hosts the AudioHandler,
             // but we need to register a MethodCallHandler now just in case. If we're wrong, we
             // detect and correct this when receiving the "configure" message.
             audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger(), true /*androidEnableQueue*/);
@@ -263,6 +263,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         if (mediaBrowser == null) {
             connect();
         }
+
+        Activity activity = mainClientInterface.activity;
+        if (clientInterface.wasLaunchedFromRecents()) {
+            // We do this to avoid using the old intent.
+            activity.setIntent(new Intent(Intent.ACTION_MAIN));
+        }
+        sendNotificationClicked();
     }
 
     @Override
@@ -299,15 +306,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void connect() {
-        /* Activity activity = mainClientInterface.activity; */
-        /* if (activity != null) { */
-        /*     if (clientInterface.wasLaunchedFromRecents()) { */
-        /*         // We do this to avoid using the old intent. */
-        /*         activity.setIntent(new Intent(Intent.ACTION_MAIN)); */
-        /*     } */
-        /*     if (activity.getIntent().getAction() != null) */
-        /*         invokeClientMethod("notificationClicked", activity.getIntent().getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION)); */
-        /* } */
         if (mediaBrowser == null) {
             mediaBrowser = new MediaBrowserCompat(applicationContext,
                     new ComponentName(applicationContext, AudioService.class),
@@ -336,9 +334,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     private void registerOnNewIntentListener() {
         activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
-             clientInterface.activity.setIntent(intent);
-             return true;
+            clientInterface.activity.setIntent(intent);
+            sendNotificationClicked();
+            return true;
         });
+    }
+
+    private void sendNotificationClicked() {
+        Activity activity = clientInterface.activity;
+        if (activity.getIntent().getAction() != null) {
+            boolean clicked = activity.getIntent().getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION);
+            audioHandlerInterface.invokeMethod("onNotificationClicked", mapOf("clicked", clicked));
+        }
     }
 
     private static class ClientInterface implements MethodCallHandler {
@@ -472,7 +479,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<String, Object> args = new HashMap<>();
                 args.put("parentMediaId", parentMediaId);
                 args.put("options", bundleToMap(options));
-                audioHandlerInterface.channel.invokeMethod("getChildren", args, new MethodChannel.Result() {
+                audioHandlerInterface.invokeMethod("getChildren", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -505,7 +512,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<String, Object> args = new HashMap<>();
                 args.put("mediaId", itemId);
 
-                audioHandlerInterface.channel.invokeMethod("getMediaItem", args, new MethodChannel.Result() {
+                audioHandlerInterface.invokeMethod("getMediaItem", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -539,7 +546,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<String, Object> args = new HashMap<>();
                 args.put("query", query);
                 args.put("extras", bundleToMap(extras));
-                audioHandlerInterface.channel.invokeMethod("search", args, new MethodChannel.Result() {
+                audioHandlerInterface.invokeMethod("search", args, new MethodChannel.Result() {
                     @Override
                     public void error(String errorCode, String errorMessage, Object errorDetails) {
                         result.sendError(new Bundle());
@@ -881,7 +888,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         @UiThread
-        public void invokeMethod(final Result result, String method, Object arg) {
+        public void invokeMethod(String method, Object arg, final Result result) {
             channel.invokeMethod(method, arg, result);
         }
 
