@@ -384,7 +384,7 @@ enum RatingStyle {
   /// Indicates a rating style is not supported.
   ///
   /// A [Rating] will never have this type, but can be used by other classes
-  /// to indicate they do not support Rating.
+  /// to indicate they do not support [Rating].
   none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".

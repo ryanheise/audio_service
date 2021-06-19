@@ -55,15 +55,26 @@ abstract class AudioServicePlatform extends PlatformInterface {
   }
 
   Future<void> setAndroidPlaybackInfo(
-      SetAndroidPlaybackInfoRequest request) async {}
+      SetAndroidPlaybackInfoRequest request) async {
+    throw UnimplementedError(
+        'setAndroidPlaybackInfo() has not been implemented.');
+  }
 
   Future<void> androidForceEnableMediaButtons(
-      AndroidForceEnableMediaButtonsRequest request) async {}
+      AndroidForceEnableMediaButtonsRequest request) async {
+    throw UnimplementedError(
+        'androidForceEnableMediaButtons() has not been implemented.');
+  }
 
   Future<void> notifyChildrenChanged(
-      NotifyChildrenChangedRequest request) async {}
+      NotifyChildrenChangedRequest request) async {
+    throw UnimplementedError(
+        'notifyChildrenChanged() has not been implemented.');
+  }
 
-  void setHandlerCallbacks(AudioHandlerCallbacks callbacks);
+  void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
+    throw UnimplementedError('setHandlerCallbacks() has not been implemented.');
+  }
 }
 
 /// Callbacks from the platform to the handler.
@@ -168,6 +179,7 @@ abstract class AudioHandlerCallbacks {
   /// Handle the notification being swiped away (Android).
   Future<void> onNotificationDeleted(OnNotificationDeletedRequest request);
 
+  // TODO: implement
   Future<void> onNotificationClicked(OnNotificationClickedRequest request);
 
   /// Get the children of a parent media item.
@@ -402,14 +414,14 @@ class PlaybackStateMessage {
         speed: map['speed'] as double,
         updateTime:
             DateTime.fromMillisecondsSinceEpoch(map['updateTime'] as int),
-        errorCode: map['errorCode'] as int,
-        errorMessage: map['errorMessage'] as String,
+        errorCode: map['errorCode'] as int?,
+        errorMessage: map['errorMessage'] as String?,
         repeatMode:
             AudioServiceRepeatModeMessage.values[map['repeatMode'] as int],
         shuffleMode:
             AudioServiceShuffleModeMessage.values[map['shuffleMode'] as int],
         captioningEnabled: map['captioningEnabled'] as bool,
-        queueIndex: map['queueIndex'] as int,
+        queueIndex: map['queueIndex'] as int?,
       );
 
   Map<String, dynamic> toMap() => <String, dynamic>{
@@ -605,18 +617,18 @@ class MediaItemMessage {
       MediaItemMessage(
         id: raw['id'] as String,
         title: raw['title'] as String,
-        album: raw['album'] as String,
-        artist: raw['artist'] as String,
-        genre: raw['genre'] as String,
+        album: raw['album'] as String?,
+        artist: raw['artist'] as String?,
+        genre: raw['genre'] as String?,
         duration: raw['duration'] != null
             ? Duration(milliseconds: raw['duration'] as int)
             : null,
         artUri:
             raw['artUri'] != null ? Uri.parse(raw['artUri'] as String) : null,
-        playable: raw['playable'] as bool,
-        displayTitle: raw['displayTitle'] as String,
-        displaySubtitle: raw['displaySubtitle'] as String,
-        displayDescription: raw['displayDescription'] as String,
+        playable: raw['playable'] as bool?,
+        displayTitle: raw['displayTitle'] as String?,
+        displaySubtitle: raw['displaySubtitle'] as String?,
+        displayDescription: raw['displayDescription'] as String?,
         rating: raw['rating'] != null
             ? RatingMessage.fromMap(_castMap(raw['rating'] as Map)!)
             : null,
@@ -698,7 +710,6 @@ class RatingMessage {
     };
   }
 
-  // Even though this should take a Map<String, dynamic>, that makes an error.
   RatingMessage.fromMap(Map<String, dynamic> raw)
       : this(
           type: RatingStyleMessage.values[raw['type'] as int],
@@ -712,8 +723,8 @@ class RatingMessage {
 enum RatingStyleMessage {
   /// Indicates a rating style is not supported.
   ///
-  /// A Rating will never have this type, but can be used by other classes
-  /// to indicate they do not support Rating.
+  /// A [RatingMessage] will never have this type, but can be used by other classes
+  /// to indicate they do not support [RatingMessage].
   none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".
@@ -923,7 +934,7 @@ class PlayMediaItemRequest {
   const PlayMediaItemRequest({required this.mediaItem});
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'mediaItem': mediaItem.toString(),
+        'mediaItem': mediaItem.toMap(),
       };
 }
 
