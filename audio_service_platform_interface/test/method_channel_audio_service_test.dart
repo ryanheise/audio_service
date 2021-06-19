@@ -679,8 +679,8 @@ void main() {
         () => handlerChannel.invokeMethod<void>('someUnimplementedMethod'),
         throwsA(
           isA<PlatformException>()
-              .having((e) => e.code, 'code', 'UNIMPLEMENTED')
-              .having((e) => e.message, 'message', 'Wrong method name'),
+              .having((e) => e.code, 'code', 'unimplemented')
+              .having((e) => e.message, 'message', 'Method not implemented: someUnimplementedMethod'),
         ),
       );
     });

@@ -10,8 +10,9 @@ class MockMethodChannel {
     required String channelName,
     this.methods,
   }) : methodChannel = MethodChannel(channelName) {
-    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
-        .setMockMethodCallHandler(methodChannel, _handler);
+    //TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
+    //    .setMockMethodCallHandler(methodChannel, _handler);
+    methodChannel.setMockMethodCallHandler(_handler);
   }
 
   MockMethodChannel copyWith(Map<String, dynamic> methods) {
