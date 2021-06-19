@@ -3511,10 +3511,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
       handler.addQueueItem(request.mediaItem.toPlugin());
 
   @override
-  Future<void> addQueueItems(AddQueueItemsRequest request) => handler
-      .addQueueItems(request.queue.map((item) => item.toPlugin()).toList());
-
-  @override
   Future<void> androidAdjustRemoteVolume(
           AndroidAdjustRemoteVolumeRequest request) =>
       handler.androidAdjustRemoteVolume(request.direction.toPlugin());

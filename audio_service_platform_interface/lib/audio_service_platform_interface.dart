@@ -119,9 +119,6 @@ abstract class AudioHandlerCallbacks {
   /// Add [AddQueueItemRequest.mediaItem] to the queue.
   Future<void> addQueueItem(AddQueueItemRequest request);
 
-  /// Add [AddQueueItemsRequest.queue] to the queue.
-  Future<void> addQueueItems(AddQueueItemsRequest request);
-
   /// Insert [InsertQueueItemRequest.mediaItem] into the queue at position [InsertQueueItemRequest.index].
   Future<void> insertQueueItem(InsertQueueItemRequest request);
 
@@ -971,18 +968,6 @@ class AddQueueItemRequest {
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'mediaItem': mediaItem.toMap(),
-      };
-}
-
-class AddQueueItemsRequest {
-  // TODO: rename https://github.com/ryanheise/audio_service/pull/640#issuecomment-816842550
-  final List<MediaItemMessage> queue;
-
-  @literal
-  const AddQueueItemsRequest({required this.queue});
-
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'queue': queue.map((item) => item.toMap()).toList(),
       };
 }
 
