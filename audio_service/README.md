@@ -93,7 +93,7 @@ class MyAudioHandler extends BaseAudioHandler
     await super.stop();
   }
   
-  customAction(String name, Map<String, dynamic> arguments) async {
+  customAction(String name, [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'setVolume':
         _player.setVolume(arguments['volume']);

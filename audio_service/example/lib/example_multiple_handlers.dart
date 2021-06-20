@@ -187,7 +187,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Display the notification click status.
             StreamBuilder<bool>(
-              stream: AudioService.notificationClickEvent,
+              stream: AudioService.notificationClicked,
               builder: (context, snapshot) {
                 return Text(
                   'Notification Click Status: ${snapshot.data}',
@@ -269,8 +269,8 @@ class MainSwitchHandler extends SwitchAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? extras) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'switchToHandler':
         stop();

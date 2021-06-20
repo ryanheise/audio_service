@@ -384,7 +384,7 @@ enum RatingStyle {
   /// Indicates a rating style is not supported.
   ///
   /// A [Rating] will never have this type, but can be used by other classes
-  /// to indicate they do not support Rating.
+  /// to indicate they do not support [Rating].
   none,
 
   /// A rating style with a single degree of rating, "heart" vs "no heart".
@@ -798,12 +798,12 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  static final BehaviorSubject<bool> _notificationClickEvent =
+  // ignore: close_sinks
+  static final BehaviorSubject<bool> _notificationClicked =
       BehaviorSubject.seeded(false);
 
   /// A stream that broadcasts the status of the notificationClick event.
-  static ValueStream<bool> get notificationClickEvent =>
-      _notificationClickEvent;
+  static ValueStream<bool> get notificationClicked => _notificationClicked;
 
   static BehaviorSubject<Duration>? _positionSubject;
 
@@ -1391,10 +1391,10 @@ class AudioService {
   static ValueStream<PlaybackState> get playbackStateStream =>
       _compatibilitySwitcher.playbackState;
 
-  /// Deprecated. Use [notificationClickEvent] instead.
-  @Deprecated("Use notificationClickEvent instead.")
+  /// Deprecated. Use [notificationClicked] instead.
+  @Deprecated("Use notificationClicked instead.")
   static ValueStream<bool> get notificationClickEventStream =>
-      notificationClickEvent;
+      notificationClicked;
 
   /// Deprecated. Use `value` of  [AudioHandler.playbackState] instead.
   @Deprecated("Use AudioHandler.playbackState.value instead.")
@@ -1748,7 +1748,7 @@ class _BackgroundAudioHandler extends BaseAudioHandler {
   Future<void> seek(Duration position) => _task.onSeekTo(position);
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       // ignore: deprecated_member_use_from_same_package
       _task.onSetRating(rating, extras);
 
@@ -1775,7 +1775,7 @@ class _BackgroundAudioHandler extends BaseAudioHandler {
   Future<void> setSpeed(double speed) => _task.onSetSpeed(speed);
 
   @override
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras) =>
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
       // ignore: deprecated_member_use_from_same_package
       _task.onCustomAction(name, extras);
 
@@ -2056,7 +2056,7 @@ abstract class AudioHandler {
   Future<void> seek(Duration position);
 
   /// Set the rating.
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras);
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]);
 
   /// Set whether captioning is enabled.
   Future<void> setCaptioningEnabled(bool enabled);
@@ -2077,7 +2077,7 @@ abstract class AudioHandler {
   Future<void> setSpeed(double speed);
 
   /// A mechanism to support app-specific actions.
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras);
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]);
 
   /// Handle the task being swiped away in the task manager (Android).
   Future<void> onTaskRemoved();
@@ -2343,7 +2343,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       _inner.setRating(rating, extras);
 
   @override
@@ -2375,7 +2375,7 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<dynamic> customAction(String name, Map<String, dynamic>? extras) =>
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
       _inner.customAction(name, extras);
 
   @override
@@ -2684,7 +2684,7 @@ class IsolateAudioHandler extends AudioHandler {
   Future<void> seek(Duration position) => send('seek', <dynamic>[position]);
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) =>
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) =>
       send('setRating', <dynamic>[rating, extras]);
 
   @override
@@ -2710,8 +2710,8 @@ class IsolateAudioHandler extends AudioHandler {
   Future<void> setSpeed(double speed) => send('setSpeed', <dynamic>[speed]);
 
   @override
-  Future<dynamic> customAction(String name, Map<String, dynamic>? arguments) =>
-      send<dynamic>('customAction', <dynamic>[name, arguments]);
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) =>
+      send<dynamic>('customAction', <dynamic>[name, extras]);
 
   @override
   Future<void> onTaskRemoved() => send('onTaskRemoved');
@@ -3001,7 +3001,7 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> seek(Duration position) async {}
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) async {}
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) async {}
 
   @override
   Future<void> setCaptioningEnabled(bool enabled) async {}
@@ -3022,8 +3022,8 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> setSpeed(double speed) async {}
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? arguments) async {}
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {}
 
   @override
   Future<void> onTaskRemoved() async {}
@@ -3687,10 +3687,6 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
       handler.addQueueItem(request.mediaItem.toPlugin());
 
   @override
-  Future<void> addQueueItems(AddQueueItemsRequest request) => handler
-      .addQueueItems(request.queue.map((item) => item.toPlugin()).toList());
-
-  @override
   Future<void> androidAdjustRemoteVolume(
           AndroidAdjustRemoteVolumeRequest request) =>
       handler.androidAdjustRemoteVolume(request.direction.toPlugin());
@@ -3732,7 +3728,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   @override
   Future<void> onNotificationClicked(
       OnNotificationClickedRequest request) async {
-    AudioService._notificationClickEvent.add(request.clicked);
+    AudioService._notificationClicked.add(request.clicked);
   }
 
   @override
