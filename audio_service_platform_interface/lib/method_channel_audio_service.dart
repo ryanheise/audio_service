@@ -156,7 +156,7 @@ class MethodChannelAudioService extends AudioServicePlatform {
         await callbacks.skipToQueueItem(
             SkipToQueueItemRequest(index: call.arguments['index'] as int));
         return null;
-      case 'seekTo':
+      case 'seek':
         await callbacks.seek(SeekRequest(
             position:
                 Duration(microseconds: call.arguments['position'] as int)));
@@ -205,6 +205,10 @@ class MethodChannelAudioService extends AudioServicePlatform {
         await callbacks
             .onNotificationDeleted(const OnNotificationDeletedRequest());
         return null;
+      case 'onNotificationClicked':
+        await callbacks.onNotificationClicked(OnNotificationClickedRequest(
+            clicked: call.arguments['clicked'] as bool));
+        return null;
       case 'getChildren':
         return (await callbacks.getChildren(GetChildrenRequest(
                 parentMediaId: call.arguments['parentMediaId'] as String,
@@ -217,13 +221,13 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'search':
         return (await callbacks.search(SearchRequest(
                 query: call.arguments['query'] as String,
-                extras: _castMap(call.arguments['extras'] as Map)!)))
+                extras: _castMap(call.arguments['extras'] as Map?))))
             .toMap();
-      case 'setVolumeTo':
+      case 'androidSetRemoteVolume':
         await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
             volumeIndex: call.arguments['volumeIndex'] as int));
         return null;
-      case 'adjustVolume':
+      case 'androidAdjustRemoteVolume':
         await callbacks.androidAdjustRemoteVolume(
             AndroidAdjustRemoteVolumeRequest(
                 direction: AndroidVolumeDirectionMessage
@@ -231,7 +235,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
         return null;
       default:
         throw PlatformException(
-            code: 'UNIMPLEMENTED', message: 'Wrong method name');
+            code: 'unimplemented',
+            message: 'Method not implemented: ${call.method}');
     }
   }
 }

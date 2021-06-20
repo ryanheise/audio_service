@@ -45,7 +45,8 @@ Future<void> main() async {
       TextPlayerHandler(),
     ])),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),
@@ -186,7 +187,7 @@ class MainScreen extends StatelessWidget {
             ),
             // Display the notification click status.
             StreamBuilder<bool>(
-              stream: AudioService.notificationClickEvent,
+              stream: AudioService.notificationClicked,
               builder: (context, snapshot) {
                 return Text(
                   'Notification Click Status: ${snapshot.data}',
@@ -268,8 +269,8 @@ class MainSwitchHandler extends SwitchAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? extras) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'switchToHandler':
         stop();
@@ -356,8 +357,8 @@ class AudioPlayerHandler extends BaseAudioHandler
         return _recentSubject.map((_) => <String, dynamic>{});
       default:
         return Stream.value(_mediaLibrary.items[parentMediaId])
-                .map((_) => <String, dynamic>{})
-            as ValueStream<Map<String, dynamic>>;
+            .map((_) => <String, dynamic>{})
+            .shareValue();
     }
   }
 

@@ -5,7 +5,7 @@ analyzer:
     implicit-casts: false
     implicit-dynamic: false
   exclude:
-    - '**/*mocks.dart'
+    - '**/*.mocks.dart'
 
 linter:
   rules:

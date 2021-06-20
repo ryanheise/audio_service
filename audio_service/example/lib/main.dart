@@ -34,7 +34,8 @@ Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
     config: AudioServiceConfig(
-      androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
       androidEnableQueue: true,
     ),
@@ -170,6 +171,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     // ... and also the current media item via mediaItem.
     mediaItem.add(_item);
 
+    // Load the player.
     _player.setAudioSource(AudioSource.uri(Uri.parse(_item.id)));
   }
 

@@ -260,7 +260,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) {
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) {
     _log('setRating($rating, $extras)');
     return super.setRating(rating, extras);
   }
@@ -302,8 +302,8 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(
-      String name, Map<String, dynamic>? extras) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     _log('customAction($name, extras)');
     final dynamic result = await super.customAction(name, extras);
     _log('customAction -> $result');
@@ -332,7 +332,7 @@ class LoggingAudioHandler extends CompositeAudioHandler {
   }
 
   @override
-  ValueStream<Map<String, dynamic>?> subscribeToChildren(String parentMediaId) {
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     _log('subscribeToChildren($parentMediaId)');
     final result = super.subscribeToChildren(parentMediaId);
     result.listen((options) {

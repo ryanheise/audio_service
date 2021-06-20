@@ -12,7 +12,6 @@ static NSHashTable<AudioServicePlugin *> *plugins = nil;
 static FlutterMethodChannel *handlerChannel = nil;
 static FlutterResult startResult = nil;
 static MPRemoteCommandCenter *commandCenter = nil;
-static NSArray *queue = nil;
 static NSMutableDictionary *mediaItem = nil;
 static long actionBits = 0;
 static NSMutableArray *commands;
@@ -138,30 +137,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     [commandCenter.bookmarkCommand setEnabled:NO];
 }
 
-- (void)broadcastPlaybackState {
-    NSMutableArray *systemActions = [NSMutableArray new];
-    for (int actionIndex = 0; actionIndex < 64; actionIndex++) {
-        if ((actionBits & (1 << actionIndex)) != 0) {
-            [systemActions addObject:@(actionIndex)];
-        }
-    }
-    NSLog(@"XXX: broadcasting state");
-    [self invokeClientMethod:@"onPlaybackStateChanged" arguments:@{
-            @"state":@{
-                    @"processingState": @(processingState),
-                    @"playing": @(playing),
-                    @"controls": @[],
-                    @"systemActions": systemActions,
-                    @"updatePosition": position,
-                    @"bufferedPosition": bufferedPosition,
-                    @"speed": speed,
-                    @"updateTime": updateTime,
-                    @"repeatMode": repeatMode,
-                    @"shuffleMode": shuffleMode,
-            }
-    }];
-}
-
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     if ([@"configure" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
@@ -209,7 +184,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 #endif
             [self activateCommandCenter];
         }
-        [self broadcastPlaybackState];
         [self updateControls];
         if (playing != oldPlaying ||
             speed.doubleValue != oldSpeed.doubleValue ||
@@ -218,11 +192,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         }
         result(@{});
     } else if ([@"setQueue" isEqualToString:call.method]) {
-        NSDictionary *args = (NSDictionary *)call.arguments;
-        queue = args[@"queue"];
-        [self invokeClientMethod:@"onQueueChanged" arguments:@{
-            @"queue":queue
-        }];
         result(@{});
     } else if ([@"setMediaItem" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
@@ -253,7 +222,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
             }
         }
         [self updateNowPlayingInfo];
-        [self invokeClientMethod:@"onMediaItemChanged" arguments:call.arguments];
         result(@{});
     } else if ([@"setPlaybackInfo" isEqualToString:call.method]) {
         result(@{});
@@ -504,7 +472,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
     NSLog(@"changePlaybackPosition");
-    [handlerChannel invokeMethod:@"seekTo" arguments: @{
+    [handlerChannel invokeMethod:@"seek" arguments: @{
         @"position":@((long long) (event.positionTime * 1000000.0))
     }];
     return MPRemoteCommandHandlerStatusSuccess;

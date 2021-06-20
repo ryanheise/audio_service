@@ -81,7 +81,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    MediaMetadataCompat createMediaMetadata(String mediaId, String album, String title, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
+    MediaMetadataCompat createMediaMetadata(String mediaId, String title, String album, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
@@ -222,30 +222,15 @@ public class AudioService extends MediaBrowserServiceCompat {
     public void onCreate() {
         super.onCreate();
         instance = this;
-        notificationChannelId = getApplication().getPackageName() + ".channel";
-        config = new AudioServiceConfig(getApplicationContext());
-
-        if (config.activityClassName != null) {
-            Context context = getApplicationContext();
-            Intent intent = new Intent((String)null);
-            intent.setComponent(new ComponentName(context, config.activityClassName));
-            //Intent intent = new Intent(context, config.activityClassName);
-            intent.setAction(NOTIFICATION_CLICK_ACTION);
-            contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        } else {
-            contentIntent = null;
-        }
-
         repeatMode = 0;
         shuffleMode = 0;
         notificationCreated = false;
         playing = false;
         processingState = AudioProcessingState.idle;
-
         mediaSession = new MediaSessionCompat(this, "media-session");
-        if (!config.androidResumeOnClick) {
-            mediaSession.setMediaButtonReceiver(null);
-        }
+
+        configure(new AudioServiceConfig(getApplicationContext()));
+
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY);
@@ -314,6 +299,23 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public void configure(AudioServiceConfig config) {
         this.config = config;
+        notificationChannelId = (config.androidNotificationChannelId != null)
+            ? config.androidNotificationChannelId
+            : getApplication().getPackageName() + ".channel";
+
+        if (config.activityClassName != null) {
+            Context context = getApplicationContext();
+            Intent intent = new Intent((String)null);
+            intent.setComponent(new ComponentName(context, config.activityClassName));
+            //Intent intent = new Intent(context, config.activityClassName);
+            intent.setAction(NOTIFICATION_CLICK_ACTION);
+            contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        } else {
+            contentIntent = null;
+        }
+        if (!config.androidResumeOnClick) {
+            mediaSession.setMediaButtonReceiver(null);
+        }
     }
 
     int getResourceId(String resource) {
@@ -379,9 +381,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
             stop();
+        } else if (processingState != AudioProcessingState.idle) {
+            updateNotification();
         }
-
-        updateNotification();
     }
 
     private VolumeProviderCompat volumeProvider;
