@@ -331,7 +331,7 @@ class MockBaseAudioHandler implements BaseAudioHandler {
   }
 
   @override
-  Future<void> setRating(Rating rating, Map<String, dynamic>? extras) async {
+  Future<void> setRating(Rating rating, [Map<String, dynamic>? extras]) async {
     _log('setRating', [rating, extras]);
   }
 
@@ -367,7 +367,7 @@ class MockBaseAudioHandler implements BaseAudioHandler {
 
   @override
   Future<dynamic> customAction(
-      String name, Map<String, dynamic>? extras) async {
+      String name, [Map<String, dynamic>? extras]) async {
     _log('customAction', [name, extras]);
     return _stubCustomAction.value;
   }
