@@ -1,7 +1,7 @@
 name: audio_service_web
 description: Web platform implementation of audio_service. This implementation is endorsed and therefore doesn't require a direct dependency.
-version: 0.16.2
-homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service
+version: 0.0.1
+homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service_web
 
 environment:
   sdk: '>=2.12.0 <3.0.0'
@@ -13,14 +13,14 @@ dependencies:
   #   path: ../audio_service_platform_interface
 
   # Use these deps when pushing to origin (for the benefit of testers)
-  audio_service_platform_interface:
-    git:
-      url: https://github.com/ryanheise/audio_service.git
-      ref: one-isolate
-      path: audio_service_platform_interface
+  # audio_service_platform_interface:
+  #   git:
+  #     url: https://github.com/ryanheise/audio_service.git
+  #     ref: one-isolate
+  #     path: audio_service_platform_interface
 
   # Use these deps when publishing.
-  # audio_service_platform_interface: ^1.0.0
+  audio_service_platform_interface: ^0.0.1
 
   rxdart: '>=0.26.0 <0.28.0'
   js: ^0.6.3
