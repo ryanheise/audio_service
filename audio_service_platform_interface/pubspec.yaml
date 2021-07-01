@@ -3,12 +3,13 @@ description: A common platform interface for the audio_service plugin. Different
 homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service_platform_interface
 # NOTE: We strongly prefer non-breaking changes, even at the expense of a
 # less-clean API. See https://flutter.dev/go/platform-interface-breaking-changes
-version: 1.0.0
+version: 0.0.1
 
 dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.0
+  meta: ^1.3.0
 
 dev_dependencies:
   flutter_test:
