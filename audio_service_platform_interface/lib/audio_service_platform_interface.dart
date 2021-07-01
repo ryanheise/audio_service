@@ -229,79 +229,24 @@ enum AudioProcessingStateMessage {
 /// after this are iOS/macOS specific and their indices may shift if new Android
 /// media actions are added in the future.
 enum MediaActionMessage {
-  /// Stop playing audio.
   stop,
-  // 0
-
-  /// Pause audio.
   pause,
-  // 1
-
-  /// Play or resume audio.
   play,
-  // 2
-
-  /// Rewind.
   rewind,
-  // 3
-
-  /// Skip to the previous media item.
   skipToPrevious,
-  // 4
-
-  /// Skip to the next media item.
   skipToNext,
-  // 5
-
-  /// Fast forward.
   fastForward,
-  // 6
-
-  /// Set a rating for the current media item.
   setRating,
-  // 7
-
-  /// Seek within the current media item.
   seek,
-  // 8
-
-  /// Toggle between playing and paused.
   playPause,
-  // 9
-
-  /// Play a given media item by ID.
   playFromMediaId,
-  // 10
-
-  /// Play media from a search.
   playFromSearch,
-  // 11
-
-  /// Skip to a queue item.
   skipToQueueItem,
-  // 12
-
-  /// Play media from a URI.
   playFromUri,
-  // 13
-
-  /// Prepare media for playback.
   prepare,
-  // 14
-
-  /// Prepare media for playback by ID.
   prepareFromMediaId,
-  // 15
-
-  /// Prepare media for playback from a search.
   prepareFromSearch,
-  // 16
-
-  /// Prepare media for playback from a URI.
   prepareFromUri,
-  // 17
-
-  /// Set the repeat mode.
   setRepeatMode,
 
   /// This Android media action is deprecated. [setShuffleMode] should be used
@@ -309,15 +254,12 @@ enum MediaActionMessage {
   _setShuffleModeEnabled,
   setCaptioningEnabled,
   setShuffleMode,
+  setSpeed,
 
   // -- iOS/macOS-specific actions --
 
   seekBackward,
-  // 23
-
-  /// Seek forwards continuously.
   seekForward,
-  // 24
 }
 
 class MediaControlMessage {
