@@ -290,6 +290,28 @@ class PlaybackState {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is PlaybackState &&
+      processingState == other.processingState &&
+      playing == other.playing &&
+      controls == other.controls &&
+      androidCompactActionIndices == other.androidCompactActionIndices &&
+      systemActions == other.systemActions &&
+      updatePosition == other.updatePosition &&
+      bufferedPosition == other.bufferedPosition &&
+      speed == other.speed &&
+      updateTime == other.updateTime &&
+      errorCode == other.errorCode &&
+      errorMessage == other.errorMessage &&
+      repeatMode == other.repeatMode &&
+      shuffleMode == other.shuffleMode &&
+      captioningEnabled == other.captioningEnabled &&
+      queueIndex == other.queueIndex;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -499,6 +521,13 @@ class Rating {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is Rating && _type == other._type && _value == other._value;
 }
 
 /// Metadata of an audio item that can be played, or a folder containing
@@ -774,6 +803,16 @@ class MediaControl {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is MediaControl &&
+      androidIcon == other.androidIcon &&
+      label == other.label &&
+      action == other.action;
 }
 
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
