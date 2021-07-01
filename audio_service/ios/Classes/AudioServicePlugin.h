@@ -39,6 +39,7 @@ enum MediaAction {
     ASetCaptioningEnabled,
     ASetShuffleMode,
     ASetSpeed,
+    // iOS-specific
     ASeekBackward,
     ASeekForward,
 };
