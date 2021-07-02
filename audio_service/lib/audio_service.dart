@@ -877,7 +877,9 @@ class AudioService {
     BaseCacheManager? cacheManager,
   }) async {
     assert(_cacheManager == null);
-    config ??= AudioServiceConfig();
+    config ??= const AudioServiceConfig();
+    assert(config.fastForwardInterval > Duration.zero);
+    assert(config.rewindInterval > Duration.zero);
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
@@ -3238,8 +3240,6 @@ class AudioServiceConfig {
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
-        assert(fastForwardInterval > Duration.zero),
-        assert(rewindInterval > Duration.zero),
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
