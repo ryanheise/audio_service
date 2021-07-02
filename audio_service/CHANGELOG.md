@@ -1,3 +1,38 @@
+## Next release
+
+* Use a single isolate for easier communication.
+* Replace BackgroundAudioTask by AudioHandler.
+* Replace AudioService.start by AudioService.init.
+* Android Auto support.
+* Android 11 media session resumption support.
+* Federated plugin model.
+* Composable audio handlers (@yringler).
+* More callbacks:
+  * prepareFromSearch
+  * prepareFromUri
+  * playFromSearch
+  * playFromUri
+  * addQueueItems
+  * removeQueueItemAt
+  * setCaptioningEnabled
+  * getMediaItem
+  * search
+  * androidSetRemoteVolume
+  * androidAdjustRemoteVolume
+* More state:
+  * queueTitle
+  * ratingStyle
+  * androidPlaybackInfo
+  * customState
+* Default platform implementation for Windows/Linux (@keaganhilliard)
+* iOS/macOS control center bug fixes (@nt4f04uNd)
+* Fix queue index out of bounds bug (@kcrebound)
+* Fix bug when starting foreground service from background (@chengyuhui)
+* Make MediaItem.album nullable (@letiagoalves)
+* Code quality:
+  * Unit tests (@suragch, @nt4f04uNd)
+  * Strong-mode and pedantic lints, code consistency (@nt4f04uNd)
+
 ## 0.17.1
 
 * Support rxdart 0.27.0.

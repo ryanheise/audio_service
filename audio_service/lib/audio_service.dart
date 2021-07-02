@@ -571,7 +571,7 @@ class MediaItem {
 
   /// A map of additional metadata for the media item.
   ///
-  /// The values must be integers or strings.
+  /// The values must be of type `int`, `String`, `bool` or `double`.
   final Map<String, dynamic>? extras;
 
   /// Creates a [MediaItem].
