@@ -254,12 +254,12 @@ enum MediaActionMessage {
   _setShuffleModeEnabled,
   setCaptioningEnabled,
   setShuffleMode,
-  setSpeed,
 
   // -- iOS/macOS-specific actions --
 
   seekBackward,
   seekForward,
+  setSpeed,
 }
 
 class MediaControlMessage {

@@ -114,9 +114,9 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         [NSNull null],
         [NSNull null],
         commandCenter.changeShuffleModeCommand,
-        commandCenter.changePlaybackRateCommand,
         commandCenter.seekBackwardCommand,
         commandCenter.seekForwardCommand,
+        commandCenter.changePlaybackRateCommand,
     ]];
     if (@available(iOS 9.1, macOS 10.12.2, *)) {
         commands[8] = commandCenter.changePlaybackPositionCommand;
@@ -426,14 +426,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
                 [commandCenter.changeShuffleModeCommand removeTarget:nil];
             }
             break;
-        case ASetSpeed:
-            if (enable) {
-//                [commandCenter.changePlaybackRateCommand setSupportedPlaybackRates:@[@(1),@(1.5),@(2)]]
-                [commandCenter.changePlaybackRateCommand addTarget:self action:@selector(changePlaybackRate:)];
-            } else {
-                [commandCenter.changePlaybackRateCommand removeTarget:nil];
-            }
-        break;
         case ASeekBackward:
             if (enable) {
                 [commandCenter.seekBackwardCommand addTarget:self action:@selector(seekBackward:)];
@@ -446,6 +438,14 @@ static NSMutableDictionary *nowPlayingInfo = nil;
                 [commandCenter.seekForwardCommand addTarget:self action:@selector(seekForward:)];
             } else {
                 [commandCenter.seekForwardCommand removeTarget:nil];
+            }
+            break;
+        case ASetSpeed:
+            if (enable) {
+//                [commandCenter.changePlaybackRateCommand setSupportedPlaybackRates:@[@(1),@(1.5),@(2)]]
+                [commandCenter.changePlaybackRateCommand addTarget:self action:@selector(changePlaybackRate:)];
+            } else {
+                [commandCenter.changePlaybackRateCommand removeTarget:nil];
             }
             break;
         default:

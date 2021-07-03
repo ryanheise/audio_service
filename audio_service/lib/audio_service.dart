@@ -93,14 +93,14 @@ enum MediaAction {
   /// Set the shuffle mode.
   setShuffleMode,
 
-  /// Set speed.
-  setSpeed,
-
   /// Seek backwards continuously.
   seekBackward,
 
   /// Seek forwards continuously.
   seekForward,
+
+  /// Set speed.
+  setSpeed,
 }
 
 /// The states of audio processing.

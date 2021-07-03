@@ -33,7 +33,7 @@ late AudioHandler _audioHandler;
 Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
-    config: AudioServiceConfig(
+    config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
