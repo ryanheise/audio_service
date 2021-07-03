@@ -6,67 +6,33 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BaseAudioHandler:', () {
-    test('playbackState returns default PlaybackState()', () {
+    test('Constructor sets correct default parameter values', () {
       final audioHandler = BaseAudioHandler();
-      final expected = PlaybackState();
-      final actual = audioHandler.playbackState.value;
-      expect(actual.processingState, equals(expected.processingState));
-      expect(actual.playing, equals(expected.playing));
-      expect(actual.controls, equals(expected.controls));
-      expect(actual.androidCompactActionIndices,
-          equals(expected.androidCompactActionIndices));
-      expect(actual.systemActions, equals(expected.systemActions));
-      expect(actual.updatePosition, equals(expected.updatePosition));
-      expect(actual.bufferedPosition, equals(expected.bufferedPosition));
-      expect(actual.speed, equals(expected.speed));
-      expect(actual.updateTime.millisecond,
-          closeTo(expected.updateTime.millisecond, 1000));
-      expect(actual.errorCode, equals(expected.errorCode));
-      expect(actual.errorMessage, equals(expected.errorMessage));
-      expect(actual.repeatMode, equals(expected.repeatMode));
-      expect(actual.shuffleMode, equals(expected.shuffleMode));
-      expect(actual.captioningEnabled, equals(expected.captioningEnabled));
-      expect(actual.queueIndex, equals(expected.queueIndex));
-    });
 
-    test('queue returns empty media item list', () {
-      final audioHandler = BaseAudioHandler();
-      final queue = audioHandler.queue.value;
+      final actual = audioHandler.playbackState.nvalue!;
+      final expected = PlaybackState(updateTime: actual.updateTime);
+      expect(actual, equals(expected));
+      final timeNow = DateTime.now().millisecond;
+      expect(actual.updateTime.millisecond, closeTo(timeNow, 1000));
+
+      final queue = audioHandler.queue.nvalue;
       expect(queue, equals(<MediaItem>[]));
-    });
 
-    test('queueTitle returns empty string', () {
-      final audioHandler = BaseAudioHandler();
-      final queueTitle = audioHandler.queueTitle.value;
+      final queueTitle = audioHandler.queueTitle.nvalue;
       expect(queueTitle, equals(''));
-    });
 
-    test('mediaItem returns null', () {
-      final audioHandler = BaseAudioHandler();
-      final mediaItem = audioHandler.mediaItem.value;
+      final mediaItem = audioHandler.mediaItem.nvalue;
       expect(mediaItem, isNull);
-    });
 
-    test('androidPlaybackInfo returns BehaviorSubject', () {
-      final audioHandler = BaseAudioHandler();
       final androidPlaybackInfo = audioHandler.androidPlaybackInfo;
       expect(androidPlaybackInfo, isA<BehaviorSubject<AndroidPlaybackInfo>>());
-    });
 
-    test('ratingStyle is a BehaviorSubject', () {
-      final audioHandler = BaseAudioHandler();
       final ratingStyle = audioHandler.ratingStyle;
       expect(ratingStyle, isA<BehaviorSubject<RatingStyle>>());
-    });
 
-    test('customEvent is a PublishSubject', () {
-      final audioHandler = BaseAudioHandler();
       final customEvent = audioHandler.customEvent;
       expect(customEvent, isA<PublishSubject<dynamic>>());
-    });
 
-    test('customState is a PublishSubject', () {
-      final audioHandler = BaseAudioHandler();
       final customState = audioHandler.customState;
       expect(customState, isA<BehaviorSubject<dynamic>>());
     });
@@ -76,7 +42,7 @@ void main() {
 
       // was paused, MediaButton.media clicked
       await audioHandler.click();
-      expect(audioHandler.playbackState.valueOrNull?.playing, false);
+      expect(audioHandler.playbackState.nvalue!.playing, false);
       expect(audioHandler.playCount, equals(1));
       expect(audioHandler.pauseCount, equals(0));
       expect(audioHandler.skipToNextCount, equals(0));
@@ -108,27 +74,19 @@ void main() {
       expect(audioHandler.skipToPreviousCount, equals(1));
     });
 
-    test('stop() default logic works', () async {
-      final audioHandler = TestableBaseAudioHandler();
-      await audioHandler.stop();
-      expect(audioHandler.playbackState.value.processingState,
-          AudioProcessingState.idle);
-    });
-
-    test('getChildren() returns empty media item list', () async {
+    test('other methods return expected default values', () async {
       final audioHandler = BaseAudioHandler();
+
+      await audioHandler.stop();
+      expect(audioHandler.playbackState.nvalue!.processingState,
+          AudioProcessingState.idle);
+
       final children = await audioHandler.getChildren('parentMediaId');
       expect(children, equals(<MediaItem>[]));
-    });
 
-    test('getMediaItem() returns null', () async {
-      final audioHandler = BaseAudioHandler();
       final mediaItem = await audioHandler.getMediaItem('mediaId');
       expect(mediaItem, isNull);
-    });
 
-    test('search() returns empty list', () async {
-      final audioHandler = BaseAudioHandler();
       final results = await audioHandler.search('query');
       expect(results, equals(<MediaItem>[]));
     });
@@ -171,4 +129,10 @@ class TestableBaseAudioHandler extends BaseAudioHandler {
     skipToPreviousCount++;
     return super.skipToPrevious();
   }
+}
+
+/// Backwards compatible extensions on rxdart's ValueStream
+extension _ValueStreamExtension<T> on ValueStream<T> {
+  /// Backwards compatible version of valueOrNull.
+  T? get nvalue => hasValue ? value : null;
 }
