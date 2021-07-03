@@ -21,12 +21,11 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 | -------                            | :-------: | :-----: | :-----: | :-----: |
 | background audio                   | ✅        | ✅      | ✅      | ✅      |
 | headset clicks                     | ✅        | ✅      | ✅      | ✅      |
-| start/stop/play/pause/seek/rate    | ✅        | ✅      | ✅      | ✅      |
+| play/pause/seek/rate/stop          | ✅        | ✅      | ✅      | ✅      |
 | fast forward/rewind                | ✅        | ✅      | ✅      | ✅      |
 | repeat/shuffle mode                | ✅        | ✅      | ✅      | ✅      |
 | queue manipulation, skip next/prev | ✅        | ✅      | ✅      | ✅      |
-| custom actions                     | ✅        | ✅      | ✅      | ✅      |
-| custom events                      | ✅        | ✅      | ✅      | ✅      |
+| custom actions/events/states       | ✅        | ✅      | ✅      | ✅      |
 | notifications/control center       | ✅        | ✅      | ✅      | ✅      |
 | lock screen controls               | ✅        | ✅      |         | ✅      |
 | album art                          | ✅        | ✅      | ✅      | ✅      |

@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'audio_service_platform_interface.dart';
 
 class MethodChannelAudioService extends AudioServicePlatform {

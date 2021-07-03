@@ -1,3 +1,4 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+* Move web implementation to federated plugin model (@keaganhilliard)
+* Initial release.

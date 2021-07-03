@@ -290,6 +290,28 @@ class PlaybackState {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is PlaybackState &&
+      processingState == other.processingState &&
+      playing == other.playing &&
+      controls == other.controls &&
+      androidCompactActionIndices == other.androidCompactActionIndices &&
+      systemActions == other.systemActions &&
+      updatePosition == other.updatePosition &&
+      bufferedPosition == other.bufferedPosition &&
+      speed == other.speed &&
+      updateTime == other.updateTime &&
+      errorCode == other.errorCode &&
+      errorMessage == other.errorMessage &&
+      repeatMode == other.repeatMode &&
+      shuffleMode == other.shuffleMode &&
+      captioningEnabled == other.captioningEnabled &&
+      queueIndex == other.queueIndex;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -499,6 +521,13 @@ class Rating {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is Rating && _type == other._type && _value == other._value;
 }
 
 /// Metadata of an audio item that can be played, or a folder containing
@@ -542,7 +571,7 @@ class MediaItem {
 
   /// A map of additional metadata for the media item.
   ///
-  /// The values must be integers or strings.
+  /// The values must be of type `int`, `String`, `bool` or `double`.
   final Map<String, dynamic>? extras;
 
   /// Creates a [MediaItem].
@@ -774,6 +803,16 @@ class MediaControl {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is MediaControl &&
+      androidIcon == other.androidIcon &&
+      label == other.label &&
+      action == other.action;
 }
 
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
@@ -838,7 +877,9 @@ class AudioService {
     BaseCacheManager? cacheManager,
   }) async {
     assert(_cacheManager == null);
-    config ??= AudioServiceConfig();
+    config ??= const AudioServiceConfig();
+    assert(config.fastForwardInterval > Duration.zero);
+    assert(config.rewindInterval > Duration.zero);
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
@@ -3199,8 +3240,6 @@ class AudioServiceConfig {
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
-        assert(fastForwardInterval > Duration.zero),
-        assert(rewindInterval > Duration.zero),
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
