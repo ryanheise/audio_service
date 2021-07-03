@@ -259,6 +259,7 @@ enum MediaActionMessage {
 
   seekBackward,
   seekForward,
+  setSpeed,
 }
 
 class MediaControlMessage {
