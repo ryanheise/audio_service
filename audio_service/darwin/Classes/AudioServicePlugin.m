@@ -100,7 +100,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         commandCenter.nextTrackCommand,
         commandCenter.skipForwardCommand,
         [NSNull null],
-        [NSNull null], //commandCenter.changePlaybackPositionCommand,
+        [NSNull null], // changePlaybackPositionCommand, put below
         commandCenter.togglePlayPauseCommand,
         [NSNull null],
         [NSNull null],
@@ -114,6 +114,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         [NSNull null],
         [NSNull null],
         commandCenter.changeShuffleModeCommand,
+        commandCenter.changePlaybackRateCommand,
         commandCenter.seekBackwardCommand,
         commandCenter.seekForwardCommand,
     ]];
@@ -425,6 +426,14 @@ static NSMutableDictionary *nowPlayingInfo = nil;
                 [commandCenter.changeShuffleModeCommand removeTarget:nil];
             }
             break;
+        case ASetSpeed:
+            if (enable) {
+//                [commandCenter.changePlaybackRateCommand setSupportedPlaybackRates:@[@(1),@(1.5),@(2)]]
+                [commandCenter.changePlaybackRateCommand addTarget:self action:@selector(changePlaybackRate:)];
+            } else {
+                [commandCenter.changePlaybackRateCommand removeTarget:nil];
+            }
+        break;
         case ASeekBackward:
             if (enable) {
                 [commandCenter.seekBackwardCommand addTarget:self action:@selector(seekBackward:)];
@@ -525,6 +534,14 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     }
     [handlerChannel invokeMethod:@"setRepeatMode" arguments:@{
         @"repeatMode":@(modeIndex)
+    }];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) changePlaybackRate: (MPChangePlaybackRateCommandEvent *) event {
+    NSLog(@"changePlaybackRate");
+    [handlerChannel invokeMethod:@"setSpeed" arguments:@{
+        @"speed":@(event.playbackRate)
     }];
     return MPRemoteCommandHandlerStatusSuccess;
 }

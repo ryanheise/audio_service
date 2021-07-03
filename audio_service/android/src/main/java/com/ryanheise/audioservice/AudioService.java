@@ -826,6 +826,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
 
         @Override
+        public void onSetPlaybackSpeed(float speed) {
+            if (listener == null) return;
+            listener.onSetPlaybackSpeed(speed);
+        }
+
+        @Override
         public void onSetCaptioningEnabled(boolean enabled) {
             if (listener == null) return;
             listener.onSetCaptioningEnabled(enabled);
@@ -890,13 +896,13 @@ public class AudioService extends MediaBrowserServiceCompat {
         void onSetRating(RatingCompat rating);
         void onSetRating(RatingCompat rating, Bundle extras);
         void onSetRepeatMode(int repeatMode);
-        //void onSetShuffleModeEnabled(boolean enabled);
         void onSetShuffleMode(int shuffleMode);
         void onCustomAction(String action, Bundle extras);
         void onAddQueueItem(MediaMetadataCompat metadata);
         void onAddQueueItemAt(MediaMetadataCompat metadata, int index);
         void onRemoveQueueItem(MediaMetadataCompat metadata);
         void onRemoveQueueItemAt(int index);
+        void onSetPlaybackSpeed(float speed);
         void onSetCaptioningEnabled(boolean enabled);
         void onSetVolumeTo(int volumeIndex);
         void onAdjustVolume(int direction);
@@ -906,11 +912,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         //
 
         void onPlayMediaItem(MediaMetadataCompat metadata);
-
         void onTaskRemoved();
-
         void onClose();
-
         void onDestroy();
     }
 }

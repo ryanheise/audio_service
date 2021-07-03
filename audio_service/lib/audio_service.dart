@@ -83,14 +83,18 @@ enum MediaAction {
   /// Set the repeat mode.
   setRepeatMode,
 
-  /// Unused.
-  unused_1,
+  /// Was depreceated in Android.
+  // ignore: unused_field
+  _setShuffleModeEnabled,
 
-  /// Unused.
-  unused_2,
+  /// Set captioning enabled.
+  setCaptioningEnabled,
 
   /// Set the shuffle mode.
   setShuffleMode,
+
+  /// Set speed.
+  setSpeed,
 
   /// Seek backwards continuously.
   seekBackward,

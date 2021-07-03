@@ -254,6 +254,7 @@ enum MediaActionMessage {
   _setShuffleModeEnabled,
   setCaptioningEnabled,
   setShuffleMode,
+  setSpeed,
 
   // -- iOS/macOS-specific actions --
 
