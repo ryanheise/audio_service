@@ -820,7 +820,7 @@ class AudioService {
   /// for example the isolate may become unreachable, because of being destroyed,
   /// or its engine being destroyed.
   ///
-  /// This method automatically hosts audio handler. so other isolates can
+  /// This method automatically hosts audio handler, so other isolates can
   /// reach out to the handler with [connectFromIsolate]. For more details
   /// on the lifecycle of hosted handler, see [hostHandler] documentation.
   ///
@@ -2546,8 +2546,8 @@ class IsolateAudioHandler extends AudioHandler {
   /// Synchronizes some stream by its [name] with a corresponding one in the
   /// hosted audio handler
   ///
-  /// It sends a send port to feed events into from the remote stream and in
-  /// return the hosted handler should also return a send port, and pipe
+  /// It sends a send port to feed events into from the remote stream, and in
+  /// return the hosted handler should also return a send port and pipe
   /// the messages that are sent over it into the same stream.
   ///
   /// The hosted handler may also respond with `null` instead of a send port,
@@ -2558,8 +2558,8 @@ class IsolateAudioHandler extends AudioHandler {
   /// more recent event in them than what the host isolate has sent.
   ///
   /// On both ends the messages that are received via ports should be
-  /// filtered out of the stream listener notifiers, because otherwise it
-  /// will lead to that messages will be sent back and forth forever.
+  /// filtered out of the stream listener notifiers, because otherwise
+  /// messages will be sent back and forth forever.
   Future<void> syncSubject(Subject subject, String name) async {
     DateTime? recentUpdate;
     final receivePort = ReceivePort();
