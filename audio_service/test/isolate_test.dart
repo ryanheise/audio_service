@@ -100,6 +100,7 @@ Future<void> main() async {
 
   void host() {
     if (!AudioService.isHosting) {
+      AudioService.testSyncIsolate = false;
       AudioService.hostHandler(handler);
     }
   }
@@ -152,9 +153,8 @@ Future<void> main() async {
     test("throws timeout exception when host isolate dies", () async {
       await runIsolate(hostHandlerIsolate);
       killIsolate();
-      final handler = IsolateAudioHandler();
       expect(
-        () => handler.play(),
+        () => AudioService.connectFromIsolate(),
         throwsA(
           isA<TimeoutException>().having(
             (e) => e.message,
@@ -175,20 +175,6 @@ Future<void> main() async {
             'message',
             "No isolate was hosted. "
                 "You must call `AudioService.init` or `AudioService.hostHandler` first",
-          ),
-        ),
-      );
-    });
-
-    test("throws when attempting to host IsolateAudioHandler", () {
-      expect(
-        () => AudioService.hostHandler(IsolateAudioHandler()),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            "Registering IsolateAudioHandler is not allowed, as this will lead "
-                "to an infinite loop when its methods are called",
           ),
         ),
       );
@@ -832,9 +818,9 @@ void hostHandlerIsolate(SendPort port) async {
 }
 
 void subjectsAreRecent(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final playbackState = handler.playbackState;
-  await handler.syncSubject(playbackState, 'playbackState');
+  await (handler as dynamic).syncSubject(playbackState, 'playbackState');
   port.send(isolateInitMessage);
   playbackState.listen((value) {
     port.send(value);
@@ -843,9 +829,9 @@ void subjectsAreRecent(SendPort port) async {
 }
 
 void playbackStateSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final playbackState = handler.playbackState;
-  await handler.syncSubject(playbackState, 'playbackState');
+  await (handler as dynamic).syncSubject(playbackState, 'playbackState');
   port.send(isolateInitMessage);
   var updates = 0;
   playbackState.listen((value) {
@@ -858,9 +844,9 @@ void playbackStateSubject(SendPort port) async {
 }
 
 void queueSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final queue = handler.queue;
-  await handler.syncSubject(queue, 'queue');
+  await (handler as dynamic).syncSubject(queue, 'queue');
   port.send(isolateInitMessage);
   var updates = 0;
   queue.listen((value) {
@@ -873,9 +859,9 @@ void queueSubject(SendPort port) async {
 }
 
 void queueTitleSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final queueTitle = handler.queueTitle;
-  await handler.syncSubject(queueTitle, 'queueTitle');
+  await (handler as dynamic).syncSubject(queueTitle, 'queueTitle');
   port.send(isolateInitMessage);
   var updates = 0;
   queueTitle.listen((value) {
@@ -888,9 +874,9 @@ void queueTitleSubject(SendPort port) async {
 }
 
 void mediaItemSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final mediaItem = handler.mediaItem;
-  await handler.syncSubject(mediaItem, 'mediaItem');
+  await (handler as dynamic).syncSubject(mediaItem, 'mediaItem');
   port.send(isolateInitMessage);
   var updates = 0;
   mediaItem.listen((value) {
@@ -903,9 +889,9 @@ void mediaItemSubject(SendPort port) async {
 }
 
 void ratingStyleSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final ratingStyle = handler.ratingStyle;
-  await handler.syncSubject(ratingStyle, 'ratingStyle');
+  await (handler as dynamic).syncSubject(ratingStyle, 'ratingStyle');
   port.send(isolateInitMessage);
   var updates = 0;
   ratingStyle.listen((value) {
@@ -918,9 +904,9 @@ void ratingStyleSubject(SendPort port) async {
 }
 
 void androidPlaybackInfoSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final androidPlaybackInfo = handler.androidPlaybackInfo;
-  await handler.syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
+  await (handler as dynamic).syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
   port.send(isolateInitMessage);
   var updates = 0;
   androidPlaybackInfo.listen((value) {
@@ -933,9 +919,9 @@ void androidPlaybackInfoSubject(SendPort port) async {
 }
 
 void customEventSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final customEvent = handler.customEvent;
-  await handler.syncSubject(customEvent, 'customEvent');
+  await (handler as dynamic).syncSubject(customEvent, 'customEvent');
   port.send(isolateInitMessage);
   var updates = 0;
   customEvent.listen((dynamic value) {
@@ -948,9 +934,9 @@ void customEventSubject(SendPort port) async {
 }
 
 void customStateSubject(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final customState = handler.customState;
-  await handler.syncSubject(customState, 'customState');
+  await (handler as dynamic).syncSubject(customState, 'customState');
   port.send(isolateInitMessage);
   var updates = 0;
   customState.listen((dynamic value) {
@@ -963,199 +949,199 @@ void customStateSubject(SendPort port) async {
 }
 
 void prepare(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.prepare();
   port.send(isolateInitMessage);
 }
 
 void prepareFromMediaId(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.prepareFromMediaId(id, map);
   port.send(isolateInitMessage);
 }
 
 void prepareFromSearch(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.prepareFromSearch(query, map);
   port.send(isolateInitMessage);
 }
 
 void prepareFromUri(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.prepareFromUri(uri, map);
   port.send(isolateInitMessage);
 }
 
 void play(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.play();
   port.send(isolateInitMessage);
 }
 
 void playFromMediaId(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.playFromMediaId(id, map);
   port.send(isolateInitMessage);
 }
 
 void playFromSearch(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.playFromSearch(query, map);
   port.send(isolateInitMessage);
 }
 
 void playFromUri(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.playFromUri(uri, map);
   port.send(isolateInitMessage);
 }
 
 void playMediaItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.playMediaItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void pause(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.pause();
   port.send(isolateInitMessage);
 }
 
 void click(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.click(MediaButton.next);
   port.send(isolateInitMessage);
 }
 
 void stop(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.stop();
   port.send(isolateInitMessage);
 }
 
 void addQueueItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.addQueueItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void addQueueItems(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.addQueueItems(queue);
   port.send(isolateInitMessage);
 }
 
 void insertQueueItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.insertQueueItem(0, mediaItem);
   port.send(isolateInitMessage);
 }
 
 void updateQueue(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.updateQueue(queue);
   port.send(isolateInitMessage);
 }
 
 void updateMediaItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.updateMediaItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void removeQueueItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.removeQueueItem(mediaItem);
   port.send(isolateInitMessage);
 }
 
 void removeQueueItemAt(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.removeQueueItemAt(0);
   port.send(isolateInitMessage);
 }
 
 void skipToNext(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.skipToNext();
   port.send(isolateInitMessage);
 }
 
 void skipToPrevious(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.skipToPrevious();
   port.send(isolateInitMessage);
 }
 
 void fastForward(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.fastForward();
   port.send(isolateInitMessage);
 }
 
 void rewind(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.rewind();
   port.send(isolateInitMessage);
 }
 
 void skipToQueueItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.skipToQueueItem(0);
   port.send(isolateInitMessage);
 }
 
 void seek(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.seek(duration);
   port.send(isolateInitMessage);
 }
 
 void setRating(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.setRating(rating, map);
   port.send(isolateInitMessage);
 }
 
 void setCaptioningEnabled(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.setCaptioningEnabled(false);
   port.send(isolateInitMessage);
 }
 
 void setRepeatMode(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.setRepeatMode(repeatMode);
   port.send(isolateInitMessage);
 }
 
 void setShuffleMode(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.setShuffleMode(shuffleMode);
   port.send(isolateInitMessage);
 }
 
 void seekBackward(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.seekBackward(false);
   port.send(isolateInitMessage);
 }
 
 void seekForward(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.seekForward(false);
   port.send(isolateInitMessage);
 }
 
 void setSpeed(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.setSpeed(0.1);
   port.send(isolateInitMessage);
 }
 
 void customAction(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   port.send(await handler.customAction(
     customActionName,
     customActionArguments,
@@ -1163,24 +1149,24 @@ void customAction(SendPort port) async {
 }
 
 void onTaskRemoved(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.onTaskRemoved();
   port.send(isolateInitMessage);
 }
 
 void onNotificationDeleted(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.onNotificationDeleted();
   port.send(isolateInitMessage);
 }
 
 void getChildren(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   port.send(await handler.getChildren(id, map));
 }
 
 void subscribeToChildren(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   final result = handler.subscribeToChildren(id);
   port.send(isolateInitMessage);
   result.listen((event) {
@@ -1189,23 +1175,23 @@ void subscribeToChildren(SendPort port) async {
 }
 
 void getMediaItem(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   port.send(await handler.getMediaItem(id));
 }
 
 void search(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   port.send(await handler.search(query, map));
 }
 
 void androidAdjustRemoteVolume(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.androidAdjustRemoteVolume(androidVolumeDirection);
   port.send(isolateInitMessage);
 }
 
 void androidSetRemoteVolume(SendPort port) async {
-  final handler = IsolateAudioHandler();
+  final handler = await AudioService.connectFromIsolate();
   await handler.androidSetRemoteVolume(0);
   port.send(isolateInitMessage);
 }

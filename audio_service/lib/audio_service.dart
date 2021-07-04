@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
@@ -863,10 +864,26 @@ class AudioService {
   @visibleForTesting
   static const hostIsolatePortName = 'com.ryanheise.audioservice.port';
 
+  /// Set this to false to disable stream synching in tests for the [connectFromIsolate].
+  /// Not in test environment will do nothing.
+  @visibleForTesting
+  static set testSyncIsolate(bool value) {
+    if (kDebugMode) {
+      if (value) {
+        IsolateNameServer.removePortNameMapping(_testSyncIsolateKey);
+      } else {
+        final port = ReceivePort();
+        IsolateNameServer.registerPortWithName(port.sendPort, _testSyncIsolateKey);
+        port.close();
+      }
+    }
+  }
+  static const _testSyncIsolateKey = 'com.ryanheise.audioservice.testSyncIsolate';
+
   /// Connect to the [AudioHandler], which was hosted by calling [init] or
   /// [hostHandler], from another isolate.
-  static Future<AudioHandler> connectFromIsolate() async {
-    final handler = IsolateAudioHandler();
+  static Future<BaseAudioHandler> connectFromIsolate() async {
+    final handler = _IsolateAudioHandler(IsolateNameServer.lookupPortByName(_testSyncIsolateKey) == null);
     await handler.init();
     return handler;
   }
@@ -889,9 +906,9 @@ class AudioService {
   /// isolates will stop receiving updates and calls to their methods will timeout.
   static void hostHandler(AudioHandler handler) {
     if (!kIsWeb) {
-      if (handler is IsolateAudioHandler) {
+      if (handler is _IsolateAudioHandler) {
         throw ArgumentError(
-          "Registering IsolateAudioHandler is not allowed, as this will lead "
+          "Registering _IsolateAudioHandler is not allowed, as this will lead "
           "to an infinite loop when its methods are called",
         );
       }
@@ -899,15 +916,15 @@ class AudioService {
         throw StateError("Some isolate has already hosted a handler");
       }
 
-      /// More comments on that are available in [IsolateAudioHandler.syncSubject].
-      void syncStream(Stream<dynamic> stream, IsolateRequest request) {
+      /// More comments on that are available in [_IsolateAudioHandler.syncSubject].
+      void syncStream(Stream<dynamic> stream, _IsolateRequest request) {
         final sendPort = request.arguments![0] as SendPort;
         final toSkip = <Object?>[];
         stream.listen((dynamic event) {
           if (toSkip.contains(event)) {
             toSkip.remove(event);
           } else {
-            sendPort.send(IsolateStreamSyncRequest(event));
+            sendPort.send(_IsolateStreamSyncRequest(event));
           }
         });
         if (stream is StreamController) {
@@ -924,7 +941,7 @@ class AudioService {
 
       _hostReceivePort = ReceivePort();
       _hostReceivePort!.listen((dynamic event) async {
-        final request = event as IsolateRequest;
+        final request = event as _IsolateRequest;
         switch (request.method) {
           case 'playbackState':
             syncStream(handler.playbackState, request);
@@ -2445,7 +2462,7 @@ class CompositeAudioHandler extends AudioHandler {
 }
 
 /// A message to be sent to the audio handler hosted with [AudioService.hostHandler].
-class IsolateRequest {
+class _IsolateRequest {
   /// The send port for sending the response of this request.
   final SendPort sendPort;
 
@@ -2456,12 +2473,12 @@ class IsolateRequest {
   final List<dynamic>? arguments;
 
   /// Creates a request.
-  IsolateRequest(this.sendPort, this.method, [this.arguments]);
+  _IsolateRequest(this.sendPort, this.method, [this.arguments]);
 }
 
 /// A message to be sent from host isolate to the connected to synchronize
 /// the their streams.
-class IsolateStreamSyncRequest {
+class _IsolateStreamSyncRequest {
   /// Event data.
   final dynamic event;
 
@@ -2469,14 +2486,13 @@ class IsolateStreamSyncRequest {
   final DateTime time;
 
   /// Creates a request.
-  IsolateStreamSyncRequest(this.event) : time = DateTime.now();
+  _IsolateStreamSyncRequest(this.event) : time = DateTime.now();
 }
 
 /// Handler that connects to the handler hosted with [AudioService.hostHandler].
 ///
-/// For convenience, it's better to use [AudioService.connectFromIsolate] which
-/// creates this class and calls [init].
-class IsolateAudioHandler extends AudioHandler {
+/// Used [AudioService.connectFromIsolate] in.
+class _IsolateAudioHandler implements BaseAudioHandler {
   @override
   final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
 
@@ -2503,21 +2519,29 @@ class IsolateAudioHandler extends AudioHandler {
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
   /// Creates an isolate audio handler.
-  /// You should call the [init] right away after instantiation.
-  IsolateAudioHandler() : super._();
+  /// The [init] should be called right away after that.
+  _IsolateAudioHandler(this.testSyncIsolate);
+
+  /// Set this to true to disable stream synching in tests.
+  /// Not in test environment will do nothing.
+  final bool testSyncIsolate;
 
   /// Synchronizes the subjects with the hosted isolate.
-  Future<void> init() {
-    return Future.wait([
-      syncSubject(playbackState, 'playbackState'),
-      syncSubject(queue, 'queue'),
-      syncSubject(queueTitle, 'queueTitle'),
-      syncSubject(mediaItem, 'mediaItem'),
-      syncSubject(androidPlaybackInfo, 'androidPlaybackInfo'),
-      syncSubject(ratingStyle, 'ratingStyle'),
-      syncSubject(customEvent, 'customEvent'),
-      syncSubject(customState, 'customState'),
-    ]);
+  Future<void> init() async {
+    // Disable the synching for tests as this causes a lot of side effects
+    // in unit tests.
+    if (testSyncIsolate || !kDebugMode || kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+      await Future.wait([
+        syncSubject(playbackState, 'playbackState'),
+        syncSubject(queue, 'queue'),
+        syncSubject(queueTitle, 'queueTitle'),
+        syncSubject(mediaItem, 'mediaItem'),
+        syncSubject(androidPlaybackInfo, 'androidPlaybackInfo'),
+        syncSubject(ratingStyle, 'ratingStyle'),
+        syncSubject(customEvent, 'customEvent'),
+        syncSubject(customState, 'customState'),
+      ]);
+    }
   }
 
   /// Sends a message to hosted audio handler.
@@ -2531,7 +2555,7 @@ class IsolateAudioHandler extends AudioHandler {
       );
     }
     final receivePort = ReceivePort();
-    sendPort.send(IsolateRequest(receivePort.sendPort, method, arguments));
+    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
     final result = await (receivePort.first).timeout(const Duration(seconds: 3),
         onTimeout: () {
       throw TimeoutException(
@@ -2553,7 +2577,7 @@ class IsolateAudioHandler extends AudioHandler {
   /// The hosted handler may also respond with `null` instead of a send port,
   /// when it can't pipe the events into its stream.
   ///
-  /// The host handler sends to the connected isolates a special [IsolateStreamSyncRequest],
+  /// The host handler sends to the connected isolates a special [_IsolateStreamSyncRequest],
   /// that has a time record on it, so isolates can check whether they had some
   /// more recent event in them than what the host isolate has sent.
   ///
@@ -2566,7 +2590,7 @@ class IsolateAudioHandler extends AudioHandler {
     final toSkip = <Object?>[];
     SendPort? sendPort;
     receivePort.listen((dynamic message) {
-      final request = message as IsolateStreamSyncRequest;
+      final request = message as _IsolateStreamSyncRequest;
       if (recentUpdate == null ||
           request.time.difference(recentUpdate!) > Duration.zero) {
         recentUpdate = request.time;
