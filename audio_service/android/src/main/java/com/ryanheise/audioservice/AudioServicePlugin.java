@@ -802,15 +802,15 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 long updateTimeSinceBoot = updateTimeSinceEpoch - bootTime;
 
                 List<NotificationCompat.Action> actions = new ArrayList<>();
-                int actionBits = 0;
+                long actionBits = 0;
                 for (Map<?, ?> rawControl : rawControls) {
                     String resource = (String)rawControl.get("androidIcon");
-                    int actionCode = 1 << ((Integer)rawControl.get("action"));
+                    long actionCode = 1 << ((Integer)rawControl.get("action"));
                     actionBits |= actionCode;
                     actions.add(AudioService.instance.action(resource, (String)rawControl.get("label"), actionCode));
                 }
                 for (Integer rawSystemAction : rawSystemActions) {
-                    int actionCode = 1 << rawSystemAction;
+                    long actionCode = 1 << rawSystemAction;
                     actionBits |= actionCode;
                 }
                 int[] compactActionIndices = null;

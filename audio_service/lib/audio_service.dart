@@ -174,8 +174,9 @@ class PlaybackState {
   /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
   /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
   ///
-  /// Note that specifying [MediaAction.seek] in [systemActions] will enable
-  /// a seek bar in both the Android notification and the iOS control center.
+  /// Note that specifying [MediaAction.seek] in [systemActions] will enable a
+  /// seek bar in both the Android notification and the iOS control center, but
+  /// on Android, it will show only if the media item's duration has been set.
   /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
   /// behaviour on iOS in which if you have already enabled the
   /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these

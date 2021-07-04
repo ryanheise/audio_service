@@ -60,6 +60,30 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static final int KEYCODE_BYPASS_PLAY = KeyEvent.KEYCODE_MUTE;
     public static final int KEYCODE_BYPASS_PAUSE = KeyEvent.KEYCODE_MEDIA_RECORD;
     public static final int MAX_COMPACT_ACTIONS = 3;
+    private static final long AUTO_ENABLED_ACTIONS = PlaybackStateCompat.ACTION_STOP
+            | PlaybackStateCompat.ACTION_PAUSE
+            | PlaybackStateCompat.ACTION_PLAY
+            | PlaybackStateCompat.ACTION_REWIND
+            | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            | PlaybackStateCompat.ACTION_FAST_FORWARD
+            | PlaybackStateCompat.ACTION_SET_RATING
+            // "seek" is the exception because it's the only action that
+            // affects the appearance of the media notification, so we leave it
+            // up to the plugin user whether to enable it (via systemActions).
+            //| PlaybackStateCompat.ACTION_SEEK_TO
+            | PlaybackStateCompat.ACTION_PLAY_PAUSE
+            | PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+            | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+            | PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM
+            | PlaybackStateCompat.ACTION_PLAY_FROM_URI
+            | PlaybackStateCompat.ACTION_PREPARE
+            | PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID
+            | PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH
+            | PlaybackStateCompat.ACTION_PREPARE_FROM_URI
+            | PlaybackStateCompat.ACTION_SET_REPEAT_MODE
+            | PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
+            | PlaybackStateCompat.ACTION_SET_CAPTIONING_ENABLED;
 
     static AudioService instance;
     private static PendingIntent contentIntent;
@@ -233,7 +257,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
-                .setActions(PlaybackStateCompat.ACTION_PLAY);
+                .setActions(AUTO_ENABLED_ACTIONS);
         mediaSession.setPlaybackState(stateBuilder.build());
         mediaSession.setCallback(mediaSessionCallback = new MediaSessionCallback());
         setSessionToken(mediaSession.getSessionToken());
@@ -347,7 +371,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return PendingIntent.getBroadcast(this, 0, intent, 0);
     }
 
-    void setState(List<NotificationCompat.Action> actions, int actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled, Long queueIndex) {
+    void setState(List<NotificationCompat.Action> actions, long actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled, Long queueIndex) {
         this.actions = actions;
         this.compactActionIndices = compactActionIndices;
         boolean wasPlaying = this.playing;
@@ -358,7 +382,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         this.shuffleMode = shuffleMode;
 
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
-                .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | actionBits)
+                .setActions(AUTO_ENABLED_ACTIONS | actionBits)
                 .setState(getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
         if (queueIndex != null)
