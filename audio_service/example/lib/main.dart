@@ -37,7 +37,6 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
-      androidEnableQueue: true,
     ),
   );
   runApp(MyApp());

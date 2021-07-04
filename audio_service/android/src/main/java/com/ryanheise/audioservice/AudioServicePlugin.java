@@ -219,7 +219,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             // We don't know yet whether this is the right engine that hosts the AudioHandler,
             // but we need to register a MethodCallHandler now just in case. If we're wrong, we
             // detect and correct this when receiving the "configure" message.
-            audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger(), true /*androidEnableQueue*/);
+            audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger());
             AudioService.init(audioHandlerInterface);
         }
         if (mediaBrowser == null) {
@@ -431,7 +431,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     }
                     mainClientInterface = ClientInterface.this;
                     if (audioHandlerInterface == null) {
-                        audioHandlerInterface = new AudioHandlerInterface(messenger, true /*androidEnableQueue*/);
+                        audioHandlerInterface = new AudioHandlerInterface(messenger);
                         AudioService.init(audioHandlerInterface);
                     } else if (audioHandlerInterface.messenger != messenger) {
                         // We've detected this is the real engine hosting the AudioHandler,
@@ -453,14 +453,12 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static class AudioHandlerInterface implements MethodCallHandler, AudioService.ServiceListener {
-        private boolean enableQueue;
         public BinaryMessenger messenger;
         public MethodChannel channel;
         private AudioTrack silenceAudioTrack;
         private static final int SILENCE_SAMPLE_RATE = 44100;
 
-        public AudioHandlerInterface(BinaryMessenger messenger, boolean enableQueue) {
-            this.enableQueue = enableQueue;
+        public AudioHandlerInterface(BinaryMessenger messenger) {
             this.messenger = messenger;
             channel = new MethodChannel(messenger, CHANNEL_HANDLER);
             channel.setMethodCallHandler(this);

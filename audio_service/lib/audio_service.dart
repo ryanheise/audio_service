@@ -1408,6 +1408,9 @@ class AudioService {
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
+    if (!androidEnableQueue) {
+      print('NOTE: androidEnableQueue is always true from 0.18.0 onwards.');
+    }
     if (_cacheManager != null && _handler.playbackState.hasValue) {
       if (_handler.playbackState.nvalue!.processingState !=
           AudioProcessingState.idle) {
@@ -1444,7 +1447,6 @@ class AudioService {
           artDownscaleHeight: androidArtDownscaleSize?.height.round(),
           fastForwardInterval: fastForwardInterval,
           rewindInterval: rewindInterval,
-          androidEnableQueue: androidEnableQueue,
         ),
       );
     } else {
@@ -3210,11 +3212,6 @@ class AudioServiceConfig {
   /// positive.
   final Duration rewindInterval;
 
-  /// Whether queue support should be enabled on the media session on Android.
-  /// If your app will run on Android and has a queue, you should set this to
-  /// true.
-  final bool androidEnableQueue;
-
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
@@ -3240,7 +3237,6 @@ class AudioServiceConfig {
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
-    this.androidEnableQueue = false,
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
@@ -3266,7 +3262,6 @@ class AudioServiceConfig {
         artDownscaleHeight: artDownscaleHeight,
         fastForwardInterval: fastForwardInterval,
         rewindInterval: rewindInterval,
-        androidEnableQueue: androidEnableQueue,
         preloadArtwork: preloadArtwork,
         androidBrowsableRootExtras: androidBrowsableRootExtras,
       );

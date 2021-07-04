@@ -231,7 +231,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         configure(new AudioServiceConfig(getApplicationContext()));
 
-        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY);
         mediaSession.setPlaybackState(stateBuilder.build());
@@ -560,10 +560,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         deactivateMediaSession();
         mediaSession.release();
         mediaSession = null;
-    }
-
-    void enableQueue() {
-        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
     }
 
     void setQueue(List<MediaSessionCompat.QueueItem> queue) {

@@ -22,7 +22,7 @@ public class AudioServiceConfig {
     private static final String KEY_ART_DOWNSCALE_WIDTH = "artDownscaleWidth";
     private static final String KEY_ART_DOWNSCALE_HEIGHT = "artDownscaleHeight";
     private static final String KEY_ACTIVITY_CLASS_NAME = "activityClassName";
-    private static final String KEY_BROWSABLE_ROOT_EXTRAS = "browsableRootExtras";
+    private static final String KEY_BROWSABLE_ROOT_EXTRAS = "androidBrowsableRootExtras";
 
     private SharedPreferences preferences;
     public boolean androidResumeOnClick;
