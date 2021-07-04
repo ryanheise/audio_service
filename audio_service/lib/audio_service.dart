@@ -896,9 +896,8 @@ class AudioService {
 
   /// Hosts the audio handler to other isolates.
   ///
-  /// Must be called from the main isolate, other isolates can connect
-  /// to the handler via [connectFromIsolate]. Can be called only once,
-  /// all consecutive calls will throw.
+  /// Other isolates can connect to the handler via [connectFromIsolate].
+  /// Can be called only once, all consecutive calls will throw.
   ///
   /// Calling this method not from the main isolate may have unintended consequences,
   /// for example the isolate may become unreachable, because of being destroyed,
