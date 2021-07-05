@@ -93,13 +93,18 @@ const customStateStreamValues = <int>[
   3,
 ];
 
+bool get isHosting {
+  return IsolateNameServer.lookupPortByName(AudioService.hostIsolatePortName) !=
+      null;
+}
+
 Future<void> main() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final handler = MockBaseAudioHandler();
 
   void host() {
-    if (!AudioService.isHosting) {
+    if (!isHosting) {
       AudioService.testSyncIsolate = false;
       AudioService.hostHandler(handler);
     }
@@ -147,7 +152,7 @@ Future<void> main() async {
       await runIsolate(hostHandlerIsolate);
       final handler = await AudioService.connectFromIsolate();
       expect(handler.queue.value, const <Object?>[]);
-      expect(AudioService.isHosting, true);
+      expect(isHosting, true);
     });
 
     test("throws timeout exception when host isolate dies", () async {
@@ -906,7 +911,8 @@ void ratingStyleSubject(SendPort port) async {
 void androidPlaybackInfoSubject(SendPort port) async {
   final handler = await AudioService.connectFromIsolate();
   final androidPlaybackInfo = handler.androidPlaybackInfo;
-  await (handler as dynamic).syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
+  await (handler as dynamic)
+      .syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
   port.send(isolateInitMessage);
   var updates = 0;
   androidPlaybackInfo.listen((value) {

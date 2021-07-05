@@ -821,9 +821,7 @@ class AudioService {
   /// for example the isolate may become unreachable, because of being destroyed,
   /// or its engine being destroyed.
   ///
-  /// This method automatically hosts audio handler, so other isolates can
-  /// reach out to the handler with [connectFromIsolate]. For more details
-  /// on the lifecycle of hosted handler, see [hostHandler] documentation.
+  /// Other isolates can reach out to the handler with [connectFromIsolate].
   ///
   /// You may optionally specify a [cacheManager] to use when loading artwork to
   /// display in the media notification and lock screen. This defaults to
@@ -856,6 +854,15 @@ class AudioService {
     return handler;
   }
 
+  /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
+  /// must have been initialised via [init] prior to connecting.
+  static Future<BaseAudioHandler> connectFromIsolate() async {
+    final handler = _IsolateAudioHandler(
+        IsolateNameServer.lookupPortByName(_testSyncIsolatePortName) == null);
+    await handler.init();
+    return handler;
+  }
+
   /// Port to host the handler on with [hostHandler].
   static ReceivePort? _hostReceivePort;
 
@@ -863,6 +870,8 @@ class AudioService {
   /// unintended behaviors.
   @visibleForTesting
   static const hostIsolatePortName = 'com.ryanheise.audioservice.port';
+  static const _testSyncIsolatePortName =
+      'com.ryanheise.audioservice.testSyncIsolate';
 
   /// Set this to false to disable stream synching in tests for the [connectFromIsolate].
   /// Not in test environment will do nothing.
@@ -870,39 +879,27 @@ class AudioService {
   static set testSyncIsolate(bool value) {
     if (kDebugMode) {
       if (value) {
-        IsolateNameServer.removePortNameMapping(_testSyncIsolateKey);
+        IsolateNameServer.removePortNameMapping(_testSyncIsolatePortName);
       } else {
         final port = ReceivePort();
-        IsolateNameServer.registerPortWithName(port.sendPort, _testSyncIsolateKey);
+        IsolateNameServer.registerPortWithName(
+            port.sendPort, _testSyncIsolatePortName);
         port.close();
       }
     }
   }
-  static const _testSyncIsolateKey = 'com.ryanheise.audioservice.testSyncIsolate';
-
-  /// Connect to the [AudioHandler], which was hosted by calling [init] or
-  /// [hostHandler], from another isolate.
-  static Future<BaseAudioHandler> connectFromIsolate() async {
-    final handler = _IsolateAudioHandler(IsolateNameServer.lookupPortByName(_testSyncIsolateKey) == null);
-    await handler.init();
-    return handler;
-  }
 
   /// Whether currently there is a hosted handler available.
-  static bool get isHosting {
+  static bool get _isHosting {
     final sendPort = IsolateNameServer.lookupPortByName(hostIsolatePortName);
     return sendPort != null;
   }
 
-  /// Hosts the audio handler to other isolates.
+  /// Hosts the audio handler to other isolates, used for testing the [connectFromIsolate].
   ///
-  /// Other isolates can connect to the handler via [connectFromIsolate].
-  /// Can be called only once, all consecutive calls will throw.
-  ///
-  /// Calling this method not from the main isolate may have unintended consequences,
-  /// for example the isolate may become unreachable, because of being destroyed,
-  /// or its engine being destroyed. As a result of that, all the handlers from connected
-  /// isolates will stop receiving updates and calls to their methods will timeout.
+  /// Can be called only once, all consecutive calls will throw,
+  /// unless the isolate is manually removed from [IsolateNameServer].
+  @visibleForTesting
   static void hostHandler(AudioHandler handler) {
     if (!kIsWeb) {
       if (handler is _IsolateAudioHandler) {
@@ -911,7 +908,7 @@ class AudioService {
           "to an infinite loop when its methods are called",
         );
       }
-      if (isHosting) {
+      if (_isHosting) {
         throw StateError("Some isolate has already hosted a handler");
       }
 
@@ -2490,7 +2487,7 @@ class _IsolateStreamSyncRequest {
 
 /// Handler that connects to the handler hosted with [AudioService.hostHandler].
 ///
-/// Used [AudioService.connectFromIsolate] in.
+/// Used in [AudioService.connectFromIsolate].
 class _IsolateAudioHandler implements BaseAudioHandler {
   @override
   final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
@@ -2521,15 +2518,18 @@ class _IsolateAudioHandler implements BaseAudioHandler {
   /// The [init] should be called right away after that.
   _IsolateAudioHandler(this.testSyncIsolate);
 
-  /// Set this to true to disable stream synching in tests.
+  /// Set this to true to disable stream synching in tests, this is useful,
+  /// beucase synching can cause a lot of side-effects that prevent clean unit testing.
+  ///
   /// Not in test environment will do nothing.
   final bool testSyncIsolate;
 
   /// Synchronizes the subjects with the hosted isolate.
   Future<void> init() async {
-    // Disable the synching for tests as this causes a lot of side effects
-    // in unit tests.
-    if (testSyncIsolate || !kDebugMode || kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (testSyncIsolate ||
+        !kDebugMode ||
+        kIsWeb ||
+        !Platform.environment.containsKey('FLUTTER_TEST')) {
       await Future.wait([
         syncSubject(playbackState, 'playbackState'),
         syncSubject(queue, 'queue'),
