@@ -38,7 +38,7 @@ void main() {
     });
 
     test('click() default logic works', () async {
-      final audioHandler = TestableBaseAudioHandler();
+      final audioHandler = _TestableBaseAudioHandler();
 
       // was paused, MediaButton.media clicked
       await audioHandler.click();
@@ -91,9 +91,66 @@ void main() {
       expect(results, equals(<MediaItem>[]));
     });
   });
+
+  group('QueueHandler:', () {
+    test('able to modify media items in queue', () {
+      // setup
+      final handler = _TestableQueueHandler();
+      final mediaItem = const MediaItem(id: '0', title: 'title');
+
+      // add single item
+      expect(handler.queue.nvalue?.length, equals(0));
+      handler.addQueueItem(mediaItem);
+      expect(handler.queue.nvalue?.length, equals(1));
+
+      // add multiple items
+      handler.addQueueItems([
+        mediaItem.copyWith(id: '1'),
+        mediaItem.copyWith(id: '2'),
+      ]);
+      expect(handler.queue.nvalue?.length, equals(3));
+
+      // insert item
+      handler.insertQueueItem(1, mediaItem.copyWith(id: 'inserted'));
+      expect(handler.queue.nvalue?.length, equals(4));
+      expect(handler.queue.nvalue?[1].id, 'inserted');
+
+      // update item
+      expect(handler.queue.nvalue?[0].id, '0');
+      expect(handler.queue.nvalue?[0].album, null);
+      handler.updateMediaItem(mediaItem.copyWith(album: 'abc'));
+      expect(handler.queue.nvalue?.length, equals(4));
+      expect(handler.queue.nvalue?[0].id, '0');
+      expect(handler.queue.nvalue?[0].album, 'abc');
+
+      // remove item
+      handler.removeQueueItem(mediaItem);
+      expect(handler.queue.nvalue?.length, equals(3));
+
+      // replace queue
+      handler.updateQueue([mediaItem]);
+      expect(handler.queue.nvalue?.length, equals(1));
+    });
+
+    test('skipping works', () async {
+      final handler = _TestableQueueHandler();
+      final mediaItem1 = const MediaItem(id: '1', title: 'title');
+      final mediaItem2 = const MediaItem(id: '2', title: 'title');
+      handler.addQueueItems([mediaItem1, mediaItem2]);
+
+      await handler.skipToQueueItem(0);
+      expect(handler.mediaItem.nvalue, equals(mediaItem1));
+
+      await handler.skipToNext();
+      expect(handler.mediaItem.nvalue, equals(mediaItem2));
+
+      await handler.skipToPrevious();
+      expect(handler.mediaItem.nvalue, equals(mediaItem1));
+    });
+  });
 }
 
-class TestableBaseAudioHandler extends BaseAudioHandler {
+class _TestableBaseAudioHandler extends BaseAudioHandler {
   var pauseCount = 0;
   var playCount = 0;
   var skipToNextCount = 0;
@@ -128,6 +185,15 @@ class TestableBaseAudioHandler extends BaseAudioHandler {
   Future<void> skipToPrevious() {
     skipToPreviousCount++;
     return super.skipToPrevious();
+  }
+}
+
+class _TestableQueueHandler extends BaseAudioHandler with QueueHandler {
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    playbackState.add(playbackState.nvalue!.copyWith(queueIndex: index));
+    mediaItem.add(queue.value![index]);
+    await super.skipToQueueItem(index);
   }
 }
 
