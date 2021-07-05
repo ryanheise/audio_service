@@ -259,6 +259,7 @@ enum MediaActionMessage {
 
   seekBackward,
   seekForward,
+  setSpeed,
 }
 
 class MediaControlMessage {
@@ -1345,11 +1346,6 @@ class AudioServiceConfigMessage {
   /// positive.
   final Duration rewindInterval;
 
-  /// Whether queue support should be enabled on the media session on Android.
-  /// If your app will run on Android and has a queue, you should set this to
-  /// true.
-  final bool androidEnableQueue;
-
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
@@ -1377,7 +1373,6 @@ class AudioServiceConfigMessage {
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
-    this.androidEnableQueue = false,
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
@@ -1405,7 +1400,6 @@ class AudioServiceConfigMessage {
         'artDownscaleHeight': artDownscaleHeight,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
-        'androidEnableQueue': androidEnableQueue,
         'preloadArtwork': preloadArtwork,
         'androidBrowsableRootExtras': androidBrowsableRootExtras,
       };

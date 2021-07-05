@@ -35,10 +35,11 @@ enum MediaAction {
     APrepareFromSearch,
     APrepareFromUri,
     ASetRepeatMode,
-    AUnused_1, // deprecated (setShuffleModeEnabled)
-    AUnused_2, // setCaptioningEnabled
+    ASetShuffleModeEnabled, // deprecated
+    ASetCaptioningEnabled,
     ASetShuffleMode,
-    // Non-standard
+    // iOS/macOS-specific
     ASeekBackward,
     ASeekForward,
+    ASetSpeed,
 };
