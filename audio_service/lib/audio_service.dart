@@ -857,6 +857,7 @@ class AudioService {
   /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
   /// must have been initialised via [init] prior to connecting.
   static Future<BaseAudioHandler> connectFromIsolate() async {
+    assert(!kIsWeb, "Isolates are not supported on web");
     final handler = _IsolateAudioHandler(
         IsolateNameServer.lookupPortByName(_testSyncIsolatePortName) == null);
     await handler.init();
