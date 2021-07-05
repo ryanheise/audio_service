@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Name of port used to send custom events.
 const _CUSTOM_EVENT_PORT_NAME = 'customEventPort';
