@@ -2529,7 +2529,6 @@ class _IsolateAudioHandler implements BaseAudioHandler {
   Future<void> init() async {
     if (testSyncIsolate ||
         !kDebugMode ||
-        kIsWeb ||
         !Platform.environment.containsKey('FLUTTER_TEST')) {
       await Future.wait([
         syncSubject(playbackState, 'playbackState'),
