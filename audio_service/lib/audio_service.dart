@@ -849,9 +849,6 @@ class AudioService {
   /// A stream that broadcasts the status of the notificationClick event.
   static ValueStream<bool> get notificationClicked => _notificationClicked;
 
-  // ignore: close_sinks
-  static BehaviorSubject<Duration>? _positionSubject;
-
   static late ReceivePort _customActionReceivePort;
 
   /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
@@ -1169,7 +1166,6 @@ class AudioService {
 
   static Future<void> _observeQueue() async {
     await for (var queue in _handler.queue) {
-      if (queue == null) continue;
       if (_config.preloadArtwork) {
         _loadAllArtwork(queue);
       }
@@ -1199,19 +1195,10 @@ class AudioService {
   /// no slower than once every 200ms.
   ///
   /// See [createPositionStream] for more control over the stream parameters.
-  //static Stream<Duration> _positionStream;
-  static Stream<Duration> get positionStream {
-    if (_positionSubject == null) {
-      _positionSubject = BehaviorSubject<Duration>(sync: true);
-      _positionSubject!.addStream(
-        createPositionStream(
-            steps: 800,
-            minPeriod: const Duration(milliseconds: 16),
-            maxPeriod: const Duration(milliseconds: 200)),
-      );
-    }
-    return _positionSubject!.stream;
-  }
+  static late final Stream<Duration> positionStream = createPositionStream(
+      steps: 800,
+      minPeriod: const Duration(milliseconds: 16),
+      maxPeriod: const Duration(milliseconds: 200));
 
   /// Creates a new stream periodically tracking the current position. The
   /// stream will aim to emit [steps] position updates at intervals of
@@ -2067,7 +2054,7 @@ abstract class AudioHandler {
   ValueStream<PlaybackState> get playbackState;
 
   /// A value stream of the current queue.
-  ValueStream<List<MediaItem>?> get queue;
+  ValueStream<List<MediaItem>> get queue;
 
   /// A value stream of the current queueTitle.
   ValueStream<String> get queueTitle;
@@ -2092,7 +2079,7 @@ abstract class AudioHandler {
 /// another at any time by setting [inner].
 class SwitchAudioHandler extends CompositeAudioHandler {
   final BehaviorSubject<PlaybackState> _playbackState = BehaviorSubject();
-  final BehaviorSubject<List<MediaItem>?> _queue = BehaviorSubject();
+  final BehaviorSubject<List<MediaItem>> _queue = BehaviorSubject();
   final BehaviorSubject<String> _queueTitle = BehaviorSubject();
   final BehaviorSubject<MediaItem?> _mediaItem = BehaviorSubject();
   final BehaviorSubject<AndroidPlaybackInfo> _androidPlaybackInfo =
@@ -2104,7 +2091,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   @override
   ValueStream<PlaybackState> get playbackState => _playbackState;
   @override
-  ValueStream<List<MediaItem>?> get queue => _queue;
+  ValueStream<List<MediaItem>> get queue => _queue;
   @override
   ValueStream<String> get queueTitle => _queueTitle;
   @override
@@ -2375,7 +2362,7 @@ class CompositeAudioHandler extends AudioHandler {
   ValueStream<PlaybackState> get playbackState => _inner.playbackState;
 
   @override
-  ValueStream<List<MediaItem>?> get queue => _inner.queue;
+  ValueStream<List<MediaItem>> get queue => _inner.queue;
 
   @override
   ValueStream<String> get queueTitle => _inner.queueTitle;
@@ -2417,7 +2404,7 @@ class _IsolateAudioHandler extends AudioHandler {
       BehaviorSubject.seeded(PlaybackState());
   @override
   // ignore: close_sinks
-  final BehaviorSubject<List<MediaItem>?> queue =
+  final BehaviorSubject<List<MediaItem>> queue =
       BehaviorSubject.seeded(<MediaItem>[]);
   @override
   // TODO
@@ -2704,7 +2691,7 @@ class BaseAudioHandler extends AudioHandler {
   /// queue.add(queue.value! + [additionalItem]);
   /// ```
   @override
-  final BehaviorSubject<List<MediaItem>?> queue =
+  final BehaviorSubject<List<MediaItem>> queue =
       BehaviorSubject.seeded(<MediaItem>[]);
 
   /// A controller for broadcasting the current queue title to the app's UI, media

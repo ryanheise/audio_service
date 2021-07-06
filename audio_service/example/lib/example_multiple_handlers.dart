@@ -300,14 +300,14 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   Future<void> _init() async {
     // Load and broadcast the queue
-    queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]);
+    queue.add(_mediaLibrary.items[MediaLibrary.albumsRootId]!);
     // For Android 11, record the most recent item so it can be resumed.
     mediaItem
         .whereType<MediaItem>()
         .listen((item) => _recentSubject.add([item]));
     // Broadcast media item changes.
     _player.currentIndexStream.listen((index) {
-      if (index != null) mediaItem.add(queue.value![index]);
+      if (index != null) mediaItem.add(queue.value[index]);
     });
     // Propagate all events from the audio player to AudioService clients.
     _player.playbackEventStream.listen(_broadcastState);
@@ -322,7 +322,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       // work. Not sure why!
       //await Future.delayed(Duration(seconds: 2)); // magic delay
       await _player.setAudioSource(ConcatenatingAudioSource(
-        children: queue.value!
+        children: queue.value
             .map((item) => AudioSource.uri(Uri.parse(item.id)))
             .toList(),
       ));
@@ -365,7 +365,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   Future<void> skipToQueueItem(int index) async {
     // Then default implementations of skipToNext and skipToPrevious provided by
     // the [QueueHandler] mixin will delegate to this method.
-    if (index < 0 || index >= queue.value!.length) return;
+    if (index < 0 || index >= queue.value.length) return;
     // This jumps to the beginning of the queue item at newIndex.
     _player.seek(Duration.zero, index: index);
     // Demonstrate custom events.
@@ -517,7 +517,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
     while (_running) {
       try {
         if (_playing) {
-          mediaItem.add(queue.value![_index]);
+          mediaItem.add(queue.value[_index]);
           playbackState.add(playbackState.value.copyWith(
             updatePosition: Duration.zero,
             queueIndex: _index,
@@ -527,7 +527,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
             _tts.speak('${mediaItem.value!.extras!["number"]}'),
             _sleeper.sleep(const Duration(seconds: 1)),
           ]);
-          if (_index + 1 < queue.value!.length) {
+          if (_index + 1 < queue.value.length) {
             _index++;
           } else {
             _running = false;
@@ -539,7 +539,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
       } on SleeperInterruptedException {} on TtsInterruptedException {}
     }
     _index = 0;
-    mediaItem.add(queue.value![_index]);
+    mediaItem.add(queue.value[_index]);
     playbackState.add(playbackState.value.copyWith(
       updatePosition: Duration.zero,
     ));
