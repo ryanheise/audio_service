@@ -53,9 +53,9 @@ class MockBaseAudioHandler implements BaseAudioHandler {
     _stubPlaybackState.value = value;
   }
 
-  final _Stub<BehaviorSubject<List<MediaItem>?>> _stubQueue = _Stub();
-  BehaviorSubject<List<MediaItem>?> get stubQueue => _stubQueue.exposeValue;
-  set stubQueue(BehaviorSubject<List<MediaItem>?> value) {
+  final _Stub<BehaviorSubject<List<MediaItem>>> _stubQueue = _Stub();
+  BehaviorSubject<List<MediaItem>> get stubQueue => _stubQueue.exposeValue;
+  set stubQueue(BehaviorSubject<List<MediaItem>> value) {
     _stubQueue.value = value;
   }
 
@@ -160,7 +160,7 @@ class MockBaseAudioHandler implements BaseAudioHandler {
   }
 
   @override
-  BehaviorSubject<List<MediaItem>?> get queue {
+  BehaviorSubject<List<MediaItem>> get queue {
     _log('queue');
     return _stubQueue.value;
   }

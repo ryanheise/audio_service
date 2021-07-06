@@ -84,11 +84,12 @@ enum MediaAction {
   /// Set the repeat mode.
   setRepeatMode,
 
-  /// Unused.
-  unused_1,
+  /// Was depreceated in Android.
+  // ignore: unused_field
+  _setShuffleModeEnabled,
 
-  /// Unused.
-  unused_2,
+  /// Set captioning enabled.
+  setCaptioningEnabled,
 
   /// Set the shuffle mode.
   setShuffleMode,
@@ -98,6 +99,9 @@ enum MediaAction {
 
   /// Seek forwards continuously.
   seekForward,
+
+  /// Set speed.
+  setSpeed,
 }
 
 /// The states of audio processing.
@@ -171,8 +175,9 @@ class PlaybackState {
   /// * [MediaAction.seekForward] (enable press-and-hold fast-forward control)
   /// * [MediaAction.seekBackward] (enable press-and-hold rewind control)
   ///
-  /// Note that specifying [MediaAction.seek] in [systemActions] will enable
-  /// a seek bar in both the Android notification and the iOS control center.
+  /// Note that specifying [MediaAction.seek] in [systemActions] will enable a
+  /// seek bar in both the Android notification and the iOS control center, but
+  /// on Android, it will show only if the media item's duration has been set.
   /// [MediaAction.seekForward] and [MediaAction.seekBackward] have a special
   /// behaviour on iOS in which if you have already enabled the
   /// [MediaAction.skipToNext] and [MediaAction.skipToPrevious] buttons, these
@@ -291,6 +296,28 @@ class PlaybackState {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is PlaybackState &&
+      processingState == other.processingState &&
+      playing == other.playing &&
+      controls == other.controls &&
+      androidCompactActionIndices == other.androidCompactActionIndices &&
+      systemActions == other.systemActions &&
+      updatePosition == other.updatePosition &&
+      bufferedPosition == other.bufferedPosition &&
+      speed == other.speed &&
+      updateTime == other.updateTime &&
+      errorCode == other.errorCode &&
+      errorMessage == other.errorMessage &&
+      repeatMode == other.repeatMode &&
+      shuffleMode == other.shuffleMode &&
+      captioningEnabled == other.captioningEnabled &&
+      queueIndex == other.queueIndex;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -500,6 +527,13 @@ class Rating {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is Rating && _type == other._type && _value == other._value;
 }
 
 /// Metadata of an audio item that can be played, or a folder containing
@@ -543,7 +577,7 @@ class MediaItem {
 
   /// A map of additional metadata for the media item.
   ///
-  /// The values must be integers or strings.
+  /// The values must be of type `int`, `String`, `bool` or `double`.
   final Map<String, dynamic>? extras;
 
   /// Creates a [MediaItem].
@@ -775,6 +809,16 @@ class MediaControl {
 
   @override
   String toString() => '${_toMessage().toMap()}';
+
+  @override
+  int get hashCode => toString().hashCode;
+
+  @override
+  bool operator ==(dynamic other) =>
+      other is MediaControl &&
+      androidIcon == other.androidIcon &&
+      label == other.label &&
+      action == other.action;
 }
 
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
@@ -806,8 +850,6 @@ class AudioService {
   /// A stream that broadcasts the status of the notificationClick event.
   static ValueStream<bool> get notificationClicked => _notificationClicked;
 
-  static BehaviorSubject<Duration>? _positionSubject;
-
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
   /// Register the app's [AudioHandler] with configuration options.
@@ -836,7 +878,9 @@ class AudioService {
     BaseCacheManager? cacheManager,
   }) async {
     assert(_cacheManager == null);
-    config ??= AudioServiceConfig();
+    config ??= const AudioServiceConfig();
+    assert(config.fastForwardInterval > Duration.zero);
+    assert(config.rewindInterval > Duration.zero);
     WidgetsFlutterBinding.ensureInitialized();
     _cacheManager = (cacheManager ??= DefaultCacheManager());
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
@@ -1233,7 +1277,6 @@ class AudioService {
 
   static Future<void> _observeQueue() async {
     await for (var queue in _handler.queue) {
-      if (queue == null) continue;
       if (_config.preloadArtwork) {
         _loadAllArtwork(queue);
       }
@@ -1263,19 +1306,10 @@ class AudioService {
   /// no slower than once every 200ms.
   ///
   /// See [createPositionStream] for more control over the stream parameters.
-  //static Stream<Duration> _positionStream;
-  static Stream<Duration> get positionStream {
-    if (_positionSubject == null) {
-      _positionSubject = BehaviorSubject<Duration>(sync: true);
-      _positionSubject!.addStream(
-        createPositionStream(
-            steps: 800,
-            minPeriod: const Duration(milliseconds: 16),
-            maxPeriod: const Duration(milliseconds: 200)),
-      );
-    }
-    return _positionSubject!.stream;
-  }
+  static late final Stream<Duration> position = createPositionStream(
+      steps: 800,
+      minPeriod: const Duration(milliseconds: 16),
+      maxPeriod: const Duration(milliseconds: 200));
 
   /// Creates a new stream periodically tracking the current position. The
   /// stream will aim to emit [steps] position updates at intervals of
@@ -1472,6 +1506,9 @@ class AudioService {
     Duration fastForwardInterval = const Duration(seconds: 10),
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
+    if (!androidEnableQueue) {
+      print('NOTE: androidEnableQueue is always true from 0.18.0 onwards.');
+    }
     if (_cacheManager != null && _handler.playbackState.hasValue) {
       if (_handler.playbackState.nvalue!.processingState !=
           AudioProcessingState.idle) {
@@ -1508,7 +1545,6 @@ class AudioService {
           artDownscaleHeight: androidArtDownscaleSize?.height.round(),
           fastForwardInterval: fastForwardInterval,
           rewindInterval: rewindInterval,
-          androidEnableQueue: androidEnableQueue,
         ),
       );
     } else {
@@ -1656,6 +1692,13 @@ class AudioService {
   @Deprecated("Use AudioHandler.customAction instead.")
   static final Future<dynamic> Function(String, Map<String, dynamic>)
       customAction = _compatibilitySwitcher.customAction;
+
+  /// Deprecated. Use [position] instead.
+  @Deprecated("Use position instead.")
+  static late final ValueStream<Duration> positionStream =
+      BehaviorSubject.seeded(Duration.zero, sync: true)
+        ..addStream(position)
+        ..stream;
 }
 
 class _BackgroundAudioHandler extends BaseAudioHandler {
@@ -2128,7 +2171,7 @@ abstract class AudioHandler {
   ValueStream<PlaybackState> get playbackState;
 
   /// A value stream of the current queue.
-  ValueStream<List<MediaItem>?> get queue;
+  ValueStream<List<MediaItem>> get queue;
 
   /// A value stream of the current queueTitle.
   ValueStream<String> get queueTitle;
@@ -2153,7 +2196,7 @@ abstract class AudioHandler {
 /// another at any time by setting [inner].
 class SwitchAudioHandler extends CompositeAudioHandler {
   final BehaviorSubject<PlaybackState> _playbackState = BehaviorSubject();
-  final BehaviorSubject<List<MediaItem>?> _queue = BehaviorSubject();
+  final BehaviorSubject<List<MediaItem>> _queue = BehaviorSubject();
   final BehaviorSubject<String> _queueTitle = BehaviorSubject();
   final BehaviorSubject<MediaItem?> _mediaItem = BehaviorSubject();
   final BehaviorSubject<AndroidPlaybackInfo> _androidPlaybackInfo =
@@ -2165,7 +2208,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   @override
   ValueStream<PlaybackState> get playbackState => _playbackState;
   @override
-  ValueStream<List<MediaItem>?> get queue => _queue;
+  ValueStream<List<MediaItem>> get queue => _queue;
   @override
   ValueStream<String> get queueTitle => _queueTitle;
   @override
@@ -2181,7 +2224,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   ValueStream<dynamic> get customState => _customState;
 
   StreamSubscription<PlaybackState>? _playbackStateSubscription;
-  StreamSubscription<List<MediaItem>?>? _queueSubscription;
+  StreamSubscription<List<MediaItem>>? _queueSubscription;
   StreamSubscription<String>? _queueTitleSubscription;
   StreamSubscription<MediaItem?>? _mediaItemSubscription;
   StreamSubscription<AndroidPlaybackInfo>? _androidPlaybackInfoSubscription;
@@ -2436,7 +2479,7 @@ class CompositeAudioHandler extends AudioHandler {
   ValueStream<PlaybackState> get playbackState => _inner.playbackState;
 
   @override
-  ValueStream<List<MediaItem>?> get queue => _inner.queue;
+  ValueStream<List<MediaItem>> get queue => _inner.queue;
 
   @override
   ValueStream<String> get queueTitle => _inner.queueTitle;
@@ -2494,7 +2537,7 @@ class _IsolateAudioHandler implements BaseAudioHandler {
   final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
 
   @override
-  final BehaviorSubject<List<MediaItem>?> queue = BehaviorSubject();
+  final BehaviorSubject<List<MediaItem>> queue = BehaviorSubject();
 
   @override
   final BehaviorSubject<String> queueTitle = BehaviorSubject();
@@ -2856,7 +2899,7 @@ class BaseAudioHandler extends AudioHandler {
   /// queue.add(queue.value! + [additionalItem]);
   /// ```
   @override
-  final BehaviorSubject<List<MediaItem>?> queue =
+  final BehaviorSubject<List<MediaItem>> queue =
       BehaviorSubject.seeded(<MediaItem>[]);
 
   /// A controller for broadcasting the current queue title to the app's UI, media
@@ -3359,11 +3402,6 @@ class AudioServiceConfig {
   /// positive.
   final Duration rewindInterval;
 
-  /// Whether queue support should be enabled on the media session on Android.
-  /// If your app will run on Android and has a queue, you should set this to
-  /// true.
-  final bool androidEnableQueue;
-
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
@@ -3389,12 +3427,9 @@ class AudioServiceConfig {
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
-    this.androidEnableQueue = false,
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
-        assert(fastForwardInterval > Duration.zero),
-        assert(rewindInterval > Duration.zero),
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
@@ -3417,7 +3452,6 @@ class AudioServiceConfig {
         artDownscaleHeight: artDownscaleHeight,
         fastForwardInterval: fastForwardInterval,
         rewindInterval: rewindInterval,
-        androidEnableQueue: androidEnableQueue,
         preloadArtwork: preloadArtwork,
         androidBrowsableRootExtras: androidBrowsableRootExtras,
       );

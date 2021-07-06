@@ -33,11 +33,10 @@ late AudioHandler _audioHandler;
 Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
-    config: AudioServiceConfig(
+    config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
-      androidEnableQueue: true,
     ),
   );
   runApp(MyApp());
@@ -131,7 +130,7 @@ class MainScreen extends StatelessWidget {
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem?, Duration, MediaState>(
           _audioHandler.mediaItem,
-          AudioService.positionStream,
+          AudioService.position,
           (mediaItem, position) => MediaState(mediaItem, position));
 
   IconButton _button(IconData iconData, VoidCallback onPressed) => IconButton(

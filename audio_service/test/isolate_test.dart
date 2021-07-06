@@ -43,9 +43,9 @@ final playbackStateStreamValues = <PlaybackState>[
   ),
 ];
 
-final queueStreamValues = <List<MediaItem>?>[
+final queueStreamValues = <List<MediaItem>>[
   [mediaItem],
-  null,
+  [mediaItem, mediaItem],
   [mediaItem, mediaItem, mediaItem],
 ];
 
@@ -299,8 +299,8 @@ Future<void> main() async {
     test("queue", () async {
       handler.stubQueue = BehaviorSubject.seeded(queueStreamValues[0]);
       final receivePort = await runIsolateWithDeferredResult(queueSubject);
-      final values = <List<MediaItem>?>[];
-      final isolateValues = <List<MediaItem>?>[];
+      final values = <List<MediaItem>>[];
+      final isolateValues = <List<MediaItem>>[];
       handler.stubQueue.listen((value) {
         values.add(value);
       });
@@ -310,7 +310,7 @@ Future<void> main() async {
           completer.complete();
           completer = Completer();
         } else {
-          isolateValues.add(message as List<MediaItem>?);
+          isolateValues.add(message as List<MediaItem>);
           if (isolateValues.length == 3) {
             completer.complete();
           }

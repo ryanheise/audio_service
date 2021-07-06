@@ -9,6 +9,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_audio_service.dart';
 
+/// The interface each platform implementation must implement.
 abstract class AudioServicePlatform extends PlatformInterface {
   /// Constructs an AudioServicePlatform.
   AudioServicePlatform() : super(token: _token);
@@ -176,7 +177,7 @@ abstract class AudioHandlerCallbacks {
   /// Handle the notification being swiped away (Android).
   Future<void> onNotificationDeleted(OnNotificationDeletedRequest request);
 
-  // TODO: implement
+  /// Handle the notification being clicked (Android).
   Future<void> onNotificationClicked(OnNotificationClickedRequest request);
 
   /// Get the children of a parent media item.
@@ -222,7 +223,11 @@ enum AudioProcessingStateMessage {
   error,
 }
 
-/// The actons associated with playing audio.
+/// The actions associated with playing audio. The index of each enum value from
+/// [stop] up to [setShuffleMode] is guaranteed to match the bit index of each
+/// `ACTION_*` constant in Android's `PlaybackStateCompat` class. Enum values
+/// after this are iOS/macOS specific and their indices may shift if new Android
+/// media actions are added in the future.
 enum MediaActionMessage {
   stop,
   pause,
@@ -243,11 +248,18 @@ enum MediaActionMessage {
   prepareFromSearch,
   prepareFromUri,
   setRepeatMode,
-  unused_1,
-  unused_2,
+
+  /// This Android media action is deprecated. [setShuffleMode] should be used
+  /// instead.
+  _setShuffleModeEnabled,
+  setCaptioningEnabled,
   setShuffleMode,
+
+  // -- iOS/macOS-specific actions --
+
   seekBackward,
   seekForward,
+  setSpeed,
 }
 
 class MediaControlMessage {
@@ -1334,11 +1346,6 @@ class AudioServiceConfigMessage {
   /// positive.
   final Duration rewindInterval;
 
-  /// Whether queue support should be enabled on the media session on Android.
-  /// If your app will run on Android and has a queue, you should set this to
-  /// true.
-  final bool androidEnableQueue;
-
   /// By default artworks are loaded only when the item is fed into [AudioHandler.mediaItem].
   ///
   /// If set to `true`, artworks for items start loading as soon as they are added to
@@ -1366,7 +1373,6 @@ class AudioServiceConfigMessage {
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
     this.rewindInterval = const Duration(seconds: 10),
-    this.androidEnableQueue = false,
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
@@ -1394,7 +1400,6 @@ class AudioServiceConfigMessage {
         'artDownscaleHeight': artDownscaleHeight,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
         'rewindInterval': rewindInterval.inMilliseconds,
-        'androidEnableQueue': androidEnableQueue,
         'preloadArtwork': preloadArtwork,
         'androidBrowsableRootExtras': androidBrowsableRootExtras,
       };
