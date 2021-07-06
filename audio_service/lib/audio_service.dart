@@ -1195,7 +1195,7 @@ class AudioService {
   /// no slower than once every 200ms.
   ///
   /// See [createPositionStream] for more control over the stream parameters.
-  static late final Stream<Duration> positionStream = createPositionStream(
+  static late final Stream<Duration> position = createPositionStream(
       steps: 800,
       minPeriod: const Duration(milliseconds: 16),
       maxPeriod: const Duration(milliseconds: 200));
@@ -1582,6 +1582,13 @@ class AudioService {
   @Deprecated("Use AudioHandler.customAction instead.")
   static final Future<dynamic> Function(String, Map<String, dynamic>)
       customAction = _compatibilitySwitcher.customAction;
+
+  /// Deprecated. Use [position] instead.
+  @Deprecated("Use position instead.")
+  static late final ValueStream<Duration> positionStream =
+      BehaviorSubject.seeded(Duration.zero, sync: true)
+        ..addStream(position)
+        ..stream;
 }
 
 class _BackgroundAudioHandler extends BaseAudioHandler {
