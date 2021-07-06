@@ -235,7 +235,7 @@ class MainScreen extends StatelessWidget {
 }
 
 class QueueState {
-  final List<MediaItem>? queue;
+  final List<MediaItem> queue;
   final MediaItem? mediaItem;
 
   QueueState(this.queue, this.mediaItem);
