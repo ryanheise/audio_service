@@ -68,6 +68,11 @@ void main() {
           systemActions: {MediaAction.fastForward},
         ),
       );
+
+      // Check hashValues doesn't throw when contains iterables
+      PlaybackState(controls: [MediaControl.play]) ==
+          PlaybackState(controls: [MediaControl.play, MediaControl.pause]);
+
       expect(
         PlaybackState(controls: [MediaControl.pause]),
         isNot(PlaybackState(controls: [MediaControl.play])),
