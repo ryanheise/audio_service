@@ -70,6 +70,7 @@ void main() {
       );
 
       // Check hashValues doesn't throw when contains iterables
+      // Couldn't find a way to trigger the assertion with `androidCompactActionIndices` or `systemActions`
       PlaybackState(controls: [MediaControl.play]) ==
           PlaybackState(controls: [MediaControl.play, MediaControl.pause]);
 
