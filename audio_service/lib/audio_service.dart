@@ -317,31 +317,26 @@ class PlaybackState {
       );
 
   @override
-  bool operator ==(Object other) {
-    if (identical(other, this)) {
-      return true;
-    }
-    if (other.runtimeType != runtimeType) {
-      return false;
-    }
-    return other is PlaybackState &&
-        processingState == other.processingState &&
-        playing == other.playing &&
-        listEquals(controls, other.controls) &&
-        listEquals(
-            androidCompactActionIndices, other.androidCompactActionIndices) &&
-        setEquals(systemActions, other.systemActions) &&
-        updatePosition == other.updatePosition &&
-        bufferedPosition == other.bufferedPosition &&
-        speed == other.speed &&
-        updateTime == other.updateTime &&
-        errorCode == other.errorCode &&
-        errorMessage == other.errorMessage &&
-        repeatMode == other.repeatMode &&
-        shuffleMode == other.shuffleMode &&
-        captioningEnabled == other.captioningEnabled &&
-        queueIndex == other.queueIndex;
-  }
+  bool operator ==(Object other) =>
+      identical(other, this) ||
+      other.runtimeType == runtimeType &&
+          other is PlaybackState &&
+          processingState == other.processingState &&
+          playing == other.playing &&
+          listEquals(controls, other.controls) &&
+          listEquals(
+              androidCompactActionIndices, other.androidCompactActionIndices) &&
+          setEquals(systemActions, other.systemActions) &&
+          updatePosition == other.updatePosition &&
+          bufferedPosition == other.bufferedPosition &&
+          speed == other.speed &&
+          updateTime == other.updateTime &&
+          errorCode == other.errorCode &&
+          errorMessage == other.errorMessage &&
+          repeatMode == other.repeatMode &&
+          shuffleMode == other.shuffleMode &&
+          captioningEnabled == other.captioningEnabled &&
+          queueIndex == other.queueIndex;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -556,12 +551,11 @@ class Rating {
   int get hashCode => hashValues(_value, _type);
 
   @override
-  bool operator ==(Object other) {
-    if (other.runtimeType != runtimeType) {
-      return false;
-    }
-    return other is Rating && _type == other._type && _value == other._value;
-  }
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+      other is Rating &&
+      _type == other._type &&
+      _value == other._value;
 }
 
 /// Metadata of an audio item that can be played, or a folder containing
@@ -635,12 +629,8 @@ class MediaItem {
   int get hashCode => id.hashCode;
 
   @override
-  bool operator ==(Object other) {
-    if (other.runtimeType != runtimeType) {
-      return false;
-    }
-    return other is MediaItem && other.id == id;
-  }
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType && other is MediaItem && other.id == id;
 
   MediaItemMessage _toMessage() => MediaItemMessage(
         id: id,
@@ -847,15 +837,12 @@ class MediaControl {
   int get hashCode => hashValues(androidIcon, label, action);
 
   @override
-  bool operator ==(Object other) {
-    if (other.runtimeType != runtimeType) {
-      return false;
-    }
-    return other is MediaControl &&
-        androidIcon == other.androidIcon &&
-        label == other.label &&
-        action == other.action;
-  }
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+      other is MediaControl &&
+      androidIcon == other.androidIcon &&
+      label == other.label &&
+      action == other.action;
 }
 
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
