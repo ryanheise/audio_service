@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -247,7 +248,7 @@ class PlaybackState {
     this.queueIndex,
   })  : assert(androidCompactActionIndices == null ||
             androidCompactActionIndices.length <= 3),
-        updateTime = updateTime ?? DateTime.now();
+        updateTime = updateTime ?? clock.now();
 
   /// Creates a copy of this state with given fields replaced by new values,
   /// with [updateTime] set to [DateTime.now], and unless otherwise replaced,
@@ -263,7 +264,7 @@ class PlaybackState {
       return Duration(
         milliseconds: (updatePosition.inMilliseconds +
                 speed *
-                    (DateTime.now().millisecondsSinceEpoch -
+                    (clock.now().millisecondsSinceEpoch -
                         updateTime.millisecondsSinceEpoch))
             .toInt(),
       );
@@ -297,26 +298,45 @@ class PlaybackState {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => toString().hashCode;
+  int get hashCode => hashValues(
+        processingState,
+        playing,
+        hashList(controls),
+        hashList(androidCompactActionIndices),
+        hashList(systemActions),
+        updatePosition,
+        bufferedPosition,
+        speed,
+        updateTime,
+        errorCode,
+        errorMessage,
+        repeatMode,
+        shuffleMode,
+        captioningEnabled,
+        queueIndex,
+      );
 
   @override
-  bool operator ==(dynamic other) =>
-      other is PlaybackState &&
-      processingState == other.processingState &&
-      playing == other.playing &&
-      controls == other.controls &&
-      androidCompactActionIndices == other.androidCompactActionIndices &&
-      systemActions == other.systemActions &&
-      updatePosition == other.updatePosition &&
-      bufferedPosition == other.bufferedPosition &&
-      speed == other.speed &&
-      updateTime == other.updateTime &&
-      errorCode == other.errorCode &&
-      errorMessage == other.errorMessage &&
-      repeatMode == other.repeatMode &&
-      shuffleMode == other.shuffleMode &&
-      captioningEnabled == other.captioningEnabled &&
-      queueIndex == other.queueIndex;
+  bool operator ==(Object other) =>
+      identical(other, this) ||
+      other.runtimeType == runtimeType &&
+          other is PlaybackState &&
+          processingState == other.processingState &&
+          playing == other.playing &&
+          listEquals(controls, other.controls) &&
+          listEquals(
+              androidCompactActionIndices, other.androidCompactActionIndices) &&
+          setEquals(systemActions, other.systemActions) &&
+          updatePosition == other.updatePosition &&
+          bufferedPosition == other.bufferedPosition &&
+          speed == other.speed &&
+          updateTime == other.updateTime &&
+          errorCode == other.errorCode &&
+          errorMessage == other.errorMessage &&
+          repeatMode == other.repeatMode &&
+          shuffleMode == other.shuffleMode &&
+          captioningEnabled == other.captioningEnabled &&
+          queueIndex == other.queueIndex;
 }
 
 /// The `copyWith` function type for [PlaybackState].
@@ -528,11 +548,14 @@ class Rating {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => toString().hashCode;
+  int get hashCode => hashValues(_value, _type);
 
   @override
-  bool operator ==(dynamic other) =>
-      other is Rating && _type == other._type && _value == other._value;
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+      other is Rating &&
+      _type == other._type &&
+      _value == other._value;
 }
 
 /// Metadata of an audio item that can be played, or a folder containing
@@ -606,7 +629,8 @@ class MediaItem {
   int get hashCode => id.hashCode;
 
   @override
-  bool operator ==(dynamic other) => other is MediaItem && other.id == id;
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType && other is MediaItem && other.id == id;
 
   MediaItemMessage _toMessage() => MediaItemMessage(
         id: id,
@@ -633,8 +657,8 @@ abstract class MediaItemCopyWith {
   /// Calls this function.
   MediaItem call({
     String id,
-    String album,
     String title,
+    String? album,
     String? artist,
     String? genre,
     Duration? duration,
@@ -661,8 +685,8 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
   @override
   MediaItem call({
     Object? id = _fakeNull,
-    Object? album = _fakeNull,
     Object? title = _fakeNull,
+    Object? album = _fakeNull,
     Object? artist = _fakeNull,
     Object? genre = _fakeNull,
     Object? duration = _fakeNull,
@@ -676,8 +700,8 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
   }) =>
       MediaItem(
         id: id == _fakeNull ? value.id : id as String,
-        album: album == _fakeNull ? value.album : album as String,
         title: title == _fakeNull ? value.title : title as String,
+        album: album == _fakeNull ? value.album : album as String?,
         artist: artist == _fakeNull ? value.artist : artist as String?,
         genre: genre == _fakeNull ? value.genre : genre as String?,
         duration:
@@ -810,10 +834,11 @@ class MediaControl {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => toString().hashCode;
+  int get hashCode => hashValues(androidIcon, label, action);
 
   @override
-  bool operator ==(dynamic other) =>
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
       other is MediaControl &&
       androidIcon == other.androidIcon &&
       label == other.label &&
