@@ -44,6 +44,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.0.0
+  fake_async: ^1.2.0
 
 flutter:
   plugin:
