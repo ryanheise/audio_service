@@ -301,9 +301,9 @@ class PlaybackState {
   int get hashCode => hashValues(
         processingState,
         playing,
-        controls,
-        androidCompactActionIndices,
-        systemActions,
+        hashList(controls),
+        hashList(androidCompactActionIndices),
+        hashList(systemActions),
         updatePosition,
         bufferedPosition,
         speed,
