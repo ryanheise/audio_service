@@ -56,22 +56,24 @@ void main() {
     });
 
     test('equality', () {
-      expect(
-        PlaybackState(
-          controls: [MediaControl.play],
-          androidCompactActionIndices: [1, 2, 3],
-          systemActions: {MediaAction.fastForward},
-        ),
-        PlaybackState(
-          controls: [MediaControl.play],
-          androidCompactActionIndices: [1, 2, 3],
-          systemActions: {MediaAction.fastForward},
-        ),
-      );
-      expect(
-        PlaybackState(controls: [MediaControl.pause]),
-        isNot(PlaybackState(controls: [MediaControl.play])),
-      );
+      fakeAsync((async) {
+        expect(
+          PlaybackState(
+            controls: [MediaControl.play],
+            androidCompactActionIndices: [1, 2, 3],
+            systemActions: {MediaAction.fastForward},
+          ),
+          PlaybackState(
+            controls: [MediaControl.play],
+            androidCompactActionIndices: [1, 2, 3],
+            systemActions: {MediaAction.fastForward},
+          ),
+        );
+        expect(
+          PlaybackState(controls: [MediaControl.pause]),
+          isNot(PlaybackState(controls: [MediaControl.play])),
+        );
+      });
     });
 
     test('empty copyWith does nothing', () {
