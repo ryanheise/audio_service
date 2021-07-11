@@ -67,7 +67,9 @@ void main() {
       }
     });
 
-    // We need to run the tests
+    // We need to run the tests not only in different isolates but also in the
+    // same isolate since coverage is only collected by the main isolate:
+    // https://github.com/dart-lang/test/issues/1108
     for (var differentIsolate in [true, false]) {
       spawningIsolate = differentIsolate;
       final isolateLabel =
