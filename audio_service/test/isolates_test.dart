@@ -49,175 +49,193 @@ void main() {
   group('isolates', () {
     late AudioHandler proxy;
 
+    late bool spawningIsolate;
+
     setUp(() async {
-      await runIsolateHandler();
+      if (spawningIsolate) {
+        await runIsolateHandler();
+      } else {
+        IsolatedAudioHandler(_MockAudioHandler());
+      }
       proxy = await IsolatedAudioHandler.lookup();
     });
 
     tearDown(() async {
       await proxy.unregister();
-      await killIsolate();
+      if (spawningIsolate) {
+        await killIsolate();
+      }
     });
 
-    test('init', () async {
-      //expect(await proxy.playbackState.first, PlaybackState());
-      expect(await proxy.queue.first, const <MediaItem>[]);
-      expect(await proxy.queueTitle.first, '');
-      expect(await proxy.mediaItem.first, null);
-      expect(proxy.ratingStyle.hasValue, false);
-      expect(proxy.androidPlaybackInfo.hasValue, false);
-      expect(proxy.customState.hasValue, false);
-    });
+    // We need to run the tests
+    for (var differentIsolate in [true, false]) {
+      spawningIsolate = differentIsolate;
+      final isolateLabel =
+          differentIsolate ? ' (different isolate)' : ' (same isolate)';
 
-    test('method invocations', () async {
-      Future<void> testMethod(String method, dynamic Function() function,
-          {dynamic expectedResult}) async {
-        final startCount = await proxy.count(method);
-        final dynamic result = await function();
-        expect(await proxy.count(method), startCount + 1);
-        if (expectedResult != null) {
-          expect(result, expectedResult);
+      test('init $isolateLabel', () async {
+        //expect(await proxy.playbackState.first, PlaybackState());
+        expect(await proxy.queue.first, const <MediaItem>[]);
+        expect(await proxy.queueTitle.first, '');
+        expect(await proxy.mediaItem.first, null);
+        expect(proxy.ratingStyle.hasValue, false);
+        expect(proxy.androidPlaybackInfo.hasValue, false);
+        expect(proxy.customState.hasValue, false);
+      });
+
+      test('method invocations $isolateLabel', () async {
+        Future<void> testMethod(String method, dynamic Function() function,
+            {dynamic expectedResult}) async {
+          final startCount = await proxy.count(method);
+          final dynamic result = await function();
+          expect(await proxy.count(method), startCount + 1);
+          if (expectedResult != null) {
+            expect(result, expectedResult);
+          }
         }
-      }
 
-      await testMethod('prepare', () => proxy.prepare());
-      await testMethod('prepareFromMediaId',
-          () => proxy.prepareFromMediaId('1', <String, dynamic>{}));
-      await testMethod('prepareFromSearch',
-          () => proxy.prepareFromSearch(Data.query, <String, dynamic>{}));
-      await testMethod('prepareFromUri',
-          () => proxy.prepareFromUri(Data.uri, <String, dynamic>{}));
-      await testMethod('play', () => proxy.play());
-      await testMethod('playFromMediaId',
-          () => proxy.playFromMediaId(Data.mediaId, <String, dynamic>{}));
-      await testMethod('playFromSearch',
-          () => proxy.playFromSearch(Data.query, <String, dynamic>{}));
-      await testMethod('playFromUri',
-          () => proxy.playFromUri(Data.uri, <String, dynamic>{}));
-      await testMethod(
-          'playMediaItem', () => proxy.playMediaItem(Data.mediaItem));
-      await testMethod('pause', () => proxy.pause());
-      await testMethod('click', () => proxy.click());
-      await testMethod('stop', () => proxy.stop());
-      await testMethod(
-          'addQueueItem', () => proxy.addQueueItem(Data.mediaItem));
-      await testMethod(
-          'addQueueItems', () => proxy.addQueueItems(Data.mediaItems));
-      await testMethod(
-          'insertQueueItem', () => proxy.insertQueueItem(0, Data.mediaItem));
-      await testMethod('updateQueue', () => proxy.updateQueue(Data.mediaItems));
-      await testMethod(
-          'updateMediaItem', () => proxy.updateMediaItem(Data.mediaItem));
-      await testMethod(
-          'removeQueueItem', () => proxy.removeQueueItem(Data.mediaItem));
-      await testMethod('removeQueueItemAt', () => proxy.removeQueueItemAt(0));
-      await testMethod('skipToNext', () => proxy.skipToNext());
-      await testMethod('skipToPrevious', () => proxy.skipToPrevious());
-      await testMethod('fastForward', () => proxy.fastForward());
-      await testMethod('rewind', () => proxy.rewind());
-      await testMethod('skipToQueueItem', () => proxy.skipToQueueItem(0));
-      await testMethod('seek', () => proxy.seek(Duration.zero));
-      await testMethod(
-          'setRating',
-          () => proxy.setRating(
-              const Rating.newHeartRating(true), <String, dynamic>{}));
-      await testMethod(
-          'setCaptioningEnabled', () => proxy.setCaptioningEnabled(true));
-      await testMethod('setRepeatMode',
-          () => proxy.setRepeatMode(AudioServiceRepeatMode.all));
-      await testMethod('setShuffleMode',
-          () => proxy.setShuffleMode(AudioServiceShuffleMode.all));
-      await testMethod('seekBackward', () => proxy.seekBackward(true));
-      await testMethod('seekForward', () => proxy.seekForward(true));
-      await testMethod('setSpeed', () => proxy.setSpeed(1.5));
-      await testMethod('onTaskRemoved', () => proxy.onTaskRemoved());
-      await testMethod(
-          'onNotificationDeleted', () => proxy.onNotificationDeleted());
-      await testMethod('getChildren',
-          () => proxy.getChildren(Data.mediaId, <String, dynamic>{}),
-          expectedResult: Data.mediaItems);
-      await testMethod(
-          'subscribeToChildren', () => proxy.subscribeToChildren(Data.mediaId));
-      await testMethod('getMediaItem', () => proxy.getMediaItem(Data.mediaId),
-          expectedResult: Data.mediaItem);
-      await testMethod(
-          'search', () => proxy.search(Data.query, <String, dynamic>{}),
-          expectedResult: Data.mediaItems);
-      await testMethod(
-          'androidSetRemoteVolume', () => proxy.androidSetRemoteVolume(3));
-      await testMethod('androidAdjustRemoteVolume',
-          () => proxy.androidAdjustRemoteVolume(AndroidVolumeDirection.raise));
-      await testMethod('customAction',
-          () => proxy.customAction('echo', <String, dynamic>{'arg': 'foo'}),
-          expectedResult: 'foo');
-      await testMethod('customAction',
-          () => proxy.customAction('echo', <String, dynamic>{'arg': 'bar'}),
-          expectedResult: 'bar');
-    });
+        await testMethod('prepare', () => proxy.prepare());
+        await testMethod('prepareFromMediaId',
+            () => proxy.prepareFromMediaId('1', <String, dynamic>{}));
+        await testMethod('prepareFromSearch',
+            () => proxy.prepareFromSearch(Data.query, <String, dynamic>{}));
+        await testMethod('prepareFromUri',
+            () => proxy.prepareFromUri(Data.uri, <String, dynamic>{}));
+        await testMethod('play', () => proxy.play());
+        await testMethod('playFromMediaId',
+            () => proxy.playFromMediaId(Data.mediaId, <String, dynamic>{}));
+        await testMethod('playFromSearch',
+            () => proxy.playFromSearch(Data.query, <String, dynamic>{}));
+        await testMethod('playFromUri',
+            () => proxy.playFromUri(Data.uri, <String, dynamic>{}));
+        await testMethod(
+            'playMediaItem', () => proxy.playMediaItem(Data.mediaItem));
+        await testMethod('pause', () => proxy.pause());
+        await testMethod('click', () => proxy.click());
+        await testMethod('stop', () => proxy.stop());
+        await testMethod(
+            'addQueueItem', () => proxy.addQueueItem(Data.mediaItem));
+        await testMethod(
+            'addQueueItems', () => proxy.addQueueItems(Data.mediaItems));
+        await testMethod(
+            'insertQueueItem', () => proxy.insertQueueItem(0, Data.mediaItem));
+        await testMethod(
+            'updateQueue', () => proxy.updateQueue(Data.mediaItems));
+        await testMethod(
+            'updateMediaItem', () => proxy.updateMediaItem(Data.mediaItem));
+        await testMethod(
+            'removeQueueItem', () => proxy.removeQueueItem(Data.mediaItem));
+        await testMethod('removeQueueItemAt', () => proxy.removeQueueItemAt(0));
+        await testMethod('skipToNext', () => proxy.skipToNext());
+        await testMethod('skipToPrevious', () => proxy.skipToPrevious());
+        await testMethod('fastForward', () => proxy.fastForward());
+        await testMethod('rewind', () => proxy.rewind());
+        await testMethod('skipToQueueItem', () => proxy.skipToQueueItem(0));
+        await testMethod('seek', () => proxy.seek(Duration.zero));
+        await testMethod(
+            'setRating',
+            () => proxy.setRating(
+                const Rating.newHeartRating(true), <String, dynamic>{}));
+        await testMethod(
+            'setCaptioningEnabled', () => proxy.setCaptioningEnabled(true));
+        await testMethod('setRepeatMode',
+            () => proxy.setRepeatMode(AudioServiceRepeatMode.all));
+        await testMethod('setShuffleMode',
+            () => proxy.setShuffleMode(AudioServiceShuffleMode.all));
+        await testMethod('seekBackward', () => proxy.seekBackward(true));
+        await testMethod('seekForward', () => proxy.seekForward(true));
+        await testMethod('setSpeed', () => proxy.setSpeed(1.5));
+        await testMethod('onTaskRemoved', () => proxy.onTaskRemoved());
+        await testMethod(
+            'onNotificationDeleted', () => proxy.onNotificationDeleted());
+        await testMethod('getChildren',
+            () => proxy.getChildren(Data.mediaId, <String, dynamic>{}),
+            expectedResult: Data.mediaItems);
+        await testMethod('subscribeToChildren',
+            () => proxy.subscribeToChildren(Data.mediaId));
+        await testMethod('getMediaItem', () => proxy.getMediaItem(Data.mediaId),
+            expectedResult: Data.mediaItem);
+        await testMethod(
+            'search', () => proxy.search(Data.query, <String, dynamic>{}),
+            expectedResult: Data.mediaItems);
+        await testMethod(
+            'androidSetRemoteVolume', () => proxy.androidSetRemoteVolume(3));
+        await testMethod(
+            'androidAdjustRemoteVolume',
+            () =>
+                proxy.androidAdjustRemoteVolume(AndroidVolumeDirection.raise));
+        await testMethod('customAction',
+            () => proxy.customAction('echo', <String, dynamic>{'arg': 'foo'}),
+            expectedResult: 'foo');
+        await testMethod('customAction',
+            () => proxy.customAction('echo', <String, dynamic>{'arg': 'bar'}),
+            expectedResult: 'bar');
+      });
 
-    test('stream values', () async {
-      Future<void> testStream<T>(
-          String name, ValueStream<T> stream, T value) async {
-        await proxy.add(name, value);
-        expect(stream.value, value);
-      }
-
-      await testStream(
-          'playbackState', proxy.playbackState, Data.playbackState);
-      await testStream('queue', proxy.queue, Data.mediaItems);
-      await testStream('queueTitle', proxy.queueTitle, 'Queue');
-      await testStream('androidPlaybackInfo', proxy.androidPlaybackInfo,
-          Data.remotePlaybackInfo);
-      await testStream('ratingStyle', proxy.ratingStyle, RatingStyle.heart);
-      await testStream<dynamic>('customState', proxy.customState, 'foo');
-    });
-
-    test('streams', () async {
-      Future<void> testStream<T>(
-          String name, Stream<T> stream, bool skipFirst, List<T> values) async {
-        final actualValues = <T>[];
-        final subscription =
-            stream.skip(skipFirst ? 1 : 0).listen(actualValues.add);
-        for (var value in values) {
+      test('stream values $isolateLabel', () async {
+        Future<void> testStream<T>(
+            String name, ValueStream<T> stream, T value) async {
           await proxy.add(name, value);
+          expect(stream.value, value);
         }
-        expect(actualValues, values);
-        subscription.cancel();
-      }
 
-      await testStream(
-          'playbackState', proxy.playbackState, true, Data.playbackStates);
-      await testStream('queue', proxy.queue, true, [
-        Data.mediaItems,
-        Data.mediaItems
-            .map((item) =>
-                item.copyWith(displayDescription: '${item.id} description'))
-            .toList(),
-      ]);
-      await testStream('queueTitle', proxy.queueTitle, true, ['a', 'b', 'c']);
-      await testStream('mediaItem', proxy.mediaItem, true, Data.mediaItems);
-      await testStream(
-          'androidPlaybackInfo', proxy.androidPlaybackInfo, false, [
-        Data.remotePlaybackInfo,
-        LocalAndroidPlaybackInfo(),
-      ]);
-      await testStream('ratingStyle', proxy.ratingStyle, false, [
-        RatingStyle.heart,
-        RatingStyle.percentage,
-      ]);
-      await testStream<dynamic>(
-          'customEvent', proxy.customEvent, false, <dynamic>[
-        'a',
-        'b',
-        'c',
-      ]);
-      await testStream<dynamic>(
-          'customState', proxy.customState, false, <dynamic>[
-        'a',
-        'b',
-        'c',
-      ]);
-    });
+        await testStream(
+            'playbackState', proxy.playbackState, Data.playbackState);
+        await testStream('queue', proxy.queue, Data.mediaItems);
+        await testStream('queueTitle', proxy.queueTitle, 'Queue');
+        await testStream('androidPlaybackInfo', proxy.androidPlaybackInfo,
+            Data.remotePlaybackInfo);
+        await testStream('ratingStyle', proxy.ratingStyle, RatingStyle.heart);
+        await testStream<dynamic>('customState', proxy.customState, 'foo');
+      });
+
+      test('streams $isolateLabel', () async {
+        Future<void> testStream<T>(String name, Stream<T> stream,
+            bool skipFirst, List<T> values) async {
+          final actualValues = <T>[];
+          final subscription =
+              stream.skip(skipFirst ? 1 : 0).listen(actualValues.add);
+          for (var value in values) {
+            await proxy.add(name, value);
+          }
+          expect(actualValues, values);
+          subscription.cancel();
+        }
+
+        await testStream(
+            'playbackState', proxy.playbackState, true, Data.playbackStates);
+        await testStream('queue', proxy.queue, true, [
+          Data.mediaItems,
+          Data.mediaItems
+              .map((item) =>
+                  item.copyWith(displayDescription: '${item.id} description'))
+              .toList(),
+        ]);
+        await testStream('queueTitle', proxy.queueTitle, true, ['a', 'b', 'c']);
+        await testStream('mediaItem', proxy.mediaItem, true, Data.mediaItems);
+        await testStream(
+            'androidPlaybackInfo', proxy.androidPlaybackInfo, false, [
+          Data.remotePlaybackInfo,
+          LocalAndroidPlaybackInfo(),
+        ]);
+        await testStream('ratingStyle', proxy.ratingStyle, false, [
+          RatingStyle.heart,
+          RatingStyle.percentage,
+        ]);
+        await testStream<dynamic>(
+            'customEvent', proxy.customEvent, false, <dynamic>[
+          'a',
+          'b',
+          'c',
+        ]);
+        await testStream<dynamic>(
+            'customState', proxy.customState, false, <dynamic>[
+          'a',
+          'b',
+          'c',
+        ]);
+      });
+    }
   });
 }
 
@@ -230,6 +248,7 @@ Future<void> runIsolateHandler() async {
 
 Future<void> killIsolate() async {
   isolate!.kill();
+  isolate = null;
 }
 
 void isolateEntryPoint(SendPort sendPort) {
