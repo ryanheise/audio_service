@@ -874,15 +874,6 @@ class AudioService {
   /// A stream that broadcasts the status of the notificationClick event.
   static ValueStream<bool> get notificationClicked => _notificationClicked;
 
-  static late ReceivePort _customActionReceivePort;
-
-  /// Connect to the [AudioHandler] from another isolate. The [AudioHandler]
-  /// must have been initialised via [init] prior to connecting.
-  static Future<AudioHandler> connectFromIsolate() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    return _IsolateAudioHandler();
-  }
-
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
   /// Register the app's [AudioHandler] with configuration options. This must be
@@ -915,223 +906,6 @@ class AudioService {
     _handler = handler;
 
     _platform.setHandlerCallbacks(_HandlerCallbacks(handler));
-    // This port listens to connections from other isolates.
-    if (!kIsWeb) {
-      _customActionReceivePort = ReceivePort();
-      _customActionReceivePort.listen((dynamic event) async {
-        final request = event as _IsolateRequest;
-        switch (request.method) {
-          case 'prepare':
-            await _handler.prepare();
-            request.sendPort.send(null);
-            break;
-          case 'prepareFromMediaId':
-            await _handler.prepareFromMediaId(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'prepareFromSearch':
-            await _handler.prepareFromSearch(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'prepareFromUri':
-            await _handler.prepareFromUri(
-              request.arguments![0] as Uri,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'play':
-            await _handler.play();
-            request.sendPort.send(null);
-            break;
-          case 'playFromMediaId':
-            await _handler.playFromMediaId(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'playFromSearch':
-            await _handler.playFromSearch(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'playFromUri':
-            await _handler.playFromUri(
-              request.arguments![0] as Uri,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'playMediaItem':
-            await _handler.playMediaItem(request.arguments![0] as MediaItem);
-            request.sendPort.send(null);
-            break;
-          case 'pause':
-            await _handler.pause();
-            request.sendPort.send(null);
-            break;
-          case 'click':
-            await _handler.click(request.arguments![0] as MediaButton);
-            request.sendPort.send(null);
-            break;
-          case 'stop':
-            await _handler.stop();
-            request.sendPort.send(null);
-            break;
-          case 'addQueueItem':
-            await _handler.addQueueItem(request.arguments![0] as MediaItem);
-            request.sendPort.send(null);
-            break;
-          case 'addQueueItems':
-            await _handler
-                .addQueueItems(request.arguments![0] as List<MediaItem>);
-            request.sendPort.send(null);
-            break;
-          case 'insertQueueItem':
-            await _handler.insertQueueItem(
-              request.arguments![0] as int,
-              request.arguments![1] as MediaItem,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'updateQueue':
-            await _handler
-                .updateQueue(request.arguments![0] as List<MediaItem>);
-            request.sendPort.send(null);
-            break;
-          case 'updateMediaItem':
-            await _handler.updateMediaItem(request.arguments![0] as MediaItem);
-            request.sendPort.send(null);
-            break;
-          case 'removeQueueItem':
-            await _handler.removeQueueItem(request.arguments![0] as MediaItem);
-            request.sendPort.send(null);
-            break;
-          case 'removeQueueItemAt':
-            await _handler.removeQueueItemAt(request.arguments![0] as int);
-            request.sendPort.send(null);
-            break;
-          case 'skipToNext':
-            await _handler.skipToNext();
-            request.sendPort.send(null);
-            break;
-          case 'skipToPrevious':
-            await _handler.skipToPrevious();
-            request.sendPort.send(null);
-            break;
-          case 'fastForward':
-            await _handler.fastForward();
-            request.sendPort.send(null);
-            break;
-          case 'rewind':
-            await _handler.rewind();
-            request.sendPort.send(null);
-            break;
-          case 'skipToQueueItem':
-            await _handler.skipToQueueItem(request.arguments![0] as int);
-            request.sendPort.send(null);
-            break;
-          case 'seek':
-            await _handler.seek(request.arguments![0] as Duration);
-            request.sendPort.send(null);
-            break;
-          case 'setRating':
-            await _handler.setRating(
-              request.arguments![0] as Rating,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'setCaptioningEnabled':
-            await _handler.setCaptioningEnabled(request.arguments![0] as bool);
-            request.sendPort.send(null);
-            break;
-          case 'setRepeatMode':
-            await _handler
-                .setRepeatMode(request.arguments![0] as AudioServiceRepeatMode);
-            request.sendPort.send(null);
-            break;
-          case 'setShuffleMode':
-            await _handler.setShuffleMode(
-                request.arguments![0] as AudioServiceShuffleMode);
-            request.sendPort.send(null);
-            break;
-          case 'seekBackward':
-            await _handler.seekBackward(request.arguments![0] as bool);
-            request.sendPort.send(null);
-            break;
-          case 'seekForward':
-            await _handler.seekForward(request.arguments![0] as bool);
-            request.sendPort.send(null);
-            break;
-          case 'setSpeed':
-            await _handler.setSpeed(request.arguments![0] as double);
-            request.sendPort.send(null);
-            break;
-          case 'customAction':
-            await _handler.customAction(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            );
-            request.sendPort.send(null);
-            break;
-          case 'onTaskRemoved':
-            await _handler.onTaskRemoved();
-            request.sendPort.send(null);
-            break;
-          case 'onNotificationDeleted':
-            await _handler.onNotificationDeleted();
-            request.sendPort.send(null);
-            break;
-          case 'getChildren':
-            request.sendPort.send(await _handler.getChildren(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            ));
-            break;
-          case 'subscribeToChildren':
-            final parentMediaId = request.arguments![0] as String;
-            final sendPort = request.arguments![1] as SendPort?;
-            _handler
-                .subscribeToChildren(parentMediaId)
-                .listen((Map<String, dynamic> options) {
-              sendPort!.send(options);
-            });
-            break;
-          case 'getMediaItem':
-            request.sendPort.send(
-                await _handler.getMediaItem(request.arguments![0] as String));
-            break;
-          case 'search':
-            request.sendPort.send(await _handler.search(
-              request.arguments![0] as String,
-              request.arguments![1] as Map<String, dynamic>?,
-            ));
-            break;
-          case 'androidAdjustRemoteVolume':
-            await _handler.androidAdjustRemoteVolume(
-                request.arguments![0] as AndroidVolumeDirection);
-            request.sendPort.send(null);
-            break;
-          case 'androidSetRemoteVolume':
-            await _handler.androidSetRemoteVolume(request.arguments![0] as int);
-            request.sendPort.send(null);
-            break;
-        }
-      });
-      //IsolateNameServer.removePortNameMapping(_isolatePortName);
-      IsolateNameServer.registerPortWithName(
-          _customActionReceivePort.sendPort, _isolatePortName);
-    }
     _observeMediaItem();
     _observeAndroidPlaybackInfo();
     _observeQueue();
@@ -2425,46 +2199,375 @@ class _IsolateRequest {
   _IsolateRequest(this.sendPort, this.method, [this.arguments]);
 }
 
-const _isolatePortName = 'com.ryanheise.audioservice.port';
+/// A [CompositeAudioHandler] that can be accessed from other isolates via
+/// [lookup].
+///
+/// This handler recognises the custom action 'unregister' so that
+/// `customAction('unregister')` can be called from a client to unregister this
+/// handler, or it can be unregistered by a direct invocation of [unregister].
+class IsolatedAudioHandler extends CompositeAudioHandler {
+  /// The default port name by which this isolated audio handler can be looked
+  /// up.
+  static const defaultPortName = 'com.ryanheise.audioservice.port';
 
-class _IsolateAudioHandler extends AudioHandler {
+  /// Connect to an [IsolatedAudioHandler] from another isolate having the name
+  /// [portName] (defaulting to [defaultPortName]).
+  static Future<AudioHandler> lookup(
+      {String portName = defaultPortName}) async {
+    assert(!kIsWeb, "Isolates are not supported on web");
+    final handler = _ClientIsolatedAudioHandler(portName: portName);
+    await handler._init();
+    return handler;
+  }
+
+  /// The port name to use when looking up this handler.
+  final String portName;
+
+  final _receivePort = ReceivePort();
+
+  /// Creates an [IsolatedAudioHandler] that can be looked up by [portName]
+  /// (defaulting to [defaultPortName]).
+  ///
+  /// This will throw a [StateError] if another [IsolatedAudioHandler] was
+  /// already registered with the given port name. Setting [overridePortName] to
+  /// `true` will unregister any existing port name first. However, this is
+  /// inherently racy and may still throw the same [StateError] if another
+  /// isolate is able to register another new handler with the same name before
+  /// this isolate can.
+  IsolatedAudioHandler(
+    AudioHandler inner, {
+    this.portName = defaultPortName,
+    bool overridePortName = false,
+  })  : assert(!kIsWeb),
+        super(inner) {
+    _receivePort.listen((dynamic event) async {
+      final request = event as _IsolateRequest;
+      switch (request.method) {
+        case 'playbackState':
+          _syncStream(playbackState, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'queue':
+          _syncStream(queue, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'queueTitle':
+          _syncStream(queueTitle, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'mediaItem':
+          _syncStream(mediaItem, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'androidPlaybackInfo':
+          _syncStream(androidPlaybackInfo, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'ratingStyle':
+          _syncStream(ratingStyle, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'customEvent':
+          _syncStream<dynamic>(customEvent, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'customState':
+          _syncStream<dynamic>(customState, request.arguments![0] as SendPort);
+          request.sendPort.send(null);
+          break;
+        case 'prepare':
+          await prepare();
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromMediaId':
+          await prepareFromMediaId(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromSearch':
+          await prepareFromSearch(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'prepareFromUri':
+          await prepareFromUri(
+            request.arguments![0] as Uri,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'play':
+          await play();
+          request.sendPort.send(null);
+          break;
+        case 'playFromMediaId':
+          await playFromMediaId(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'playFromSearch':
+          await playFromSearch(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'playFromUri':
+          await playFromUri(
+            request.arguments![0] as Uri,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'playMediaItem':
+          await playMediaItem(request.arguments![0] as MediaItem);
+          request.sendPort.send(null);
+          break;
+        case 'pause':
+          await pause();
+          request.sendPort.send(null);
+          break;
+        case 'click':
+          await click(request.arguments![0] as MediaButton);
+          request.sendPort.send(null);
+          break;
+        case 'stop':
+          await stop();
+          request.sendPort.send(null);
+          break;
+        case 'addQueueItem':
+          await addQueueItem(request.arguments![0] as MediaItem);
+          request.sendPort.send(null);
+          break;
+        case 'addQueueItems':
+          await addQueueItems(request.arguments![0] as List<MediaItem>);
+          request.sendPort.send(null);
+          break;
+        case 'insertQueueItem':
+          await insertQueueItem(
+            request.arguments![0] as int,
+            request.arguments![1] as MediaItem,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'updateQueue':
+          await updateQueue(request.arguments![0] as List<MediaItem>);
+          request.sendPort.send(null);
+          break;
+        case 'updateMediaItem':
+          await updateMediaItem(request.arguments![0] as MediaItem);
+          request.sendPort.send(null);
+          break;
+        case 'removeQueueItem':
+          await removeQueueItem(request.arguments![0] as MediaItem);
+          request.sendPort.send(null);
+          break;
+        case 'removeQueueItemAt':
+          await removeQueueItemAt(request.arguments![0] as int);
+          request.sendPort.send(null);
+          break;
+        case 'skipToNext':
+          await skipToNext();
+          request.sendPort.send(null);
+          break;
+        case 'skipToPrevious':
+          await skipToPrevious();
+          request.sendPort.send(null);
+          break;
+        case 'fastForward':
+          await fastForward();
+          request.sendPort.send(null);
+          break;
+        case 'rewind':
+          await rewind();
+          request.sendPort.send(null);
+          break;
+        case 'skipToQueueItem':
+          await skipToQueueItem(request.arguments![0] as int);
+          request.sendPort.send(null);
+          break;
+        case 'seek':
+          await seek(request.arguments![0] as Duration);
+          request.sendPort.send(null);
+          break;
+        case 'setRating':
+          await setRating(
+            request.arguments![0] as Rating,
+            request.arguments![1] as Map<String, dynamic>?,
+          );
+          request.sendPort.send(null);
+          break;
+        case 'setCaptioningEnabled':
+          await setCaptioningEnabled(request.arguments![0] as bool);
+          request.sendPort.send(null);
+          break;
+        case 'setRepeatMode':
+          await setRepeatMode(request.arguments![0] as AudioServiceRepeatMode);
+          request.sendPort.send(null);
+          break;
+        case 'setShuffleMode':
+          await setShuffleMode(
+              request.arguments![0] as AudioServiceShuffleMode);
+          request.sendPort.send(null);
+          break;
+        case 'seekBackward':
+          await seekBackward(request.arguments![0] as bool);
+          request.sendPort.send(null);
+          break;
+        case 'seekForward':
+          await seekForward(request.arguments![0] as bool);
+          request.sendPort.send(null);
+          break;
+        case 'setSpeed':
+          await setSpeed(request.arguments![0] as double);
+          request.sendPort.send(null);
+          break;
+        case 'customAction':
+          request.sendPort.send(await customAction(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          ));
+          break;
+        case 'onTaskRemoved':
+          await onTaskRemoved();
+          request.sendPort.send(null);
+          break;
+        case 'onNotificationDeleted':
+          await onNotificationDeleted();
+          request.sendPort.send(null);
+          break;
+        case 'getChildren':
+          request.sendPort.send(await getChildren(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          ));
+          break;
+        case 'subscribeToChildren':
+          final parentMediaId = request.arguments![0] as String;
+          final sendPort = request.arguments![1] as SendPort?;
+          subscribeToChildren(parentMediaId).listen(sendPort!.send);
+          break;
+        case 'getMediaItem':
+          final result = await getMediaItem(request.arguments![0] as String);
+          request.sendPort.send(result);
+          break;
+        case 'search':
+          request.sendPort.send(await search(
+            request.arguments![0] as String,
+            request.arguments![1] as Map<String, dynamic>?,
+          ));
+          break;
+        case 'androidAdjustRemoteVolume':
+          await androidAdjustRemoteVolume(
+              request.arguments![0] as AndroidVolumeDirection);
+          request.sendPort.send(null);
+          break;
+        case 'androidSetRemoteVolume':
+          await androidSetRemoteVolume(request.arguments![0] as int);
+          request.sendPort.send(null);
+          break;
+      }
+    });
+    if (overridePortName) {
+      IsolateNameServer.removePortNameMapping(portName);
+    }
+    final success =
+        IsolateNameServer.registerPortWithName(_receivePort.sendPort, portName);
+    if (!success) {
+      throw StateError(
+          'Port name $portName is already registered by another IsolatedAudioHandler.');
+    }
+  }
+
+  /// Unregisters this handler so that it can no longer be looked up by
+  /// [portName].
+  void unregister() {
+    IsolateNameServer.removePortNameMapping(portName);
+  }
+
+  /// Forwards events from `stream` to the requesting isolate via [sendPort].
+  void _syncStream<T>(Stream<T> stream, SendPort sendPort) {
+    stream.listen(sendPort.send);
+  }
+
+  @override
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
+    if (name == 'unregister') {
+      unregister();
+    } else {
+      return super.customAction(name, extras);
+    }
+  }
+}
+
+/// A proxy for an [IsolatedAudioHandler] running in another isolate.
+///
+/// All method invocations on this handler will be forwarded to the other
+/// handler, and all stream events emitted by the other handler can be listened
+/// to on this handler.
+class _ClientIsolatedAudioHandler implements BaseAudioHandler {
   final _childrenSubjects = <String, BehaviorSubject<Map<String, dynamic>>>{};
 
+  /// The port name of the [IsolatedAudioHandler] that this client handler
+  /// connects to.
+  final String portName;
+
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<PlaybackState> playbackState =
-      BehaviorSubject.seeded(PlaybackState());
+  final BehaviorSubject<PlaybackState> playbackState = BehaviorSubject();
+
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<List<MediaItem>> queue =
-      BehaviorSubject.seeded(<MediaItem>[]);
+  final BehaviorSubject<List<MediaItem>> queue = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
-  final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
+  final BehaviorSubject<String> queueTitle = BehaviorSubject();
+
   @override
-  // ignore: close_sinks
-  final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
+  final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
+
   @override
-  // TODO
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   @override
-  // TODO
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
-  _IsolateAudioHandler() : super._();
+  _ClientIsolatedAudioHandler({
+    this.portName = IsolatedAudioHandler.defaultPortName,
+  });
+
+  Future<void> _init() async {
+    await _syncSubject(playbackState, 'playbackState');
+    await _syncSubject(queue, 'queue');
+    await _syncSubject(queueTitle, 'queueTitle');
+    await _syncSubject(mediaItem, 'mediaItem');
+    await _syncSubject(androidPlaybackInfo, 'androidPlaybackInfo');
+    await _syncSubject(ratingStyle, 'ratingStyle');
+    await _syncSubject<dynamic>(customEvent, 'customEvent');
+    await _syncSubject<dynamic>(customState, 'customState');
+  }
+
+  /// Opens a channel to the [IsolatedAudioSource] through which this proxy can
+  /// listen to events on a stream named [name] from that [IsolatedAudioSource]
+  /// and forward them on to this proxy's corresponding stream subject to
+  /// deliver to the client isolate.
+  Future<void> _syncSubject<T>(Subject<T> subject, String name) async {
+    final receivePort = ReceivePort();
+    receivePort.cast<T>().listen(subject.add);
+    await _send(name, <dynamic>[receivePort.sendPort]);
+  }
 
   @override
   Future<void> prepare() => _send('prepare');
@@ -2511,7 +2614,6 @@ class _IsolateAudioHandler extends AudioHandler {
       _send('click', <dynamic>[button]);
 
   @override
-  @mustCallSuper
   Future<void> stop() => _send('stop');
 
   @override
@@ -2637,12 +2739,13 @@ class _IsolateAudioHandler extends AudioHandler {
       _send('androidSetRemoteVolume', <dynamic>[volumeIndex]);
 
   Future<dynamic> _send(String method, [List<dynamic>? arguments]) async {
-    final sendPort = IsolateNameServer.lookupPortByName(_isolatePortName);
-    if (sendPort == null) return null;
+    final sendPort = IsolateNameServer.lookupPortByName(portName);
+    if (sendPort == null) {
+      throw StateError('IsolatedAudioHandler $portName not available');
+    }
     final receivePort = ReceivePort();
     sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
     final dynamic result = await receivePort.first;
-    print("isolate result received: $result");
     receivePort.close();
     return result;
   }
@@ -3444,6 +3547,14 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
       );
 
   @override
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+      other is RemoteAndroidPlaybackInfo &&
+      volumeControlType == other.volumeControlType &&
+      maxVolume == other.maxVolume &&
+      volume == other.volume;
+
+  @override
   RemoteAndroidPlaybackInfoMessage _toMessage() =>
       RemoteAndroidPlaybackInfoMessage(
         volumeControlType:
@@ -3455,6 +3566,9 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
 
 /// Playback information for local volume handling.
 class LocalAndroidPlaybackInfo extends AndroidPlaybackInfo {
+  @override
+  bool operator ==(Object other) => other.runtimeType == runtimeType;
+
   @override
   LocalAndroidPlaybackInfoMessage _toMessage() =>
       const LocalAndroidPlaybackInfoMessage();
