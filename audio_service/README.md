@@ -55,36 +55,36 @@ Define your `AudioHandler` with the callbacks that you want your app to handle:
 class MyAudioHandler extends BaseAudioHandler
     with QueueHandler, // mix in default queue callback implementations
     SeekHandler { // mix in default seek callback implementations
-    
-  // This example handles each callback by delegating to this player.
-  final _player = AudioPlayer();
   
   // The most common callbacks:
-  play() => _player.play();
-  pause() => _player.pause();
-  stop() => _player.stop(); 
-  seek(Duration position) => _player.seek(position);
-  skipToQueueItem(int i) => _player.seek(Duration.zero, index: i);
+  Future<void> play() async {
+    // All 'play' requests from all origins route to here. Implement this
+    // callback to start playing audio appropriate to your app. e.g. music.
+  }
+  Future<void> pause() async {}
+  Future<void> stop() async {}
+  Future<void> seek(Duration position) async {}
+  Future<void> skipToQueueItem(int i) async {}
 }
 ```
 
 Register your `AudioHandler` during app startup:
 
 ```dart
-main() async {
+void main() async {
   // store this in a singleton
   _audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
     config: AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
-      androidNotificationChannelName: 'Audio playback',
+      androidNotificationChannelName: 'Music playback',
     ),
   );
   runApp(new MyApp());
 }
 ```
 
-### Sending messages to the audio handler
+### Sending requests to the audio handler from Flutter
 
 Standard controls:
 
@@ -140,7 +140,7 @@ _audioHandler.customAction('setVolume', {'volume': 0.8});
 _audioHandler.customAction('saveBookmark');
 ```
 
-### State
+### Broadcasting state changes
 
 Your audio handler must broadcast state changes so that the system notification and smart watches (etc) know what state to display. Your app's Flutter UI may also listen to these state changes so that it knows what state to display. Thus, the audio handler provides a single source of truth for your audio state to all clients.
 
@@ -165,8 +165,9 @@ Broadcast the current playback state:
 
 ```dart
     ...
+    // All options shown:
     playbackState.add(PlaybackState(
-      // Which buttons should appear in the notification
+      // Which buttons should appear in the notification now
       controls: [
         MediaControl.skipToPrevious,
         MediaControl.pause,
@@ -210,6 +211,8 @@ Broadcasting mutations of the current playback state using `copyWith`:
     ));
 ```
 
+### Listening to state changes
+
 Listen to changes to the currently playing item from the Flutter UI:
 
 ```dart
@@ -242,6 +245,34 @@ Listen to a stream of continuous changes to the current playback position:
 
 ```dart
 AudioService.position.listen((Duration position) { ... });
+```
+
+### Advanced features
+
+Compose multiple audio handler classes:
+
+```dart
+_audioHandler = await AudioService.init(
+  builder: () => AnalyticsAudioHandler(
+    PersistingAudioHandler(
+      MyAudioHandler())),
+);
+```
+
+Connecting from another isolate:
+
+```dart
+// Wrap audio handler in IsolatedAudioHandler:
+_audioHandler = await AudioService.init(
+  builder: () => IsolatedAudioHandler(
+    MyAudioHandler(),
+    portName: 'my_audio_handler',
+  ),
+);
+// From another isolate, obtain a proxy reference:
+_proxyAudioHandler = await IsolatedAudioHandler.lookup(
+  portName: 'my_audio_handler',
+);
 ```
 
 See the full example for how to handle queues/playlists, headset button clicks, media artwork and text to speech.
