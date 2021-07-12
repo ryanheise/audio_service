@@ -178,7 +178,7 @@ void main() {
         Future<void> testStream<T>(
             String name, ValueStream<T> stream, T value) async {
           await proxy.add(name, value);
-          expect(stream.value, value);
+          expect(stream.nvalue, value);
         }
 
         await testStream(
@@ -361,4 +361,10 @@ extension AudioHandlerExtension on AudioHandler {
       customAction('add', <String, dynamic>{'stream': stream, 'arg': arg});
 
   Future<void> unregister() => customAction('unregister');
+}
+
+/// Backwards compatible extensions on rxdart's ValueStream
+extension _ValueStreamExtension<T> on ValueStream<T> {
+  /// Backwards compatible version of valueOrNull.
+  T? get nvalue => hasValue ? value : null;
 }

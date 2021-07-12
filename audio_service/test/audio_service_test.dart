@@ -192,7 +192,7 @@ class _TestableQueueHandler extends BaseAudioHandler with QueueHandler {
   @override
   Future<void> skipToQueueItem(int index) async {
     playbackState.add(playbackState.nvalue!.copyWith(queueIndex: index));
-    mediaItem.add(queue.value![index]);
+    mediaItem.add(queue.nvalue![index]);
     await super.skipToQueueItem(index);
   }
 }
