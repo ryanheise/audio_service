@@ -1,4 +1,4 @@
-## Next release
+## 0.18.0-beta.0
 
 * Use a single isolate for easier communication.
 * Replace BackgroundAudioTask by AudioHandler.

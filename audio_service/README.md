@@ -71,7 +71,7 @@ class MyAudioHandler extends BaseAudioHandler
 Register your `AudioHandler` during app startup:
 
 ```dart
-void main() async {
+Future<void> main() async {
   // store this in a singleton
   _audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
