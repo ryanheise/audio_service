@@ -580,7 +580,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession = null;
     }
 
-    void setQueue(List<MediaSessionCompat.QueueItem> queue) {
+    synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
         this.queue = queue;
         mediaSession.setQueue(queue);
     }
