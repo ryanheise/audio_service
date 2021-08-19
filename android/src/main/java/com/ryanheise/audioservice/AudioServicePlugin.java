@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.flutter.app.FlutterApplication;
+import io.flutter.embedding.engine.plugins.util.GeneratedPluginRegister;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -85,6 +86,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static volatile Result stopResult;
     private static String subscribedParentMediaId;
     private static long bootTime;
+    private FlutterPluginBinding flutterPluginBinding;
+    private ActivityPluginBinding activityPluginBinding;
+    private NewIntentListener newIntentListener;
+    private ClientHandler clientHandler; // v2 only
 
     static {
         bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
@@ -120,11 +125,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             backgroundHandler.init(registrar.messenger());
         }
     }
-
-    private FlutterPluginBinding flutterPluginBinding;
-    private ActivityPluginBinding activityPluginBinding;
-    private NewIntentListener newIntentListener;
-    private ClientHandler clientHandler; // v2 only
 
     //
     // FlutterPlugin callbacks
@@ -193,7 +193,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             }
         });
     }
-
 
     private static void sendConnectResult(boolean result) {
         if (connectResult != null) {
@@ -330,11 +329,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         sendStartResult(false);
                         break;
                     }
-                    if (activity == null) {
-                        System.out.println("AudioService can only be started from an activity");
-                        sendStartResult(false);
-                        break;
-                    }
+//                    if (activity == null) {
+//                        System.out.println("AudioService can only be started from an activity");
+//                        sendStartResult(false);
+//                        break;
+//                    }
                     Map<?, ?> arguments = (Map<?, ?>)call.arguments;
                     final long callbackHandle = getLong(arguments.get("callbackHandle"));
                     params = (Map<String, Object>)arguments.get("params");
@@ -345,6 +344,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     String androidNotificationChannelDescription = (String)arguments.get("androidNotificationChannelDescription");
                     Integer androidNotificationColor = arguments.get("androidNotificationColor") == null ? null : getInt(arguments.get("androidNotificationColor"));
                     String androidNotificationIcon = (String)arguments.get("androidNotificationIcon");
+                    String mainActivityClassPath = (String)arguments.get("mainActivityClassPath");
                     boolean androidShowNotificationBadge = (Boolean)arguments.get("androidShowNotificationBadge");
                     final boolean androidEnableQueue = (Boolean)arguments.get("androidEnableQueue");
                     final boolean androidStopForegroundOnPause = (Boolean)arguments.get("androidStopForegroundOnPause");
@@ -356,7 +356,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
                     final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
                     backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-                    AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+                    AudioService.init(androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler, mainActivityClassPath);
 
                     synchronized (connectionCallback) {
                         if (mediaController != null)
@@ -616,6 +616,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             DartCallback dartCallback = new DartCallback(context.getAssets(), appBundlePath, cb);
 
             executor.executeDartCallback(dartCallback);
+            GeneratedPluginRegister.registerGeneratedPlugins(backgroundFlutterEngine);
         }
 
         @Override
@@ -779,9 +780,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             switch (call.method) {
             case "ready":
                 Map<String, Object> startParams = new HashMap<String, Object>();
-                startParams.put("fastForwardInterval", mainClientHandler.fastForwardInterval);
-                startParams.put("rewindInterval", mainClientHandler.rewindInterval);
-                startParams.put("params", mainClientHandler.params);
+                if(mainClientHandler != null){
+                    startParams.put("fastForwardInterval", mainClientHandler.fastForwardInterval);
+                    startParams.put("rewindInterval", mainClientHandler.rewindInterval);
+                    startParams.put("params", mainClientHandler.params);
+                } else {
+                    startParams.put("fastForwardInterval", 10000);
+                    startParams.put("rewindInterval", 10000);
+                }
                 result.success(startParams);
                 break;
             case "started":

@@ -62,6 +62,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     static String androidNotificationChannelDescription;
     static Integer notificationColor;
     static String androidNotificationIcon;
+    static String mainActivityClassPath;
     static boolean androidShowNotificationBadge;
     static boolean androidNotificationClickStartsActivity;
     static boolean androidNotificationOngoing;
@@ -78,13 +79,13 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static int shuffleMode;
     private static boolean notificationCreated;
 
-    public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
+    public static void init(boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener, String mainActivityClassPath) throws ClassNotFoundException {
         if (running)
             throw new IllegalStateException("AudioService already running");
         running = true;
 
-        Context context = activity.getApplicationContext();
-        Intent intent = new Intent(context, activity.getClass());
+        Context context = instance.getApplicationContext();
+        Intent intent = new Intent(context, Class.forName(mainActivityClassPath));
         intent.setAction(action);
         contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         AudioService.listener = listener;
@@ -93,6 +94,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         AudioService.androidNotificationChannelDescription = androidNotificationChannelDescription;
         AudioService.notificationColor = notificationColor;
         AudioService.androidNotificationIcon = androidNotificationIcon;
+        AudioService.mainActivityClassPath = mainActivityClassPath;
         AudioService.androidShowNotificationBadge = androidShowNotificationBadge;
         AudioService.androidNotificationClickStartsActivity = androidNotificationClickStartsActivity;
         AudioService.androidNotificationOngoing = androidNotificationOngoing;
@@ -346,7 +348,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private boolean enterPlayingState() {
-        startService(new Intent(AudioService.this, AudioService.class));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(new Intent(AudioService.this, AudioService.class));
+        } else {
+            startService(new Intent(AudioService.this, AudioService.class));
+        }
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 

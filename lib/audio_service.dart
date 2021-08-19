@@ -782,6 +782,7 @@ class AudioService {
     String? androidNotificationChannelDescription,
     int? androidNotificationColor,
     String androidNotificationIcon = 'mipmap/ic_launcher',
+    required String mainActivityClassPath,
     bool androidShowNotificationBadge = false,
     bool androidNotificationClickStartsActivity = true,
     bool androidNotificationOngoing = false,
@@ -832,6 +833,7 @@ class AudioService {
             androidNotificationChannelDescription,
         'androidNotificationColor': androidNotificationColor,
         'androidNotificationIcon': androidNotificationIcon,
+        'mainActivityClassPath': mainActivityClassPath,
         'androidShowNotificationBadge': androidShowNotificationBadge,
         'androidNotificationClickStartsActivity':
             androidNotificationClickStartsActivity,
