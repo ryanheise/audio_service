@@ -46,5 +46,21 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <receiver android:name="AudioSmallWidget" >
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/audio_small_widget_xml" />
+        </receiver>
+
+        <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
+        <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
+            android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+
     </application>
 </manifest>

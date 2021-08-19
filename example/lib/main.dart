@@ -7,10 +7,50 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
-void main() => runApp(new MyApp());
+void homeWidgetBackgroundCallback(Uri? data) async {
+  if (!AudioService.running) {
+    if (!AudioService.connected) await AudioService.connect();
+    await AudioService.start(
+      backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
+      androidStopForegroundOnPause: false,
+      mainActivityClassPath: "com.ryanheise.audioserviceexample.MainActivity",
+      androidShowNotificationBadge: false,
+      androidNotificationIcon: "mipmap/ic_launcher",
+      androidNotificationClickStartsActivity: true,
+      androidResumeOnClick: true,
+      androidNotificationChannelName: "audio_player",
+      androidNotificationChannelDescription: "Notification channel for audio player",
+      androidEnableQueue: true,
+    );
+  }
+
+  final w = data?.toString().split('://').first;
+  final a = data?.toString().split('://').last;
+  if(w == "audiosmallwidget") {
+    final savedPath = await HomeWidget.getWidgetData("path");
+    if(a == "prev") AudioService.skipToPrevious();
+    if(a == "rew") AudioService.rewind();
+    if(a == "play") {
+      if(AudioService.playbackState.playing) AudioService.pause();
+      else {
+        if(AudioService.currentMediaItem == null)
+          AudioService.playMediaItem(MediaItem(id: savedPath, album: "album", title: "title"));
+        else AudioService.play();
+      }
+    }
+    if(a == "ff") AudioService.fastForward();
+    if(a == "next") AudioService.skipToNext();
+  }
+}
+
+void main() {
+  runApp(new MyApp());
+  HomeWidget.registerBackgroundCallback(homeWidgetBackgroundCallback);
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -172,16 +212,18 @@ class MainScreen extends StatelessWidget {
 
   ElevatedButton audioPlayerButton() => startButton(
         'AudioPlayer',
-        () {
-          AudioService.start(
+        () async {
+          await AudioService.start(
             backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
             androidNotificationChannelName: 'Audio Service Demo',
+            mainActivityClassPath: "com.ryanheise.audioserviceexample.MainActivity",
             // Enable this if you want the Android service to exit the foreground state on pause.
             //androidStopForegroundOnPause: true,
             androidNotificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
             androidEnableQueue: true,
           );
+          AudioService.play();
         },
       );
 
@@ -190,6 +232,7 @@ class MainScreen extends StatelessWidget {
         () {
           AudioService.start(
             backgroundTaskEntrypoint: _textToSpeechTaskEntrypoint,
+            mainActivityClassPath: "com.ryanheise.audioserviceexample.MainActivity",
             androidNotificationChannelName: 'Audio Service Demo',
             androidNotificationColor: 0xFF2196f3,
             androidNotificationIcon: 'mipmap/ic_launcher',
@@ -362,11 +405,24 @@ class AudioPlayerTask extends BackgroundAudioTask {
             queue.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
       ));
       // In this example, we automatically start playing on start.
+      // onPlay();
+    } catch (e) {
+      print("Error: $e");
+      onStop();
+    }
+    await _updateHomeWidget();
+  }
+
+  @override
+  Future<void> onPlayMediaItem(MediaItem mediaItem) async {
+    try {
+      await _player.setUrl(mediaItem.id);
       onPlay();
     } catch (e) {
       print("Error: $e");
       onStop();
     }
+    await _updateHomeWidget();
   }
 
   @override
@@ -385,16 +441,23 @@ class AudioPlayerTask extends BackgroundAudioTask {
         ? AudioProcessingState.skippingToNext
         : AudioProcessingState.skippingToPrevious;
     // This jumps to the beginning of the queue item at newIndex.
-    _player.seek(Duration.zero, index: newIndex);
+    await _player.seek(Duration.zero, index: newIndex);
     // Demonstrate custom events.
     AudioServiceBackground.sendCustomEvent('skip to $newIndex');
+    await _updateHomeWidget();
   }
 
   @override
-  Future<void> onPlay() => _player.play();
+  Future<void> onPlay() async {
+    _player.play();
+    await _updateHomeWidget();
+  }
 
   @override
-  Future<void> onPause() => _player.pause();
+  Future<void> onPause() async {
+    _player.pause();
+    await _updateHomeWidget();
+  }
 
   @override
   Future<void> onSeekTo(Duration position) => _player.seek(position);
@@ -413,6 +476,8 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStop() async {
+    await _player.stop();
+    await _updateHomeWidget();
     await _player.dispose();
     _eventSubscription.cancel();
     // It is important to wait for this state to be broadcast before we shut
@@ -486,6 +551,19 @@ class AudioPlayerTask extends BackgroundAudioTask {
       default:
         throw Exception("Invalid state: ${_player.processingState}");
     }
+  }
+
+  _updateHomeWidget() async {
+    if(AudioServiceBackground.mediaItem == null) return;
+    await Future.wait([
+      HomeWidget.saveWidgetData<String>('title', AudioServiceBackground.mediaItem!.title),
+      HomeWidget.saveWidgetData<String>('artwork', AudioServiceBackground.mediaItem!.artUri?.path),
+      HomeWidget.saveWidgetData<String>('path', AudioServiceBackground.mediaItem!.id),
+      HomeWidget.saveWidgetData<bool>('playing', _player.playing),
+    ]);
+    try {
+      await HomeWidget.updateWidget(androidName: 'AudioSmallWidget', name: "AudioSmallWidget");
+    } catch (e) {}
   }
 }
 
