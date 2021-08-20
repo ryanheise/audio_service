@@ -861,13 +861,31 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 // See: https://issuetracker.google.com/issues/65344811
                 if (silenceAudioTrack == null) {
                     byte[] silence = new byte[2048];
-                    silenceAudioTrack = new AudioTrack(
+                    // TODO: Uncomment this after moving to a minSdkVersion of 21.
+                    /* AudioAttributes audioAttributes = new AudioAttributes.Builder() */
+                    /*     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC) */
+                    /*     .setUsage(AudioAttributes.USAGE_MEDIA) */
+                    /*     .build(); */
+                    /* AudioFormat audioFormat = new AudioFormat.Builder() */
+                    /*     .setChannelMask(AudioFormat.CHANNEL_CONFIGURATION_MONO) */
+                    /*     .setEncoding(AudioFormat.ENCODING_PCM_8BIT) */
+                    /*     .setSampleRate(SILENCE_SAMPLE_RATE) */
+                    /*     .build(); */
+                    /* silenceAudioTrack = new AudioTrack.Builder() */
+                    /*     .setAudioAttributes(audioAttributes) */
+                    /*     .setAudioFormat(audioFormat) */
+                    /*     .setBufferSizeInBytes(silence.length) */
+                    /*     .setTransferMode(AudioTrack.MODE_STATIC) */
+                    /*     .build(); */
+                    @SuppressWarnings("deprecation")
+                    final AudioTrack audioTrack = new AudioTrack(
                             AudioManager.STREAM_MUSIC,
                             SILENCE_SAMPLE_RATE,
                             AudioFormat.CHANNEL_CONFIGURATION_MONO,
                             AudioFormat.ENCODING_PCM_8BIT,
                             silence.length,
                             AudioTrack.MODE_STATIC);
+                    silenceAudioTrack = audioTrack;
                     silenceAudioTrack.write(silence, 0, silence.length);
                 }
                 silenceAudioTrack.reloadStaticData();
@@ -922,7 +940,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         return rawQueue;
     }
 
-    private static RatingCompat raw2rating(Map<String, Object> raw) {
+    private static RatingCompat raw2rating(Map<?, ?> raw) {
         if (raw == null) return null;
         Integer type = (Integer)raw.get("type");
         Object value = raw.get("value");
@@ -1022,7 +1040,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 (String)rawMediaItem.get("displayTitle"),
                 (String)rawMediaItem.get("displaySubtitle"),
                 (String)rawMediaItem.get("displayDescription"),
-                raw2rating((Map<String, Object>)rawMediaItem.get("rating")),
+                raw2rating((Map<?, ?>)rawMediaItem.get("rating")),
                 (Map<?, ?>)rawMediaItem.get("extras")
         );
     }

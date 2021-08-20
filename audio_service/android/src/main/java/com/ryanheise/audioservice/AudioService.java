@@ -390,7 +390,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (errorCode != null && errorMessage != null)
             stateBuilder.setErrorMessage(errorCode, errorMessage);
         else if (errorMessage != null)
-            stateBuilder.setErrorMessage(errorMessage);
+            stateBuilder.setErrorMessage(-987654, errorMessage);
         mediaSession.setPlaybackState(stateBuilder.build());
         mediaSession.setRepeatMode(repeatMode);
         mediaSession.setShuffleMode(shuffleMode);
@@ -670,12 +670,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         public void onRemoveQueueItem(MediaDescriptionCompat description) {
             if (listener == null) return;
             listener.onRemoveQueueItem(getMediaMetadata(description.getMediaId()));
-        }
-
-        @Override
-        public void onRemoveQueueItemAt(int index) {
-            if (listener == null) return;
-            listener.onRemoveQueueItemAt(index);
         }
 
         @Override
