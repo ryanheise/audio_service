@@ -33,6 +33,14 @@ You can implement these callbacks to play any sort of audio that is appropriate 
 
 If you'd like to help with any missing features, please join us on the [GitHub issues page](https://github.com/ryanheise/audio_service/issues).
 
+## Tutorials and documentation
+
+* [Background audio in Flutter with Audio Service and Just Audio](https://suragch.medium.com/background-audio-in-flutter-with-audio-service-and-just-audio-3cce17b4a7d?sk=0837a1b1773e27a4f879ff3072e90305) by @suragch
+* [Tutorial](https://github.com/ryanheise/audio_service/wiki/Tutorial): walks you through building a simple audio player while explaining the basic concepts.
+* [Full example](https://github.com/ryanheise/audio_service): The `example` subdirectory on GitHub demonstrates both music and text-to-speech use cases.
+* [Frequently Asked Questions](https://github.com/ryanheise/audio_service/wiki/FAQ)
+* [API documentation](https://pub.dev/documentation/audio_service/latest/audio_service/audio_service-library.html)
+
 ## What's new in 0.18.0?
 
 0.18.0 removes the need for a background isolate, allowing simpler communication between your UI and audio logic and greater compatibility with plugins that don't support multiple isolates.
@@ -41,7 +49,7 @@ Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migra
 
 ## Can I make use of other plugins within the audio handler?
 
-Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_radio](https://pub.dev/packages/flutter_radio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, within your background audio task. There are also plugins like [just_audio_handlers](https://github.com/yringler/inside-app/tree/master/just_audio_handlers) that provide default implementations of `AudioHandler` to make your job easier.
+Yes! `audio_service` is designed to let you implement the audio logic however you want, using whatever plugins you want. You can use your favourite audio plugins such as [just_audio](https://pub.dartlang.org/packages/just_audio), [flutter_tts](https://pub.dartlang.org/packages/flutter_tts), and others, within your audio handler. There are also plugins like [just_audio_handlers](https://github.com/yringler/inside-app/tree/master/just_audio_handlers) that provide default implementations of `AudioHandler` to make your job easier.
 
 Note that this plugin will not work with other audio plugins that overlap in responsibility with this plugin (i.e. background audio, iOS control center, Android notifications, lock screen, headset buttons, etc.)
 
@@ -401,10 +409,3 @@ Modify the platform line in `macos/Podfile` to look like the following:
 ```
 platform :osx, '10.12.2'
 ```
-
-# Where can I find more information?
-
-* [Tutorial](https://github.com/ryanheise/audio_service/wiki/Tutorial): walks you through building a simple audio player while explaining the basic concepts.
-* [Full example](https://github.com/ryanheise/audio_service): The `example` subdirectory on GitHub demonstrates both music and text-to-speech use cases.
-* [Frequently Asked Questions](https://github.com/ryanheise/audio_service/wiki/FAQ)
-* [API documentation](https://pub.dev/documentation/audio_service/latest/audio_service/audio_service-library.html)
