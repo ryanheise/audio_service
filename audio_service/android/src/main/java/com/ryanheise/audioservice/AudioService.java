@@ -64,8 +64,10 @@ public class AudioService extends MediaBrowserServiceCompat {
             | PlaybackStateCompat.ACTION_PAUSE
             | PlaybackStateCompat.ACTION_PLAY
             | PlaybackStateCompat.ACTION_REWIND
-            | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-            | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            // Auto-enabling these is bad for Android Auto since it forces the
+            // previous/next buttons to always show.
+            //| PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            //| PlaybackStateCompat.ACTION_SKIP_TO_NEXT
             | PlaybackStateCompat.ACTION_FAST_FORWARD
             | PlaybackStateCompat.ACTION_SET_RATING
             // "seek" is the exception because it's the only action that
