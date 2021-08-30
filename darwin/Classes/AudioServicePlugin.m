@@ -437,7 +437,8 @@ static MPMediaItemArtwork* artwork = nil;
                     [commandCenter.skipBackwardCommand addTarget: self action:@selector(skipBackward:)];
                     int rewindIntervalInSeconds = [rewindInterval intValue]/1000;
                     NSNumber *rewindIntervalInSec = [NSNumber numberWithInt: rewindIntervalInSeconds];
-                    commandCenter.skipBackwardCommand.preferredIntervals = @[rewindIntervalInSec];
+                    // >>> devasx666
+                    commandCenter.skipBackwardCommand.preferredIntervals = @[@(15)]; //@[rewindIntervalInSec];
                 } else {
                     [commandCenter.skipBackwardCommand removeTarget:nil];
                 }
@@ -463,7 +464,8 @@ static MPMediaItemArtwork* artwork = nil;
                     [commandCenter.skipForwardCommand addTarget: self action:@selector(skipForward:)];
                     int fastForwardIntervalInSeconds = [fastForwardInterval intValue]/1000;
                     NSNumber *fastForwardIntervalInSec = [NSNumber numberWithInt: fastForwardIntervalInSeconds];
-                    commandCenter.skipForwardCommand.preferredIntervals = @[fastForwardIntervalInSec];
+                    // >>> devasx666
+                    commandCenter.skipForwardCommand.preferredIntervals = @[@(15)];//@[fastForwardIntervalInSec];
                 } else {
                     [commandCenter.skipForwardCommand removeTarget:nil];
                 }
