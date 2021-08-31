@@ -394,6 +394,19 @@ Modify the platform line in `macos/Podfile` to look like the following:
 platform :osx, '10.12.2'
 ```
 
+### iOS Player controll center
+You can not only use the rewind/fastForward buttons for 10 seconds, but you can also 
+specify any number in the button from 1 to 99
+
+```dart
+AudioService.start(
+  ...
+  fastForwardInterval: const Duration(seconds: 15),
+  rewindInterval: const Duration(seconds: 15),
+  ...
+  );
+```
+
 # Where can I find more information?
 
 * [Tutorial](https://github.com/ryanheise/audio_service/wiki/Tutorial): walks you through building a simple audio player while explaining the basic concepts.
