@@ -765,12 +765,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             disposeFlutterEngine();
         }
 
+        Handler handler = new Handler(Looper.getMainLooper());
+
         @Override
         public void onMethodCall(MethodCall call, Result result) {
             Map<?, ?> args = (Map<?, ?>)call.arguments;
             switch (call.method) {
             case "setMediaItem": {
-                Handler handler = new Handler(Looper.getMainLooper());
                 Executors.newSingleThreadExecutor().execute(() -> {
                     try {
                         Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
@@ -786,18 +787,17 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 break;
             }
             case "setQueue": {
-                Handler handler = new Handler(Looper.getMainLooper());
                 Executors.newSingleThreadExecutor().execute(() -> {
-                     try {
-                         @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
-                         List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
-                         AudioService.instance.setQueue(queue);
-                         handler.post(() -> result.success(null));
-                     } catch (Exception e) {
-                         handler.post(() -> {
-                             result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
-                         });
-                     }
+                    try {
+                        @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
+                        List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
+                        AudioService.instance.setQueue(queue);
+                        handler.post(() -> result.success(null));
+                    } catch (Exception e) {
+                        handler.post(() -> {
+                            result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
+                        });
+                    }
                 });
                 break;
             }

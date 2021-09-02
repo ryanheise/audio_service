@@ -580,6 +580,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession = null;
     }
 
+    /**
+     * Updates queue.
+     * Gets called from background thread.
+     */
     synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
         this.queue = queue;
         mediaSession.setQueue(queue);
@@ -589,6 +593,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSessionCallback.onPlayMediaItem(description);
     }
 
+    /**
+     * Updates metadata, loads the art and updates the notification.
+     * Gets called from background thread.
+     */
     synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
         this.mediaMetadata = mediaMetadata;
         mediaSession.setMetadata(mediaMetadata);
