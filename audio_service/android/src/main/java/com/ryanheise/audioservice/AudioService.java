@@ -459,8 +459,10 @@ public class AudioService extends MediaBrowserServiceCompat {
                 builder.setContentText(description.getSubtitle());
             if (description.getDescription() != null)
                 builder.setSubText(description.getDescription());
-            if (artBitmap != null)
-                builder.setLargeIcon(artBitmap);
+            synchronized (this) {
+                if (artBitmap != null)
+                    builder.setLargeIcon(artBitmap);
+            }
         }
         if (config.androidNotificationClickStartsActivity)
             builder.setContentIntent(mediaSession.getController().getSessionActivity());
