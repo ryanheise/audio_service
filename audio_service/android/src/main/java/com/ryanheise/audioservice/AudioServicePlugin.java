@@ -8,6 +8,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 
 import androidx.annotation.UiThread;
@@ -30,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -47,6 +50,7 @@ import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.dart.DartExecutor;
 
 import android.net.Uri;
+import android.util.Log;
 
 /**
  * AudioservicePlugin
@@ -761,22 +765,40 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             disposeFlutterEngine();
         }
 
+        Handler handler = new Handler(Looper.getMainLooper());
+
         @Override
         public void onMethodCall(MethodCall call, Result result) {
             Map<?, ?> args = (Map<?, ?>)call.arguments;
             switch (call.method) {
             case "setMediaItem": {
-                Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
-                MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-                AudioService.instance.setMetadata(mediaMetadata);
-                result.success(null);
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    try {
+                        Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
+                        MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                        AudioService.instance.setMetadata(mediaMetadata);
+                        handler.post(() -> result.success(null));
+                    } catch (Exception e) {
+                        handler.post(() -> {
+                            result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
+                        });
+                    }
+                });
                 break;
             }
             case "setQueue": {
-                @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>)args.get("queue");
-                List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
-                AudioService.instance.setQueue(queue);
-                result.success(null);
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    try {
+                        @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
+                        List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
+                        AudioService.instance.setQueue(queue);
+                        handler.post(() -> result.success(null));
+                    } catch (Exception e) {
+                        handler.post(() -> {
+                            result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
+                        });
+                    }
+                });
                 break;
             }
             case "setState": {

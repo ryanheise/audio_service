@@ -121,17 +121,6 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
         if (artUri != null) {
             builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
-            String artCacheFilePath = null;
-            if (extras != null) {
-                artCacheFilePath = (String)extras.get("artCacheFile");
-            }
-            if (artCacheFilePath != null) {
-                Bitmap bitmap = loadArtBitmapFromFile(artCacheFilePath);
-                if (bitmap != null) {
-                    builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
-                    builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap);
-                }
-            }
         }
         if (playable != null)
             builder.putLong("playable_long", playable ? 1 : 0);
@@ -220,6 +209,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private List<NotificationCompat.Action> actions = new ArrayList<>();
     private int[] compactActionIndices;
     private MediaMetadataCompat mediaMetadata;
+    private Bitmap artBitmap;
     private String notificationChannelId;
     private LruCache<String, Bitmap> artBitmapCache;
     private boolean playing = false;
@@ -306,6 +296,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         listener.onDestroy();
         listener = null;
         mediaMetadata = null;
+        artBitmap = null;
         queue.clear();
         mediaMetadataCache.clear();
         actions.clear();
@@ -315,7 +306,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         stopForeground(!config.androidResumeOnClick);
         // This still does not solve the Android 11 problem.
         // if (notificationCreated) {
-        //     NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        //     NotificationManager notificationManager = getNotificationManager();
         //     notificationManager.cancel(NOTIFICATION_ID);
         // }
         releaseWakeLock();
@@ -468,8 +459,10 @@ public class AudioService extends MediaBrowserServiceCompat {
                 builder.setContentText(description.getSubtitle());
             if (description.getDescription() != null)
                 builder.setSubText(description.getDescription());
-            if (description.getIconBitmap() != null)
-                builder.setLargeIcon(description.getIconBitmap());
+            synchronized (this) {
+                if (artBitmap != null)
+                    builder.setLargeIcon(artBitmap);
+            }
         }
         if (config.androidNotificationClickStartsActivity)
             builder.setContentIntent(mediaSession.getController().getSessionActivity());
@@ -488,6 +481,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         builder.setStyle(style);
         return builder.build();
+    }
+
+    private NotificationManager getNotificationManager() {
+        return (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
     private NotificationCompat.Builder getNotificationBuilder() {
@@ -514,7 +511,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private void createChannel() {
-        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager notificationManager = getNotificationManager();
         NotificationChannel channel = notificationManager.getNotificationChannel(notificationChannelId);
         if (channel == null) {
             channel = new NotificationChannel(notificationChannelId, config.androidNotificationChannelName, NotificationManager.IMPORTANCE_LOW);
@@ -526,9 +523,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void updateNotification() {
-        if (!notificationCreated) return;
-        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.notify(NOTIFICATION_ID, buildNotification());
+        if (notificationCreated) {
+            getNotificationManager().notify(NOTIFICATION_ID, buildNotification());
+        }
     }
 
     private void enterPlayingState() {
@@ -577,8 +574,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             mediaSession.setActive(false);
         }
         // Force cancellation of the notification
-        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(NOTIFICATION_ID);
+        getNotificationManager().cancel(NOTIFICATION_ID);
     }
 
     private void releaseMediaSession() {
@@ -588,7 +584,11 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession = null;
     }
 
-    void setQueue(List<MediaSessionCompat.QueueItem> queue) {
+    /**
+     * Updates queue.
+     * Gets called from background thread.
+     */
+    synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
         this.queue = queue;
         mediaSession.setQueue(queue);
     }
@@ -597,9 +597,17 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSessionCallback.onPlayMediaItem(description);
     }
 
-    void setMetadata(final MediaMetadataCompat mediaMetadata) {
+    /**
+     * Updates metadata, loads the art and updates the notification.
+     * Gets called from background thread.
+     */
+    synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
         this.mediaMetadata = mediaMetadata;
         mediaSession.setMetadata(mediaMetadata);
+        String artCacheFilePath = mediaMetadata.getString("artCacheFile");
+        if (artCacheFilePath != null) {
+            artBitmap = loadArtBitmapFromFile(artCacheFilePath);
+        }
         updateNotification();
     }
 
