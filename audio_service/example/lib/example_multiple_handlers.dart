@@ -210,7 +210,7 @@ class MainScreen extends StatelessWidget {
   /// A stream reporting the combined state of the current queue and the current
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
-      Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
+      Rx.combineLatest2<List<MediaItem>, MediaItem?, QueueState>(
           _audioHandler.queue,
           _audioHandler.mediaItem,
           (queue, mediaItem) => QueueState(queue, mediaItem));
@@ -235,7 +235,7 @@ class MainScreen extends StatelessWidget {
 }
 
 class QueueState {
-  final List<MediaItem>? queue;
+  final List<MediaItem> queue;
   final MediaItem? mediaItem;
 
   QueueState(this.queue, this.mediaItem);
@@ -536,7 +536,8 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
           await _sleeper.sleep();
         }
         // ignore: empty_catches
-      } on SleeperInterruptedException {} on TtsInterruptedException {}
+      } on SleeperInterruptedException {
+      } on TtsInterruptedException {}
     }
     _index = 0;
     mediaItem.add(queue.value[_index]);
