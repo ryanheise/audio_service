@@ -75,12 +75,10 @@ class AudioServiceWeb extends AudioServicePlatform {
       for (final message in request.state.systemActions) {
         switch (message) {
           case MediaActionMessage.seek:
-            setActionHandler('seekto', js.allowInterop((ActionResult ev) {
-              // Chrome uses seconds for whatever reason
+            setActionHandler('seekto', js.allowInterop((ActionResult event) {
               handlerCallbacks?.seek(SeekRequest(
-                  position: Duration(
-                milliseconds: (ev.seekTime * 1000).round(),
-              )));
+                position: Duration(seconds: event.seekTime.toInt()),
+              ));
             }));
             break;
           default:
