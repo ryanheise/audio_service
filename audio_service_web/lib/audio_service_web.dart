@@ -76,8 +76,10 @@ class AudioServiceWeb extends AudioServicePlatform {
         switch (message) {
           case MediaActionMessage.seek:
             setActionHandler('seekto', js.allowInterop((ActionResult event) {
+              // Chrome uses seconds
               handlerCallbacks?.seek(SeekRequest(
-                position: Duration(seconds: event.seekTime.toInt()),
+                position:
+                    Duration(milliseconds: (event.seekTime * 1000).round()),
               ));
             }));
             break;
@@ -99,10 +101,11 @@ class AudioServiceWeb extends AudioServicePlatform {
       if (position > duration) {
         position = duration;
       }
+      // Chrome expects for seconds
       setPositionState(PositionState(
-        duration: duration.inSeconds.toDouble(),
+        duration: duration.inMilliseconds / 1000,
         playbackRate: request.state.speed,
-        position: position.inSeconds.toDouble(),
+        position: position.inMilliseconds / 1000,
       ));
     }
   }
