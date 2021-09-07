@@ -16,7 +16,8 @@ class AudioServiceWeb extends AudioServicePlatform {
     final supported = js.context.hasProperty('MediaSession');
     if (!supported && !_loggedNotSupported) {
       _loggedNotSupported = true;
-      print("[warning] audio_service: MediaSession is not supported in this browser, so plugin is no-op");
+      print(
+          "[warning] audio_service: MediaSession is not supported in this browser, so plugin is no-op");
     }
     return supported;
   }
