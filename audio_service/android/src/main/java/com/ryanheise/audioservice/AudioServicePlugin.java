@@ -66,7 +66,7 @@ import android.util.Log;
  * Tries to bind, because it doesn't know yet whether this is the right engine that can connect
  * to the AudioHandler. This is later determined by whichever engine sends the `configure` message.
  *
- * When the plugin is attached to activity, it updates the {@link #mainClientInterface}
+ * When the plugin is attached to activity, it updates the {@link #clientInterface}
  * with new context. The {@link #mainClientInterface} can be later also updated by the `configure`
  * message.
  *
@@ -74,11 +74,11 @@ import android.util.Log;
  *
  * The moment connection with {@link MediaBrowserCompat} is established
  * is the moment the service is created. The service also cannot be
- * destroyed until the main client disconnects from it.
+ * stopped until the main client disconnects from it.
  *
  * When plugin is detached from the activity, the connection is killed
- * and the services is destroyed. Service's `onDestroy` often may be not called,
- * as app process finishes before any of that can happen.
+ * and the service can be stopped. Service doesn't call `stopSelf` internally,
+ * so`onDestroy` usually is not called.
  *
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
@@ -103,7 +103,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     public static void disposeFlutterEngine() {
-        Log.w("WOW", "DESTROY ENGINE !");
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine != null) {
             FlutterEngineCache.getInstance().remove(flutterEngineId);
