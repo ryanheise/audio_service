@@ -35,7 +35,6 @@ class AudioServiceWeb extends AudioServicePlatform {
       return;
     }
     final session = html.window.navigator.mediaSession!;
-    print(session);
     for (final control in request.state.controls) {
       switch (control.action) {
         case MediaActionMessage.play:
