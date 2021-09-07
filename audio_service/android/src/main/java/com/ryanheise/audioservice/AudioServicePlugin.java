@@ -78,7 +78,7 @@ import android.util.Log;
  *
  * When plugin is detached from the activity, the connection is killed
  * and the service can be stopped. Service doesn't call `stopSelf` internally,
- * so`onDestroy` usually is not called.
+ * so `onDestroy` usually is not called.
  *
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
