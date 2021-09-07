@@ -24,7 +24,6 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.RatingCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.session.PlaybackStateCompat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,7 +52,34 @@ import android.net.Uri;
 import android.util.Log;
 
 /**
- * AudioservicePlugin
+ * The glue between activities (or clients) and {@link AudioService}.
+ * Also a provider of {@link FlutterEngine}.
+ *
+ * The engine might be warmed up in the {@link AudioService},
+ * or the {@link AudioServiceActivity}, depending on which starts
+ * the first.
+ *
+ * --- Glue overview ---
+ *
+ * When the plugin is attached to the engine, it starts the connection
+ * with {@link MediaBrowserCompat} and tries to bind to the {@link AudioService#init}.
+ * Tries to bind, because it doesn't know yet whether this is the right engine that can connect
+ * to the AudioHandler. This is later determined by whichever engine sends the `configure` message.
+ *
+ * When the plugin is attached to activity, it updates the {@link #mainClientInterface}
+ * with new context. The {@link #mainClientInterface} can be later also updated by the `configure`
+ * message.
+ *
+ * --- When resources are destroyed ---
+ *
+ * The moment connection with {@link MediaBrowserCompat} is established
+ * is the moment the service is created. The service also cannot be
+ * destroyed until the main client disconnects from it.
+ *
+ * When plugin is detached from the activity, the connection is killed
+ * and the services is destroyed. Service's `onDestroy` often may be not called,
+ * as app process finishes before any of that can happen.
+ *
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static String flutterEngineId = "audio_service_engine";
@@ -77,10 +103,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     public static void disposeFlutterEngine() {
+        Log.w("WOW", "DESTROY ENGINE !");
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine != null) {
-            flutterEngine.destroy();
             FlutterEngineCache.getInstance().remove(flutterEngineId);
+            flutterEngine.destroy();
         }
     }
 
@@ -256,6 +283,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         activityPluginBinding = binding;
         clientInterface.setActivity(binding.getActivity());
         clientInterface.setContext(binding.getActivity());
+        if (AudioService.instance != null) {
+            AudioService.instance.onAttachedToNewActivity();
+        }
         // Verify that the app is configured with the correct FlutterEngine.
         FlutterEngine sharedEngine = getFlutterEngine(binding.getActivity().getApplicationContext());
         clientInterface.setWrongEngineDetected(flutterPluginBinding.getBinaryMessenger() != sharedEngine.getDartExecutor());
@@ -278,8 +308,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivityForConfigChanges() {
-        activityPluginBinding.removeOnNewIntentListener(newIntentListener);
-        activityPluginBinding = null;
+        if (activityPluginBinding != null) {
+            activityPluginBinding.removeOnNewIntentListener(newIntentListener);
+            activityPluginBinding = null;
+        }
         clientInterface.setActivity(null);
         clientInterface.setContext(flutterPluginBinding.getApplicationContext());
     }
@@ -294,8 +326,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
     @Override
     public void onDetachedFromActivity() {
-        activityPluginBinding.removeOnNewIntentListener(newIntentListener);
-        activityPluginBinding = null;
+        if (activityPluginBinding != null) {
+            activityPluginBinding.removeOnNewIntentListener(newIntentListener);
+            activityPluginBinding = null;
+        }
         newIntentListener = null;
         clientInterface.setActivity(null);
         clientInterface.setContext(flutterPluginBinding.getApplicationContext());
@@ -945,7 +979,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         List<Map<?, ?>> rawMediaItems = new ArrayList<>();
         for (MediaBrowserCompat.MediaItem mediaItem : mediaItems) {
             MediaDescriptionCompat description = mediaItem.getDescription();
-            MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
+            MediaMetadataCompat mediaMetadata = AudioService.instance.getMediaMetadata(description.getMediaId());
             rawMediaItems.add(mediaMetadata2raw(mediaMetadata));
         }
         return rawMediaItems;
@@ -956,7 +990,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         List<Map<?, ?>> rawQueue = new ArrayList<>();
         for (MediaSessionCompat.QueueItem queueItem : queue) {
             MediaDescriptionCompat description = queueItem.getDescription();
-            MediaMetadataCompat mediaMetadata = AudioService.getMediaMetadata(description.getMediaId());
+            MediaMetadataCompat mediaMetadata = AudioService.instance.getMediaMetadata(description.getMediaId());
             rawQueue.add(mediaMetadata2raw(mediaMetadata));
         }
         return rawQueue;
@@ -1049,8 +1083,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static MediaMetadataCompat createMediaMetadata(Map<?, ?> rawMediaItem) {
-       //noinspection unchecked
-       return AudioService.instance.createMediaMetadata(
+        return AudioService.instance.createMediaMetadata(
                 (String)rawMediaItem.get("id"),
                 (String)rawMediaItem.get("title"),
                 (String)rawMediaItem.get("album"),

@@ -87,16 +87,6 @@ public class AudioService extends MediaBrowserServiceCompat {
             | PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
             | PlaybackStateCompat.ACTION_SET_CAPTIONING_ENABLED;
 
-    static AudioService instance;
-    private static PendingIntent contentIntent;
-    private static ServiceListener listener;
-    private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
-    private static final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
-
-    public static void init(ServiceListener listener) {
-        AudioService.listener = listener;
-    }
-
     public static int toKeyCode(long action) {
         if (action == PlaybackStateCompat.ACTION_PLAY) {
             return KEYCODE_BYPASS_PLAY;
@@ -107,7 +97,21 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    MediaMetadataCompat createMediaMetadata(String mediaId, String title, String album, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
+    MediaMetadataCompat createMediaMetadata(
+            String mediaId,
+            String title,
+            String album,
+            String artist,
+            String genre,
+            Long duration,
+            String artUri,
+            Boolean playable,
+            String displayTitle,
+            String displaySubtitle,
+            String displayDescription,
+            RatingCompat rating,
+            Map<?, ?> extras
+    ) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
@@ -155,7 +159,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadata;
     }
 
-    static MediaMetadataCompat getMediaMetadata(String mediaId) {
+    MediaMetadataCompat getMediaMetadata(String mediaId) {
         return mediaMetadataCache.get(mediaId);
     }
 
@@ -167,8 +171,6 @@ public class AudioService extends MediaBrowserServiceCompat {
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inJustDecodeBounds = true;
                 BitmapFactory.decodeFile(path, options);
-                int imageHeight = options.outHeight;
-                int imageWidth = options.outWidth;
                 options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
                 options.inJustDecodeBounds = false;
 
@@ -201,57 +203,50 @@ public class AudioService extends MediaBrowserServiceCompat {
         return inSampleSize;
     }
 
+    private static ServiceListener listener;
+    public static void init(ServiceListener listener) {
+        AudioService.listener = listener;
+    }
+
+    static AudioService instance;
+
+    // Internals
+    // - onCreate
     private FlutterEngine flutterEngine;
-    private AudioServiceConfig config;
     private PowerManager.WakeLock wakeLock;
     private MediaSessionCompat mediaSession;
-    private MediaSessionCallback mediaSessionCallback;
-    private List<NotificationCompat.Action> actions = new ArrayList<>();
-    private int[] compactActionIndices;
-    private MediaMetadataCompat mediaMetadata;
-    private Bitmap artBitmap;
+    // - configure
+    private AudioServiceConfig config;
     private String notificationChannelId;
-    private LruCache<String, Bitmap> artBitmapCache;
-    private boolean playing = false;
-    private AudioProcessingState processingState = AudioProcessingState.idle;
-    private int repeatMode;
-    private int shuffleMode;
+    private static PendingIntent contentIntent;
+
+    // State
+    private AudioServicePlaybackState playbackState;
     private boolean notificationCreated;
+    private Bitmap artBitmap;
+    private MediaMetadataCompat mediaMetadata;
+    private List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
 
-    public AudioProcessingState getProcessingState() {
-        return processingState;
-    }
-
-    public boolean isPlaying() {
-        return playing;
-    }
-
-    public int getRepeatMode() {
-        return repeatMode;
-    }
-
-    public int getShuffleMode() {
-        return shuffleMode;
-    }
+    // Cache
+    private final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
+    private LruCache<String, Bitmap> artBitmapCache;
 
     @Override
     public void onCreate() {
         super.onCreate();
         instance = this;
-        repeatMode = 0;
-        shuffleMode = 0;
-        notificationCreated = false;
-        playing = false;
-        processingState = AudioProcessingState.idle;
-        mediaSession = new MediaSessionCompat(this, "media-session");
 
+        playbackState = new AudioServicePlaybackState();
+        notificationCreated = false;
+
+        mediaSession = new MediaSessionCompat(this, "media-session");
         configure(new AudioServiceConfig(getApplicationContext()));
 
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_QUEUE_COMMANDS);
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(AUTO_ENABLED_ACTIONS);
         mediaSession.setPlaybackState(stateBuilder.build());
-        mediaSession.setCallback(mediaSessionCallback = new MediaSessionCallback());
+        mediaSession.setCallback(new MediaSessionCallback());
         setSessionToken(mediaSession.getSessionToken());
         mediaSession.setQueue(queue);
 
@@ -286,8 +281,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public void stop() {
+        notificationCreated = false;
         deactivateMediaSession();
-        stopSelf();
+        stopForeground(true);
     }
 
     @Override
@@ -295,23 +291,21 @@ public class AudioService extends MediaBrowserServiceCompat {
         super.onDestroy();
         listener.onDestroy();
         listener = null;
+        mediaMetadataCache.clear();
+        artBitmapCache.evictAll();
+        queue.clear();
         mediaMetadata = null;
         artBitmap = null;
-        queue.clear();
-        mediaMetadataCache.clear();
-        actions.clear();
-        artBitmapCache.evictAll();
-        compactActionIndices = null;
-        releaseMediaSession();
-        stopForeground(!config.androidResumeOnClick);
-        // This still does not solve the Android 11 problem.
-        // if (notificationCreated) {
-        //     NotificationManager notificationManager = getNotificationManager();
-        //     notificationManager.cancel(NOTIFICATION_ID);
-        // }
-        releaseWakeLock();
-        instance = null;
         notificationCreated = false;
+        playbackState = null;
+        contentIntent = null;
+        notificationChannelId = null;
+        config = null;
+        releaseMediaSession();
+        releaseWakeLock();
+        flutterEngine = null;
+        instance = null;
+        stopForeground(true);
     }
 
     public void configure(AudioServiceConfig config) {
@@ -324,7 +318,6 @@ public class AudioService extends MediaBrowserServiceCompat {
             Context context = getApplicationContext();
             Intent intent = new Intent((String)null);
             intent.setComponent(new ComponentName(context, config.activityClassName));
-            //Intent intent = new Intent(context, config.activityClassName);
             intent.setAction(NOTIFICATION_CLICK_ACTION);
             contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         } else {
@@ -364,39 +357,84 @@ public class AudioService extends MediaBrowserServiceCompat {
         return PendingIntent.getBroadcast(this, 0, intent, 0);
     }
 
-    void setState(List<NotificationCompat.Action> actions, long actionBits, int[] compactActionIndices, AudioProcessingState processingState, boolean playing, long position, long bufferedPosition, float speed, long updateTime, Integer errorCode, String errorMessage, int repeatMode, int shuffleMode, boolean captioningEnabled, Long queueIndex) {
-        this.actions = actions;
-        this.compactActionIndices = compactActionIndices;
-        boolean wasPlaying = this.playing;
-        AudioProcessingState oldProcessingState = this.processingState;
-        this.processingState = processingState;
-        this.playing = playing;
-        this.repeatMode = repeatMode;
-        this.shuffleMode = shuffleMode;
+    void onAttachedToNewActivity() {
+        setState(
+                playbackState.actions,
+                playbackState.actionBits,
+                playbackState.compactActionIndices,
+                playbackState.processingState,
+                playbackState.playing,
+                playbackState.position,
+                playbackState.bufferedPosition,
+                playbackState.speed,
+                playbackState.updateTime,
+                playbackState.errorCode,
+                playbackState.errorMessage,
+                playbackState.repeatMode,
+                playbackState.shuffleMode,
+                playbackState.captioningEnabled,
+                playbackState.queueIndex
+        );
+    }
+
+    void setState(
+            List<NotificationCompat.Action> actions,
+            long actionBits,
+            int[] compactActionIndices,
+            AudioProcessingState processingState,
+            boolean playing,
+            long position,
+            long bufferedPosition,
+            float speed,
+            long updateTime,
+            Integer errorCode,
+            String errorMessage,
+            int repeatMode,
+            int shuffleMode,
+            boolean captioningEnabled,
+            Long queueIndex
+    ) {
+        boolean wasPlaying = playbackState.playing;
+        AudioProcessingState oldProcessingState = playbackState.processingState;
+
+        playbackState.actions = actions;
+        playbackState.actionBits = actionBits;
+        playbackState.compactActionIndices = compactActionIndices;
+        playbackState.processingState = processingState;
+        playbackState.playing = playing;
+        playbackState.position = position;
+        playbackState.bufferedPosition = bufferedPosition;
+        playbackState.speed = speed;
+        playbackState.updateTime = updateTime;
+        playbackState.errorCode = errorCode;
+        playbackState.errorMessage = errorMessage;
+        playbackState.repeatMode = repeatMode;
+        playbackState.shuffleMode = shuffleMode;
+        playbackState.captioningEnabled = captioningEnabled;
+        playbackState.queueIndex = queueIndex;
 
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                 .setActions(AUTO_ENABLED_ACTIONS | actionBits)
-                .setState(getPlaybackState(), position, speed, updateTime)
+                .setState(playbackState.getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
         if (queueIndex != null)
             stateBuilder.setActiveQueueItemId(queueIndex);
         if (errorCode != null && errorMessage != null)
             stateBuilder.setErrorMessage(errorCode, errorMessage);
         else if (errorMessage != null)
-            stateBuilder.setErrorMessage(-987654, errorMessage);
+            stateBuilder.setErrorMessage(PlaybackStateCompat.ERROR_CODE_UNKNOWN_ERROR, errorMessage);
         mediaSession.setPlaybackState(stateBuilder.build());
         mediaSession.setRepeatMode(repeatMode);
         mediaSession.setShuffleMode(shuffleMode);
         mediaSession.setCaptioningEnabled(captioningEnabled);
 
-        if (!wasPlaying && playing) {
+        if (playing && !notificationCreated) {
             enterPlayingState();
         } else if (wasPlaying && !playing) {
             exitPlayingState();
         }
 
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
-            // TODO: Handle completed state as well?
             stop();
         } else if (processingState != AudioProcessingState.idle) {
             updateNotification();
@@ -432,22 +470,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    public int getPlaybackState() {
-        switch (processingState) {
-        case idle: return PlaybackStateCompat.STATE_NONE;
-        case loading: return PlaybackStateCompat.STATE_CONNECTING;
-        case buffering: return PlaybackStateCompat.STATE_BUFFERING;
-        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case error: return PlaybackStateCompat.STATE_ERROR;
-        default: return PlaybackStateCompat.STATE_NONE;
-        }
-    }
-
     private Notification buildNotification() {
-        int[] compactActionIndices = this.compactActionIndices;
+        int[] compactActionIndices = playbackState.compactActionIndices;
         if (compactActionIndices == null) {
-            compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, actions.size())];
+            compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, playbackState.actions.size())];
             for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
         }
         NotificationCompat.Builder builder = getNotificationBuilder();
@@ -468,7 +494,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.setContentIntent(mediaSession.getController().getSessionActivity());
         if (config.notificationColor != -1)
             builder.setColor(config.notificationColor);
-        for (NotificationCompat.Action action : actions) {
+        for (NotificationCompat.Action action : playbackState.actions) {
             builder.addAction(action);
         }
         final MediaStyle style = new MediaStyle()
@@ -488,19 +514,14 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private NotificationCompat.Builder getNotificationBuilder() {
-        NotificationCompat.Builder notificationBuilder = null;
-        if (notificationBuilder == null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                createChannel();
-            int iconId = getResourceId(config.androidNotificationIcon);
-            notificationBuilder = new NotificationCompat.Builder(this, notificationChannelId)
-                    .setSmallIcon(iconId)
-                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                    .setShowWhen(false)
-                    .setDeleteIntent(buildDeletePendingIntent())
-            ;
-        }
-        return notificationBuilder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            createChannel();
+        int iconId = getResourceId(config.androidNotificationIcon);
+        return new NotificationCompat.Builder(this, notificationChannelId)
+                .setSmallIcon(iconId)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setShowWhen(false)
+                .setDeleteIntent(buildDeletePendingIntent());
     }
 
     public void handleDeleteNotification() {
@@ -530,28 +551,19 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     private void enterPlayingState() {
         ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
-        if (!mediaSession.isActive())
-            mediaSession.setActive(true);
+        activateMediaSession();
 
         acquireWakeLock();
         mediaSession.setSessionActivity(contentIntent);
-        internalStartForeground();
+        startForeground(NOTIFICATION_ID, buildNotification());
+        notificationCreated = true;
     }
 
     private void exitPlayingState() {
         if (config.androidStopForegroundOnPause) {
-            exitForegroundState();
+            stopForeground(false);
+            releaseWakeLock();
         }
-    }
-
-    private void exitForegroundState() {
-        stopForeground(false);
-        releaseWakeLock();
-    }
-
-    private void internalStartForeground() {
-        startForeground(NOTIFICATION_ID, buildNotification());
-        notificationCreated = true;
     }
 
     private void acquireWakeLock() {
@@ -573,8 +585,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (mediaSession.isActive()) {
             mediaSession.setActive(false);
         }
-        // Force cancellation of the notification
-        getNotificationManager().cancel(NOTIFICATION_ID);
     }
 
     private void releaseMediaSession() {
@@ -591,10 +601,6 @@ public class AudioService extends MediaBrowserServiceCompat {
     synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
         this.queue = queue;
         mediaSession.setQueue(queue);
-    }
-
-    void playMediaItem(MediaDescriptionCompat description) {
-        mediaSessionCallback.onPlayMediaItem(description);
     }
 
     /**
@@ -685,32 +691,28 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPrepare() {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepare();
         }
 
         @Override
         public void onPrepareFromMediaId(String mediaId, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromMediaId(mediaId, extras);
         }
 
         @Override
         public void onPrepareFromSearch(String query, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromSearch(query, extras);
         }
 
         @Override
         public void onPrepareFromUri(Uri uri, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromUri(uri, extras);
         }
 
