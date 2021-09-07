@@ -11,15 +11,31 @@ class AudioServiceWeb extends AudioServicePlatform {
     AudioServicePlatform.instance = AudioServiceWeb();
   }
 
+  bool _loggedNotSupported = false;
+  bool checkMediaSessionSupported() {
+    final supported = js.context.hasProperty('MediaSession');
+    if (!supported && !_loggedNotSupported) {
+      _loggedNotSupported = true;
+      print("[warning] audio_service: MediaSession is not supported in this browser, so plugin is no-op");
+    }
+    return supported;
+  }
+
   AudioHandlerCallbacks? handlerCallbacks;
   MediaItemMessage? mediaItem;
 
   @override
-  Future<void> configure(ConfigureRequest request) async {}
+  Future<void> configure(ConfigureRequest request) async {
+    checkMediaSessionSupported();
+  }
 
   @override
   Future<void> setState(SetStateRequest request) async {
+    if (!checkMediaSessionSupported()) {
+      return;
+    }
     final session = html.window.navigator.mediaSession!;
+    print(session);
     for (final control in request.state.controls) {
       switch (control.action) {
         case MediaActionMessage.play:
@@ -117,6 +133,9 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   Future<void> setMediaItem(SetMediaItemRequest request) async {
+    if (!checkMediaSessionSupported()) {
+      return;
+    }
     mediaItem = request.mediaItem;
     final artUri = mediaItem!.artUri;
 
@@ -135,6 +154,9 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   Future<void> stopService(StopServiceRequest request) async {
+    if (!checkMediaSessionSupported()) {
+      return;
+    }
     final session = html.window.navigator.mediaSession!;
     session.metadata = null;
     mediaItem = null;
@@ -142,6 +164,9 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
+    if (!checkMediaSessionSupported()) {
+      return;
+    }
     // Save this here so that we can modify which handlers are set based
     // on which actions are enabled
     handlerCallbacks = callbacks;
