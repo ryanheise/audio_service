@@ -537,6 +537,7 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
         }
         // ignore: empty_catches
       } on SleeperInterruptedException {
+        // ignore: empty_catches
       } on TtsInterruptedException {}
     }
     _index = 0;
