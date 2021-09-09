@@ -1913,7 +1913,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   ValueStream<dynamic> get customState => _customState;
 
   StreamSubscription<PlaybackState>? _playbackStateSubscription;
-  StreamSubscription<List<MediaItem>?>? _queueSubscription;
+  StreamSubscription<List<MediaItem>>? _queueSubscription;
   StreamSubscription<String>? _queueTitleSubscription;
   StreamSubscription<MediaItem?>? _mediaItemSubscription;
   StreamSubscription<AndroidPlaybackInfo>? _androidPlaybackInfoSubscription;
@@ -3834,7 +3834,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   @override
   Future<void> stop(StopRequest request) => handler.stop();
 
-  final Map<String, ValueStream<Map<String, dynamic>?>> _childrenSubscriptions =
+  final Map<String, ValueStream<Map<String, dynamic>>> _childrenSubscriptions =
       {};
 
   Future<List<MediaItem>> _onLoadChildren(
