@@ -1,3 +1,5 @@
+Warning: 'dartfmt' is deprecated. Please use 'dart format'.
+(See https://github.com/dart-lang/dart_style/wiki/CLI-Changes.)
 // ignore_for_file: public_member_api_docs
 
 // This example demonstrates:
@@ -316,7 +318,6 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (state == ProcessingState.completed) stop();
     });
     try {
-      print("### _player.load");
       // After a cold restart (on Android), _player.load jumps straight from
       // the loading state to the completed state. Inserting a delay makes it
       // work. Not sure why!
@@ -326,7 +327,6 @@ class AudioPlayerHandler extends BaseAudioHandler
             .map((item) => AudioSource.uri(Uri.parse(item.id)))
             .toList(),
       ));
-      print("### loaded");
     } catch (e) {
       print("Error: $e");
     }
@@ -339,12 +339,11 @@ class AudioPlayerHandler extends BaseAudioHandler
       case AudioService.recentRootId:
         // When the user resumes a media session, tell the system what the most
         // recently played item was.
-        print("### get recent children: ${_recentSubject.value}:");
+        //print("### get recent children: ${_recentSubject.value}:");
         return _recentSubject.value;
       default:
         // Allow client to browse the media library.
-        print(
-            "### get $parentMediaId children: ${_mediaLibrary.items[parentMediaId]}:");
+        //print("### get $parentMediaId children: ${_mediaLibrary.items[parentMediaId]}:");
         return _mediaLibrary.items[parentMediaId]!;
     }
   }
