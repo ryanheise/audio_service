@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:js' as js;
+import 'dart:js_util';
 
 import 'package:audio_service_platform_interface/audio_service_platform_interface.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'dart:js' as js;
 import 'js/media_session_web.dart';
 
 class AudioServiceWeb extends AudioServicePlatform {
@@ -11,105 +13,87 @@ class AudioServiceWeb extends AudioServicePlatform {
     AudioServicePlatform.instance = AudioServiceWeb();
   }
 
-  bool _loggedNotSupported = false;
-  bool _checkMediaSessionSupported() {
-    final supported = js.context.hasProperty('MediaSession');
-    if (!supported && !_loggedNotSupported) {
-      _loggedNotSupported = true;
-      print(
-          "[warning] audio_service: MediaSession is not supported in this browser, so plugin is no-op");
-    }
-    return supported;
-  }
+  final _mediaSessionSupported = _SupportChecker(
+    () => js.context.hasProperty('MediaSession'),
+    "MediaSession is not supported in this browser, so plugin is no-op",
+  );
+  final _setPositionStateSupported = _SupportChecker(
+    () => hasProperty(html.window.navigator.mediaSession!, 'setPositionState'),
+    "MediaSession.setPositionState is not supported in this browser",
+  );
 
   AudioHandlerCallbacks? handlerCallbacks;
   MediaItemMessage? mediaItem;
 
   @override
   Future<void> configure(ConfigureRequest request) async {
-    _checkMediaSessionSupported();
+    _mediaSessionSupported.check();
   }
 
   @override
   Future<void> setState(SetStateRequest request) async {
-    if (!_checkMediaSessionSupported()) {
+    if (!_mediaSessionSupported.check()) {
       return;
     }
 
-    try {
-      final session = html.window.navigator.mediaSession!;
-      for (final control in request.state.controls) {
-        switch (control.action) {
-          case MediaActionMessage.play:
-            session.setActionHandler(
-              'play',
-              () => handlerCallbacks?.play(const PlayRequest()),
-            );
-            break;
-          case MediaActionMessage.pause:
-            session.setActionHandler(
-              'pause',
-              () => handlerCallbacks?.pause(const PauseRequest()),
-            );
-            break;
-          case MediaActionMessage.skipToPrevious:
-            session.setActionHandler(
-              'previoustrack',
-              () => handlerCallbacks
-                  ?.skipToPrevious(const SkipToPreviousRequest()),
-            );
-            break;
-          case MediaActionMessage.skipToNext:
-            session.setActionHandler(
-              'nexttrack',
-              () => handlerCallbacks?.skipToNext(const SkipToNextRequest()),
-            );
-            break;
-          // The naming convention here is a bit odd but seekbackward seems more
-          // analagous to rewind than seekBackward
-          case MediaActionMessage.rewind:
-            session.setActionHandler(
-              'seekbackward',
-              () => handlerCallbacks?.rewind(const RewindRequest()),
-            );
-            break;
-          case MediaActionMessage.fastForward:
-            session.setActionHandler(
-              'seekforward',
-              () => handlerCallbacks?.fastForward(const FastForwardRequest()),
-            );
-            break;
-          case MediaActionMessage.stop:
-            session.setActionHandler(
-              'stop',
-              () => handlerCallbacks?.stop(const StopRequest()),
-            );
-            break;
-          default:
-            // no-op
-            break;
-        }
+    final state = request.state;
+
+    if (state.processingState == AudioProcessingStateMessage.idle) {
+      MediaSession.playbackState = MediaSessionPlaybackState.none;
+    } else {
+      if (request.state.playing) {
+        MediaSession.playbackState = MediaSessionPlaybackState.playing;
+      } else {
+        MediaSession.playbackState = MediaSessionPlaybackState.paused;
       }
-    } catch (ex) {
-      // In case some browsers don't have `setActionHandler` implemented.
-      print(ex);
     }
 
-    for (final message in request.state.systemActions) {
-      switch (message) {
-        case MediaActionMessage.seek:
-          try {
-            setActionHandler('seekto', js.allowInterop((ActionResult event) {
-              // Chrome uses seconds
-              handlerCallbacks?.seek(SeekRequest(
-                position:
-                    Duration(milliseconds: (event.seekTime * 1000).round()),
-              ));
-            }));
-          } catch (ex) {
-            // In case some browsers don't have `setActionHandler` implemented.
-            print(ex);
-          }
+    for (final control in state.controls) {
+      switch (control.action) {
+        case MediaActionMessage.play:
+          MediaSession.setActionHandler(
+            MediaActions.play,
+            (details) => handlerCallbacks?.play(const PlayRequest()),
+          );
+          break;
+        case MediaActionMessage.pause:
+          MediaSession.setActionHandler(
+            MediaActions.pause,
+            (details) => handlerCallbacks?.pause(const PauseRequest()),
+          );
+          break;
+        case MediaActionMessage.skipToPrevious:
+          MediaSession.setActionHandler(
+            MediaActions.previoustrack,
+            (details) =>
+                handlerCallbacks?.skipToPrevious(const SkipToPreviousRequest()),
+          );
+          break;
+        case MediaActionMessage.skipToNext:
+          MediaSession.setActionHandler(
+            MediaActions.nexttrack,
+            (details) =>
+                handlerCallbacks?.skipToNext(const SkipToNextRequest()),
+          );
+          break;
+        case MediaActionMessage.rewind:
+          MediaSession.setActionHandler(
+            MediaActions.seekbackward,
+            (details) => handlerCallbacks?.rewind(const RewindRequest()),
+          );
+          break;
+        case MediaActionMessage.fastForward:
+          MediaSession.setActionHandler(
+            MediaActions.seekforward,
+            (details) =>
+                handlerCallbacks?.fastForward(const FastForwardRequest()),
+          );
+          break;
+        case MediaActionMessage.stop:
+          MediaSession.setActionHandler(
+            MediaActions.stop,
+            (details) => handlerCallbacks?.stop(const StopRequest()),
+          );
           break;
         default:
           // no-op
@@ -117,29 +101,44 @@ class AudioServiceWeb extends AudioServicePlatform {
       }
     }
 
-    // Update the position
-    //
-    // Factor out invalid states according to
-    // https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState#exceptions
-    var duration = Duration.zero;
-    var position = request.state.updatePosition;
-    if (mediaItem != null) {
-      duration = mediaItem!.duration ?? Duration.zero;
-    }
-    if (position > duration) {
-      position = duration;
+    for (final message in state.systemActions) {
+      switch (message) {
+        case MediaActionMessage.seek:
+          MediaSession.setActionHandler('seekto',
+              (MediaSessionActionDetails details) {
+            // Browsers use seconds
+            handlerCallbacks?.seek(SeekRequest(
+              position:
+                  Duration(milliseconds: (details.seekTime * 1000).round()),
+            ));
+          });
+          break;
+        default:
+          // no-op
+          break;
+      }
     }
 
-    try {
-      // Chrome expects for seconds
-      setPositionState(PositionState(
+    if (_setPositionStateSupported.check()) {
+      // Update the position
+      //
+      // Factor out invalid states according to
+      // https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState#exceptions
+      var duration = Duration.zero;
+      var position = state.updatePosition;
+      if (mediaItem != null) {
+        duration = mediaItem!.duration ?? Duration.zero;
+      }
+      if (position > duration) {
+        position = duration;
+      }
+
+      // Browsers expect for seconds
+      MediaSession.setPositionState(MediaPositionState(
         duration: duration.inMilliseconds / 1000,
-        playbackRate: request.state.speed,
+        playbackRate: state.speed,
         position: position.inMilliseconds / 1000,
       ));
-    } catch (ex) {
-      // In case some browsers don't have `setPositionState` implemented.
-      print(ex);
     }
   }
 
@@ -150,13 +149,13 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   Future<void> setMediaItem(SetMediaItemRequest request) async {
-    if (!_checkMediaSessionSupported()) {
+    if (!_mediaSessionSupported.check()) {
       return;
     }
     mediaItem = request.mediaItem;
     final artUri = mediaItem!.artUri;
 
-    metadata = html.MediaMetadata(<String, dynamic>{
+    MediaSession.metadata = html.MediaMetadata(<String, dynamic>{
       'album': mediaItem!.album,
       'title': mediaItem!.title,
       'artist': mediaItem!.artist,
@@ -171,7 +170,7 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   Future<void> stopService(StopServiceRequest request) async {
-    if (!_checkMediaSessionSupported()) {
+    if (!_mediaSessionSupported.check()) {
       return;
     }
     final session = html.window.navigator.mediaSession!;
@@ -181,11 +180,29 @@ class AudioServiceWeb extends AudioServicePlatform {
 
   @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
-    if (!_checkMediaSessionSupported()) {
+    if (!_mediaSessionSupported.check()) {
       return;
     }
     // Save this here so that we can modify which handlers are set based
     // on which actions are enabled
     handlerCallbacks = callbacks;
+  }
+}
+
+/// Runs a [check], and prints a warning the first time check doesn't pass.
+class _SupportChecker {
+  final String _warningMessage;
+  final ValueGetter<bool> _checkCallback;
+
+  _SupportChecker(this._checkCallback, this._warningMessage);
+
+  bool _logged = false;
+  bool check() {
+    final result = _checkCallback();
+    if (!_logged && !result) {
+      _logged = true;
+      print("[warning] audio_service: $_warningMessage");
+    }
+    return result;
   }
 }
