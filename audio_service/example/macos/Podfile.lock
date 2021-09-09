@@ -52,7 +52,7 @@ SPEC CHECKSUMS:
   flutter_tts: 64651204e5d276ffea5a910f942d5e9785a96085
   FlutterMacOS: 57701585bf7de1b3fc2bb61f6378d73bbdea8424
   FMDB: 2ce00b547f966261cd18927a3ddb07cb6f3db82a
-  just_audio: 1a11463e7e522bd4e8caa925b4247f1360cbe5a2
+  just_audio: 9b67ca7b97c61cfc9784ea23cd8cc55eb226d489
   path_provider_macos: a0a3fd666cb7cd0448e936fb4abad4052961002b
   sqflite: a5789cceda41d54d23f31d6de539d65bb14100ea
 
