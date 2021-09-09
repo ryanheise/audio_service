@@ -666,7 +666,8 @@ void main() {
 
     test('androidSetRemoteVolume', () async {
       const request = AndroidSetRemoteVolumeRequest(volumeIndex: 0);
-      await handlerChannel.invokeMethod<void>('androidSetRemoteVolume', request.toMap());
+      await handlerChannel.invokeMethod<void>(
+          'androidSetRemoteVolume', request.toMap());
       final captured = verify(callbacks.androidSetRemoteVolume(captureAny))
           .captured
           .first as AndroidSetRemoteVolumeRequest;
@@ -679,7 +680,8 @@ void main() {
     test('androidAdjustRemoteVolume', () async {
       const request = AndroidAdjustRemoteVolumeRequest(
           direction: AndroidVolumeDirectionMessage.lower);
-      await handlerChannel.invokeMethod<void>('androidAdjustRemoteVolume', request.toMap());
+      await handlerChannel.invokeMethod<void>(
+          'androidAdjustRemoteVolume', request.toMap());
       final captured = verify(callbacks.androidAdjustRemoteVolume(captureAny))
           .captured
           .first as AndroidAdjustRemoteVolumeRequest;
@@ -695,7 +697,8 @@ void main() {
         throwsA(
           isA<PlatformException>()
               .having((e) => e.code, 'code', 'unimplemented')
-              .having((e) => e.message, 'message', 'Method not implemented: someUnimplementedMethod'),
+              .having((e) => e.message, 'message',
+                  'Method not implemented: someUnimplementedMethod'),
         ),
       );
     });
