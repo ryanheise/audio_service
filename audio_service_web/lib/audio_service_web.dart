@@ -95,10 +95,10 @@ class AudioServiceWeb extends AudioServicePlatform {
       print(ex);
     }
 
-    try {
-      for (final message in request.state.systemActions) {
-        switch (message) {
-          case MediaActionMessage.seek:
+    for (final message in request.state.systemActions) {
+      switch (message) {
+        case MediaActionMessage.seek:
+          try {
             setActionHandler('seekto', js.allowInterop((ActionResult event) {
               // Chrome uses seconds
               handlerCallbacks?.seek(SeekRequest(
@@ -106,30 +106,31 @@ class AudioServiceWeb extends AudioServicePlatform {
                     Duration(milliseconds: (event.seekTime * 1000).round()),
               ));
             }));
-            break;
-          default:
-            // no-op
-            break;
-        }
+          } catch (ex) {
+            // In case some browsers don't have `setActionHandler` implemented.
+            print(ex);
+          }
+          break;
+        default:
+          // no-op
+          break;
       }
-    } catch (ex) {
-      // In case some browsers don't have `setActionHandler` implemented.
-      print(ex);
+    }
+
+    // Update the position
+    //
+    // Factor out invalid states according to
+    // https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState#exceptions
+    var duration = Duration.zero;
+    var position = request.state.updatePosition;
+    if (mediaItem != null) {
+      duration = mediaItem!.duration ?? Duration.zero;
+    }
+    if (position > duration) {
+      position = duration;
     }
 
     try {
-      // Update the position
-      //
-      // Factor out invalid states according to
-      // https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState#exceptions
-      var duration = Duration.zero;
-      var position = request.state.updatePosition;
-      if (mediaItem != null) {
-        duration = mediaItem!.duration ?? Duration.zero;
-      }
-      if (position > duration) {
-        position = duration;
-      }
       // Chrome expects for seconds
       setPositionState(PositionState(
         duration: duration.inMilliseconds / 1000,
