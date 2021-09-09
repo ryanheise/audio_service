@@ -1,3 +1,9 @@
+## Next version
+
+* Fix disabling prev/next buttons on Android Auto.
+* Update gradle.
+* Improve artUri performance on Android (@nt4f04uNd)
+
 ## 0.18.0-beta.0
 
 * Use a single isolate for easier communication.
