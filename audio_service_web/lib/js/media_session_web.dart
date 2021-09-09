@@ -43,7 +43,7 @@ class MediaSession {
 
   /// Sets the current playback position and speed of the media currently being presented.
   @JS('setPositionState')
-  external static void setPositionState(MediaPositionState? state);
+  external static void setPositionState(MediaSessionPositionState? state);
 }
 
 /// Media session playback state types.
@@ -64,8 +64,8 @@ abstract class MediaSessionPlaybackState {
 }
 
 /// Actions that the user may perform in a media session.
-abstract class MediaActions {
-  MediaActions._();
+abstract class MediaSessionActions {
+  MediaSessionActions._();
 
   static const play = 'play';
   static const pause = 'pause';
@@ -132,10 +132,10 @@ class MediaSessionActionDetails {
 
 /// A representation of the current playback.
 ///
-/// The dictionary parameter for [setPositionState].
+/// The dictionary parameter for [MediaSession.setPositionState].
 @JS()
 @anonymous
-class MediaPositionState {
+class MediaSessionPositionState {
   /// Duration in seconds.
   external double get duration;
 
@@ -151,7 +151,7 @@ class MediaPositionState {
   external double get position;
 
   /// Creates the position state.
-  external factory MediaPositionState({
+  external factory MediaSessionPositionState({
     double? duration,
     double? playbackRate,
     double? position,

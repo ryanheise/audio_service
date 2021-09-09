@@ -52,46 +52,46 @@ class AudioServiceWeb extends AudioServicePlatform {
       switch (control.action) {
         case MediaActionMessage.play:
           MediaSession.setActionHandler(
-            MediaActions.play,
+            MediaSessionActions.play,
             (details) => handlerCallbacks?.play(const PlayRequest()),
           );
           break;
         case MediaActionMessage.pause:
           MediaSession.setActionHandler(
-            MediaActions.pause,
+            MediaSessionActions.pause,
             (details) => handlerCallbacks?.pause(const PauseRequest()),
           );
           break;
         case MediaActionMessage.skipToPrevious:
           MediaSession.setActionHandler(
-            MediaActions.previoustrack,
+            MediaSessionActions.previoustrack,
             (details) =>
                 handlerCallbacks?.skipToPrevious(const SkipToPreviousRequest()),
           );
           break;
         case MediaActionMessage.skipToNext:
           MediaSession.setActionHandler(
-            MediaActions.nexttrack,
+            MediaSessionActions.nexttrack,
             (details) =>
                 handlerCallbacks?.skipToNext(const SkipToNextRequest()),
           );
           break;
         case MediaActionMessage.rewind:
           MediaSession.setActionHandler(
-            MediaActions.seekbackward,
+            MediaSessionActions.seekbackward,
             (details) => handlerCallbacks?.rewind(const RewindRequest()),
           );
           break;
         case MediaActionMessage.fastForward:
           MediaSession.setActionHandler(
-            MediaActions.seekforward,
+            MediaSessionActions.seekforward,
             (details) =>
                 handlerCallbacks?.fastForward(const FastForwardRequest()),
           );
           break;
         case MediaActionMessage.stop:
           MediaSession.setActionHandler(
-            MediaActions.stop,
+            MediaSessionActions.stop,
             (details) => handlerCallbacks?.stop(const StopRequest()),
           );
           break;
@@ -134,7 +134,7 @@ class AudioServiceWeb extends AudioServicePlatform {
       }
 
       // Browsers expect for seconds
-      MediaSession.setPositionState(MediaPositionState(
+      MediaSession.setPositionState(MediaSessionPositionState(
         duration: duration.inMilliseconds / 1000,
         playbackRate: state.speed,
         position: position.inMilliseconds / 1000,
