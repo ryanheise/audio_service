@@ -1,8 +1,9 @@
-## Next version
+## 0.18.0-beta.1
 
 * Fix disabling prev/next buttons on Android Auto.
 * Update gradle.
 * Improve artUri performance on Android (@nt4f04uNd)
+* Hide debug logs.
 
 ## 0.18.0-beta.0
 
