@@ -41,7 +41,7 @@ class AudioServiceWeb extends AudioServicePlatform {
     if (state.processingState == AudioProcessingStateMessage.idle) {
       MediaSession.playbackState = MediaSessionPlaybackState.none;
     } else {
-      if (request.state.playing) {
+      if (state.playing) {
         MediaSession.playbackState = MediaSessionPlaybackState.playing;
       } else {
         MediaSession.playbackState = MediaSessionPlaybackState.paused;
@@ -124,14 +124,8 @@ class AudioServiceWeb extends AudioServicePlatform {
       //
       // Factor out invalid states according to
       // https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState#exceptions
-      var duration = Duration.zero;
-      var position = state.updatePosition;
-      if (mediaItem != null) {
-        duration = mediaItem!.duration ?? Duration.zero;
-      }
-      if (position > duration) {
-        position = duration;
-      }
+      final duration = mediaItem?.duration ?? Duration.zero;
+      final position = _minDuration(state.updatePosition, duration);
 
       // Browsers expect for seconds
       MediaSession.setPositionState(MediaSessionPositionState(
@@ -206,3 +200,5 @@ class _SupportChecker {
     return result;
   }
 }
+
+Duration _minDuration(Duration a, Duration b) => a < b ? a : b;
