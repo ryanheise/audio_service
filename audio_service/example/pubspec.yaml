@@ -13,7 +13,7 @@ dependencies:
   audio_session: ^0.1.6
   just_audio: ^0.9.7
   flutter_tts: ^3.0.0
-  rxdart: ^0.27.0
+  rxdart: ^0.27.2
   audio_service:
     path: ../
 
