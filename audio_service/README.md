@@ -43,9 +43,9 @@ If you'd like to help with any missing features, please join us on the [GitHub i
 
 ## What's new in 0.18.0?
 
-0.18.0 removes the need for a background isolate, allowing simpler communication between your UI and audio logic and greater compatibility with plugins that don't support multiple isolates.
+0.18.0 removes the need for a background isolate, allowing simpler communication between your UI and audio logic and greater compatibility with plugins that don't support multiple isolates. It also comes with many other new features listed in the [CHANGELOG](https://pub.dev/packages/audio_service/changelog).
 
-Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0140) for instructions on how to update your code.
+Read the [Migration Guide](https://github.com/ryanheise/audio_service/wiki/Migration-Guide#0180) for instructions on how to update your code.
 
 ## Can I make use of other plugins within the audio handler?
 
@@ -84,7 +84,7 @@ Future<void> main() async {
   _audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
     config: AudioServiceConfig(
-      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
+      androidNotificationChannelId: 'com.mycompany.myapp.channel.audio',
       androidNotificationChannelName: 'Music playback',
     ),
   );
@@ -313,7 +313,7 @@ Note: If your app uses a number of different audio plugins, e.g. for audio recor
 
 ## Android setup
 
-These instructions assume that your project follows the new project template introduced in Flutter 1.12. If your project was created prior to 1.12 and uses the old project structure, you can update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
+These instructions assume that your project follows the Flutter 1.12 project template or later. If your project was created prior to 1.12 and uses the old project structure, you can update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
 
 Additionally:
 
