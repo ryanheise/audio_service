@@ -1,3 +1,7 @@
+## Next version
+
+* Better detection of browser support (@nt4f04uNd)
+
 ## 0.18.0-beta.1
 
 * Fix disabling prev/next buttons on Android Auto.

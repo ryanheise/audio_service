@@ -1,6 +1,6 @@
 name: audio_service_web
 description: Web platform implementation of audio_service. This implementation is endorsed and therefore doesn't require a direct dependency.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service_web
 
 environment:
