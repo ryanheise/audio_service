@@ -8,6 +8,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 
 import androidx.annotation.UiThread;
@@ -30,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -47,6 +50,7 @@ import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.dart.DartExecutor;
 
 import android.net.Uri;
+import android.util.Log;
 
 /**
  * AudioservicePlugin
@@ -761,22 +765,40 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             disposeFlutterEngine();
         }
 
+        Handler handler = new Handler(Looper.getMainLooper());
+
         @Override
         public void onMethodCall(MethodCall call, Result result) {
             Map<?, ?> args = (Map<?, ?>)call.arguments;
             switch (call.method) {
             case "setMediaItem": {
-                Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
-                MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-                AudioService.instance.setMetadata(mediaMetadata);
-                result.success(null);
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    try {
+                        Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
+                        MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                        AudioService.instance.setMetadata(mediaMetadata);
+                        handler.post(() -> result.success(null));
+                    } catch (Exception e) {
+                        handler.post(() -> {
+                            result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
+                        });
+                    }
+                });
                 break;
             }
             case "setQueue": {
-                @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>)args.get("queue");
-                List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
-                AudioService.instance.setQueue(queue);
-                result.success(null);
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    try {
+                        @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
+                        List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
+                        AudioService.instance.setQueue(queue);
+                        handler.post(() -> result.success(null));
+                    } catch (Exception e) {
+                        handler.post(() -> {
+                            result.error("UNEXPECTED_ERROR", "Unexpected error", Log.getStackTraceString(e));
+                        });
+                    }
+                });
                 break;
             }
             case "setState": {
@@ -861,13 +883,31 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 // See: https://issuetracker.google.com/issues/65344811
                 if (silenceAudioTrack == null) {
                     byte[] silence = new byte[2048];
-                    silenceAudioTrack = new AudioTrack(
+                    // TODO: Uncomment this after moving to a minSdkVersion of 21.
+                    /* AudioAttributes audioAttributes = new AudioAttributes.Builder() */
+                    /*     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC) */
+                    /*     .setUsage(AudioAttributes.USAGE_MEDIA) */
+                    /*     .build(); */
+                    /* AudioFormat audioFormat = new AudioFormat.Builder() */
+                    /*     .setChannelMask(AudioFormat.CHANNEL_CONFIGURATION_MONO) */
+                    /*     .setEncoding(AudioFormat.ENCODING_PCM_8BIT) */
+                    /*     .setSampleRate(SILENCE_SAMPLE_RATE) */
+                    /*     .build(); */
+                    /* silenceAudioTrack = new AudioTrack.Builder() */
+                    /*     .setAudioAttributes(audioAttributes) */
+                    /*     .setAudioFormat(audioFormat) */
+                    /*     .setBufferSizeInBytes(silence.length) */
+                    /*     .setTransferMode(AudioTrack.MODE_STATIC) */
+                    /*     .build(); */
+                    @SuppressWarnings("deprecation")
+                    final AudioTrack audioTrack = new AudioTrack(
                             AudioManager.STREAM_MUSIC,
                             SILENCE_SAMPLE_RATE,
                             AudioFormat.CHANNEL_CONFIGURATION_MONO,
                             AudioFormat.ENCODING_PCM_8BIT,
                             silence.length,
                             AudioTrack.MODE_STATIC);
+                    silenceAudioTrack = audioTrack;
                     silenceAudioTrack.write(silence, 0, silence.length);
                 }
                 silenceAudioTrack.reloadStaticData();
@@ -922,7 +962,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         return rawQueue;
     }
 
-    private static RatingCompat raw2rating(Map<String, Object> raw) {
+    private static RatingCompat raw2rating(Map<?, ?> raw) {
         if (raw == null) return null;
         Integer type = (Integer)raw.get("type");
         Object value = raw.get("value");
@@ -1022,7 +1062,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 (String)rawMediaItem.get("displayTitle"),
                 (String)rawMediaItem.get("displaySubtitle"),
                 (String)rawMediaItem.get("displayDescription"),
-                raw2rating((Map<String, Object>)rawMediaItem.get("rating")),
+                raw2rating((Map<?, ?>)rawMediaItem.get("rating")),
                 (Map<?, ?>)rawMediaItem.get("extras")
         );
     }

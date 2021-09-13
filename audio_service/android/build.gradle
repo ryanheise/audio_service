@@ -1,22 +1,27 @@
 group 'com.ryanheise.audioservice'
 version '1.0-SNAPSHOT'
+def args = ["-Xlint:deprecation","-Xlint:unchecked","-Werror"]
 
 buildscript {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.0'
+        classpath 'com.android.tools.build:gradle:4.1.0'
     }
 }
 
 rootProject.allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
+}
+
+project.getTasks().withType(JavaCompile) {
+    options.compilerArgs.addAll(args)
 }
 
 apply plugin: 'com.android.library'
@@ -38,6 +43,6 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.core:core:1.3.2'
-    implementation 'androidx.media:media:1.2.0'
+    implementation 'androidx.core:core:1.6.0'
+    implementation 'androidx.media:media:1.4.1'
 }
