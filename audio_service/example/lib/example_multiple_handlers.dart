@@ -210,7 +210,7 @@ class MainScreen extends StatelessWidget {
   /// A stream reporting the combined state of the current queue and the current
   /// media item within that queue.
   Stream<QueueState> get _queueStateStream =>
-      Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
+      Rx.combineLatest2<List<MediaItem>, MediaItem?, QueueState>(
           _audioHandler.queue,
           _audioHandler.mediaItem,
           (queue, mediaItem) => QueueState(queue, mediaItem));
@@ -235,7 +235,7 @@ class MainScreen extends StatelessWidget {
 }
 
 class QueueState {
-  final List<MediaItem>? queue;
+  final List<MediaItem> queue;
   final MediaItem? mediaItem;
 
   QueueState(this.queue, this.mediaItem);
@@ -316,7 +316,6 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (state == ProcessingState.completed) stop();
     });
     try {
-      print("### _player.load");
       // After a cold restart (on Android), _player.load jumps straight from
       // the loading state to the completed state. Inserting a delay makes it
       // work. Not sure why!
@@ -326,7 +325,6 @@ class AudioPlayerHandler extends BaseAudioHandler
             .map((item) => AudioSource.uri(Uri.parse(item.id)))
             .toList(),
       ));
-      print("### loaded");
     } catch (e) {
       print("Error: $e");
     }
@@ -339,12 +337,9 @@ class AudioPlayerHandler extends BaseAudioHandler
       case AudioService.recentRootId:
         // When the user resumes a media session, tell the system what the most
         // recently played item was.
-        print("### get recent children: ${_recentSubject.value}:");
         return _recentSubject.value;
       default:
         // Allow client to browse the media library.
-        print(
-            "### get $parentMediaId children: ${_mediaLibrary.items[parentMediaId]}:");
         return _mediaLibrary.items[parentMediaId]!;
     }
   }
@@ -353,7 +348,10 @@ class AudioPlayerHandler extends BaseAudioHandler
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     switch (parentMediaId) {
       case AudioService.recentRootId:
-        return _recentSubject.map((_) => <String, dynamic>{}) as ValueStream<Map<String, dynamic>>;
+        final stream = _recentSubject.map((_) => <String, dynamic>{});
+        return _recentSubject.hasValue
+            ? stream.shareValueSeeded(<String, dynamic>{})
+            : stream.shareValue();
       default:
         return Stream.value(_mediaLibrary.items[parentMediaId])
             .map((_) => <String, dynamic>{})
@@ -536,7 +534,9 @@ class TextPlayerHandler extends BaseAudioHandler with QueueHandler {
           await _sleeper.sleep();
         }
         // ignore: empty_catches
-      } on SleeperInterruptedException {} on TtsInterruptedException {}
+      } on SleeperInterruptedException {
+        // ignore: empty_catches
+      } on TtsInterruptedException {}
     }
     _index = 0;
     mediaItem.add(queue.value[_index]);

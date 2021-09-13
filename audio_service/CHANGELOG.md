@@ -1,4 +1,4 @@
-## 0.18.0-beta.0
+## 0.18.0
 
 * Use a single isolate for easier communication.
 * Replace BackgroundAudioTask by AudioHandler.
@@ -32,6 +32,8 @@
 * Code quality:
   * Unit tests (@suragch, @nt4f04uNd)
   * Strong-mode and pedantic lints, code consistency (@nt4f04uNd)
+* Improve artUri performance on Android (@nt4f04uNd)
+* Better detection of browser support (@nt4f04uNd)
 
 ## 0.17.1
 

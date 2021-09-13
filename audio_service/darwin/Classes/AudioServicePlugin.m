@@ -39,13 +39,10 @@ static NSMutableDictionary *nowPlayingInfo = nil;
             plugins = [NSHashTable weakObjectsHashTable];
         }
         AudioServicePlugin *instance = [[AudioServicePlugin alloc] initWithRegistrar:registrar];
-        NSLog(@"XXX: register client listener");
         [registrar addMethodCallDelegate:instance channel:instance.channel];
-        NSLog(@"XXX: registered client listener");
         [plugins addObject:instance];
         if (!handlerChannel) {
             processingState = ApsIdle;
-            NSLog(@"XXX: setting position to zero");
             position = @(0);
             bufferedPosition = @(0);
             long long msSinceEpoch = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
@@ -88,7 +85,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (void)activateCommandCenter {
-    NSLog(@"### activateCommandCenter");
+    //NSLog(@"### activateCommandCenter");
     commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
     commands = [NSMutableArray new];
     [commands addObjectsFromArray:@[
@@ -245,13 +242,13 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) play: (MPRemoteCommandEvent *) event {
-    NSLog(@"play");
+    //NSLog(@"play");
     [handlerChannel invokeMethod:@"play" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) pause: (MPRemoteCommandEvent *) event {
-    NSLog(@"pause");
+    //NSLog(@"pause");
     [handlerChannel invokeMethod:@"pause" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
@@ -259,10 +256,10 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 - (BOOL)updateNowPlayingField:(NSString *)field value:(id)value {
     if (![value isEqual:nowPlayingInfo[field]]) {
         if (value != nil && value != [NSNull null]) {
-            NSLog(@"### %@ = '%@'", field, value);
+            //NSLog(@"### %@ = '%@'", field, value);
             nowPlayingInfo[field] = value;
         } else {
-            NSLog(@"### %@ = nil", field);
+            //NSLog(@"### %@ = nil", field);
             [nowPlayingInfo removeObjectForKey:field];
         }
         return YES;
@@ -294,7 +291,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
     }
     if (updated) {
-        NSLog(@"### updating nowPlayingInfo");
+        //NSLog(@"### updating nowPlayingInfo");
         center.nowPlayingInfo = nowPlayingInfo;
     }
   
@@ -332,7 +329,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     // All bytes become 0, other than the tested action bit, which will be 0 or 1 according to its status in the actionBits long.
     BOOL enable = ((actionBits >> action) & 1);
     if (_controlsUpdated && enable == command.enabled) return;
-    NSLog(@"## updateControl %@ enable=%@", @(action), @(enable));
+    //NSLog(@"## updateControl %@ enable=%@", @(action), @(enable));
     [command setEnabled:enable];
     switch (action) {
         case AStop:
@@ -454,7 +451,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
-    NSLog(@"togglePlayPause");
+    //NSLog(@"togglePlayPause");
     [handlerChannel invokeMethod:@"click" arguments:@{
         @"button":@(0)
     }];
@@ -462,25 +459,25 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) stop: (MPRemoteCommandEvent *) event {
-    NSLog(@"stop");
+    //NSLog(@"stop");
     [handlerChannel invokeMethod:@"stop" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) nextTrack: (MPRemoteCommandEvent *) event {
-    NSLog(@"nextTrack");
+    //NSLog(@"nextTrack");
     [handlerChannel invokeMethod:@"skipToNext" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) previousTrack: (MPRemoteCommandEvent *) event {
-    NSLog(@"previousTrack");
+    //NSLog(@"previousTrack");
     [handlerChannel invokeMethod:@"skipToPrevious" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) changePlaybackPosition: (MPChangePlaybackPositionCommandEvent *) event {
-    NSLog(@"changePlaybackPosition");
+    //NSLog(@"changePlaybackPosition");
     [handlerChannel invokeMethod:@"seek" arguments: @{
         @"position":@((long long) (event.positionTime * 1000000.0))
     }];
@@ -488,19 +485,19 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) skipForward: (MPRemoteCommandEvent *) event {
-    NSLog(@"skipForward");
+    //NSLog(@"skipForward");
     [handlerChannel invokeMethod:@"fastForward" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) skipBackward: (MPRemoteCommandEvent *) event {
-    NSLog(@"skipBackward");
+    //NSLog(@"skipBackward");
     [handlerChannel invokeMethod:@"rewind" arguments:@{}];
     return MPRemoteCommandHandlerStatusSuccess;
 }
 
 - (MPRemoteCommandHandlerStatus) seekForward: (MPSeekCommandEvent *) event {
-    NSLog(@"seekForward");
+    //NSLog(@"seekForward");
     BOOL begin = event.type == MPSeekCommandEventTypeBeginSeeking;
     [handlerChannel invokeMethod:@"seekForward" arguments:@{
         @"begin":@(begin)
@@ -509,7 +506,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) seekBackward: (MPSeekCommandEvent *) event {
-    NSLog(@"seekBackward");
+    //NSLog(@"seekBackward");
     BOOL begin = event.type == MPSeekCommandEventTypeBeginSeeking;
     [handlerChannel invokeMethod:@"seekBackward" arguments:@{
         @"begin":@(begin)
@@ -518,7 +515,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) changeRepeatMode: (MPChangeRepeatModeCommandEvent *) event {
-    NSLog(@"changeRepeatMode");
+    //NSLog(@"changeRepeatMode");
     int modeIndex;
     switch (event.repeatType) {
         case MPRepeatTypeOff:
@@ -539,7 +536,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) changePlaybackRate: (MPChangePlaybackRateCommandEvent *) event {
-    NSLog(@"changePlaybackRate");
+    //NSLog(@"changePlaybackRate");
     [handlerChannel invokeMethod:@"setSpeed" arguments:@{
         @"speed":@(event.playbackRate)
     }];
@@ -547,7 +544,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (MPRemoteCommandHandlerStatus) changeShuffleMode: (MPChangeShuffleModeCommandEvent *) event {
-    NSLog(@"changeShuffleMode");
+    //NSLog(@"changeShuffleMode");
     int modeIndex;
     switch (event.shuffleType) {
         case MPShuffleTypeOff:
