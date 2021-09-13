@@ -353,7 +353,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
     switch (parentMediaId) {
       case AudioService.recentRootId:
-        return _recentSubject.map((_) => <String, dynamic>{});
+        return _recentSubject.map((_) => <String, dynamic>{}) as ValueStream<Map<String, dynamic>>;
       default:
         return Stream.value(_mediaLibrary.items[parentMediaId])
             .map((_) => <String, dynamic>{})
