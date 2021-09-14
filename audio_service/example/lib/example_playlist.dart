@@ -22,7 +22,7 @@ late AudioPlayerHandler _audioHandler;
 
 Future<void> main() async {
   _audioHandler = await AudioService.init(
-    builder: () => AudioPlayerHandler(),
+    builder: () => AudioPlayerHandlerImpl(),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
@@ -337,18 +337,33 @@ class QueueState {
 
 /// An [AudioHandler] for playing a list of podcast episodes.
 ///
+/// This class exposes the interface and not the implementation.
+abstract class AudioPlayerHandler implements AudioHandler {
+  Stream<QueueState> get queueState;
+  Future<void> moveQueueItem(int currentIndex, int newIndex);
+  ValueStream<double> get volume;
+  Future<void> setVolume(double volume);
+  ValueStream<double> get speed;
+}
+
+/// The implementation of [AudioPlayerHandler].
+///
 /// This handler is backed by a just_audio player. The player's effective
 /// sequence is mapped onto the handler's queue, and the player's state is
 /// mapped onto the handler's state.
-class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
+class AudioPlayerHandlerImpl extends BaseAudioHandler
+    with SeekHandler
+    implements AudioPlayerHandler {
   // ignore: close_sinks
   final BehaviorSubject<List<MediaItem>> _recentSubject =
       BehaviorSubject.seeded(<MediaItem>[]);
   final _mediaLibrary = MediaLibrary();
   final _player = AudioPlayer();
   final _playlist = ConcatenatingAudioSource(children: []);
-  final volume = BehaviorSubject.seeded(1.0);
-  final speed = BehaviorSubject.seeded(1.0);
+  @override
+  final BehaviorSubject<double> volume = BehaviorSubject.seeded(1.0);
+  @override
+  final BehaviorSubject<double> speed = BehaviorSubject.seeded(1.0);
   final _mediaItemExpando = Expando<MediaItem>();
 
   /// A stream of the current effective sequence from just_audio.
@@ -382,6 +397,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   /// A stream reporting the combined state of the current queue and the current
   /// media item within that queue.
+  @override
   Stream<QueueState> get queueState =>
       Rx.combineLatest3<List<MediaItem>, PlaybackState, List<int>, QueueState>(
           queue,
@@ -418,12 +434,13 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     await _player.setSpeed(speed);
   }
 
+  @override
   Future<void> setVolume(double volume) async {
     this.volume.add(volume);
     await _player.setVolume(volume);
   }
 
-  AudioPlayerHandler() {
+  AudioPlayerHandlerImpl() {
     _init();
   }
 
@@ -546,6 +563,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     await _playlist.removeAt(index);
   }
 
+  @override
   Future<void> moveQueueItem(int currentIndex, int newIndex) async {
     await _playlist.move(currentIndex, newIndex);
   }
