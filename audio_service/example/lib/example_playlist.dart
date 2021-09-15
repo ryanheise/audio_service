@@ -178,7 +178,7 @@ class MainScreen extends StatelessWidget {
               child: StreamBuilder<QueueState>(
                 stream: _audioHandler.queueState,
                 builder: (context, snapshot) {
-                  final queueState = snapshot.data ?? QueueState([], 0, []);
+                  final queueState = snapshot.data ?? QueueState.empty;
                   final queue = queueState.queue;
                   return ReorderableListView(
                     onReorder: (int oldIndex, int newIndex) {
@@ -250,7 +250,7 @@ class ControlButtons extends StatelessWidget {
         StreamBuilder<QueueState>(
           stream: audioHandler.queueState,
           builder: (context, snapshot) {
-            final queueState = snapshot.data ?? QueueState([], null, []);
+            final queueState = snapshot.data ?? QueueState.empty;
             return IconButton(
               icon: const Icon(Icons.skip_previous),
               onPressed:
@@ -290,7 +290,7 @@ class ControlButtons extends StatelessWidget {
         StreamBuilder<QueueState>(
           stream: audioHandler.queueState,
           builder: (context, snapshot) {
-            final queueState = snapshot.data ?? QueueState([], null, []);
+            final queueState = snapshot.data ?? QueueState.empty;
             return IconButton(
               icon: const Icon(Icons.skip_next),
               onPressed: queueState.hasNext ? audioHandler.skipToNext : null,
@@ -322,14 +322,22 @@ class ControlButtons extends StatelessWidget {
 }
 
 class QueueState {
+  static final QueueState empty =
+      const QueueState([], 0, [], AudioServiceRepeatMode.none);
+
   final List<MediaItem> queue;
   final int? queueIndex;
   final List<int>? shuffleIndices;
+  final AudioServiceRepeatMode repeatMode;
 
-  QueueState(this.queue, this.queueIndex, this.shuffleIndices);
+  const QueueState(
+      this.queue, this.queueIndex, this.shuffleIndices, this.repeatMode);
 
-  bool get hasPrevious => (queueIndex ?? 0) > 0;
-  bool get hasNext => (queueIndex ?? 0) + 1 < queue.length;
+  bool get hasPrevious =>
+      repeatMode != AudioServiceRepeatMode.none || (queueIndex ?? 0) > 0;
+  bool get hasNext =>
+      repeatMode != AudioServiceRepeatMode.none ||
+      (queueIndex ?? 0) + 1 < queue.length;
 
   List<int> get indices =>
       shuffleIndices ?? List.generate(queue.length, (i) => i);
@@ -404,11 +412,13 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
           playbackState,
           _player.shuffleIndicesStream.whereType<List<int>>(),
           (queue, playbackState, shuffleIndices) => QueueState(
-              queue,
-              playbackState.queueIndex,
-              playbackState.shuffleMode == AudioServiceShuffleMode.all
-                  ? shuffleIndices
-                  : null)).where((state) =>
+                queue,
+                playbackState.queueIndex,
+                playbackState.shuffleMode == AudioServiceShuffleMode.all
+                    ? shuffleIndices
+                    : null,
+                playbackState.repeatMode,
+              )).where((state) =>
           state.shuffleIndices == null ||
           state.queue.length == state.shuffleIndices!.length);
 
