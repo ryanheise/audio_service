@@ -286,6 +286,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public void stop() {
+        notificationCreated = false;
         deactivateMediaSession();
         stopSelf();
     }
@@ -393,6 +394,10 @@ public class AudioService extends MediaBrowserServiceCompat {
             enterPlayingState();
         } else if (wasPlaying && !playing) {
             exitPlayingState();
+        }
+
+        if (playing) {
+            notificationCreated = true;
         }
 
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
