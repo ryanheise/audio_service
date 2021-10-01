@@ -147,12 +147,14 @@ class AudioServiceWeb extends AudioServicePlatform {
       return;
     }
     mediaItem = request.mediaItem;
+    final artist = mediaItem!.artist;
+    final album = mediaItem!.album;
     final artUri = mediaItem!.artUri;
 
     MediaSession.metadata = html.MediaMetadata(<String, dynamic>{
-      'album': mediaItem!.album,
       'title': mediaItem!.title,
-      'artist': mediaItem!.artist,
+      if (artist != null) 'artist': artist,
+      if (album != null) 'album': album,
       'artwork': [
         {
           'src': artUri,
