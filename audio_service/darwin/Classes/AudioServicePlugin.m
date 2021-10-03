@@ -233,6 +233,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         [commandCenter.togglePlayPauseCommand removeTarget:nil];
         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
         processingState = ApsIdle;
+        actionBits = 0;
         [self updateControls];
         _controlsUpdated = NO;
         startResult = nil;
