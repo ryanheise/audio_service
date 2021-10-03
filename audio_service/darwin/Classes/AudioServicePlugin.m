@@ -316,7 +316,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (void) updateControls {
     if (!commandCenter) return;
-    for (enum MediaAction action = AStop; action <= ASeekForward; action++) {
+    for (enum MediaAction action = AStop; action <= ASetSpeed; action++) {
         [self updateControl:action];
     }
     _controlsUpdated = YES;
