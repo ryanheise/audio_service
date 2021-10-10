@@ -13,8 +13,14 @@ public class AudioServiceFragmentActivity extends FlutterFragmentActivity {
         return AudioServicePlugin.getFlutterEngine(context);
     }
 
+    @Override
     protected String getCachedEngineId() {
         AudioServicePlugin.getFlutterEngine(this);
         return AudioServicePlugin.getFlutterEngineId();
+    }
+
+    @Override
+    public boolean shouldDestroyEngineWithHost() {
+        return false;
     }
 }
