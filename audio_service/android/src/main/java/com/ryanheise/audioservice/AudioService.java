@@ -285,6 +285,28 @@ public class AudioService extends MediaBrowserServiceCompat {
         return START_NOT_STICKY;
     }
 
+    /**
+     * Restarts the foreground service from the idle state.
+     *
+     * The opposite of this method is {@link #stop()}.
+     */
+    public void restart() {
+        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        activateMediaSession();
+        mediaSession.setSessionActivity(contentIntent);
+    }
+
+    /**
+     * Tries to stop the service.
+     *
+     * The service will not be stopped, if it's in foreground state,
+     * or there are active {@link MediaBrowserCompat.ConnectionCallback}.
+     *
+     * If there are callbacks, the service will be destroyed as soon as they disconnect
+     * (not taking to account the foreground state).
+     * To prevent this, {@link #restart()} should be called, which is the
+     * opposite of this method.
+     */
     public void stop() {
         deactivateMediaSession();
         stopSelf();
@@ -409,7 +431,11 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
             stop();
-        } else if (processingState != AudioProcessingState.idle && notificationChanged) {
+        } else if (oldProcessingState == AudioProcessingState.idle && processingState != AudioProcessingState.idle) {
+            restart();
+        }
+
+        if (processingState != AudioProcessingState.idle && notificationChanged) {
             updateNotification();
         }
     }
@@ -546,29 +572,16 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void enterPlayingState() {
-        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
-        if (!mediaSession.isActive())
-            mediaSession.setActive(true);
-
         acquireWakeLock();
-        mediaSession.setSessionActivity(contentIntent);
-        internalStartForeground();
+        startForeground(NOTIFICATION_ID, buildNotification());
+        notificationCreated = true;
     }
 
     private void exitPlayingState() {
         if (config.androidStopForegroundOnPause) {
-            exitForegroundState();
+            stopForeground(false);
+            releaseWakeLock();
         }
-    }
-
-    private void exitForegroundState() {
-        stopForeground(false);
-        releaseWakeLock();
-    }
-
-    private void internalStartForeground() {
-        startForeground(NOTIFICATION_ID, buildNotification());
-        notificationCreated = true;
     }
 
     private void acquireWakeLock() {
@@ -714,32 +727,28 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPrepare() {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepare();
         }
 
         @Override
         public void onPrepareFromMediaId(String mediaId, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromMediaId(mediaId, extras);
         }
 
         @Override
         public void onPrepareFromSearch(String query, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromSearch(query, extras);
         }
 
         @Override
         public void onPrepareFromUri(Uri uri, Bundle extras) {
             if (listener == null) return;
-            if (!mediaSession.isActive())
-                mediaSession.setActive(true);
+            activateMediaSession();
             listener.onPrepareFromUri(uri, extras);
         }
 
