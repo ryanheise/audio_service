@@ -167,8 +167,6 @@ public class AudioService extends MediaBrowserServiceCompat {
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inJustDecodeBounds = true;
                 BitmapFactory.decodeFile(path, options);
-                int imageHeight = options.outHeight;
-                int imageWidth = options.outWidth;
                 options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
                 options.inJustDecodeBounds = false;
 
@@ -600,14 +598,26 @@ public class AudioService extends MediaBrowserServiceCompat {
     /**
      * Updates metadata, loads the art and updates the notification.
      * Gets called from background thread.
+     *
+     * Also adds the loaded art bitmap to the MediaMetadata.
+     * This is needed to display art in lock screen in versions
+     * prior Android 11, in which this feature was removed.
+     *
+     * See:
+     *  - https://developer.android.com/guide/topics/media-apps/working-with-a-media-session#album_artwork
+     *  - https://9to5google.com/2020/08/02/android-11-lockscreen-art/
      */
-    synchronized void setMetadata(final MediaMetadataCompat mediaMetadata) {
-        this.mediaMetadata = mediaMetadata;
-        mediaSession.setMetadata(mediaMetadata);
+    synchronized void setMetadata(MediaMetadataCompat mediaMetadata) {
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
         if (artCacheFilePath != null) {
             artBitmap = loadArtBitmapFromFile(artCacheFilePath);
+            mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
+                    .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artBitmap)
+                    .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artBitmap)
+                    .build();
         }
+        this.mediaMetadata = mediaMetadata;
+        mediaSession.setMetadata(mediaMetadata);
         updateNotification();
     }
 
