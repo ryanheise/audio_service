@@ -1228,7 +1228,6 @@ class AudioService {
           androidShowNotificationBadge: androidShowNotificationBadge,
           androidNotificationClickStartsActivity:
               androidNotificationClickStartsActivity,
-          androidNotificationOngoing: androidNotificationOngoing,
           androidStopForegroundOnPause: androidStopForegroundOnPause,
           artDownscaleWidth: androidArtDownscaleSize?.width.round(),
           artDownscaleHeight: androidArtDownscaleSize?.height.round(),
@@ -3305,6 +3304,8 @@ class AudioServiceConfig {
   /// If you set this to true, [androidStopForegroundOnPause] must be true as well,
   /// otherwise this will not do anything, because when foreground service is active,
   /// it forces notification to be ongoing.
+  @Deprecated(
+      "Ongoing is now automatically set when your handler is ready and playing")
   final bool androidNotificationOngoing;
 
   /// Whether the Android service should switch to a lower priority state when
@@ -3354,7 +3355,8 @@ class AudioServiceConfig {
     this.androidNotificationIcon = 'mipmap/ic_launcher',
     this.androidShowNotificationBadge = false,
     this.androidNotificationClickStartsActivity = true,
-    this.androidNotificationOngoing = false,
+    @Deprecated("Ongoing is now automatically set when your handler is ready and playing")
+        this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
@@ -3362,11 +3364,7 @@ class AudioServiceConfig {
     this.rewindInterval = const Duration(seconds: 10),
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
-  })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
-        assert(
-          !androidNotificationOngoing || androidStopForegroundOnPause,
-          'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
-        );
+  }) : assert((artDownscaleWidth != null) == (artDownscaleHeight != null));
 
   AudioServiceConfigMessage _toMessage() => AudioServiceConfigMessage(
         androidResumeOnClick: androidResumeOnClick,
@@ -3379,7 +3377,7 @@ class AudioServiceConfig {
         androidShowNotificationBadge: androidShowNotificationBadge,
         androidNotificationClickStartsActivity:
             androidNotificationClickStartsActivity,
-        androidNotificationOngoing: androidNotificationOngoing,
+        androidNotificationOngoing: false,
         androidStopForegroundOnPause: androidStopForegroundOnPause,
         artDownscaleWidth: artDownscaleWidth,
         artDownscaleHeight: artDownscaleHeight,
