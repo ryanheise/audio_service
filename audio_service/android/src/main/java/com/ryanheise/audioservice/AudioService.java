@@ -221,6 +221,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private boolean notificationCreated;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private VolumeProviderCompat volumeProvider;
+    private boolean isInForeground;
 
     public AudioProcessingState getProcessingState() {
         return processingState;
@@ -404,9 +405,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession.setShuffleMode(shuffleMode);
         mediaSession.setCaptioningEnabled(captioningEnabled);
 
-        if (!wasPlaying && playing) {
+        if (!isInForeground && isActuallyPlaying()) {
             enterPlayingState();
-        } else if (wasPlaying && !playing) {
+        } else if (isInForeground && !playing) {
             exitPlayingState();
         }
 
@@ -548,6 +549,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
+    private boolean isActuallyPlaying() {
+        return playing && (processingState == AudioProcessingState.loading
+                || processingState == AudioProcessingState.buffering
+                || processingState == AudioProcessingState.ready);
+    }
+
     private void enterPlayingState() {
         ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
         if (!mediaSession.isActive())
@@ -555,7 +562,9 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         acquireWakeLock();
         mediaSession.setSessionActivity(contentIntent);
-        internalStartForeground();
+        startForeground(NOTIFICATION_ID, buildNotification());
+        notificationCreated = true;
+        isInForeground = true;
     }
 
     private void exitPlayingState() {
@@ -567,11 +576,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private void exitForegroundState() {
         stopForeground(false);
         releaseWakeLock();
-    }
-
-    private void internalStartForeground() {
-        startForeground(NOTIFICATION_ID, buildNotification());
-        notificationCreated = true;
+        isInForeground = false;
     }
 
     private void acquireWakeLock() {
@@ -595,6 +600,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         // Force cancellation of the notification
         getNotificationManager().cancel(NOTIFICATION_ID);
+        notificationCreated = false;
     }
 
     private void releaseMediaSession() {
