@@ -12,6 +12,8 @@ import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
@@ -637,8 +639,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         this.mediaMetadata = mediaMetadata;
         mediaSession.setMetadata(mediaMetadata);
-        updateNotification();
+        handler.removeCallbacksAndMessages(null);
+        handler.post(this::updateNotification);
     }
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
