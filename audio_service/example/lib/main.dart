@@ -131,13 +131,13 @@ class MainScreen extends StatelessWidget {
       Rx.combineLatest2<MediaItem?, Duration, MediaState>(
           _audioHandler.mediaItem,
           AudioService.position,
-          (mediaItem, position) => MediaState(mediaItem, position));
+              (mediaItem, position) => MediaState(mediaItem, position));
 
   IconButton _button(IconData iconData, VoidCallback onPressed) => IconButton(
-        icon: Icon(iconData),
-        iconSize: 64.0,
-        onPressed: onPressed,
-      );
+    icon: Icon(iconData),
+    iconSize: 64.0,
+    onPressed: onPressed,
+  );
 }
 
 class MediaState {

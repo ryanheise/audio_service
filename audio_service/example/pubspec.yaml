@@ -9,11 +9,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-  path_provider: ^2.0.1
+
   audio_session: ^0.1.6
   just_audio: ^0.9.11
   flutter_tts: ^3.2.2
+  # TODO: use normal video player dependency when pull request is merged
+  # https://github.com/flutter/plugins/pull/4324
+  video_player:
+    git:
+      url: https://github.com/surfstudio/plugins.git
+      ref: surf-video-player-2
+      path: packages/video_player/video_player
   rxdart: ^0.27.2
+  path_provider: ^2.0.1
   audio_service:
     path: ../
 
