@@ -45,6 +45,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.plugin.common.BinaryMessenger;
 
+import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.dart.DartExecutor;
@@ -70,6 +71,17 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
             flutterEngine = new FlutterEngine(context.getApplicationContext());
+            if (context instanceof FlutterActivity && ((FlutterActivity)context).shouldHandleDeeplinking()) {
+                // initial route must be set before dart entrypoint is executed
+                FlutterActivity flutterActivity = (FlutterActivity)context;
+                String path = flutterActivity.getInitialRoute();
+                if (path == null) {
+                    path = maybeGetInitialRouteFromIntent(flutterActivity.getIntent());
+                }
+                if (path != null) {
+                    flutterEngine.getNavigationChannel().setInitialRoute(path);
+                }
+            }
             flutterEngine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
             FlutterEngineCache.getInstance().put(flutterEngineId, flutterEngine);
         }
@@ -1126,5 +1138,20 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             map.put((String)args[i], args[i + 1]);
         }
         return map;
+    }
+
+    private static String maybeGetInitialRouteFromIntent(Intent intent) {
+        Uri data = intent.getData();
+        if (data != null && !data.getPath().isEmpty()) {
+            String fullRoute = data.getPath();
+            if (data.getQuery() != null && !data.getQuery().isEmpty()) {
+                fullRoute += "?" + data.getQuery();
+            }
+            if (data.getFragment() != null && !data.getFragment().isEmpty()) {
+                fullRoute += "#" + data.getFragment();
+            }
+            return fullRoute;
+        }
+        return null;
     }
 }
