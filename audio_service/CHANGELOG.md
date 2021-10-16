@@ -1,3 +1,13 @@
+## 0.18.1
+
+* Remove iOS notification on stop.
+* Fix setSpeed action on iOS.
+* Eliminate redundant notification updates on Android.
+* Handle null album and artist on web (@nt4f04uNd).
+* Fix multithreaded crash in notification tap (@nt4f04uNd).
+* Fix regression to show album art on lock screen (@nt4f04uNd).
+* Add playlist/shuffle/loop example.
+
 ## 0.18.0
 
 * Use a single isolate for easier communication.
