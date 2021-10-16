@@ -457,10 +457,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
 
     private static class AudioHandlerInterface implements MethodCallHandler, AudioService.ServiceListener {
+        private static final int SILENCE_SAMPLE_RATE = 44100;
         public BinaryMessenger messenger;
         public MethodChannel channel;
         private AudioTrack silenceAudioTrack;
-        private static final int SILENCE_SAMPLE_RATE = 44100;
+        private final Handler handler = new Handler(Looper.getMainLooper());
 
         public AudioHandlerInterface(BinaryMessenger messenger) {
             this.messenger = messenger;
@@ -764,8 +765,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void onDestroy() {
             disposeFlutterEngine();
         }
-
-        private final Handler handler = new Handler(Looper.getMainLooper());
 
         @Override
         public void onMethodCall(MethodCall call, Result result) {

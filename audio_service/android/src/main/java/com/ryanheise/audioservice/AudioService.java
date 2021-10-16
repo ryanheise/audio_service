@@ -219,6 +219,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     private int repeatMode;
     private int shuffleMode;
     private boolean notificationCreated;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private VolumeProviderCompat volumeProvider;
 
     public AudioProcessingState getProcessingState() {
         return processingState;
@@ -416,7 +418,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
     }
 
-    private VolumeProviderCompat volumeProvider;
     public void setPlaybackInfo(int playbackType, Integer volumeControlType, Integer maxVolume, Integer volume) {
         if (playbackType == MediaControllerCompat.PlaybackInfo.PLAYBACK_TYPE_LOCAL) {
             // We have to wait 'til media2 before we can use AudioAttributes.
@@ -642,7 +643,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         handler.removeCallbacksAndMessages(null);
         handler.post(this::updateNotification);
     }
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
