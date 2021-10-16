@@ -77,6 +77,7 @@ profile
 xcuserdata
 .generated/
 **/Flutter/App.framework
+**/Flutter/Flutter.podspec
 **/Flutter/Flutter.framework
 **/Flutter/Generated.xcconfig
 **/Flutter/ephemeral
