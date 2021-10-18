@@ -357,4 +357,18 @@ void main() {
       );
     });
   });
+
+  group('$AudioServiceConfig $asciiSquare', () {
+    test('asserts proper notification ongoing config', () {
+      expect(
+        () {
+          AudioServiceConfig(
+            androidNotificationOngoing: true,
+            androidStopForegroundOnPause: false,
+          );
+        },
+        throwsAssertionError,
+      );
+    });
+  });
 }

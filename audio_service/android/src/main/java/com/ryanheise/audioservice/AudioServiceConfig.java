@@ -17,6 +17,7 @@ public class AudioServiceConfig {
     private static final String KEY_ANDROID_NOTIFICATION_ICON = "androidNotificationIcon";
     private static final String KEY_ANDROID_SHOW_NOTIFICATION_BADGE = "androidShowNotificationBadge";
     private static final String KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY = "androidNotificationClickStartsActivity";
+    private static final String KEY_ANDROID_NOTIFICATION_ONGOING = "androidNotificationOngoing";
     private static final String KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE = "androidStopForegroundOnPause";
     private static final String KEY_ART_DOWNSCALE_WIDTH = "artDownscaleWidth";
     private static final String KEY_ART_DOWNSCALE_HEIGHT = "artDownscaleHeight";
@@ -32,6 +33,7 @@ public class AudioServiceConfig {
     public String androidNotificationIcon;
     public boolean androidShowNotificationBadge;
     public boolean androidNotificationClickStartsActivity;
+    public Boolean androidNotificationOngoing;
     public boolean androidStopForegroundOnPause;
     public int artDownscaleWidth;
     public int artDownscaleHeight;
@@ -48,6 +50,7 @@ public class AudioServiceConfig {
         androidNotificationIcon = preferences.getString(KEY_ANDROID_NOTIFICATION_ICON, "mipmap/ic_launcher");
         androidShowNotificationBadge = preferences.getBoolean(KEY_ANDROID_SHOW_NOTIFICATION_BADGE, false);
         androidNotificationClickStartsActivity = preferences.getBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, true);
+        androidNotificationOngoing = !preferences.contains(KEY_ANDROID_NOTIFICATION_ONGOING) ? null :  new Boolean(preferences.getBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, false));
         androidStopForegroundOnPause = preferences.getBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, true);
         artDownscaleWidth = preferences.getInt(KEY_ART_DOWNSCALE_WIDTH, -1);
         artDownscaleHeight = preferences.getInt(KEY_ART_DOWNSCALE_HEIGHT, -1);

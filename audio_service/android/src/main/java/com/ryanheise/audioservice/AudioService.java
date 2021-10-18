@@ -490,10 +490,12 @@ public class AudioService extends MediaBrowserServiceCompat {
         final MediaStyle style = new MediaStyle()
             .setMediaSession(mediaSession.getSessionToken())
             .setShowActionsInCompactView(compactActionIndices);
-        boolean isActuallyPlaying = this.isActuallyPlaying();
-        style.setShowCancelButton(!isActuallyPlaying);
+        boolean ongoing = (config.androidNotificationOngoing != null)
+            ? config.androidNotificationOngoing
+            : isActuallyPlaying();
+        style.setShowCancelButton(!ongoing);
         style.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP));
-        builder.setOngoing(isActuallyPlaying);
+        builder.setOngoing(ongoing);
         builder.setStyle(style);
         return builder.build();
     }
