@@ -639,7 +639,7 @@ class MediaItem {
         artist: artist,
         genre: genre,
         duration: duration,
-        artUri: artUri,
+        artUri: AudioService._artProvider.convertToContentUri(artUri),
         playable: playable,
         displayTitle: displayTitle,
         displaySubtitle: displaySubtitle,
@@ -845,6 +845,67 @@ class MediaControl {
       action == other.action;
 }
 
+class _ArtProvider {
+  _ArtProvider(this.cacheManager);
+  final ValueGetter<BaseCacheManager> cacheManager;
+
+  /// The mapping for the ContentProvider in Android.
+  final Map<Uri, Uri> _artUriMap = {};
+
+  /// Saves the mapping of actual art URI to content URI.
+  ///
+  /// If the [uri] is `null`, just returns `null`.
+  Uri? convertToContentUri(Uri? uri) {
+    if (uri == null) {
+      return null;
+    }
+    var path = uri.path.substring(1) +
+        '/' +
+        uri.queryParametersAll.entries
+            .map((el) => '${el.key}_${el.value.join('_')}')
+            .join('/');
+    if (path.isEmpty) {
+      path = '/';
+    }
+    final contentUri = Uri(
+      scheme: 'content',
+      host: 'com.ryanheise.audioservice',
+      path: path,
+    );
+    _artUriMap[contentUri] = uri;
+    return contentUri;
+  }
+
+  /// Returns the file URI from content URI, previosly converted with
+  /// [convertToContentUri].
+  Uri? convertFromContentUri(Uri? contentUri) {
+    return _artUriMap[contentUri];
+  }
+
+  /// Loads art work from content URI.
+  Future<String?> loadArtwork(Uri? contentUri) async {
+    print("CONVERT $contentUri");
+    if (contentUri == null) {
+      return null;
+    }
+    assert(contentUri.scheme == 'content');
+    final uri = convertFromContentUri(contentUri);
+    try {
+      if (uri != null) {
+        if (uri.scheme == 'file') {
+          return uri.toFilePath();
+        } else {
+          final file = await cacheManager().getSingleFile(uri.toString());
+          return file.path;
+        }
+      }
+    } catch (e) {
+      // TODO: handle this somehow?
+    }
+    return null;
+  }
+}
+
 /// Provides an API to manage the app's [AudioHandler]. An app must call [init]
 /// during initialisation to register the [AudioHandler] that will service all
 /// requests to play audio.
@@ -876,6 +937,8 @@ class AudioService {
 
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
+  static final _artProvider = _ArtProvider(() => cacheManager);
+
   /// Register the app's [AudioHandler] with configuration options. This must be
   /// called during the app's initialisation so that it is prepared to handle
   /// audio requests immediately after a cold restart (e.g. if the user clicks
@@ -905,6 +968,7 @@ class AudioService {
     final handler = builder();
     _handler = handler;
 
+    _platform.setClientCallbacks(_ClientCallbacks(_artProvider));
     _platform.setHandlerCallbacks(_HandlerCallbacks(handler));
     _observeMediaItem();
     _observeAndroidPlaybackInfo();
@@ -928,12 +992,13 @@ class AudioService {
               await cacheManager.getFileFromMemory(artUri.toString());
           filePath = fileInfo?.file.path;
           if (filePath == null) {
+            final platformMediaItem = mediaItem._toMessage();
             // We haven't fetched the art yet, so show the metadata now, and again
             // after we load the art.
             await _platform.setMediaItem(
-                SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+                SetMediaItemRequest(mediaItem: platformMediaItem));
             // Load the art
-            filePath = await _loadArtwork(mediaItem);
+            filePath = await _artProvider.loadArtwork(platformMediaItem.artUri);
             // If we failed to download the art, abort.
             if (filePath == null) continue;
             // If we've already set a new media item, cancel this request.
@@ -965,11 +1030,18 @@ class AudioService {
 
   static Future<void> _observeQueue() async {
     await for (var queue in _handler.queue) {
+      final platformQueue = queue.map((item) => item._toMessage()).toList();
       if (_config.preloadArtwork) {
-        _loadAllArtwork(queue);
+        _loadAllArtworks(platformQueue);
       }
-      await _platform.setQueue(SetQueueRequest(
-          queue: queue.map((item) => item._toMessage()).toList()));
+      await _platform.setQueue(SetQueueRequest(queue: platformQueue));
+    }
+  }
+
+  static Future<void> _loadAllArtworks(
+      List<MediaItemMessage> platformQueue) async {
+    for (var mediaItemMessage in platformQueue) {
+      await _artProvider.loadArtwork(mediaItemMessage.artUri);
     }
   }
 
@@ -1078,30 +1150,6 @@ class AudioService {
   /// Stops the service.
   static Future<void> _stop() async {
     await _platform.stopService(const StopServiceRequest());
-  }
-
-  static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
-    for (var mediaItem in queue) {
-      await _loadArtwork(mediaItem);
-    }
-  }
-
-  static Future<String?> _loadArtwork(MediaItem mediaItem) async {
-    try {
-      final artUri = mediaItem.artUri;
-      if (artUri != null) {
-        if (artUri.scheme == 'file') {
-          return artUri.toFilePath();
-        } else {
-          final file =
-              await cacheManager.getSingleFile(mediaItem.artUri!.toString());
-          return file.path;
-        }
-      }
-    } catch (e) {
-      // TODO: handle this somehow?
-    }
-    return null;
   }
 
   // DEPRECATED members
@@ -3443,7 +3491,7 @@ extension _MediaItemMessageExtension on MediaItemMessage {
         artist: artist,
         genre: genre,
         duration: duration,
-        artUri: artUri,
+        artUri: AudioService._artProvider.convertFromContentUri(artUri),
         playable: playable,
         displayTitle: displayTitle,
         displaySubtitle: displaySubtitle,
@@ -3669,6 +3717,16 @@ class AudioServiceBackground {
   @Deprecated("Use BaseAudioHandler.customEvent instead.")
   static void sendCustomEvent(dynamic event) {
     _taskHandler.customEvent.add(event);
+  }
+}
+
+class _ClientCallbacks extends ClientCallbacks {
+  _ClientCallbacks(this.artProvider);
+  _ArtProvider artProvider;
+
+  @override
+  Future<String?> getArtFilePath(int requestId, Uri uri) {
+    return artProvider.loadArtwork(uri);
   }
 }
 

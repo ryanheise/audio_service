@@ -56,10 +56,44 @@ class MethodChannelAudioService extends AudioServicePlatform {
   }
 
   @override
+  Future<void> sendArtPath(int requestId, String? path) async {
+    await _clientChannel.invokeMethod<void>('sendArtPath', {
+      'requestId': requestId,
+      'path': path,
+    });
+  }
+
+  @override
+  void setClientCallbacks(ClientCallbacks callbacks) {
+    _clientChannel.setMethodCallHandler((call) async {
+      return clientCallbacksCallHandler(callbacks, call);
+    });
+  }
+
+  @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
     handlerChannel.setMethodCallHandler((call) async {
       return handlerCallbacksCallHandler(callbacks, call);
     });
+  }
+
+  /// Used in tests within mock method channel.
+  @visibleForTesting
+  void clientCallbacksCallHandler(ClientCallbacks callbacks, MethodCall call) {
+    switch (call.method) {
+      case 'getArtFilePath':
+        final requestId = call.arguments['requestId'] as int;
+        // Don't await to not block UI thread.
+        final artFileFuture = callbacks.getArtFilePath(
+          requestId,
+          Uri.parse(call.arguments['uri'] as String),
+        );
+        // In case of error the platform will itself terminate the task.
+        artFileFuture.then((path) => sendArtPath(requestId, path));
+        break;
+      default:
+        _throwUnimplementedError(call);
+    }
   }
 
   /// Used in tests within mock method channel.
@@ -233,10 +267,14 @@ class MethodChannelAudioService extends AudioServicePlatform {
                     .values[call.arguments['direction']]!));
         return null;
       default:
-        throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${call.method}');
+        _throwUnimplementedError(call);
     }
+  }
+
+  void _throwUnimplementedError(MethodCall call) {
+    throw PlatformException(
+        code: 'unimplemented',
+        message: 'Method not implemented: ${call.method}');
   }
 }
 

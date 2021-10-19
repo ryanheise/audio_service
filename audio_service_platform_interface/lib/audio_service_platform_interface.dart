@@ -73,9 +73,23 @@ abstract class AudioServicePlatform extends PlatformInterface {
         'notifyChildrenChanged() has not been implemented.');
   }
 
+  void sendArtPath(int requestId, String? path) {
+    throw UnimplementedError('sendArtPath() has not been implemented.');
+  }
+
+  void setClientCallbacks(ClientCallbacks callbacks) {
+    throw UnimplementedError('setClientCallbacks() has not been implemented.');
+  }
+
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
     throw UnimplementedError('setHandlerCallbacks() has not been implemented.');
   }
+}
+
+/// Callbacks from platform client to the plugin.
+abstract class ClientCallbacks {
+  /// Return the art file path based on it's content uri.
+  Future<String?> getArtFilePath(int requestId, Uri uri);
 }
 
 /// Callbacks from the platform to the handler.

@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.core.app.NotificationCompat;
 
@@ -154,6 +155,28 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 //            clientInterface.channel.invokeMethod(method, arg);
 //        }
 //    }
+
+    public static void getArtFilePath(int requestId, Uri uri) {
+        mainClientInterface.activity.runOnUiThread(() -> {
+            mainClientInterface.channel.invokeMethod(
+                    "getArtFilePath",
+                    mapOf("requestId", requestId, "uri", uri.toString()),
+                    new MethodChannel.Result() {
+                        @Override
+                        public void success(@Nullable Object result) {}
+
+                        @Override
+                        public void error(String errorCode, @Nullable String errorMessage, @Nullable Object errorDetails) {
+                            ArtContentProvider.terminatePathRequest(requestId);
+                        }
+
+                        @Override
+                        public void notImplemented() {
+                            ArtContentProvider.terminatePathRequest(requestId);
+                        }
+                    });
+        });
+    }
 
     //
     // INSTANCE FIELDS AND METHODS
@@ -405,13 +428,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 if (wrongEngineDetected) {
                     throw new IllegalStateException("The Activity class declared in your AndroidManifest.xml is wrong or has not provided the correct FlutterEngine. Please see the README for instructions.");
                 }
+                Map<?, ?> args = (Map<?, ?>) call.arguments;
                 switch (call.method) {
-                case "configure":
+                case "configure": {
                     if (serviceConnectionFailed) {
                         throw new IllegalStateException("Unable to bind to AudioService. Please ensure you have declared a <service> element as described in the README.");
                     }
-                    Map<?, ?> args = (Map<?, ?>)call.arguments;
-                    Map<?, ?> configMap = (Map<?, ?>)args.get("config");
+                    Map<?, ?> configMap = (Map<?, ?>) args.get("config");
                     AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());
                     config.androidNotificationClickStartsActivity = (Boolean)configMap.get("androidNotificationClickStartsActivity");
                     config.androidNotificationOngoing = (Boolean)configMap.get("androidNotificationOngoing");
@@ -425,7 +448,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     config.androidStopForegroundOnPause = (Boolean)configMap.get("androidStopForegroundOnPause");
                     config.artDownscaleWidth = configMap.get("artDownscaleWidth") != null ? (Integer)configMap.get("artDownscaleWidth") : -1;
                     config.artDownscaleHeight = configMap.get("artDownscaleHeight") != null ? (Integer)configMap.get("artDownscaleHeight") : -1;
-                    config.setBrowsableRootExtras((Map<?,?>)configMap.get("androidBrowsableRootExtras"));
+                    config.setBrowsableRootExtras((Map<?, ?>)configMap.get("androidBrowsableRootExtras"));
                     if (activity != null) {
                         config.activityClassName = activity.getClass().getName();
                     }
@@ -448,6 +471,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         configureResult = result;
                     }
                     break;
+                }
+                case "sendArtPath": {
+                    Long requestId = getLong(args.get("requestId"));
+                    String path = (String) args.get("path");
+                    ArtContentProvider.successPathRequest(requestId.intValue(), path);
+                    result.success(null);
+                    break;
+                }
                 }
             } catch (Exception e) {
                 e.printStackTrace();

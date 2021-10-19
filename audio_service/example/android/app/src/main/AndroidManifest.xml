@@ -43,8 +43,20 @@
         </receiver> 
 
         <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc"/>
+
+        <meta-data android:name="com.google.android.gms.car.notification.SmallIcon"
+                   android:resource="@mipmap/ic_launcher" />
+
+        <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <provider
+            android:name="com.ryanheise.audioservice.ArtContentProvider"
+            android:authorities="com.ryanheise.audioservice"
+            android:exported="true" />
 
     </application>
 </manifest>
