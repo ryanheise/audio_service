@@ -19,6 +19,8 @@ public class AudioServiceFragmentActivity extends FlutterFragmentActivity {
         return AudioServicePlugin.getFlutterEngineId();
     }
 
+    // The engine is created and managed by AudioServicePlugin,
+    // it should not be destroyed with the activity.
     @Override
     public boolean shouldDestroyEngineWithHost() {
         return false;
