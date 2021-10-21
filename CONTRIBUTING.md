@@ -38,10 +38,10 @@ To create a pull request:
 1. Fork this repository
 2. Create a branch for your changes. Branch off the `major` branch if introducing a breaking change that is not backwards compatible, or instead off the `minor` branch if making a non-breaking change or bug fix.
 3. Make your changes, updating the documentation if you have changed any API's behaviour.
-4. If you are the first to contribute to the next version, increment the version number in `pubspec.yaml`.
+4. If you are the first to contribute to the next version, increment the version number in `pubspec.yaml` according to the [pub versioning philosophy](https://dart.dev/tools/pub/versioning).
 5. Add a description of your change to `CHANGELOG.md` (format: `* DESCRIPTION OF YOUR CHANGE (@your-git-username)`).
 6. Run `flutter analyze` to ensure your code meets the static analysis requirements.
-7. Run `flutter test` to ensure all unit tests continue to work (Please consider also contributing a unit test covering your new code).
+7. Run `flutter test` to ensure all unit tests continue to work (Please consider also contributing unit tests covering your new code).
 8. Create the pull request via [GitHub's instructions](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
 9. [link](https://docs.github.com/en/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue) that pull request with the original issue.
 
