@@ -373,7 +373,7 @@ For more information about shrinking see [Android documentation](https://develop
 
 ### Custom Android activity
 
-`AudioService` provides the possibility to seamlessly integrate to either `Activity` or `Fragment` you're using as your main class.  
+`AudioService` provides the possibility to seamlessly integrate to either `Activity` or `FragmentActivity` you're using as your main class.  
 If you choose to use this way, make sure you update `AndroidManifest.xml` to match the name of this activity (assuming it's called `MainActivity`) instead of `com.ryanheise.audioservice.AudioServiceActivity`.
 ```xml
 <activity android:name=".MainActivity" ...>
@@ -386,7 +386,7 @@ import com.ryanheise.audioservice.AudioServiceActivity;
 public class MainActivity extends AudioServiceActivity {}
 ```
 
-2. Integration as a `Fragment`
+2. Integration as a `FragmentActivity`
 ```java
 import com.ryanheise.audioservice.AudioServiceFragmentActivity;
 
