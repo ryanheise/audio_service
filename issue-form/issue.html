@@ -1,0 +1,77 @@
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.form.io/formiojs/formio.full.min.css">
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/formiojs@latest/dist/formio.full.min.css">
+  <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script type="text/javascript" src="https://unpkg.com/formiojs@latest/dist/formio.full.min.js"></script>
+  <script type="text/javascript" src="issue.js"></script>
+</head>
+<body>
+  <h1 style="text-align: center;">Submit an audio_service issue</h1>
+  <div id="formio" style="width: 600px; margin: auto;"></div>
+  <script>
+Formio.icons = 'fontawesome';
+Formio.createForm(document.getElementById('formio'), issueForm).then(function(form) {
+ form.on('submit', function(submission) {
+ console.log(submission);
+ if (submission.state != 'submitted') return;
+ var data = submission.data;
+ console.log(data);
+ var title = data.title;
+ var type = data.issue_type;
+ var label;
+ var body;
+ if (type === 'api_bug') {
+   label = 'bug';
+   body = "### Documented behaviour\n" + data.api_quote + "\n";
+   body += "### Actual behaviour\n" + data.api_actual_behavior + "\n";
+   if (data.runtime_error.trim().length > 0) {
+     body += "### Runtime error\n```\n" + data.runtime_error + "\n```\n";
+   }
+   body += "### Minimal reproduction project\n";
+   if (data.repro_type === 'repro_example') {
+     body += "Official example: " + data.repro_name + "\n";
+   } else {
+     body += data.repro_link + "\n";
+   }
+   body += "### Reproduction steps\n" + data.repro_steps + "\n";
+   body += "### Output of flutter doctor\n```" + data.flutter_doctor + "```\n";
+   body += "### Devices exhibiting the bug\n" + data.devices + "\n";
+ } else if (type === 'build_bug') {
+   label = 'bug';
+   body = "### Minimal reproduction project\n";
+   if (data.repro_type === 'repro_example') {
+     body += "Official example: " + data.repro_name + "\n";
+   } else {
+     body += data.repro_link + "\n";
+   }
+   body += "### Build command\n```\n" + data.build_command + "\n```\n";
+   body += "### Build error\n```\n" + data.build_error + "\n```\n";
+   if (data.build_comments.trim().length > 0) {
+     body += "### Comments\n" + data.build_comments + "\n";
+   }
+   body += "### Output of flutter doctor\n```\n" + data.flutter_doctor + "\n```\n";
+ } else if (type === 'feature_request') {
+   label = 'enhancement';
+   body = "### Feature proposal\n" + data.feature_proposal + "\n### Motivating use case(s)\n" + data.feature_use_case;
+ } else if (type === 'documentation_request') {
+   label = 'documentation';
+   body = "### Documentation request for the following page(s)\n" + data.doc_url;
+   if (data.doc_quote.trim().length > 0) {
+     body += "\n### Section(s) in question\n" + data.doc_quote;
+   }
+   body += "\n### Suggested improvement\n" + data.doc_suggestion;
+ } else {
+   return;
+ }
+  var url = 'https://github.com/ryanheise/audio_service/issues/new?labels=1+backlog,' + label + '&assignees=ryanheise&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+  console.log(url);
+  window.location.href = url;
+ });
+});
+  </script>
+</body>
+</html>
