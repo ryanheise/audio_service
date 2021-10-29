@@ -16,8 +16,8 @@ var issueForm = {
 			label: "I confirm this is not a duplicate issue to the best of my knowledge.",
 			input: true,
 			values: [
-				{value: 'yes', label: 'Yes'},
-				{value: 'no', label: "No"}
+				{value: 'yes', label: 'Confirm'},
+				{value: 'no', label: "Haven't checked."}
 			],
 			validate: {
 				required: true,
@@ -338,8 +338,8 @@ var issueForm = {
 			label: 'I confirm that I checked the API documentation and this feature does not already exist.',
 			input: true,
 			values: [
-				{value: 'yes', label: 'Yes'},
-				{value: 'no', label: 'No'}
+				{value: 'yes', label: 'Confirm'},
+				{value: 'no', label: "Haven't checked"}
 			],
 			description: "Note: If you're not sure if the feature is supported and are just looking for help or support, please ask on StackOverflow for community support.",
 			validate: {
