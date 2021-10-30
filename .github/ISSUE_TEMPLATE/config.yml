@@ -1,9 +1,8 @@
 blank_issues_enabled: false
-issue_form:
+contact_links:
   - name: Submit a new issue
     url: https://ryanheise.github.io/audio_service/issue-form/issue.html
     about: Report bugs, suggest features and documentation improvements.
-contact_links:
   - name: Community support
     url: https://stackoverflow.com/questions/tagged/audio-service
     about: Ask a for help on how to achieve a particular use case.
