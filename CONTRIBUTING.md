@@ -15,7 +15,7 @@ We use GitHub as a place and tool for contributors to work together on project d
 1. **Is it a bug?** Check first that you're using the API correctly according to the documentation (README and API documentation). If the API crashes when used incorrectly, you should not report a bug.
 2. **Is it a new bug?** Search the GitHub issues page for bugs. If this bug has already been reported, you should not report a new bug.
 3. **How can we reproduce it?** Fork this repository and make the "minimal" changes necessary to the example to reproduce the bug. This step is unnecessary if you choose to fix the bug yourself, or if the example already exhibits the bug without modification.
-4. **Submit a report!** With all of the information you have collected you can submit a bug report via the "New issue" page on GitHub. It is necessary to fill in all required information provided by the template in the same format as the template to avoid automatic closure of the issue.
+4. **Submit a report!** With all of the information you have collected you can submit a bug report via the "New issue" page on GitHub. It is necessary to fill in all required information in the form.
 
 Things to AVOID:
 
@@ -23,11 +23,15 @@ Things to AVOID:
 * Do not use a bug report to ask a question. Use StackOverflow instead.
 * Do not submit a bug report if you are not using the APIs correctly according to the documentation.
 * Try to avoid posting a duplicate bug.
-* Do not ignore the formatting requirements and instructions within the issue template.
+* Do not ignore the instructions within the form.
 
 ## Suggesting an improvement
 
-The GitHub "New issue" page provides 2 templates for suggesting improvements: Feature requests and Documentation requests. In both cases, make sure you search existing issues to prevent yourself from posting a duplicate, and ensure that you fill in all required sections in the issue template keeping the original formatting to avoid automatic closure.
+The GitHub "New issue" page also allows you to contribute feature proposals and documentation suggestions. As with bugs, you should always familiarise yourself with the existing API documentation before suggesting an improvement, and search the issues database to see if your improvement has already been suggested.
+
+Feature proposals should be genuine proposals, not questions or requests for help.
+
+Documentation suggestions should also be concrete suggestions identifying a specific page and section to improve, not questions or requests for help.
 
 ## Making a pull request
 
