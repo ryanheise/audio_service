@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.ryanheise.audioserviceexample">
 
     <!-- The INTERNET permission is required for development. Specifically,
@@ -23,24 +24,25 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|screenLayout|density"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <service android:name="com.ryanheise.audioservice.AudioService">
+        <service android:name="com.ryanheise.audioservice.AudioService" android:exported="true">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
 
-        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
-        </receiver> 
+        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"
