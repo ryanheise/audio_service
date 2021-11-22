@@ -1,3 +1,7 @@
+## 0.18.2
+
+* Guard against NPE when Android service is destroyed quickly.
+
 ## 0.18.1
 
 * Remove iOS notification on stop.
