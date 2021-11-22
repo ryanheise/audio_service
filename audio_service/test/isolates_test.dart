@@ -29,10 +29,10 @@ class Data {
     PlaybackState(processingState: AudioProcessingState.buffering),
     PlaybackState(speed: 1.5),
   ];
-  static final query = 'query';
+  static const query = 'query';
   static final uri = Uri.parse('https://example.com/foo');
-  static final mediaId = '1';
-  static final mediaItem = const MediaItem(id: '1', title: 'title1');
+  static const mediaId = '1';
+  static const mediaItem = MediaItem(id: '1', title: 'title1');
   static final mediaItems = [
     const MediaItem(id: '1', title: 'title1'),
     const MediaItem(id: '2', title: 'title2'),

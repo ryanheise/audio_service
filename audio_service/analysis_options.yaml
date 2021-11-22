@@ -1,4 +1,4 @@
-include: package:pedantic/analysis_options.1.11.0.yaml
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
   strong-mode:
@@ -10,4 +10,3 @@ linter:
     prefer_single_quotes: false
     unawaited_futures: false
     public_member_api_docs: true
-    prefer_const_constructors: true

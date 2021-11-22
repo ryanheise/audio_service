@@ -29,23 +29,27 @@ Future<void> main() async {
       androidNotificationOngoing: true,
     ),
   );
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 /// The app widget
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Audio Service Demo',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: MainScreen(),
+      home: const MainScreen(),
     );
   }
 }
 
 /// The main screen.
 class MainScreen extends StatelessWidget {
+  const MainScreen({Key? key}) : super(key: key);
+
   Stream<Duration> get _bufferedPositionStream => _audioHandler.playbackState
       .map((state) => state.bufferedPosition)
       .distinct();
@@ -173,7 +177,7 @@ class MainScreen extends StatelessWidget {
               ],
             ),
             // Playlist
-            Container(
+            SizedBox(
               height: 240.0,
               child: StreamBuilder<QueueState>(
                 stream: _audioHandler.queueState,
@@ -225,7 +229,7 @@ class MainScreen extends StatelessWidget {
 class ControlButtons extends StatelessWidget {
   final AudioPlayerHandler audioHandler;
 
-  ControlButtons(this.audioHandler);
+  const ControlButtons(this.audioHandler, {Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -322,8 +326,8 @@ class ControlButtons extends StatelessWidget {
 }
 
 class QueueState {
-  static final QueueState empty =
-      const QueueState([], 0, [], AudioServiceRepeatMode.none);
+  static const QueueState empty =
+      QueueState([], 0, [], AudioServiceRepeatMode.none);
 
   final List<MediaItem> queue;
   final int? queueIndex;
@@ -423,12 +427,12 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
           state.queue.length == state.shuffleIndices!.length);
 
   @override
-  Future<void> setShuffleMode(AudioServiceShuffleMode mode) async {
-    final enabled = mode == AudioServiceShuffleMode.all;
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+    final enabled = shuffleMode == AudioServiceShuffleMode.all;
     if (enabled) {
       await _player.shuffle();
     }
-    playbackState.add(playbackState.value.copyWith(shuffleMode: mode));
+    playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
     await _player.setShuffleModeEnabled(enabled);
   }
 
@@ -556,9 +560,9 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   }
 
   @override
-  Future<void> updateQueue(List<MediaItem> newQueue) async {
+  Future<void> updateQueue(List<MediaItem> queue) async {
     await _playlist.clear();
-    await _playlist.addAll(_itemsToSources(newQueue));
+    await _playlist.addAll(_itemsToSources(queue));
   }
 
   @override
