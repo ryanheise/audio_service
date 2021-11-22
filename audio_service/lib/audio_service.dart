@@ -1108,6 +1108,7 @@ class AudioService {
 
   /// Deprecated. Use [browsableRootId] instead.
   @Deprecated("Use browsableRootId instead.")
+  // ignore: constant_identifier_names
   static const String MEDIA_ROOT_ID = browsableRootId;
 
   static final _browseMediaChildrenSubject = BehaviorSubject<List<MediaItem>>();
@@ -1196,6 +1197,7 @@ class AudioService {
     Duration rewindInterval = const Duration(seconds: 10),
   }) async {
     if (!androidEnableQueue) {
+      // ignore: avoid_print
       print('NOTE: androidEnableQueue is always true from 0.18.0 onwards.');
     }
     if (_cacheManager != null && _handler.playbackState.hasValue) {
@@ -1361,9 +1363,8 @@ class AudioService {
 
   /// Deprecated. Use [AudioHandler.setRating] instead.
   @Deprecated("Use AudioHandler.setRating instead.")
-  static final Future<void> Function(Rating, Map<dynamic, dynamic>) setRating =
-      (Rating rating, Map<dynamic, dynamic> extras) => _compatibilitySwitcher
-          .setRating(rating, extras.cast<String, dynamic>());
+  static Future<void> setRating(Rating rating, Map<dynamic, dynamic> extras) =>
+      _compatibilitySwitcher.setRating(rating, extras.cast<String, dynamic>());
 
   /// Deprecated. Use [AudioHandler.setSpeed] instead.
   @Deprecated("Use AudioHandler.setSpeed instead.")
@@ -1565,6 +1566,7 @@ abstract class BackgroundAudioTask {
     try {
       await audioSession.setActive(false);
     } catch (e) {
+      // ignore: avoid_print
       print("While deactivating audio session: $e");
     }
   }
@@ -1698,9 +1700,7 @@ abstract class BackgroundAudioTask {
   Future<void> onClose() => onStop();
 
   Future<void> _skip(int offset) async {
-    print('_skip: $offset');
     final mediaItem = _handler.mediaItem.nvalue;
-    print('mediaItem: $mediaItem');
     if (mediaItem == null) return;
     final queue = _handler.queue.nvalue ?? <MediaItem>[];
     final i = queue.indexOf(mediaItem);
@@ -3399,33 +3399,33 @@ class AudioServiceConfig {
 class AndroidContentStyle {
   /// Set this key to `true` in [AudioServiceConfig.androidBrowsableRootExtras]
   /// to declare that content style is supported.
-  static final supportedKey = 'android.media.browse.CONTENT_STYLE_SUPPORTED';
+  static const supportedKey = 'android.media.browse.CONTENT_STYLE_SUPPORTED';
 
   /// The key in [MediaItem.extras] and
   /// [AudioServiceConfig.androidBrowsableRootExtras] to configure the content
   /// style for playable items. The value can be any of the `*ItemHintValue`
   /// constants defined in this class.
-  static final playableHintKey =
+  static const playableHintKey =
       'android.media.browse.CONTENT_STYLE_PLAYABLE_HINT';
 
   /// The key in [MediaItem.extras] and
   /// [AudioServiceConfig.androidBrowsableRootExtras] to configure the content
   /// style for browsable items. The value can be any of the `*ItemHintValue`
   /// constants defined in this class.
-  static final browsableHintKey =
+  static const browsableHintKey =
       'android.media.browse.CONTENT_STYLE_BROWSABLE_HINT';
 
   /// Specifies that items should be presented as lists.
-  static final listItemHintValue = 1;
+  static const listItemHintValue = 1;
 
   /// Specifies that items should be presented as grids.
-  static final gridItemHintValue = 2;
+  static const gridItemHintValue = 2;
 
   /// Specifies that items should be presented as lists with vector icons.
-  static final categoryListItemHintValue = 3;
+  static const categoryListItemHintValue = 3;
 
   /// Specifies that items should be presented as grids with vector icons.
-  static final categoryGridItemHintValue = 4;
+  static const categoryGridItemHintValue = 4;
 }
 
 /// (Maybe) temporary.
@@ -3555,6 +3555,9 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
       volume == other.volume;
 
   @override
+  int get hashCode => hashValues(volumeControlType, maxVolume, volume);
+
+  @override
   RemoteAndroidPlaybackInfoMessage _toMessage() =>
       RemoteAndroidPlaybackInfoMessage(
         volumeControlType:
@@ -3568,6 +3571,9 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
 class LocalAndroidPlaybackInfo extends AndroidPlaybackInfo {
   @override
   bool operator ==(Object other) => other.runtimeType == runtimeType;
+
+  @override
+  int get hashCode => 0;
 
   @override
   LocalAndroidPlaybackInfoMessage _toMessage() =>
@@ -3637,6 +3643,7 @@ class AudioServiceBackground {
   static Future<void> setQueue(List<MediaItem> queue,
       {bool preloadArtwork = false}) async {
     if (preloadArtwork) {
+      // ignore: avoid_print
       print(
         'WARNING: preloadArtwork is not enabled! '
         'This is deprecated and must be set via AudioService.init()',
@@ -3868,7 +3875,7 @@ class AudioServiceWidget extends StatelessWidget {
   final Widget child;
 
   /// Deprecated.
-  AudioServiceWidget({Key? key, required this.child}) : super(key: key);
+  const AudioServiceWidget({Key? key, required this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
