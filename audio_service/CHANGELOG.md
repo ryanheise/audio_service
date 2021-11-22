@@ -1,6 +1,7 @@
 ## 0.18.2
 
 * Guard against NPE when Android service is destroyed quickly.
+* Migrate to flutter_lints.
 
 ## 0.18.1
 

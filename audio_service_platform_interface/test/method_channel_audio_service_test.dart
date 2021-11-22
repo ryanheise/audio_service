@@ -71,7 +71,7 @@ void main() {
     });
 
     test('setQueue', () async {
-      final request = const SetQueueRequest(queue: Stubs.queue);
+      const request = SetQueueRequest(queue: Stubs.queue);
       final methods = {'setQueue': null};
       final channel = sendHandlerChannel.copyWith(methods);
       await platform.setQueue(request);
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('setMediaItem', () async {
-      final request = const SetMediaItemRequest(mediaItem: Stubs.mediaItem);
+      const request = SetMediaItemRequest(mediaItem: Stubs.mediaItem);
       final methods = {'setMediaItem': null};
       final channel = sendHandlerChannel.copyWith(methods);
       await platform.setMediaItem(request);
@@ -97,7 +97,7 @@ void main() {
     });
 
     test('stopService', () async {
-      final request = const StopServiceRequest();
+      const request = StopServiceRequest();
       final methods = {'stopService': null};
       final channel = sendHandlerChannel.copyWith(methods);
       await platform.stopService(request);
@@ -110,7 +110,7 @@ void main() {
     });
 
     test('androidForceEnableMediaButtons', () async {
-      final request = const AndroidForceEnableMediaButtonsRequest();
+      const request = AndroidForceEnableMediaButtonsRequest();
       final methods = {'androidForceEnableMediaButtons': null};
       final channel = sendHandlerChannel.copyWith(methods);
       await platform.androidForceEnableMediaButtons(request);
@@ -123,7 +123,7 @@ void main() {
     });
 
     test('notifyChildrenChanged', () async {
-      final request = const NotifyChildrenChangedRequest(
+      const request = NotifyChildrenChangedRequest(
         parentMediaId: Stubs.parentMediaId,
         options: Stubs.map,
       );
@@ -139,7 +139,7 @@ void main() {
     });
 
     test('local setAndroidPlaybackInfo', () async {
-      final request = const SetAndroidPlaybackInfoRequest(
+      const request = SetAndroidPlaybackInfoRequest(
         playbackInfo: LocalAndroidPlaybackInfoMessage(),
       );
       final methods = {'setAndroidPlaybackInfo': null};
@@ -154,7 +154,7 @@ void main() {
     });
 
     test('remote setAndroidPlaybackInfo', () async {
-      final request = const SetAndroidPlaybackInfoRequest(
+      const request = SetAndroidPlaybackInfoRequest(
         playbackInfo: RemoteAndroidPlaybackInfoMessage(
           volumeControlType: AndroidVolumeControlTypeMessage.absolute,
           maxVolume: 100,
@@ -175,7 +175,7 @@ void main() {
 
   group('Handler $asciiSquare to dart $asciiSquare', () {
     test('prepare', () async {
-      final request = const PrepareRequest();
+      const request = PrepareRequest();
       await handlerChannel.invokeMethod<void>('prepare', request.toMap());
       final captured = verify(callbacks.prepare(captureAny)).captured.first
           as PrepareRequest;
@@ -186,7 +186,7 @@ void main() {
     });
 
     test('prepareFromMediaId', () async {
-      final request = const PrepareFromMediaIdRequest(mediaId: Stubs.mediaId);
+      const request = PrepareFromMediaIdRequest(mediaId: Stubs.mediaId);
       await handlerChannel.invokeMethod<void>(
           'prepareFromMediaId', request.toMap());
       final captured = verify(callbacks.prepareFromMediaId(captureAny))
@@ -199,7 +199,7 @@ void main() {
     });
 
     test('prepareFromSearch', () async {
-      final request = const PrepareFromSearchRequest(query: Stubs.searchQuery);
+      const request = PrepareFromSearchRequest(query: Stubs.searchQuery);
       await handlerChannel.invokeMethod<void>(
           'prepareFromSearch', request.toMap());
       final captured = verify(callbacks.prepareFromSearch(captureAny))
@@ -299,7 +299,7 @@ void main() {
     });
 
     test('pause', () async {
-      final request = const PauseRequest();
+      const request = PauseRequest();
       await handlerChannel.invokeMethod<void>('pause', request.toMap());
       final captured =
           verify(callbacks.pause(captureAny)).captured.first as PauseRequest;
@@ -310,7 +310,7 @@ void main() {
     });
 
     test('click', () async {
-      final request = const ClickRequest(
+      const request = ClickRequest(
         button: MediaButtonMessage.media,
       );
       await handlerChannel.invokeMethod<void>('click', request.toMap());
@@ -323,7 +323,7 @@ void main() {
     });
 
     test('stop', () async {
-      final request = const StopRequest();
+      const request = StopRequest();
       await handlerChannel.invokeMethod<void>('stop', request.toMap());
       final captured =
           verify(callbacks.stop(captureAny)).captured.first as StopRequest;
@@ -612,11 +612,11 @@ void main() {
     });
 
     test('getChildren', () async {
-      final request = const GetChildrenRequest(
+      const request = GetChildrenRequest(
         parentMediaId: Stubs.parentMediaId,
         options: Stubs.map,
       );
-      final response = const GetChildrenResponse(
+      const response = GetChildrenResponse(
         children: Stubs.queue,
       );
       when(callbacks.getChildren(any))
@@ -632,8 +632,8 @@ void main() {
     });
 
     test('getMediaItem', () async {
-      final request = const GetMediaItemRequest(mediaId: Stubs.mediaId);
-      final response = const GetMediaItemResponse(mediaItem: Stubs.mediaItem);
+      const request = GetMediaItemRequest(mediaId: Stubs.mediaId);
+      const response = GetMediaItemResponse(mediaItem: Stubs.mediaItem);
       when(callbacks.getMediaItem(any))
           .thenAnswer((_) => SynchronousFuture(response));
       final result = await handlerChannel.invokeMapMethod<String, dynamic>(
@@ -647,11 +647,11 @@ void main() {
     });
 
     test('search', () async {
-      final request = const SearchRequest(
+      const request = SearchRequest(
         query: Stubs.searchQuery,
         extras: Stubs.map,
       );
-      final response = const SearchResponse(mediaItems: Stubs.queue);
+      const response = SearchResponse(mediaItems: Stubs.queue);
       when(callbacks.search(any))
           .thenAnswer((_) => SynchronousFuture(response));
       final result = await handlerChannel.invokeMapMethod<String, dynamic>(
