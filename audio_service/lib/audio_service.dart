@@ -2852,16 +2852,16 @@ extension _MediaButtonMessageExtension on MediaButtonMessage {
 /// An enum of volume direction controls on Android.
 class AndroidVolumeDirection {
   /// Lower the ringer volume.
-  static final lower = AndroidVolumeDirection._(-1);
+  static const lower = AndroidVolumeDirection._(-1);
 
   /// Keep the previous ringer volume.
-  static final same = AndroidVolumeDirection._(0);
+  static const same = AndroidVolumeDirection._(0);
 
   /// Raise the ringer volume.
-  static final raise = AndroidVolumeDirection._(1);
+  static const raise = AndroidVolumeDirection._(1);
 
   /// A map of indices to values.
-  static final values = <int, AndroidVolumeDirection>{
+  static const values = <int, AndroidVolumeDirection>{
     -1: lower,
     0: same,
     1: raise,
@@ -2870,7 +2870,7 @@ class AndroidVolumeDirection {
   /// The index for this enum value.
   final int index;
 
-  AndroidVolumeDirection._(this.index);
+  const AndroidVolumeDirection._(this.index);
 
   @override
   String toString() => '$index';

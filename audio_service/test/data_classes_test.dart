@@ -2,7 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_async/fake_async.dart';
 
-const asciiSquare = '▮';
+import 'stubs.dart';
 
 void main() {
   group('$PlaybackState $asciiSquare', () {
