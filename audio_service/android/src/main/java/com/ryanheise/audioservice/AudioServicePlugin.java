@@ -29,6 +29,7 @@ import android.support.v4.media.session.PlaybackStateCompat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -462,6 +463,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public MethodChannel channel;
         private AudioTrack silenceAudioTrack;
         private final Handler handler = new Handler(Looper.getMainLooper());
+        private List<MethodInvocation> methodInvocationQueue = new LinkedList<MethodInvocation>();
 
         public AudioHandlerInterface(BinaryMessenger messenger) {
             this.messenger = messenger;
@@ -474,6 +476,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             this.messenger = messenger;
             channel = new MethodChannel(messenger, CHANNEL_HANDLER);
             channel.setMethodCallHandler(this);
+            for (MethodInvocation mi : methodInvocationQueue) {
+                channel.invokeMethod(mi.method, mi.arg, mi.result);
+            }
+            methodInvocationQueue.clear();
         }
 
         @Override
@@ -927,12 +933,16 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @UiThread
         public void invokeMethod(String method, Object arg) {
-            channel.invokeMethod(method, arg);
+            invokeMethod(method, arg, null);
         }
 
         @UiThread
         public void invokeMethod(String method, Object arg, final Result result) {
-            channel.invokeMethod(method, arg, result);
+            if (AudioService.instance != null && AudioService.instance.getConfig() != null) {
+                channel.invokeMethod(method, arg, result);
+            } else {
+                methodInvocationQueue.add(new MethodInvocation(method, arg, result));
+            }
         }
 
         private void destroy() {
@@ -1125,5 +1135,17 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             map.put((String)args[i], args[i + 1]);
         }
         return map;
+    }
+
+    static class MethodInvocation {
+        public final String method;
+        public final Object arg;
+        public final Result result;
+
+        public MethodInvocation(String method, Object arg, Result result) {
+            this.method = method;
+            this.arg = arg;
+            this.result = result;
+        }
     }
 }
