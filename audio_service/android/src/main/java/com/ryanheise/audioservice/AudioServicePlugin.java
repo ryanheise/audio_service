@@ -94,6 +94,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static AudioHandlerInterface audioHandlerInterface;
     private static final long bootTime;
     private static Result configureResult;
+    private static boolean flutterReady;
 
     static {
         bootTime = System.currentTimeMillis() - SystemClock.elapsedRealtime();
@@ -411,6 +412,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     if (serviceConnectionFailed) {
                         throw new IllegalStateException("Unable to bind to AudioService. Please ensure you have declared a <service> element as described in the README.");
                     }
+                    flutterReady = true;
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");
                     AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());
@@ -438,10 +440,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     if (audioHandlerInterface == null) {
                         audioHandlerInterface = new AudioHandlerInterface(messenger);
                         AudioService.init(audioHandlerInterface);
-                    } else if (audioHandlerInterface.messenger != messenger) {
-                        // We've detected this is the real engine hosting the AudioHandler,
-                        // so update AudioHandlerInterface to connect to it.
-                        audioHandlerInterface.switchToMessenger(messenger);
+                    } else {
+                        if (audioHandlerInterface.messenger != messenger) {
+                            // We've detected this is the real engine hosting the AudioHandler,
+                            // so update AudioHandlerInterface to connect to it.
+                            audioHandlerInterface.switchToMessenger(messenger);
+                        }
+                        audioHandlerInterface.invokePendingMethods();
                     }
                     if (mediaController != null) {
                         result.success(mapOf());
@@ -476,6 +481,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             this.messenger = messenger;
             channel = new MethodChannel(messenger, CHANNEL_HANDLER);
             channel.setMethodCallHandler(this);
+        }
+
+        public void invokePendingMethods() {
             for (MethodInvocation mi : methodInvocationQueue) {
                 channel.invokeMethod(mi.method, mi.arg, mi.result);
             }
@@ -938,7 +946,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @UiThread
         public void invokeMethod(String method, Object arg, final Result result) {
-            if (AudioService.instance != null && AudioService.instance.getConfig() != null) {
+            if (flutterReady) {
                 channel.invokeMethod(method, arg, result);
             } else {
                 methodInvocationQueue.add(new MethodInvocation(method, arg, result));
