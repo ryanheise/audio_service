@@ -320,6 +320,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         notificationCreated = false;
     }
 
+    public AudioServiceConfig getConfig() {
+        return config;
+    }
+
     public void configure(AudioServiceConfig config) {
         this.config = config;
         notificationChannelId = (config.androidNotificationChannelId != null)
