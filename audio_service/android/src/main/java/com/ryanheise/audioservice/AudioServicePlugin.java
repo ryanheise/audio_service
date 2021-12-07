@@ -35,15 +35,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
+import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.NewIntentListener;
-import io.flutter.embedding.engine.plugins.FlutterPlugin;
-
-import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
-import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.plugin.common.BinaryMessenger;
 
 import io.flutter.embedding.engine.FlutterEngine;
@@ -71,6 +71,26 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
             flutterEngine = new FlutterEngine(context.getApplicationContext());
+            String initialRoute = null;
+            if (context instanceof FlutterActivity) {
+                final FlutterActivity activity = (FlutterActivity)context;
+                initialRoute = activity.getInitialRoute();
+                if (initialRoute == null) {
+                    if (activity.shouldHandleDeeplinking()) {
+                        Uri data = activity.getIntent().getData();
+                        if (data != null) {
+                            initialRoute = data.getPath();
+                            if (data.getQuery() != null && !data.getQuery().isEmpty()) {
+                                initialRoute += "?" + data.getQuery();
+                            }
+                        }
+                    }
+                }
+            }
+            if (initialRoute == null) {
+                initialRoute = "/";
+            }
+            flutterEngine.getNavigationChannel().setInitialRoute(initialRoute);
             flutterEngine.getDartExecutor().executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault());
             FlutterEngineCache.getInstance().put(flutterEngineId, flutterEngine);
         }
@@ -259,7 +279,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         clientInterface.setActivity(binding.getActivity());
         clientInterface.setContext(binding.getActivity());
         // Verify that the app is configured with the correct FlutterEngine.
-        FlutterEngine sharedEngine = getFlutterEngine(binding.getActivity().getApplicationContext());
+        FlutterEngine sharedEngine = getFlutterEngine(binding.getActivity());
         clientInterface.setWrongEngineDetected(flutterPluginBinding.getBinaryMessenger() != sharedEngine.getDartExecutor());
         mainClientInterface = clientInterface;
         registerOnNewIntentListener();
