@@ -2,6 +2,7 @@
 
 * Guard against NPE when Android service is destroyed quickly.
 * Migrate to flutter_lints.
+* Queue messages from platform if init() called late.
 
 ## 0.18.1
 
