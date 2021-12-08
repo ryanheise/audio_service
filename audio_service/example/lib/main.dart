@@ -36,7 +36,8 @@ Future<void> main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
-      androidNotificationOngoing: true,
+      rewindInterval: Duration(seconds: 15),
+      fastForwardInterval: Duration(seconds: 15),
     ),
   );
   runApp(const MyApp());
@@ -57,6 +58,19 @@ class MyApp extends StatelessWidget {
 
 class MainScreen extends StatelessWidget {
   const MainScreen({Key? key}) : super(key: key);
+
+  void _updateConfig() {
+    // Switch between 15 and 60 second intervals.
+    final newInterval = AudioService.config.rewindInterval.inSeconds == 60 ? 15 : 60;
+    debugPrint('Update forward/rewind interval to $newInterval seconds');
+    AudioService.updateConfig(
+      AudioServiceConfig(
+        rewindInterval: Duration(seconds: newInterval),
+        fastForwardInterval: Duration(seconds: newInterval),
+        notificationColor: Colors.blue,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +137,8 @@ class MainScreen extends StatelessWidget {
                     "Processing state: ${describeEnum(processingState)}");
               },
             ),
+            // Button to update config dynamically (changes forward/rewind interval).
+            _button(Icons.settings, _updateConfig),
           ],
         ),
       ),
