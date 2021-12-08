@@ -417,6 +417,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (!config.androidResumeOnClick) {
             mediaSession.setMediaButtonReceiver(null);
         }
+        // This might be a re-configuration, so the notification should be rebuilt (if created).
+        updateNotification();
     }
 
     int getResourceId(String resource) {
