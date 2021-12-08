@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Question
+  - name: I need help using audio_service
     url: https://stackoverflow.com/questions/tagged/audio-service
-    about: Ask a question about how to achieve a particular use case.
+    about: Ask a for help on how to achieve a particular use case.
+  - name: Submit a new issue (should not be used to ask for help)
+    url: https://ryanheise.github.io/audio_service/issue-form/issue.html
+    about: Before contributing an issue, be sure you have read CONTRIBUTING.md.

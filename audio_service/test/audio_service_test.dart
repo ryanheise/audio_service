@@ -96,7 +96,7 @@ void main() {
     test('able to modify media items in queue', () {
       // setup
       final handler = _TestableQueueHandler();
-      final mediaItem = const MediaItem(id: '0', title: 'title');
+      const mediaItem = MediaItem(id: '0', title: 'title');
 
       // add single item
       expect(handler.queue.nvalue?.length, equals(0));
@@ -134,8 +134,8 @@ void main() {
 
     test('skipping works', () async {
       final handler = _TestableQueueHandler();
-      final mediaItem1 = const MediaItem(id: '1', title: 'title');
-      final mediaItem2 = const MediaItem(id: '2', title: 'title');
+      const mediaItem1 = MediaItem(id: '1', title: 'title');
+      const mediaItem2 = MediaItem(id: '2', title: 'title');
       handler.addQueueItems([mediaItem1, mediaItem2]);
 
       await handler.skipToQueueItem(0);

@@ -197,6 +197,7 @@ class _SupportChecker {
     final result = _checkCallback();
     if (!_logged && !result) {
       _logged = true;
+      // ignore: avoid_print
       print("[warning] audio_service: $_warningMessage");
     }
     return result;

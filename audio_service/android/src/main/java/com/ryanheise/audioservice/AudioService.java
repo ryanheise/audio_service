@@ -297,8 +297,10 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        listener.onDestroy();
-        listener = null;
+        if (listener != null) {
+            listener.onDestroy();
+            listener = null;
+        }
         mediaMetadata = null;
         artBitmap = null;
         queue.clear();
@@ -316,6 +318,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         releaseWakeLock();
         instance = null;
         notificationCreated = false;
+    }
+
+    public AudioServiceConfig getConfig() {
+        return config;
     }
 
     public void configure(AudioServiceConfig config) {
