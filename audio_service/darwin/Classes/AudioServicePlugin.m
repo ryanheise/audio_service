@@ -141,6 +141,11 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         NSDictionary *configMap = (NSDictionary *)args[@"config"];
         fastForwardInterval = configMap[@"fastForwardInterval"];
         rewindInterval = configMap[@"rewindInterval"];
+        if (_controlsUpdated) {
+            // Remote controls should be updated again on re-configuration.
+            _controlsUpdated = NO;
+            [self updateControls];
+        }
         result(@{});
     } else if ([@"setState" isEqualToString:call.method]) {
         NSDictionary *args = (NSDictionary *)call.arguments;
