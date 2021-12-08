@@ -4,6 +4,7 @@
 * Migrate to flutter_lints.
 * Queue messages from platform if init() called late.
 * Fix deep linking on Android (@vishna/@ryanheise).
+* Allow configuration to be updated after init (@ddfreiling).
 
 ## 0.18.1
 

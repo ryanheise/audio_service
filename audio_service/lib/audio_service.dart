@@ -1077,8 +1077,8 @@ class AudioService {
     );
   }
 
-  /// Update the AudioService configuration dynamically.
-  /// Only some properties will take effect after init, forward/rewind interval works.
+  /// Update the AudioService configuration. Must be called after init.
+  /// Primarily intended to update how notification behaves during playback.
   static Future<void> updateConfig(AudioServiceConfig config) async {
     _config = config;
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
