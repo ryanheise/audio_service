@@ -36,6 +36,7 @@ Future<void> main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
+      androidNotificationOngoing: true,
       rewindInterval: Duration(seconds: 15),
       fastForwardInterval: Duration(seconds: 15),
     ),
@@ -67,6 +68,7 @@ class MainScreen extends StatelessWidget {
       AudioServiceConfig(
         rewindInterval: Duration(seconds: newInterval),
         fastForwardInterval: Duration(seconds: newInterval),
+        // Example of dynamic notification changes on Android
         notificationColor: Colors.blue,
       ),
     );
