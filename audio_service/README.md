@@ -320,7 +320,7 @@ Additionally:
 1. Make the following changes to your project's `AndroidManifest.xml` file:
 
 ```xml
-<manifest ...>
+<manifest xmlns:tools="http://schemas.android.com/tools" ...>
   <!-- ADD THESE TWO PERMISSIONS -->
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
@@ -335,14 +335,16 @@ Additionally:
     </activity>
     
     <!-- ADD THIS "SERVICE" element -->
-    <service android:name="com.ryanheise.audioservice.AudioService">
+    <service android:name="com.ryanheise.audioservice.AudioService"
+        android:exported="true" tools:ignore="Instantiatable">
       <intent-filter>
         <action android:name="android.media.browse.MediaBrowserService" />
       </intent-filter>
     </service>
 
     <!-- ADD THIS "RECEIVER" element -->
-    <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" >
+    <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+        android:exported="true" tools:ignore="Instantiatable">
       <intent-filter>
         <action android:name="android.intent.action.MEDIA_BUTTON" />
       </intent-filter>
@@ -350,6 +352,8 @@ Additionally:
   </application>
 </manifest>
 ```
+
+Note: when targeting Android 12 or above, you must set `android:exported` on each component that has an intent filter (the main activity, the service and the receiver). If the manifest merging process causes `"Instantiable"` lint warnings, use `tools:ignore="Instantiable"` (as above) to suppress them.
 
 2. If you use any custom icons in notification, create the file `android/app/src/main/res/raw/keep.xml` to prevent them from being stripped during the build process:
 
