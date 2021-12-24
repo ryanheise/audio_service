@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.3
+
+* Fix build when targeting Android 12.
+
 ## 0.18.2
 
 * Guard against NPE when Android service is destroyed quickly.
