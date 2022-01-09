@@ -1,3 +1,6 @@
+## 0.18.4
+* Add androids.core:core back to build.gradle. Will Possibly resolve #895 (@yringler)
+
 ## 0.18.3
 
 * Fix build when targeting Android 12.
