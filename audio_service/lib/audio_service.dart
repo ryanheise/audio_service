@@ -579,7 +579,14 @@ class MediaItem {
   /// The duration of this media item.
   final Duration? duration;
 
-  /// The artwork for this media item as a uri.
+  /// The artwork URI for this media item.
+  ///
+  /// Supported types of URIs are:
+  ///
+  ///  * File - file://
+  ///  * Network - http:// https:// etc.
+  ///  * Android content URIs - content://
+  ///
   final Uri? artUri;
 
   /// Whether this is playable (i.e. not a folder).
@@ -920,7 +927,10 @@ class AudioService {
     await for (var mediaItem in _handler.mediaItem) {
       if (mediaItem == null) continue;
       final artUri = mediaItem.artUri;
-      if (artUri != null) {
+      if (artUri == null || artUri.scheme == 'content') {
+        await _platform.setMediaItem(
+            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+      } else {
         // We potentially need to fetch the art.
         String? filePath;
         if (artUri.scheme == 'file') {
@@ -950,9 +960,6 @@ class AudioService {
         // Show the media item after the art is loaded.
         await _platform.setMediaItem(
             SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-      } else {
-        await _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
       }
     }
   }

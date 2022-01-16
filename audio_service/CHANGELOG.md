@@ -6,6 +6,7 @@
 
 * Fix Android FlutterJNI error after quick relaunch. 
 * Fix Android NPE when destroying additional FlutterEngines.
+* Support `content://` art URIs in notification on Android
 
 ## 0.18.3
 

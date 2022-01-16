@@ -32,6 +32,7 @@ import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.VolumeProviderCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 
+import java.io.FileDescriptor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -162,22 +163,40 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadataCache.get(mediaId);
     }
 
-    Bitmap loadArtBitmapFromFile(String path) {
-        Bitmap bitmap = artBitmapCache.get(path);
+    Bitmap loadArtBitmap(String artUriString) {
+        Bitmap bitmap = artBitmapCache.get(artUriString);
         if (bitmap != null) return bitmap;
         try {
+            Uri artUri = Uri.parse(artUriString);
+            boolean usesContentScheme = "content".equals(artUri.getScheme());
+            FileDescriptor fileDescriptor = null;
+            if (usesContentScheme) {
+                fileDescriptor = getContentResolver().openFileDescriptor(artUri, "r").getFileDescriptor();
+            }
             if (config.artDownscaleWidth != -1) {
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inJustDecodeBounds = true;
-                BitmapFactory.decodeFile(path, options);
+                if (usesContentScheme) {
+                    BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                } else {
+                    BitmapFactory.decodeFile(artUri.getPath(), options);
+                }
                 options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
                 options.inJustDecodeBounds = false;
 
-                bitmap = BitmapFactory.decodeFile(path, options);
+                if (usesContentScheme) {
+                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                } else {
+                    bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
+                }
             } else {
-                bitmap = BitmapFactory.decodeFile(path);
+                if (usesContentScheme) {
+                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+                } else {
+                    bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                }
             }
-            artBitmapCache.put(path, bitmap);
+            artBitmapCache.put(artUriString, bitmap);
             return bitmap;
         } catch (Exception e) {
             e.printStackTrace();
@@ -650,16 +669,28 @@ public class AudioService extends MediaBrowserServiceCompat {
     synchronized void setMetadata(MediaMetadataCompat mediaMetadata) {
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
         if (artCacheFilePath != null) {
-            artBitmap = loadArtBitmapFromFile(artCacheFilePath);
-            mediaMetadata = new MediaMetadataCompat.Builder(mediaMetadata)
-                    .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artBitmap)
-                    .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artBitmap)
-                    .build();
+            // Load local files and network images, cached in files
+            artBitmap = loadArtBitmap(artCacheFilePath);
+            mediaMetadata = putArtToMetadata(mediaMetadata);
+        } else {
+            // Load content:// URIs
+            String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
+            if (artUri != null) {
+                artBitmap = loadArtBitmap(artUri);
+                mediaMetadata = putArtToMetadata(mediaMetadata);
+            }
         }
         this.mediaMetadata = mediaMetadata;
         mediaSession.setMetadata(mediaMetadata);
         handler.removeCallbacksAndMessages(null);
         handler.post(this::updateNotification);
+    }
+
+    private MediaMetadataCompat putArtToMetadata(MediaMetadataCompat mediaMetadata) {
+        return new MediaMetadataCompat.Builder(mediaMetadata)
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artBitmap)
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artBitmap)
+                .build();
     }
 
     @Override
