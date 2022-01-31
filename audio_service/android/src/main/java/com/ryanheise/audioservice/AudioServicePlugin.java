@@ -97,7 +97,15 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         return flutterEngine;
     }
 
-    public static void disposeFlutterEngine() {
+    public static synchronized void disposeFlutterEngine() {
+        for (ClientInterface clientInterface : clientInterfaces) {
+            if (clientInterface.activity != null) {
+                // Don't destroy the engine if a new activity started and
+                // bound to the service in the time since the previous activity
+                // unbound from it.
+                return;
+            }
+        }
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine != null) {
             flutterEngine.destroy();
@@ -260,13 +268,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
         clientInterfaces.remove(clientInterface);
         clientInterface.setContext(null);
-        flutterPluginBinding = null;
         clientInterface = null;
         applicationContext = null;
         if (audioHandlerInterface != null) {
             audioHandlerInterface.destroy();
             audioHandlerInterface = null;
         }
+        flutterPluginBinding = null;
     }
 
     //
