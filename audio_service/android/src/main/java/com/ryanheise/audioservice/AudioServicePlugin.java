@@ -116,7 +116,6 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static final String CHANNEL_CLIENT = "com.ryanheise.audio_service.client.methods";
     private static final String CHANNEL_HANDLER = "com.ryanheise.audio_service.handler.methods";
 
-    private static Context applicationContext;
     private static final Set<ClientInterface> clientInterfaces = new HashSet<>();
     private static ClientInterface mainClientInterface;
     private static AudioHandlerInterface audioHandlerInterface;
@@ -189,6 +188,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     // INSTANCE FIELDS AND METHODS
     //
 
+    private Context applicationContext;
     private FlutterPluginBinding flutterPluginBinding;
     private ActivityPluginBinding activityPluginBinding;
     private NewIntentListener newIntentListener;
@@ -270,7 +270,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         clientInterface.setContext(null);
         clientInterface = null;
         applicationContext = null;
-        if (audioHandlerInterface != null) {
+        if (audioHandlerInterface != null
+                && audioHandlerInterface.messenger == flutterPluginBinding.getBinaryMessenger()) {
+            System.out.println("### destroying audio handler interface");
             audioHandlerInterface.destroy();
             audioHandlerInterface = null;
         }
