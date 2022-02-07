@@ -5,6 +5,7 @@
 ## 0.18.4
 
 * Fix Android FlutterJNI error after quick relaunch. 
+* Fix Android NPE when destroying additional FlutterEngines.
 
 ## 0.18.3
 
