@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.4
+
+* Fix Android FlutterJNI error after quick relaunch. 
+
 ## 0.18.3
 
 * Fix build when targeting Android 12.
