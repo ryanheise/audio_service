@@ -31,8 +31,8 @@ var issueForm = {
 			label: 'Type of issue',
 			input: true,
 			values: [
-			{value: 'api_bug', label: 'API not behaving as documented'},
-			{value: 'build_bug', label: 'Build issue'},
+			{value: 'api_bug', label: 'Bug which happens at runtime'},
+			{value: 'build_bug', label: 'Bug which happens at compile time'},
 			{value: 'feature_request', label: 'Feature request'},
 			{value: 'documentation_request', label: 'Documentation request'}
 			],
