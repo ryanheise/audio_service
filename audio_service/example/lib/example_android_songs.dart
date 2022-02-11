@@ -10,8 +10,7 @@
 ///
 /// Plugins, used in this example, other than `audio_service`:
 ///
-///  * `flutter_audio_query` - for fetching song data
-///  * `android_content_provider` - for loading song arts
+///  * `android_content_provider` - for song data and arts
 ///  * `device_info_plus` - for detecting Android version
 ///  * `just_audio` - for playback
 ///  * `permission_handler` - for asking for permssions to read
@@ -22,7 +21,7 @@
 /// 1. On any Android version:
 ///   using ContentResolver and art content:// URI - this is what [AudioService] supports
 ///   out of the box.
-///   You can see this being used in [SongInfoExtension.toMediaItem].
+///   You can see this being used in [Song.toMediaItem].
 ///
 /// 2. On Android 10 and above only:
 ///   using [AndroidContentResolver.loadThumbnail] on the song content:// URI in the `MediaStore`,
@@ -30,7 +29,7 @@
 ///   Used in [SongArt] widget.
 ///
 /// 3. On Android 9 and below only:
-///   using [SongInfo.albumArtwork], which contains a direct path to the art file, and
+///   using [Song.artPath], which contains a direct path to the art file, and
 ///   NOT the art content:// URI.
 ///   Used in [SongArt] widget.
 ///
@@ -43,14 +42,13 @@
 ///
 /// To run this example, use:
 ///
-/// flutter run -t lib/example_android_songs.dart --no-sound-null-safety
+/// flutter run -t lib/example_android_songs.dart
 
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_audio_query/flutter_audio_query.dart';
 import 'package:android_content_provider/android_content_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:just_audio/just_audio.dart';
@@ -61,19 +59,12 @@ import 'package:permission_handler/permission_handler.dart';
 // global variable.
 late AudioPlayerHandler _audioHandler;
 late int sdkInt;
-List<SongInfo>? _songs;
+List<Song>? _songs;
+final albumArtPaths = <int, String>{};
 
-extension SongInfoExtension on SongInfo {
-  /// Converts the song info to [AudioService] media item.
-  MediaItem toMediaItem() => MediaItem(
-        id: id,
-        album: album,
-        artist: artist,
-        title: title,
-        // The direct art content:// URI.
-        artUri: Uri.parse('content://media/external/audio/media/$id/albumart'),
-      );
-}
+/// Whether running on scoped storage (Android 10 and above),
+/// and should use bytes to load album arts from `MediaStore`.
+bool get useScopedStorage => sdkInt >= 29;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,10 +110,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchSongs();
+    _fetch();
   }
 
-  Future<void> _fetchSongs() async {
+  Future<void> _fetch() async {
     setState(() {
       _permissionStatus = null;
     });
@@ -133,8 +124,8 @@ class _MainScreenState extends State<MainScreen> {
       });
     }
     if (_permissionStatus == PermissionStatus.granted) {
-      final FlutterAudioQuery audioQuery = FlutterAudioQuery();
-      _songs = await audioQuery.getSongs();
+      await _fetchSongs();
+      await _fetchArts();
       if (_songs!.isNotEmpty) {
         _audioHandler.init();
       }
@@ -146,6 +137,50 @@ class _MainScreenState extends State<MainScreen> {
         // Update to show the fetch result.
       });
     }
+  }
+
+  Future<void> _fetchSongs() async {
+    await autoCloseScope(() async {
+      final cursor = await AndroidContentResolver.instance.query(
+        // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        uri: 'content://media/external/audio/media',
+        projection: Song.mediaStoreProjection,
+        selection: 'is_music != 0',
+        selectionArgs: null,
+        sortOrder: null,
+      );
+      final songCount =
+          (await cursor!.batchedGet().getCount().commit()).first as int;
+      final batch = Song.createBatch(cursor);
+      final songsData = await batch.commitRange(0, songCount);
+      _songs = songsData.map((data) => Song.fromMediaStore(data)).toList();
+    });
+  }
+
+  Future<void> _fetchArts() async {
+    if (useScopedStorage) {
+      return;
+    }
+    await autoCloseScope(() async {
+      // Fetch album arts
+      final cursor = await AndroidContentResolver.instance.query(
+        // MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
+        uri: 'content://media/external/audio/albums',
+        projection: const ['_id', 'album_art'],
+        selection: 'album_art != 0',
+        selectionArgs: null,
+        sortOrder: null,
+      );
+      final albumCount =
+          (await cursor!.batchedGet().getCount().commit()).first as int;
+      final batch = cursor.batchedGet()
+        ..getInt(0)
+        ..getString(1);
+      final albumsData = await batch.commitRange(0, albumCount);
+      for (final data in albumsData) {
+        albumArtPaths[data.first as int] = data.last as String;
+      }
+    });
   }
 
   @override
@@ -214,12 +249,15 @@ class SongListScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: ListView.builder(
-        itemCount: _songs!.length,
-        itemBuilder: (context, index) {
-          final song = _songs![index];
-          return SongTile(song: song);
-        },
+      body: Scrollbar(
+        interactive: true,
+        child: ListView.builder(
+          itemCount: _songs!.length,
+          itemBuilder: (context, index) {
+            final song = _songs![index];
+            return SongTile(song: song);
+          },
+        ),
       ),
     );
   }
@@ -247,7 +285,7 @@ class SongListScreen extends StatelessWidget {
   }
 
   Widget _buildCurrentSong() {
-    return StreamBuilder<SongInfo?>(
+    return StreamBuilder<Song?>(
       stream: _audioHandler.currentSong,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -270,7 +308,7 @@ class SongTile extends StatelessWidget {
     this.tappable = true,
   }) : super(key: key);
 
-  final SongInfo song;
+  final Song song;
   final bool tappable;
 
   @override
@@ -295,13 +333,13 @@ class SongTile extends StatelessWidget {
 /// a special method [AndroidContentResolver.loadThumbnail].
 ///
 /// Lower Android 10 album arts ared displayed directly from the file path
-/// of album art from [SongInfo.albumArtwork] (which was removed in Android 10).
+/// of album art from [Song.artPath] (which was removed in Android 10).
 ///
 /// See the comment at the top of the example for the full context.
 class SongArt extends StatefulWidget {
   const SongArt({Key? key, required this.song}) : super(key: key);
 
-  final SongInfo song;
+  final Song song;
 
   @override
   State<SongArt> createState() => _SongArtState();
@@ -314,16 +352,10 @@ class _SongArtState extends State<SongArt> {
 
   static const int _artSize = 60;
 
-  /// Whether running on scoped storage (Android 10 and above),
-  /// and should use bytes to load album arts from `MediaStore`.
-  bool get _useScopedStorage => sdkInt >= 29;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_useScopedStorage) {
-      _fetchArt();
-    }
+    _fetchArt();
   }
 
   @override
@@ -340,6 +372,9 @@ class _SongArtState extends State<SongArt> {
   }
 
   Future<void> _fetchArt() async {
+    if (!useScopedStorage) {
+      return;
+    }
     _loadSignal?.cancel();
     _loadSignal = CancellationSignal();
     final cacheSize = getCacheSize();
@@ -374,7 +409,7 @@ class _SongArtState extends State<SongArt> {
   @override
   Widget build(BuildContext context) {
     final Widget child;
-    if (_useScopedStorage) {
+    if (useScopedStorage) {
       final cacheSize = getCacheSize();
       child = !loaded
           ? SizedBox.square(dimension: _artSize.toDouble())
@@ -386,7 +421,7 @@ class _SongArtState extends State<SongArt> {
                   cacheWidth: cacheSize,
                 );
     } else {
-      final artPath = widget.song.albumArtwork;
+      final artPath = widget.song.artPath;
       var file = artPath == null ? null : File(artPath);
       if (artPath == null || !file!.existsSync()) {
         child = _buildPlaceholder();
@@ -408,7 +443,7 @@ class _SongArtState extends State<SongArt> {
 
 class AudioPlayerHandler extends BaseAudioHandler with QueueHandler {
   final _player = AudioPlayer();
-  final currentSong = BehaviorSubject<SongInfo>();
+  final currentSong = BehaviorSubject<Song>();
 
   void init() {
     // Propagate all events from the audio player to AudioService clients.
@@ -422,7 +457,7 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler {
     setSong(_songs!.first);
   }
 
-  Future<void> setSong(SongInfo song) async {
+  Future<void> setSong(Song song) async {
     currentSong.add(song);
     mediaItem.add(song.toMediaItem());
     await _player.setAudioSource(
@@ -486,4 +521,64 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler {
       queueIndex: queueIndex,
     ));
   }
+}
+
+class Song {
+  final int id;
+  final String? album;
+  final int albumId;
+  final String artist;
+  final String title;
+
+  /// Actual art file path, if any.
+  String? get artPath => albumArtPaths[albumId];
+
+  /// The content URI of the song for playback.
+  String get uri => 'content://media/external/audio/media/$id';
+
+  /// The content URI of the art.
+  String get artUri => 'content://media/external/audio/media/$id/albumart';
+
+  const Song({
+    required this.id,
+    required this.album,
+    required this.albumId,
+    required this.artist,
+    required this.title,
+  });
+
+  /// Converts the song info to [AudioService] media item.
+  MediaItem toMediaItem() => MediaItem(
+        id: id.toString(),
+        album: album,
+        artist: artist,
+        title: title,
+        artUri: Uri.parse(artUri),
+      );
+
+  static const mediaStoreProjection = [
+    '_id',
+    'album',
+    'album_id',
+    'artist',
+    'title',
+  ];
+
+  /// Creates a song from data retrieved from the MediaStore.
+  factory Song.fromMediaStore(List<Object?> data) => Song(
+        id: data[0] as int,
+        album: data[1] as String?,
+        albumId: data[2] as int,
+        artist: data[3] as String,
+        title: data[4] as String,
+      );
+
+  /// Returns a markup of what data to get from the cursor.
+  static NativeCursorGetBatch createBatch(NativeCursor cursor) =>
+      cursor.batchedGet()
+        ..getInt(0)
+        ..getString(1)
+        ..getInt(2)
+        ..getString(3)
+        ..getString(4);
 }
