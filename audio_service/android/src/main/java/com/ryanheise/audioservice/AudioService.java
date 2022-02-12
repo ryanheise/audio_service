@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
@@ -171,7 +172,12 @@ public class AudioService extends MediaBrowserServiceCompat {
             boolean usesContentScheme = "content".equals(artUri.getScheme());
             FileDescriptor fileDescriptor = null;
             if (usesContentScheme) {
-                fileDescriptor = getContentResolver().openFileDescriptor(artUri, "r").getFileDescriptor();
+                ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(artUri, "r");
+                if (parcelFileDescriptor != null) {
+                    fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+                } else {
+                    return null;
+                }
             }
             if (config.artDownscaleWidth != -1) {
                 BitmapFactory.Options options = new BitmapFactory.Options();
