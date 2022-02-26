@@ -1,0 +1,44 @@
+{
+   // Use IntelliSense to learn about possible attributes.
+   // Hover to view descriptions of existing attributes.
+   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+   "version": "0.2.0",
+   "configurations": [
+      {
+         "name": "example",
+         "cwd": "audio_service\\example",
+         "request": "launch",
+         "type": "dart",
+      },
+      {
+         "name": "example_multiple_handlers",
+         "cwd": "audio_service\\example",
+         "request": "launch",
+         "type": "dart",
+         "args": [
+            "-t",
+            "lib/example_multiple_handlers.dart",
+         ],
+      },
+      {
+         "name": "example_playlist",
+         "cwd": "audio_service\\example",
+         "request": "launch",
+         "type": "dart",
+         "args": [
+            "-t",
+            "lib/example_playlist.dart",
+         ],
+      },
+      {
+         "name": "example_android_songs",
+         "cwd": "audio_service\\example",
+         "request": "launch",
+         "type": "dart",
+         "args": [
+            "-t",
+            "lib/example_android_songs.dart",
+         ],
+      },
+   ],
+}
