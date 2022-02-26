@@ -13,7 +13,7 @@
 ///  * `android_content_provider` - for song data and arts
 ///  * `device_info_plus` - for detecting Android version
 ///  * `just_audio` - for playback
-///  * `permission_handler` - for asking for permssions to read
+///  * `permission_handler` - for asking for permissions to read
 ///    the device storage
 ///
 /// In Android there are 3 different ways of loading a song art:
@@ -114,9 +114,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _fetch() async {
-    setState(() {
-      _permissionStatus = null;
-    });
     _permissionStatus = await Permission.storage.request();
     if (mounted) {
       setState(() {
@@ -193,7 +190,7 @@ class _MainScreenState extends State<MainScreen> {
         body: Center(
           child: ElevatedButton(
             child: const Text('Grant storage permissions'),
-            onPressed: _fetchSongs,
+            onPressed: _fetch,
           ),
         ),
       );
@@ -210,7 +207,7 @@ class _MainScreenState extends State<MainScreen> {
             const Text('There is no music on your device'),
             ElevatedButton(
               child: const Text('Refetch'),
-              onPressed: _fetchSongs,
+              onPressed: _fetch,
             ),
           ],
         ),
