@@ -378,12 +378,16 @@ class _SongArtState extends State<SongArt> {
     _loadSignal?.cancel();
     _loadSignal = CancellationSignal();
     final cacheSize = getCacheSize();
-    _bytes = await AndroidContentResolver.instance.loadThumbnail(
-      uri: widget.song.uri,
-      width: cacheSize,
-      height: cacheSize,
-      cancellationSignal: _loadSignal,
-    );
+    try {
+      _bytes = await AndroidContentResolver.instance.loadThumbnail(
+        uri: widget.song.uri,
+        width: cacheSize,
+        height: cacheSize,
+        cancellationSignal: _loadSignal,
+      );
+    } catch (e) {
+      _bytes = null;
+    }
     if (mounted) {
       setState(() {
         loaded = true;
@@ -554,6 +558,9 @@ class Song {
         artist: artist,
         title: title,
         artUri: Uri.parse(artUri),
+        extras: <String, dynamic>{
+          'loadThumbnailUri': uri,
+        },
       );
 
   static const mediaStoreProjection = [

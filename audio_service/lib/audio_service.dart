@@ -587,6 +587,19 @@ class MediaItem {
   ///  * Network - http:// https:// etc.
   ///  * Android content URIs - content://
   ///
+  /// ## Speeding up Android content URI loading
+  ///
+  /// For Android content:// URIs, the plugin by default uses
+  /// `ContentResolver.openFileDescriptor`, which takes the direct URI
+  /// of an image.
+  ///
+  /// On Android >= 30 there's a `ContentResolver.loadThumbnail` function
+  /// which takes a URI of some content (for example, a song from `MediaStore`),
+  /// and returns a thumbnail for it.
+  ///
+  /// It is a noticeably faster to use this function. You can do enable this by putting
+  /// a `loadThumbnailUri` key into the [extras]. If `loadThumbnail` is not available,
+  /// it will just fallback to using `openFileDescriptor`.
   final Uri? artUri;
 
   /// Whether this is playable (i.e. not a folder).

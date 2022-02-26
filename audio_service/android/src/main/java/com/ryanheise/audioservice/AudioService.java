@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,6 +25,7 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.LruCache;
+import android.util.Size;
 import android.view.KeyEvent;
 
 import androidx.annotation.RequiresApi;
@@ -34,6 +36,8 @@ import androidx.media.VolumeProviderCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 
 import java.io.FileDescriptor;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 
 import io.flutter.embedding.engine.FlutterEngine;
-import android.net.Uri;
 
 public class AudioService extends MediaBrowserServiceCompat {
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
@@ -164,42 +167,71 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadataCache.get(mediaId);
     }
 
-    Bitmap loadArtBitmap(String artUriString) {
+    Bitmap loadArtBitmap(String artUriString, String loadThumbnailUri) {
         Bitmap bitmap = artBitmapCache.get(artUriString);
         if (bitmap != null) return bitmap;
         try {
+            // There are 3 cases handled by this function:
+            //   1. content URI with openFileDescriptor
+            //   2. content URI with loadThumbnail (when Android >= Q and specified by the config)
+            //   3. not content URI - loading from the file, or cache file created by the Dart side
             Uri artUri = Uri.parse(artUriString);
             boolean usesContentScheme = "content".equals(artUri.getScheme());
             FileDescriptor fileDescriptor = null;
             if (usesContentScheme) {
-                ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(artUri, "r");
-                if (parcelFileDescriptor != null) {
-                    fileDescriptor = parcelFileDescriptor.getFileDescriptor();
-                } else {
+                try {
+                    if (loadThumbnailUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        Size defaultSize = new Size(192, 192);
+                        bitmap = getContentResolver().loadThumbnail(
+                                artUri,
+                                new Size(config.artDownscaleWidth == -1
+                                                ? defaultSize.getWidth()
+                                                : config.artDownscaleWidth,
+                                        config.artDownscaleHeight == -1
+                                                ? defaultSize.getHeight()
+                                                : config.artDownscaleHeight),
+                                null);
+                        if (bitmap == null) {
+                            return null;
+                        }
+                    } else {
+                        ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(artUri, "r");
+                        if (parcelFileDescriptor != null) {
+                            fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+                        } else {
+                            return null;
+                        }
+                    }
+                } catch (FileNotFoundException ex) {
+                    return null;
+                } catch (IOException ex) {
                     return null;
                 }
             }
-            if (config.artDownscaleWidth != -1) {
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                if (usesContentScheme) {
-                    BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-                } else {
-                    BitmapFactory.decodeFile(artUri.getPath(), options);
-                }
-                options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
-                options.inJustDecodeBounds = false;
+            // Decode the image ourselves for scenarios 2 and 3 (see the comment above).
+            if (!usesContentScheme || fileDescriptor != null) {
+                if (config.artDownscaleWidth != -1) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inJustDecodeBounds = true;
+                    if (usesContentScheme) {
+                        BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                    } else {
+                        BitmapFactory.decodeFile(artUri.getPath(), options);
+                    }
+                    options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
+                    options.inJustDecodeBounds = false;
 
-                if (usesContentScheme) {
-                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                    if (usesContentScheme) {
+                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                    } else {
+                        bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
+                    }
                 } else {
-                    bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
-                }
-            } else {
-                if (usesContentScheme) {
-                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
-                } else {
-                    bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                    if (usesContentScheme) {
+                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+                    } else {
+                        bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                    }
                 }
             }
             artBitmapCache.put(artUriString, bitmap);
@@ -663,11 +695,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     /**
      * Updates metadata, loads the art and updates the notification.
      * Gets called from background thread.
-     *
+     * <p>
      * Also adds the loaded art bitmap to the MediaMetadata.
      * This is needed to display art in lock screen in versions
      * prior Android 11, in which this feature was removed.
-     *
+     * <p>
      * See:
      *  - https://developer.android.com/guide/topics/media-apps/working-with-a-media-session#album_artwork
      *  - https://9to5google.com/2020/08/02/android-11-lockscreen-art/
@@ -676,13 +708,14 @@ public class AudioService extends MediaBrowserServiceCompat {
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
         if (artCacheFilePath != null) {
             // Load local files and network images, cached in files
-            artBitmap = loadArtBitmap(artCacheFilePath);
+            artBitmap = loadArtBitmap(artCacheFilePath, null);
             mediaMetadata = putArtToMetadata(mediaMetadata);
         } else {
             // Load content:// URIs
             String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
             if (artUri != null) {
-                artBitmap = loadArtBitmap(artUri);
+                String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
+                artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
                 mediaMetadata = putArtToMetadata(mediaMetadata);
             }
         }
