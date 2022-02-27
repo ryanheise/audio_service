@@ -593,11 +593,11 @@ class MediaItem {
   /// `ContentResolver.openFileDescriptor`, which takes the direct URI
   /// of an image.
   ///
-  /// On Android >= 30 there's a `ContentResolver.loadThumbnail` function
+  /// On Android API >= 29 there is `ContentResolver.loadThumbnail` function
   /// which takes a URI of some content (for example, a song from `MediaStore`),
   /// and returns a thumbnail for it.
   ///
-  /// It is a noticeably faster to use this function. You can do enable this by putting
+  /// It is noticeably faster to use this function. You can enable this by putting
   /// a `loadThumbnailUri` key into the [extras]. If `loadThumbnail` is not available,
   /// it will just fallback to using `openFileDescriptor`.
   final Uri? artUri;
