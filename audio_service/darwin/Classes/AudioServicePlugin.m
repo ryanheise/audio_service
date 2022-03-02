@@ -295,7 +295,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyIsLiveStream value:mediaItem[@"isLiveStream"]];
     }
     if (updated) {
-        NSLog(@"### updating nowPlayingInfo");
+        //NSLog(@"### updating nowPlayingInfo");
         center.nowPlayingInfo = nowPlayingInfo;
     }
   
