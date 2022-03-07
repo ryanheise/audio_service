@@ -137,37 +137,38 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _fetchSongs() async {
-    await autoCloseScope(() async {
-      final cursor = await AndroidContentResolver.instance.query(
-        // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        uri: 'content://media/external/audio/media',
-        projection: Song.mediaStoreProjection,
-        selection: 'is_music != 0',
-        selectionArgs: null,
-        sortOrder: null,
-      );
+    final cursor = await AndroidContentResolver.instance.query(
+      // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+      uri: 'content://media/external/audio/media',
+      projection: Song.mediaStoreProjection,
+      selection: 'is_music != 0',
+      selectionArgs: null,
+      sortOrder: null,
+    );
+    try {
       final songCount =
           (await cursor!.batchedGet().getCount().commit()).first as int;
       final batch = Song.createBatch(cursor);
       final songsData = await batch.commitRange(0, songCount);
       _songs = songsData.map((data) => Song.fromMediaStore(data)).toList();
-    });
+    } finally {
+      cursor?.close();
+    }
   }
 
   Future<void> _fetchArts() async {
     if (useScopedStorage) {
       return;
     }
-    await autoCloseScope(() async {
-      // Fetch album arts
-      final cursor = await AndroidContentResolver.instance.query(
-        // MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
-        uri: 'content://media/external/audio/albums',
-        projection: const ['_id', 'album_art'],
-        selection: 'album_art != 0',
-        selectionArgs: null,
-        sortOrder: null,
-      );
+    final cursor = await AndroidContentResolver.instance.query(
+      // MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
+      uri: 'content://media/external/audio/albums',
+      projection: const ['_id', 'album_art'],
+      selection: 'album_art != 0',
+      selectionArgs: null,
+      sortOrder: null,
+    );
+    try {
       final albumCount =
           (await cursor!.batchedGet().getCount().commit()).first as int;
       final batch = cursor.batchedGet()
@@ -177,7 +178,9 @@ class _MainScreenState extends State<MainScreen> {
       for (final data in albumsData) {
         albumArtPaths[data.first as int] = data.last as String;
       }
-    });
+    } finally {
+      cursor?.close();
+    }
   }
 
   @override
