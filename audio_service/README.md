@@ -377,27 +377,35 @@ For more information about shrinking see [Android documentation](https://develop
 
 ### Custom Android activity
 
-`AudioService` provides the possibility to seamlessly integrate to either `Activity` or `FragmentActivity` you're using as your main class.  
-If you choose to use this way, make sure you update `AndroidManifest.xml` to match the name of this activity (assuming it's called `MainActivity`) instead of `com.ryanheise.audioservice.AudioServiceActivity`.
+If your app needs to use its own custom activity, make sure you update your `AndroidManifest.xml` file to reference your activity's class name instead of `AudioServiceActivity`. For example, if your activity class is named `MainActivity`, then use:
+
 ```xml
-<activity android:name=".MainActivity" ...>
+    <activity android:name=".MainActivity" ...>
 ```
 
-1. Integration as an `Activity`
+Depending on whether you activity is a regular `Activity` or a `FragmentActivity`, you must also include some code to link to audio_service's shared `FlutterEngine`. The easiest way to accomplish this is to inherit that code from one of audio_service's provided base classes.
+
+1. Integration as an `Activity`:
+
 ```java
 import com.ryanheise.audioservice.AudioServiceActivity;
 
-public class MainActivity extends AudioServiceActivity {}
+class MainActivity extends AudioServiceActivity {
+    // ...
+}
 ```
 
-2. Integration as a `FragmentActivity`
+2. Integration as a `FragmentActivity`:
+
 ```java
 import com.ryanheise.audioservice.AudioServiceFragmentActivity;
 
-public class MainActivity extends AudioServiceFragmentActivity {}
+class MainActivity extends AudioServiceFragmentActivity {
+    // ...
+}
 ```
 
-Alternatively, you can make your custom activity a subclass of `FlutterActivity` or `FlutterFragmentActivity` and implement your own engine. Inspiration for the implementation can be taken from `AudioServiceActivity.java` or `AudioServiceFragmentActivity.java`.
+You can also write your own activity class from scratch, and override the `provideFlutterEngine`, `getCachedEngineId` and `shouldDestroyEngineWithHost` methods yourself. For inspiration, see the source code of the provided `AudioServiceActivity` and `AudioServiceFragmentActivity` classes.
 
 ## iOS setup
 
