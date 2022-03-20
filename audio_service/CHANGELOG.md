@@ -1,3 +1,7 @@
+## 0.18.5
+
+* Add AudioServiceFragmentActivity.
+
 ## 0.18.4
 
 * Fix Android FlutterJNI error after quick relaunch. 
