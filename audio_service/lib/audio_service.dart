@@ -674,6 +674,31 @@ class MediaItem {
         extras: extras,
       );
 
+  // Converts this [MediaItem] to a map of key/value pairs corresponding to
+  /// the fields of this class.
+  Map<String, dynamic> toJson() => _toMessage().toMap();
+
+  /// Creates a [MediaItem] from a map of key/value pairs corresponding to
+  /// fields of this class.
+  factory MediaItem.fromJson(Map raw) => MediaItem(
+        id: raw['id'] as String,
+        title: raw['title'] as String,
+        album: raw['album'] as String?,
+        artist: raw['artist'] as String?,
+        genre: raw['genre'] as String?,
+        duration: raw['duration'] != null
+            ? Duration(milliseconds: raw['duration'] as int)
+            : null,
+        artUri:
+            raw['artUri'] != null ? Uri.parse(raw['artUri'] as String) : null,
+        playable: raw['playable'] as bool?,
+        displayTitle: raw['displayTitle'] as String?,
+        displaySubtitle: raw['displaySubtitle'] as String?,
+        displayDescription: raw['displayDescription'] as String?,
+        rating: null,
+        extras: (raw['extras'] as Map?)!.cast<String, dynamic>(),
+      );
+
   @override
   String toString() => '${_toMessage().toMap()}';
 }
