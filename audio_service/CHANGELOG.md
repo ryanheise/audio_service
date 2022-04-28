@@ -1,6 +1,7 @@
 ## 0.18.5
 
 * Add AudioServiceFragmentActivity.
+* Added android auto manifest entry for example app
 
 ## 0.18.4
 
