@@ -982,7 +982,7 @@ class AudioService {
           .setState(SetStateRequest(state: playbackState._toMessage()));
       if (playbackState.processingState == AudioProcessingState.idle &&
           previousState?.processingState != AudioProcessingState.idle) {
-        await AudioService._stop();
+        await AudioService.stopService();
       }
       previousState = playbackState;
     }
@@ -1078,7 +1078,7 @@ class AudioService {
   }
 
   /// Stops the service.
-  static Future<void> _stop() async {
+  static Future<void> stopService() async {
     await _platform.stopService(const StopServiceRequest());
   }
 
