@@ -67,7 +67,9 @@ Formio.createForm(document.getElementById('formio'), issueForm).then(function(fo
  } else {
    return;
  }
-  var url = 'https://github.com/ryanheise/audio_service/issues/new?labels=1+backlog,' + label + '&assignees=ryanheise&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+  // The labels parameter gives a 500 for other users.
+  // var url = 'https://github.com/ryanheise/audio_service/issues/new?labels=1+backlog,' + label + '&assignees=ryanheise&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+  var url = 'https://github.com/ryanheise/audio_service/issues/new?assignees=ryanheise&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
   console.log(url);
   window.location.href = url;
  });
