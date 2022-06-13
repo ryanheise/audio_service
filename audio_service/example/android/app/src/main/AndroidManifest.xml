@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
+    <!-- For example_android_songs example -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
     <application
         android:label="Audio Service Demo"
         android:icon="@mipmap/ic_launcher">

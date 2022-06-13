@@ -578,7 +578,27 @@ class MediaItem {
   /// The duration of this media item.
   final Duration? duration;
 
-  /// The artwork for this media item as a uri.
+  /// The artwork URI for this media item.
+  ///
+  /// Supported types of URIs are:
+  ///
+  ///  * File - file://
+  ///  * Network - http:// https:// etc.
+  ///  * Android content URIs - content://
+  ///
+  /// ## Speeding up Android content URI loading
+  ///
+  /// For Android content:// URIs, the plugin by default uses
+  /// `ContentResolver.openFileDescriptor`, which takes the direct URI
+  /// of an image.
+  ///
+  /// On Android API >= 29 there is `ContentResolver.loadThumbnail` function
+  /// which takes a URI of some content (for example, a song from `MediaStore`),
+  /// and returns a thumbnail for it.
+  ///
+  /// It is noticeably faster to use this function. You can enable this by putting
+  /// a `loadThumbnailUri` key into the [extras]. If `loadThumbnail` is not available,
+  /// it will just fallback to using `openFileDescriptor`.
   final Uri? artUri;
 
   /// Whether this is playable (i.e. not a folder).
@@ -917,7 +937,10 @@ class AudioService {
     await for (var mediaItem in _handler.mediaItem) {
       if (mediaItem == null) continue;
       final artUri = mediaItem.artUri;
-      if (artUri != null) {
+      if (artUri == null || artUri.scheme == 'content') {
+        await _platform.setMediaItem(
+            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+      } else {
         // We potentially need to fetch the art.
         String? filePath;
         if (artUri.scheme == 'file') {
@@ -947,9 +970,6 @@ class AudioService {
         // Show the media item after the art is loaded.
         await _platform.setMediaItem(
             SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-      } else {
-        await _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
       }
     }
   }
