@@ -1,6 +1,7 @@
 ## 0.18.5
 
 * Add AudioServiceFragmentActivity.
+* Support `content://` art URIs in notification on Android (@nt4f04uNd)
 
 ## 0.18.4
 
