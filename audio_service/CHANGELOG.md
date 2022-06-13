@@ -1,12 +1,12 @@
 ## 0.18.5
 
 * Add AudioServiceFragmentActivity.
+* Support `content://` art URIs in notification on Android (@nt4f04uNd)
 
 ## 0.18.4
 
 * Fix Android FlutterJNI error after quick relaunch. 
 * Fix Android NPE when destroying additional FlutterEngines.
-* Support `content://` art URIs in notification on Android
 
 ## 0.18.3
 

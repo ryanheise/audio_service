@@ -213,7 +213,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                 if (config.artDownscaleWidth != -1) {
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inJustDecodeBounds = true;
-                    if (usesContentScheme) {
+                    if (fileDescriptor != null) {
                         BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
                     } else {
                         BitmapFactory.decodeFile(artUri.getPath(), options);
@@ -221,13 +221,13 @@ public class AudioService extends MediaBrowserServiceCompat {
                     options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
                     options.inJustDecodeBounds = false;
 
-                    if (usesContentScheme) {
+                    if (fileDescriptor != null) {
                         bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
                     } else {
                         bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
                     }
                 } else {
-                    if (usesContentScheme) {
+                    if (fileDescriptor != null) {
                         bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
                     } else {
                         bitmap = BitmapFactory.decodeFile(artUri.getPath());
