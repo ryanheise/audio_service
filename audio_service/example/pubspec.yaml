@@ -10,8 +10,8 @@ dependencies:
     sdk: flutter
 
   path_provider: ^2.0.1
-  audio_session: ^0.1.6+1
-  just_audio: ^0.9.20
+  audio_session: ^0.1.7
+  just_audio: ^0.9.24
   flutter_tts: ^3.3.3
   device_info_plus: ^3.2.1
   android_content_provider: ^0.2.0

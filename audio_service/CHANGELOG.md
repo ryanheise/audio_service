@@ -4,8 +4,8 @@
 
 ## 0.18.5
 
-* Add AudioServiceFragmentActivity.
-* Support `content://` art URIs in notification on Android (@nt4f04uNd)
+* Add AudioServiceFragmentActivity (@deimantasa).
+* Support `content://` art URIs in notification on Android (@nt4f04uNd).
 * Document Android foregroundServiceType.
 
 ## 0.18.4
