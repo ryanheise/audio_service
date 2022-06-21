@@ -336,6 +336,7 @@ Additionally:
     
     <!-- ADD THIS "SERVICE" element -->
     <service android:name="com.ryanheise.audioservice.AudioService"
+        android:foregroundServiceType="mediaPlayback"
         android:exported="true" tools:ignore="Instantiatable">
       <intent-filter>
         <action android:name="android.media.browse.MediaBrowserService" />
@@ -363,7 +364,7 @@ Note: when targeting Android 12 or above, you must set `android:exported` on eac
   tools:keep="@drawable/*" />
 ```
 
-By default plugin's default icons are not stipped by R8. If you don't use them, you may selectively strip them. For example, the rules below will keep all your icons and discard all the plugin's:
+By default plugin's default icons are not stripped by R8. If you don't use them, you may selectively strip them. For example, the rules below will keep all your icons and discard all the plugin's:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -374,6 +375,7 @@ By default plugin's default icons are not stipped by R8. If you don't use them, 
 ```
 
 For more information about shrinking see [Android documentation](https://developer.android.com/studio/build/shrink-code#keep-resources).
+
 
 ### Custom Android activity
 
