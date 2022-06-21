@@ -1,3 +1,8 @@
+## 0.18.6
+
+* Add SkParagraph enable flag to the created engine 
+  by (AudioServicePlugin) on Android (@limitless-brain).
+
 ## 0.18.5
 
 * Add AudioServiceFragmentActivity (@deimantasa).

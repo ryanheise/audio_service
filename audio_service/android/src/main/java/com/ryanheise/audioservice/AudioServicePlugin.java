@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -36,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 
 import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
@@ -67,10 +70,35 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     }
     public static synchronized FlutterEngine getFlutterEngine(Context context) {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
+
+        // Since flutter 3 offer disabling SKParagraph
+        // And it has a bug that effected most of android flutter apps
+        // Check for the flag if it's available in manifest file
+
+        ApplicationInfo applicationInfo =
+                null;
+        String[] args = new String[1];
+        try {
+            applicationInfo = context
+                    .getPackageManager()
+                    .getApplicationInfo(
+                            context.getPackageName(), PackageManager.GET_META_DATA);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        if (applicationInfo != null) {
+            Bundle metaData = applicationInfo.metaData;
+            if (metaData != null) {
+                final String skEnabled = metaData.getBoolean("io.flutter.embedding.android.EnableSkParagraph", true) ? "true" : "false";
+                args[0] = ("--enable-skparagraph=".concat(skEnabled));
+            }
+        }
+
         if (flutterEngine == null) {
             // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
             // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
-            flutterEngine = new FlutterEngine(context.getApplicationContext());
+            flutterEngine = new FlutterEngine(context.getApplicationContext(), args);
             String initialRoute = null;
             if (context instanceof FlutterActivity) {
                 final FlutterActivity activity = (FlutterActivity)context;
