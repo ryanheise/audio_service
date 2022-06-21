@@ -34,6 +34,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.VolumeProviderCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
+import androidx.media.utils.MediaConstants;
 
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
@@ -474,6 +475,15 @@ public class AudioService extends MediaBrowserServiceCompat {
             stateBuilder.setErrorMessage(errorCode, errorMessage);
         else if (errorMessage != null)
             stateBuilder.setErrorMessage(-987654, errorMessage);
+
+        if (mediaMetadata != null) {
+            // Update the progress bar in the browse view as content is playing as explained
+            // here: https://developer.android.com/training/cars/media#browse-progress-bar
+            Bundle extras = new Bundle();
+            extras.putString(MediaConstants.PLAYBACK_STATE_EXTRAS_KEY_MEDIA_ID, mediaMetadata.getDescription().getMediaId());
+            stateBuilder.setExtras(extras);
+        }
+
         mediaSession.setPlaybackState(stateBuilder.build());
         mediaSession.setRepeatMode(repeatMode);
         mediaSession.setShuffleMode(shuffleMode);
