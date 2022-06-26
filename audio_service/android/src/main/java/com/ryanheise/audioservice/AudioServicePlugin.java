@@ -1139,13 +1139,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         if (bundle == null) return null;
         Map<String, Object> map = new HashMap<>();
         for (String key : bundle.keySet()) {
-            Object value = bundle.get(key);
-            if (value instanceof Integer
-                    || value instanceof Long
-                    || value instanceof Double
-                    || value instanceof Float
-                    || value instanceof Boolean
-                    || value instanceof String) {
+            // TODO: use typesafe version once SDK 33 is released.
+            @SuppressWarnings("deprecation")
+            Object value = bundle.getSerializable(key);
+            if (value != null) {
                 map.put(key, value);
             }
         }

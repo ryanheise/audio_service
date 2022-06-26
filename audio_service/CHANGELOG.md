@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.6
+
+* Fix build when targeting Android 13.
+
 ## 0.18.5
 
 * Add AudioServiceFragmentActivity (@deimantasa).
