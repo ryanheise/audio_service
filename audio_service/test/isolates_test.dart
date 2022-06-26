@@ -1,6 +1,7 @@
 import 'dart:isolate';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -76,7 +77,11 @@ void main() {
           differentIsolate ? ' (different isolate)' : ' (same isolate)';
 
       test('init $isolateLabel', () async {
-        //expect(await proxy.playbackState.first, PlaybackState());
+        final playbackState = await proxy.playbackState.first;
+        fakeAsync((async) {
+          // ignore the updateTime
+          expect(playbackState.copyWith(), PlaybackState());
+        });
         expect(await proxy.queue.first, const <MediaItem>[]);
         expect(await proxy.queueTitle.first, '');
         expect(await proxy.mediaItem.first, null);
