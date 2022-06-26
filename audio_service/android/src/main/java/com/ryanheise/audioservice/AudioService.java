@@ -366,7 +366,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         artBitmapCache.evictAll();
         compactActionIndices = null;
         releaseMediaSession();
-        stopForeground(!config.androidResumeOnClick);
+        legacyStopForeground(!config.androidResumeOnClick);
         // This still does not solve the Android 11 problem.
         // if (notificationCreated) {
         //     NotificationManager notificationManager = getNotificationManager();
@@ -375,6 +375,11 @@ public class AudioService extends MediaBrowserServiceCompat {
         releaseWakeLock();
         instance = null;
         notificationCreated = false;
+    }
+
+    private void legacyStopForeground(boolean removeNotification) {
+        // TODO: Consider application of STOP_FOREGROUND_DETACH
+        stopForeground(removeNotification ? STOP_FOREGROUND_REMOVE : 0);
     }
 
     public AudioServiceConfig getConfig() {
@@ -640,7 +645,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void exitForegroundState() {
-        stopForeground(false);
+        legacyStopForeground(false);
         releaseWakeLock();
     }
 
@@ -864,7 +869,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
             if (listener == null) return false;
-            final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
+            // TODO: use typesafe version once SDK 33 is released.
+            @SuppressWarnings("deprecation")
+            final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().getParcelable(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 switch (event.getKeyCode()) {
                 case KEYCODE_BYPASS_PLAY:
