@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
@@ -590,17 +591,20 @@ class MediaItem {
   /// ## Speeding up Android content URI loading
   ///
   /// For Android content:// URIs, the plugin by default uses
-  /// `ContentResolver.openFileDescriptor`, which takes the direct URI
-  /// of an image.
+  /// `ContentResolver.openFileDescriptor`, which takes the direct URI of an
+  /// image.
   ///
   /// On Android API >= 29 there is `ContentResolver.loadThumbnail` function
   /// which takes a URI of some content (for example, a song from `MediaStore`),
   /// and returns a thumbnail for it.
   ///
-  /// It is noticeably faster to use this function. You can enable this by putting
-  /// a `loadThumbnailUri` key into the [extras]. If `loadThumbnail` is not available,
-  /// it will just fallback to using `openFileDescriptor`.
+  /// It is noticeably faster to use this function. You can enable this by
+  /// putting a `loadThumbnailUri` key into the [extras]. If `loadThumbnail` is
+  /// not available, it will just fallback to using `openFileDescriptor`.
   final Uri? artUri;
+
+  /// The HTTP headers to use when sending an HTTP request for [artUri].
+  final Map<String, String>? artHeaders;
 
   /// Whether this is playable (i.e. not a folder).
   final bool? playable;
@@ -633,6 +637,7 @@ class MediaItem {
     this.genre,
     this.duration,
     this.artUri,
+    this.artHeaders,
     this.playable = true,
     this.displayTitle,
     this.displaySubtitle,
@@ -961,6 +966,7 @@ class AudioService {
             filePath = await _loadArtwork(mediaItem);
             // If we failed to download the art, abort.
             if (filePath == null) continue;
+            if (File(filePath).lengthSync() == 0) continue;
             // If we've already set a new media item, cancel this request.
             // XXX: Test this
             //if (mediaItem != _handler.mediaItem.value) continue;
@@ -1115,13 +1121,18 @@ class AudioService {
         if (artUri.scheme == 'file') {
           return artUri.toFilePath();
         } else {
-          final file =
-              await cacheManager.getSingleFile(mediaItem.artUri!.toString());
+          final headers = mediaItem.artHeaders;
+          final file = headers != null
+              ? await cacheManager.getSingleFile(mediaItem.artUri!.toString(),
+                  headers: headers)
+              : await cacheManager.getSingleFile(mediaItem.artUri!.toString());
           return file.path;
         }
       }
-    } catch (e) {
+    } catch (e, st) {
       // TODO: handle this somehow?
+      // ignore: avoid_print
+      print('Error loading artUri: $e\n$st');
     }
     return null;
   }
