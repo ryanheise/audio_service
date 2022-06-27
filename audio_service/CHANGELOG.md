@@ -5,6 +5,7 @@
 ## 0.18.6
 
 * Fix build when targeting Android 13.
+* Add MediaItem.artHeaders.
 
 ## 0.18.5
 

@@ -718,7 +718,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         } else {
             // Load content:// URIs
             String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
-            if (artUri != null) {
+            if (artUri != null && artUri.startsWith("content:")) {
                 String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
                 artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
                 mediaMetadata = putArtToMetadata(mediaMetadata);
