@@ -902,10 +902,10 @@ class AudioService {
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
   /// Register the app's [AudioHandler] with configuration options. This must be
-  /// called during the app's initialisation so that it is prepared to handle
-  /// audio requests immediately after a cold restart (e.g. if the user clicks
-  /// on the play button in the media notification while your app is not running
-  /// and your app needs to be woken up).
+  /// called once during the app's initialisation so that it is prepared to
+  /// handle audio requests immediately after a cold restart (e.g. if the user
+  /// clicks on the play button in the media notification while your app is not
+  /// running and your app needs to be woken up).
   ///
   /// You may optionally specify a [cacheManager] to use when loading artwork to
   /// display in the media notification and lock screen. This defaults to
