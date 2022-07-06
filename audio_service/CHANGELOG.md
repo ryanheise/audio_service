@@ -1,3 +1,9 @@
+## 0.18.7
+
+* Migrate to androidx.media 1.6.0 (@snipd-mikel)
+* Propagate MediaItem extras to Android Auto (@snipd-mikel)
+* Update progress bar in Android Auto (@snipd-mikel)
+
 ## 0.18.6
 
 * Fix build when targeting Android 13.
