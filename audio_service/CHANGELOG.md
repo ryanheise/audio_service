@@ -1,5 +1,6 @@
 ## 0.18.7
 
+* Fix stopForeground bug on Android SDK < 24.
 * Migrate to androidx.media 1.6.0 (@snipd-mikel)
 * Propagate MediaItem extras to Android Auto (@snipd-mikel)
 * Update progress bar in Android Auto (@snipd-mikel)
