@@ -378,9 +378,16 @@ public class AudioService extends MediaBrowserServiceCompat {
         notificationCreated = false;
     }
 
+    @SuppressWarnings("deprecation")
     private void legacyStopForeground(boolean removeNotification) {
-        // TODO: Consider application of STOP_FOREGROUND_DETACH
-        stopForeground(removeNotification ? STOP_FOREGROUND_REMOVE : 0);
+        if (Build.VERSION.SDK_INT >= 24) {
+            // TODO: Consider application of STOP_FOREGROUND_DETACH
+            stopForeground(removeNotification ? STOP_FOREGROUND_REMOVE : 0);
+        } else {
+            // TODO: This API is deprecated and we'll need to eventually
+            // delete this line.
+            stopForeground(removeNotification);
+        }
     }
 
     public AudioServiceConfig getConfig() {
