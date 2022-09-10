@@ -621,6 +621,11 @@ class MediaItem {
   /// The rating of the media item.
   final Rating? rating;
 
+  /// An optional imageUrl parameter useful for holding an image url.
+  /// Most useful when using just_audio where you need not store image as
+  /// an extra or artHeader param. 
+  final String? imageUrl;
+  
   /// A map of additional metadata for the media item.
   ///
   /// The values must be of type `int`, `String`, `bool` or `double`.
@@ -634,6 +639,7 @@ class MediaItem {
     required this.title,
     this.album,
     this.artist,
+    this.imageUrl,
     this.genre,
     this.duration,
     this.artUri,
