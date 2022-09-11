@@ -623,9 +623,9 @@ class MediaItem {
 
   /// An optional imageUrl parameter useful for holding an image url.
   /// Most useful when using just_audio where you need not store image as
-  /// an extra or artHeader param. 
+  /// an extra or artHeader param.
   final String? imageUrl;
-  
+
   /// A map of additional metadata for the media item.
   ///
   /// The values must be of type `int`, `String`, `bool` or `double`.

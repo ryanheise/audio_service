@@ -1,3 +1,6 @@
+## 0.18.8
+* added `imageUrl` param to `MediaItem` class.
+
 ## 0.18.7
 
 * Fix stopForeground bug on Android SDK < 24.
