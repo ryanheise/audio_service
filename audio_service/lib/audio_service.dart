@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
@@ -941,44 +940,68 @@ class AudioService {
     return handler;
   }
 
+  static Object? _artFetchOperationId;
   static Future<void> _observeMediaItem() async {
     await for (var mediaItem in _handler.mediaItem) {
-      if (mediaItem == null) continue;
+      if (mediaItem == null) {
+        continue;
+      }
+      final operationId = Object();
+      _artFetchOperationId = operationId;
       final artUri = mediaItem.artUri;
       if (artUri == null || artUri.scheme == 'content') {
-        await _platform.setMediaItem(
+        _platform.setMediaItem(
             SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
       } else {
-        // We potentially need to fetch the art.
-        String? filePath;
-        if (artUri.scheme == 'file') {
-          filePath = artUri.toFilePath();
-        } else {
-          final fileInfo =
-              await cacheManager.getFileFromMemory(artUri.toString());
-          filePath = fileInfo?.file.path;
-          if (filePath == null) {
-            // We haven't fetched the art yet, so show the metadata now, and again
-            // after we load the art.
+        Future(() async {
+          /// Sends media item to the platform.
+          /// We potentially need to fetch the art before that.
+          Future<void> _sendToPlatform(String? filePath) async {
+            final extras = mediaItem.extras;
+            final platformMediaItem = mediaItem.copyWith(
+              extras: <String, dynamic>{
+                if (extras != null) ...extras,
+                'artCacheFile': filePath,
+              },
+            );
             await _platform.setMediaItem(
-                SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-            // Load the art
-            filePath = await _loadArtwork(mediaItem);
-            // If we failed to download the art, abort.
-            if (filePath == null) continue;
-            if (File(filePath).lengthSync() == 0) continue;
-            // If we've already set a new media item, cancel this request.
-            // XXX: Test this
-            //if (mediaItem != _handler.mediaItem.value) continue;
+                SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
           }
-        }
-        final extras =
-            Map<String, dynamic>.of(mediaItem.extras ?? <String, dynamic>{});
-        extras['artCacheFile'] = filePath;
-        final platformMediaItem = mediaItem.copyWith(extras: extras);
-        // Show the media item after the art is loaded.
-        await _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+
+          if (artUri.scheme == 'file') {
+            _sendToPlatform(artUri.toFilePath());
+          } else {
+            // Try to load a cached file from memory.
+            final fileInfo =
+                await cacheManager.getFileFromMemory(artUri.toString());
+            final filePath = fileInfo?.file.path;
+            if (operationId != _artFetchOperationId) {
+              return;
+            }
+
+            if (filePath != null) {
+              // If we successfully downloaded the art call to platform.
+              _sendToPlatform(filePath);
+            } else {
+              // We haven't fetched the art yet, so show the metadata now, and again
+              // after we load the art.
+              await _platform.setMediaItem(
+                  SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+              if (operationId != _artFetchOperationId) {
+                return;
+              }
+              // Load the art.
+              final loadedFilePath = await _loadArtwork(mediaItem);
+              if (operationId != _artFetchOperationId) {
+                return;
+              }
+              // If we successfully downloaded the art, call to platform.
+              if (loadedFilePath != null) {
+                _sendToPlatform(loadedFilePath);
+              }
+            }
+          }
+        });
       }
     }
   }
