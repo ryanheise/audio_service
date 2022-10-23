@@ -970,16 +970,14 @@ class AudioService {
   static bool _updateFallbackArtCache = false;
   static Uri? _fallbackArtUri;
   static Map<String, String>? _fallbackArtHeaders;
-
   static Object? _artFetchOperationId;
   static Future<void> _observeMediaItem() async {
-    Object? _artFetchOperationId;
     _handler.mediaItem.listen((mediaItem) async {
       if (mediaItem == null) {
         return;
       }
       _updateMediaItem(mediaItem);
-    }
+    });
   }
 
   static Future<void> _updateMediaItem(MediaItem mediaItem) async {
@@ -1071,7 +1069,7 @@ class AudioService {
       } else {
         rethrow;
       }
-    });
+    }
   }
 
   static Future<void> _observeAndroidPlaybackInfo() async {
