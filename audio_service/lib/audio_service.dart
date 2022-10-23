@@ -940,11 +940,11 @@ class AudioService {
     return handler;
   }
 
-  static Object? _artFetchOperationId;
   static Future<void> _observeMediaItem() async {
-    await for (var mediaItem in _handler.mediaItem) {
+    Object? _artFetchOperationId;
+    _handler.mediaItem.listen((mediaItem) async {
       if (mediaItem == null) {
-        continue;
+        return;
       }
       final operationId = Object();
       _artFetchOperationId = operationId;
@@ -953,57 +953,55 @@ class AudioService {
         _platform.setMediaItem(
             SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
       } else {
-        Future(() async {
-          /// Sends media item to the platform.
-          /// We potentially need to fetch the art before that.
-          Future<void> _sendToPlatform(String? filePath) async {
-            final extras = mediaItem.extras;
-            final platformMediaItem = mediaItem.copyWith(
-              extras: <String, dynamic>{
-                if (extras != null) ...extras,
-                'artCacheFile': filePath,
-              },
-            );
-            await _platform.setMediaItem(
-                SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+        /// Sends media item to the platform.
+        /// We potentially need to fetch the art before that.
+        Future<void> _sendToPlatform(String? filePath) async {
+          final extras = mediaItem.extras;
+          final platformMediaItem = mediaItem.copyWith(
+            extras: <String, dynamic>{
+              if (extras != null) ...extras,
+              'artCacheFile': filePath,
+            },
+          );
+          await _platform.setMediaItem(
+              SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+        }
+
+        if (artUri.scheme == 'file') {
+          _sendToPlatform(artUri.toFilePath());
+        } else {
+          // Try to load a cached file from memory.
+          final fileInfo =
+              await cacheManager.getFileFromMemory(artUri.toString());
+          final filePath = fileInfo?.file.path;
+          if (operationId != _artFetchOperationId) {
+            return;
           }
 
-          if (artUri.scheme == 'file') {
-            _sendToPlatform(artUri.toFilePath());
+          if (filePath != null) {
+            // If we successfully downloaded the art call to platform.
+            _sendToPlatform(filePath);
           } else {
-            // Try to load a cached file from memory.
-            final fileInfo =
-                await cacheManager.getFileFromMemory(artUri.toString());
-            final filePath = fileInfo?.file.path;
+            // We haven't fetched the art yet, so show the metadata now, and again
+            // after we load the art.
+            await _platform.setMediaItem(
+                SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
             if (operationId != _artFetchOperationId) {
               return;
             }
-
-            if (filePath != null) {
-              // If we successfully downloaded the art call to platform.
-              _sendToPlatform(filePath);
-            } else {
-              // We haven't fetched the art yet, so show the metadata now, and again
-              // after we load the art.
-              await _platform.setMediaItem(
-                  SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-              if (operationId != _artFetchOperationId) {
-                return;
-              }
-              // Load the art.
-              final loadedFilePath = await _loadArtwork(mediaItem);
-              if (operationId != _artFetchOperationId) {
-                return;
-              }
-              // If we successfully downloaded the art, call to platform.
-              if (loadedFilePath != null) {
-                _sendToPlatform(loadedFilePath);
-              }
+            // Load the art.
+            final loadedFilePath = await _loadArtwork(mediaItem);
+            if (operationId != _artFetchOperationId) {
+              return;
+            }
+            // If we successfully downloaded the art, call to platform.
+            if (loadedFilePath != null) {
+              _sendToPlatform(loadedFilePath);
             }
           }
-        });
+        }
       }
-    }
+    });
   }
 
   static Future<void> _observeAndroidPlaybackInfo() async {
