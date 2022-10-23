@@ -946,8 +946,10 @@ class AudioService {
     return handler;
   }
 
-  /// Allows to specify a URI for an album art and optionally headers that will be
+  /// Allows to specify a URI for an album art (and optionally headers) that will be
   /// used when [MediaItem.artUri] is null, or loading the art has failed.
+  ///
+  /// All schemes that are supported by [MediaItem.artUri] are supported here as well.
   static Future<void> setFallbackArt(
     Uri uri, {
     Map<String, String>? headers,

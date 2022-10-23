@@ -4,6 +4,12 @@
 
 ## 0.18.7
 
+* Add `AudioService.setFallbackArt` that allows to specify a URI for a default album art (@nt4f04und)
+* Fix `loadThumbnailUri` key in extras never being used (@nt4f04und)
+* Update album art more efficiently, skip unnecessary updates (@nt4f04und)
+
+## 0.18.7
+
 * Fix stopForeground bug on Android SDK < 24.
 * Migrate to androidx.media 1.6.0 (@snipd-mikel)
 * Propagate MediaItem extras to Android Auto (@snipd-mikel)
