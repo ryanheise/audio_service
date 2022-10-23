@@ -24,6 +24,7 @@ import android.support.v4.media.RatingCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 import android.util.LruCache;
 import android.util.Size;
 import android.view.KeyEvent;
@@ -170,9 +171,12 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     // This will rethrow any errors it will encounter during loading,
     // so that Dart side can detect that and load default art instead.
-    Bitmap loadArtBitmap(String artUriString, String loadThumbnailUri) {
-        Bitmap bitmap = artBitmapCache.get(artUriString);
-        if (bitmap != null) return bitmap;
+    Bitmap loadArtBitmap(String artUriString, String loadThumbnailUri, boolean updateFallbackArtCache) {
+        Bitmap bitmap = null;
+        if (!updateFallbackArtCache) {
+            Bitmap cachedBitmap = artBitmapCache.get(artUriString);
+            if (cachedBitmap != null) return cachedBitmap;
+        }
         // There are 3 cases handled by this function:
         //   1. content URI with openFileDescriptor
         //   2. content URI with loadThumbnail (when Android >= Q and specified by the config)
@@ -185,7 +189,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                 if (loadThumbnailUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     Size defaultSize = new Size(192, 192);
                     bitmap = getContentResolver().loadThumbnail(
-                            artUri,
+                            Uri.parse(loadThumbnailUri),
                             new Size(config.artDownscaleWidth == -1
                                             ? defaultSize.getWidth()
                                             : config.artDownscaleWidth,
@@ -205,8 +209,10 @@ public class AudioService extends MediaBrowserServiceCompat {
                     }
                 }
             } catch (FileNotFoundException ex) {
+                Log.e("audio_service", "FileNotFoundException, artUriString=" + artUriString + ", loadThumbnailUri=" + loadThumbnailUri);
                 throw new RuntimeException(ex);
             } catch (IOException ex) {
+                Log.e("audio_service", "IOException, artUriString=" + artUriString + ", loadThumbnailUri=" + loadThumbnailUri);
                 throw new RuntimeException(ex);
             }
         }
@@ -724,17 +730,18 @@ public class AudioService extends MediaBrowserServiceCompat {
      *  - https://9to5google.com/2020/08/02/android-11-lockscreen-art/
      */
     synchronized void setMetadata(MediaMetadataCompat mediaMetadata) {
+        boolean updateFallbackArtCache = mediaMetadata.getString("updateFallbackArtCache") != null;
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
         if (artCacheFilePath != null) {
             // Load local files and network images, cached in files
-            artBitmap = loadArtBitmap(artCacheFilePath, null);
+            artBitmap = loadArtBitmap(artCacheFilePath, null, updateFallbackArtCache);
             mediaMetadata = putArtToMetadata(mediaMetadata);
         } else {
             // Load content:// URIs
             String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
             if (artUri != null && artUri.startsWith("content:")) {
                 String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
-                artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
+                artBitmap = loadArtBitmap(artUri, loadThumbnailUri, updateFallbackArtCache);
                 mediaMetadata = putArtToMetadata(mediaMetadata);
             } else {
                 artBitmap = null;

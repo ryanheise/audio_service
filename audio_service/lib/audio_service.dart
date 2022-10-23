@@ -920,7 +920,7 @@ class AudioService {
   /// correct Service or Activity in your `AndroidManifest.xml` file or if your
   /// Activity does not provide the correct `FlutterEngine`.
   static Future<T> init<T extends AudioHandler>({
-    required T Function() builder,
+    required FutureOr<T> Function() builder,
     AudioServiceConfig? config,
     BaseCacheManager? cacheManager,
   }) async {
@@ -934,7 +934,7 @@ class AudioService {
     _platform.setHandlerCallbacks(callbacks);
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
     _config = config;
-    final handler = builder();
+    final handler = await builder();
     __handler = handler;
     callbacks.setHandler(handler);
 
@@ -953,16 +953,19 @@ class AudioService {
     Map<String, String>? headers,
   }) async {
     assert(_cacheManager != null, 'Call AudioService.init first');
+    _updateFallbackArtCache = true;
     _fallbackArtUri = uri;
     _fallbackArtHeaders = headers;
     if (__handler != null) {
       final currentMediaItem = __handler!.mediaItem.value;
       if (currentMediaItem != null) {
+        await AudioService.cacheManager.removeFile(uri.toString());
         await _updateMediaItem(currentMediaItem);
       }
     }
   }
 
+  static bool _updateFallbackArtCache = false;
   static Uri? _fallbackArtUri;
   static Map<String, String>? _fallbackArtHeaders;
 
@@ -981,20 +984,6 @@ class AudioService {
     final operationId = Object();
     _artFetchOperationId = operationId;
 
-    /// Sends media item to the platform.
-    /// We potentially need to fetch the art before that.
-    Future<void> _sendToPlatform(String? artCacheFilePath) async {
-      final extras = mediaItem.extras;
-      final platformMediaItem = mediaItem.copyWith(
-        extras: <String, dynamic>{
-          if (extras != null) ...extras,
-          if (artCacheFilePath != null) 'artCacheFile': artCacheFilePath,
-        },
-      );
-      await _platform.setMediaItem(
-          SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-    }
-
     final mediaItemArtUri = mediaItem.artUri;
     final mediaItemArtHeaders = mediaItem.artHeaders;
     final useFallback = mediaItemArtUri == null && _fallbackArtUri != null;
@@ -1007,6 +996,24 @@ class AudioService {
       artUri = mediaItemArtUri;
       artHeaders = mediaItemArtHeaders;
     }
+
+    /// Sends media item to the platform.
+    /// We potentially need to fetch the art before that.
+    Future<void> _sendToPlatform(String? artCacheFilePath) async {
+      final extras = mediaItem.extras;
+      final platformMediaItem = mediaItem.copyWith(
+        extras: <String, dynamic>{
+          if (extras != null) ...extras,
+          if (artCacheFilePath != null) 'artCacheFile': artCacheFilePath,
+          if (useFallback && _updateFallbackArtCache)
+            'updateFallbackArtCache': '',
+        },
+      );
+      await _platform.setMediaItem(
+          SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+      _updateFallbackArtCache = false;
+    }
+
     try {
       if (artUri == null || artUri.scheme == 'content') {
         await _sendToPlatform(null);
