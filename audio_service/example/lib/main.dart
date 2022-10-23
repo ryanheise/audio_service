@@ -1,63 +1,189 @@
-// ignore_for_file: public_member_api_docs
-
-// FOR MORE EXAMPLES, VISIT THE GITHUB REPOSITORY AT:
-//
-//  https://github.com/ryanheise/audio_service
-//
-// This example implements a minimal audio handler that renders the current
-// media item and playback state to the system notification and responds to 4
-// media actions:
-//
-// - play
-// - pause
-// - seek
-// - stop
-//
-// To run this example, use:
-//
-// flutter run
-
 import 'dart:async';
+import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:audio_service_example/common.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:rxdart/rxdart.dart';
 
-// You might want to provide this using dependency injection rather than a
-// global variable.
-late AudioHandler _audioHandler;
+late AudioPlayerHandler _audioHandler;
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
-      androidNotificationChannelName: 'Audio playback',
+    config: AudioServiceConfig(
+      androidNotificationChannelName: 'Audio Service Demo',
       androidNotificationOngoing: true,
+      preloadArtwork: true,
+      // preloadArtwork: false,
     ),
   );
-  runApp(const MyApp());
+  runApp(App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class AudioPlayerHandler extends BaseAudioHandler
+    with QueueHandler, SeekHandler {
+  AudioPlayerHandler() {
+    _init();
+  }
 
+  final _player = AudioPlayer();
+  final items = [
+    for (int i = 0; i < 3; i++)
+      MediaItem(
+        id: '$i',
+        album: '$i',
+        title: 'fallback null $i',
+      ),
+    for (int i = 3; i < 6; i++)
+      MediaItem(
+        id: '$i',
+        album: '$i',
+        title: 'fallback bad network uri $i',
+        artUri: Uri.parse("https://www.google.com/"),
+      ),
+    for (int i = 6; i < 9; i++)
+      MediaItem(
+        id: '$i',
+        album: '$i',
+        title: 'fallback bad content uri $i',
+        artUri: Uri.parse("content://123"),
+      ),
+    for (int i = 9; i < 12; i++)
+      MediaItem(
+        id: '$i',
+        album: '$i',
+        title: 'fallback bad file uri $i',
+        artUri: Uri.parse("file://123"),
+      ),
+    for (int i = 12; i < 500; i++)
+      MediaItem(
+        id: '$i',
+        album: '$i',
+        title: 'other uris $i',
+        artUri: Uri.parse("https://picsum.photos/900/900?random=$i"),
+      ),
+  ];
+
+  int index = 0;
+
+  Future<void> _init() async {
+    AudioService.setFallbackArt(
+      Uri.parse(
+        'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg',
+      ),
+    );
+    queue.add(items);
+    skipToQueueItem(0);
+    _player.playbackEventStream.listen(_setState);
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) stop();
+    });
+  }
+
+  @override
+  Future<List<MediaItem>> getChildren(String parentMediaId,
+      [Map<String, dynamic>? options]) async {
+    switch (parentMediaId) {
+      case AudioService.recentRootId:
+      default:
+        return items;
+    }
+  }
+
+  @override
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
+    switch (parentMediaId) {
+      case AudioService.recentRootId:
+      default:
+        return Stream.value(items).map((_) => <String, dynamic>{}).shareValue();
+    }
+  }
+
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index >= 0 && index < queue.value!.length) {
+      _player.setUrl(
+          'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3');
+      this.index = index;
+      mediaItem.add(queue.value![index]);
+      queue.add(items);
+    }
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    skipToQueueItem(index + 1);
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    skipToQueueItem(index - 1);
+  }
+
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> stop() async {
+    await _player.stop();
+    final audioSession = await AudioSession.instance;
+    try {
+      await audioSession.setActive(false);
+    } catch (e) {
+      print("While deactivating audio session: $e");
+    }
+    await super.stop();
+  }
+
+  void _setState(PlaybackEvent event) {
+    final playing = _player.playing;
+    playbackState.add(playbackState.value!.copyWith(
+      controls: [
+        MediaControl.skipToPrevious,
+        if (playing) MediaControl.pause else MediaControl.play,
+        MediaControl.stop,
+        MediaControl.skipToNext,
+      ],
+      systemActions: const {
+        MediaAction.seek,
+        MediaAction.seekForward,
+        MediaAction.seekBackward,
+      },
+      androidCompactActionIndices: const [0, 1, 3],
+      processingState: _player.processingState == ProcessingState.idle
+          ? AudioProcessingState.idle
+          : AudioProcessingState.ready,
+      playing: playing,
+      updatePosition: _player.position,
+      bufferedPosition: _player.bufferedPosition,
+      speed: _player.speed,
+      queueIndex: event.currentIndex,
+    ));
+  }
+}
+
+class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Audio Service Demo',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MainScreen(),
+      home: MainScreen(),
     );
   }
 }
 
 class MainScreen extends StatelessWidget {
-  const MainScreen({Key? key}) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,12 +194,40 @@ class MainScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Show media item title
-            StreamBuilder<MediaItem?>(
-              stream: _audioHandler.mediaItem,
+            RoamingRedBox(),
+            // Queue display/controls.
+            StreamBuilder<QueueState>(
+              stream: _queueStateStream,
               builder: (context, snapshot) {
-                final mediaItem = snapshot.data;
-                return Text(mediaItem?.title ?? '');
+                final queueState = snapshot.data;
+                final queue = queueState?.queue ?? const [];
+                final mediaItem = queueState?.mediaItem;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (queue.isNotEmpty)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.skip_previous),
+                            iconSize: 64.0,
+                            onPressed: mediaItem == queue.first
+                                ? null
+                                : _audioHandler.skipToPrevious,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.skip_next),
+                            iconSize: 64.0,
+                            onPressed: mediaItem == queue.last
+                                ? null
+                                : _audioHandler.skipToNext,
+                          ),
+                        ],
+                      ),
+                    if (mediaItem?.title != null) Text(mediaItem!.title),
+                  ],
+                );
               },
             ),
             // Play/pause/stop buttons.
@@ -86,13 +240,9 @@ class MainScreen extends StatelessWidget {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _button(Icons.fast_rewind, _audioHandler.rewind),
-                    if (playing)
-                      _button(Icons.pause, _audioHandler.pause)
-                    else
-                      _button(Icons.play_arrow, _audioHandler.play),
-                    _button(Icons.stop, _audioHandler.stop),
-                    _button(Icons.fast_forward, _audioHandler.fastForward),
+                    if (playing) pauseButton() else playButton(),
+                    stopButton(),
+                    clearCacheButton(),
                   ],
                 );
               },
@@ -103,7 +253,7 @@ class MainScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 final mediaState = snapshot.data;
                 return SeekBar(
-                  duration: mediaState?.mediaItem?.duration ?? Duration.zero,
+                  duration: _audioHandler._player.duration ?? Duration.zero,
                   position: mediaState?.position ?? Duration.zero,
                   onChangeEnd: (newPosition) {
                     _audioHandler.seek(newPosition);
@@ -123,6 +273,26 @@ class MainScreen extends StatelessWidget {
                     "Processing state: ${describeEnum(processingState)}");
               },
             ),
+            // Display the latest custom event.
+            StreamBuilder<dynamic>(
+              stream: _audioHandler.customEvent,
+              builder: (context, snapshot) {
+                return Text("custom event: ${snapshot.data}");
+              },
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _audioHandler.items.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(_audioHandler.items[index].title),
+                    onTap: () {
+                      _audioHandler.skipToQueueItem(index);
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -134,14 +304,53 @@ class MainScreen extends StatelessWidget {
   Stream<MediaState> get _mediaStateStream =>
       Rx.combineLatest2<MediaItem?, Duration, MediaState>(
           _audioHandler.mediaItem,
-          AudioService.position,
+          AudioService.positionStream,
           (mediaItem, position) => MediaState(mediaItem, position));
 
-  IconButton _button(IconData iconData, VoidCallback onPressed) => IconButton(
-        icon: Icon(iconData),
-        iconSize: 64.0,
+  /// A stream reporting the combined state of the current queue and the current
+  /// media item within that queue.
+  Stream<QueueState> get _queueStateStream =>
+      Rx.combineLatest2<List<MediaItem>?, MediaItem?, QueueState>(
+          _audioHandler.queue,
+          _audioHandler.mediaItem,
+          (queue, mediaItem) => QueueState(queue, mediaItem));
+
+  ElevatedButton startButton(String label, VoidCallback onPressed) =>
+      ElevatedButton(
+        child: Text(label),
         onPressed: onPressed,
       );
+
+  IconButton playButton() => IconButton(
+        icon: Icon(Icons.play_arrow),
+        iconSize: 64.0,
+        onPressed: _audioHandler.play,
+      );
+
+  IconButton pauseButton() => IconButton(
+        icon: Icon(Icons.pause),
+        iconSize: 64.0,
+        onPressed: _audioHandler.pause,
+      );
+
+  IconButton stopButton() => IconButton(
+        icon: Icon(Icons.stop),
+        iconSize: 64.0,
+        onPressed: _audioHandler.stop,
+      );
+
+  IconButton clearCacheButton() => IconButton(
+        icon: Icon(Icons.delete_outline_rounded),
+        iconSize: 64.0,
+        onPressed: AudioService.cacheManager.emptyCache,
+      );
+}
+
+class QueueState {
+  final List<MediaItem>? queue;
+  final MediaItem? mediaItem;
+
+  QueueState(this.queue, this.mediaItem);
 }
 
 class MediaState {
@@ -151,81 +360,124 @@ class MediaState {
   MediaState(this.mediaItem, this.position);
 }
 
-/// An [AudioHandler] for playing a single item.
-class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
-  static final _item = MediaItem(
-    id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
-    album: "Science Friday",
-    title: "A Salute To Head-Scratching Science",
-    artist: "Science Friday and WNYC Studios",
-    duration: const Duration(milliseconds: 5739820),
-    artUri: Uri.parse(
-        'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
-  );
+class SeekBar extends StatefulWidget {
+  final Duration duration;
+  final Duration position;
+  final ValueChanged<Duration>? onChanged;
+  final ValueChanged<Duration>? onChangeEnd;
 
-  final _player = AudioPlayer();
+  SeekBar({
+    required this.duration,
+    required this.position,
+    this.onChanged,
+    this.onChangeEnd,
+  });
 
-  /// Initialise our audio handler.
-  AudioPlayerHandler() {
-    // So that our clients (the Flutter UI and the system notification) know
-    // what state to display, here we set up our audio handler to broadcast all
-    // playback state changes as they happen via playbackState...
-    _player.playbackEventStream.map(_transformEvent).pipe(playbackState);
-    // ... and also the current media item via mediaItem.
-    mediaItem.add(_item);
+  @override
+  _SeekBarState createState() => _SeekBarState();
+}
 
-    // Load the player.
-    _player.setAudioSource(AudioSource.uri(Uri.parse(_item.id)));
+class _SeekBarState extends State<SeekBar> {
+  double? _dragValue;
+  bool _dragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = min(
+      _dragValue ?? widget.position.inMilliseconds.toDouble(),
+      widget.duration.inMilliseconds.toDouble(),
+    );
+    if (_dragValue != null && !_dragging) {
+      _dragValue = null;
+    }
+    return Stack(
+      children: [
+        Positioned(
+          left: 16.0,
+          bottom: 0.0,
+          child: Text(
+              RegExp(r'((^0*[1-9]\d*:)?\d{2}:\d{2})\.\d+$')
+                      .firstMatch("${widget.position}")
+                      ?.group(1) ??
+                  '${widget.position}',
+              style: Theme.of(context).textTheme.caption),
+        ),
+        Slider(
+          min: 0.0,
+          max: widget.duration.inMilliseconds.toDouble(),
+          value: value,
+          onChanged: (value) {
+            if (!_dragging) {
+              _dragging = true;
+            }
+            setState(() {
+              _dragValue = value;
+            });
+            if (widget.onChanged != null) {
+              widget.onChanged!(Duration(milliseconds: value.round()));
+            }
+          },
+          onChangeEnd: (value) {
+            if (widget.onChangeEnd != null) {
+              widget.onChangeEnd!(Duration(milliseconds: value.round()));
+            }
+            _dragging = false;
+          },
+        ),
+        Positioned(
+          right: 16.0,
+          bottom: 0.0,
+          child: Text(
+              RegExp(r'((^0*[1-9]\d*:)?\d{2}:\d{2})\.\d+$')
+                      .firstMatch("$_remaining")
+                      ?.group(1) ??
+                  '$_remaining',
+              style: Theme.of(context).textTheme.caption),
+        ),
+      ],
+    );
   }
 
-  // In this simple example, we handle only 4 actions: play, pause, seek and
-  // stop. Any button press from the Flutter UI, notification, lock screen or
-  // headset will be routed through to these 4 methods so that you can handle
-  // your audio playback logic in one place.
+  Duration get _remaining => widget.duration - widget.position;
+}
+
+class RoamingRedBox extends StatefulWidget {
+  RoamingRedBox({Key? key}) : super(key: key);
 
   @override
-  Future<void> play() => _player.play();
+  _RoamingRedBoxState createState() => _RoamingRedBoxState();
+}
+
+class _RoamingRedBoxState extends State<RoamingRedBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 700))
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.forward();
+      }
+    })
+    ..forward();
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
-  Future<void> pause() => _player.pause();
-
-  @override
-  Future<void> seek(Duration position) => _player.seek(position);
-
-  @override
-  Future<void> stop() => _player.stop();
-
-  /// Transform a just_audio event into an audio_service state.
-  ///
-  /// This method is used from the constructor. Every event received from the
-  /// just_audio player will be transformed into an audio_service state so that
-  /// it can be broadcast to audio_service clients.
-  PlaybackState _transformEvent(PlaybackEvent event) {
-    return PlaybackState(
-      controls: [
-        MediaControl.rewind,
-        if (_player.playing) MediaControl.pause else MediaControl.play,
-        MediaControl.stop,
-        MediaControl.fastForward,
-      ],
-      systemActions: const {
-        MediaAction.seek,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
-      },
-      androidCompactActionIndices: const [0, 1, 3],
-      processingState: const {
-        ProcessingState.idle: AudioProcessingState.idle,
-        ProcessingState.loading: AudioProcessingState.loading,
-        ProcessingState.buffering: AudioProcessingState.buffering,
-        ProcessingState.ready: AudioProcessingState.ready,
-        ProcessingState.completed: AudioProcessingState.completed,
-      }[_player.processingState]!,
-      playing: _player.playing,
-      updatePosition: _player.position,
-      bufferedPosition: _player.bufferedPosition,
-      speed: _player.speed,
-      queueIndex: event.currentIndex,
-    );
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    return AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) => Transform.translate(
+              offset: Offset(
+                Tween(begin: -screenWidth / 2 + 50, end: screenWidth / 2 - 50)
+                    .evaluate(controller),
+                0,
+              ),
+              child: Container(color: Colors.red, width: 50, height: 50),
+            ));
   }
 }
