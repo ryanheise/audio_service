@@ -1001,17 +1001,20 @@ class AudioService {
     /// We potentially need to fetch the art before that.
     Future<void> _sendToPlatform(String? artCacheFilePath) async {
       final extras = mediaItem.extras;
+      final updateFallbackArtCache = useFallback && _updateFallbackArtCache;
       final platformMediaItem = mediaItem.copyWith(
         extras: <String, dynamic>{
           if (extras != null) ...extras,
           if (artCacheFilePath != null) 'artCacheFile': artCacheFilePath,
-          if (useFallback && _updateFallbackArtCache)
+          if (updateFallbackArtCache)
             'updateFallbackArtCache': '',
         },
       );
       await _platform.setMediaItem(
           SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-      _updateFallbackArtCache = false;
+      if (updateFallbackArtCache) {
+        _updateFallbackArtCache = false;
+      }
     }
 
     try {
