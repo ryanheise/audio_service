@@ -61,6 +61,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
+    public static final String MEDIA_BUTTON_REWIND_ACTION = "com.ryanheise.audioservice.MEDIA_BUTTON_REWIND";
+    public static final String MEDIA_BUTTON_FAST_FORWARD_ACTION = "com.ryanheise.audioservice.MEDIA_BUTTON_FAST_FORWARD_ACTION";
     private static final String BROWSABLE_ROOT_ID = "root";
     private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
@@ -267,6 +269,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private MediaSessionCallback mediaSessionCallback;
     private List<MediaControl> actions = new ArrayList<>();
     private List<NotificationCompat.Action> nativeActions = new ArrayList<>();
+    private List<PlaybackStateCompat.CustomAction> customActions = new ArrayList<>();
     private int[] compactActionIndices;
     private MediaMetadataCompat mediaMetadata;
     private Bitmap artBitmap;
@@ -432,6 +435,29 @@ public class AudioService extends MediaBrowserServiceCompat {
                 buildMediaButtonPendingIntent(actionCode));
     }
 
+    private boolean needCustomMediaControl(MediaControl control) {
+        return control.actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD ||
+                control.actionCode == PlaybackStateCompat.ACTION_REWIND;
+    }
+
+    private String toCustomActionName(long actionCode) {
+        if (actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD) {
+            return MEDIA_BUTTON_FAST_FORWARD_ACTION;
+        }
+        if (actionCode == PlaybackStateCompat.ACTION_REWIND) {
+            return MEDIA_BUTTON_REWIND_ACTION;
+        }
+        return "";
+    }
+
+    PlaybackStateCompat.CustomAction createCustomAction(String resource, String label, long actionCode) {
+        int iconId = getResourceId(resource);
+        String action = toCustomActionName(actionCode);
+        PlaybackStateCompat.CustomAction.Builder builder =
+                new PlaybackStateCompat.CustomAction.Builder(action, label, iconId);
+        return builder.build();
+    }
+
     PendingIntent buildMediaButtonPendingIntent(long action) {
         int keyCode = toKeyCode(action);
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN)
@@ -466,8 +492,17 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         this.actions = actions;
         this.nativeActions.clear();
+        this.customActions.clear();
         for (MediaControl action : actions) {
-            nativeActions.add(createAction(action.icon, action.label, action.actionCode));
+            if (Build.VERSION.SDK_INT >= 33 && needCustomMediaControl(action)) {
+                // Android 13 changes MediaControl behavior as documented here:
+                // https://developer.android.com/about/versions/13/behavior-changes-13
+                // Generally speaking, play, pause, prev & next are handled based on state.
+                // Other media controls are only supported as custom actions.
+                customActions.add(createCustomAction(action.icon, action.label, action.actionCode));
+            } else {
+                nativeActions.add(createAction(action.icon, action.label, action.actionCode));
+            }
         }
         this.compactActionIndices = compactActionIndices;
         boolean wasPlaying = this.playing;
@@ -481,6 +516,13 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .setActions(AUTO_ENABLED_ACTIONS | actionBits)
                 .setState(getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            for (PlaybackStateCompat.CustomAction action : this.customActions) {
+                stateBuilder.addCustomAction(action);
+            }
+        }
+
         if (queueIndex != null)
             stateBuilder.setActiveQueueItemId(queueIndex);
         if (errorCode != null && errorMessage != null)
@@ -1023,6 +1065,14 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onCustomAction(String action, Bundle extras) {
             if (listener == null) return;
+            switch (action) {
+                case MEDIA_BUTTON_FAST_FORWARD_ACTION:
+                    listener.onFastForward();
+                    return;
+                case MEDIA_BUTTON_REWIND_ACTION:
+                    listener.onRewind();
+                    return;
+            }
             listener.onCustomAction(action, extras);
         }
 

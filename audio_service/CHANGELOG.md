@@ -1,3 +1,7 @@
+## 0.18.8
+
+* Support fast forward and rewind when targeting Android 13 (@defsub)
+
 ## 0.18.7
 
 * Fix stopForeground bug on Android SDK < 24.
