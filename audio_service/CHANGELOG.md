@@ -1,3 +1,6 @@
+## 0.18.8
+* Fix the "Unsupported Operation" in the web platform caused by using dart.io
+
 ## 0.18.7
 
 * Fix stopForeground bug on Android SDK < 24.

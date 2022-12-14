@@ -35,6 +35,7 @@ dependencies:
   flutter_cache_manager: ^3.0.1
   clock: ^1.1.0
   js: ^0.6.3
+  cross_file: ^0.3.3+2
   flutter:
     sdk: flutter
   flutter_web_plugins:

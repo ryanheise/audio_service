@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:cross_file/cross_file.dart';
 
 AudioServicePlatform _platform = AudioServicePlatform.instance;
 
@@ -966,7 +967,13 @@ class AudioService {
             filePath = await _loadArtwork(mediaItem);
             // If we failed to download the art, abort.
             if (filePath == null) continue;
-            if (File(filePath).lengthSync() == 0) continue;
+            
+            if (kIsWeb) {
+              if (await XFile(filePath).length() == 0) continue;
+            }
+            else {
+              if (File(filePath).lengthSync() == 0) continue;
+            }
             // If we've already set a new media item, cancel this request.
             // XXX: Test this
             //if (mediaItem != _handler.mediaItem.value) continue;

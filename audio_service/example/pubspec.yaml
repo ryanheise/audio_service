@@ -9,6 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  cross_file: ^0.3.3+2
   path_provider: ^2.0.1
   audio_session: ^0.1.7
   just_audio: ^0.9.24
