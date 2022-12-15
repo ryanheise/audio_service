@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.8
+
+* Improve efficiency of mediaItem updates (@nt4f04uNd).
+
 ## 0.18.7
 
 * Fix stopForeground bug on Android SDK < 24.
