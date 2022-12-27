@@ -4,6 +4,7 @@
 
 ## 0.18.9
 
+* Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
 * Add Android Auto manifest entry for example app (@ColinSchmale).
 
 ## 0.18.8
