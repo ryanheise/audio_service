@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.9
+
+* Add Android Auto manifest entry for example app (@ColinSchmale).
+
 ## 0.18.8
 
 * Improve efficiency of mediaItem updates (@nt4f04uNd).
