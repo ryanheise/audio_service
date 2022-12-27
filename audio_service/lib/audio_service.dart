@@ -298,12 +298,14 @@ class PlaybackState {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => hashValues(
+  int get hashCode => Object.hash(
         processingState,
         playing,
-        hashList(controls),
-        hashList(androidCompactActionIndices),
-        hashList(systemActions),
+        Object.hashAll(controls),
+        androidCompactActionIndices != null
+            ? Object.hashAll(androidCompactActionIndices!)
+            : 0,
+        Object.hashAll(systemActions),
         updatePosition,
         bufferedPosition,
         speed,
@@ -548,7 +550,7 @@ class Rating {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => hashValues(_value, _type);
+  int get hashCode => Object.hash(_value, _type);
 
   @override
   bool operator ==(Object other) =>
@@ -858,7 +860,7 @@ class MediaControl {
   String toString() => '${_toMessage().toMap()}';
 
   @override
-  int get hashCode => hashValues(androidIcon, label, action);
+  int get hashCode => Object.hash(androidIcon, label, action);
 
   @override
   bool operator ==(Object other) =>
@@ -3609,7 +3611,7 @@ class RemoteAndroidPlaybackInfo extends AndroidPlaybackInfo {
       volume == other.volume;
 
   @override
-  int get hashCode => hashValues(volumeControlType, maxVolume, volume);
+  int get hashCode => Object.hash(volumeControlType, maxVolume, volume);
 
   @override
   RemoteAndroidPlaybackInfoMessage _toMessage() =>
