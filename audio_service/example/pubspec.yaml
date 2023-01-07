@@ -17,6 +17,8 @@ dependencies:
   android_content_provider: ^0.2.0
   permission_handler : ^8.3.0
   rxdart: ^0.27.2
+  video_player: ^2.4.2
+
   audio_service:
     path: ../
 

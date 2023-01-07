@@ -1,3 +1,8 @@
+## 0.19.0
+
+* Remove deprecated BackgroundAudioTask API.
+* Add video_player integration example (@azamor-luccas).
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
