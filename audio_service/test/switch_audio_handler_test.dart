@@ -5,20 +5,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('SwitchAudioHandler:', () {
     test('Can forward errors from inner audio handlers', () {
-
       InnerAudioHandlerA innerAudioHandlerA = InnerAudioHandlerA();
       InnerAudioHandlerB innerAudioHandlerB = InnerAudioHandlerB();
 
-      _TestSwitchAudioHandler switchAudioHandler = _TestSwitchAudioHandler(
-        innerAudioHandlerA,
-        innerAudioHandlerB
-      );
+      _TestSwitchAudioHandler switchAudioHandler =
+          _TestSwitchAudioHandler(innerAudioHandlerA, innerAudioHandlerB);
 
       DateTime updateTime = DateTime.now();
 
-      switchAudioHandler.customAction('switchToHandler', <String, dynamic>{
-        'handlerId': InnerAudioHandlerB.handlerId
-      });
+      switchAudioHandler.customAction('switchToHandler',
+          <String, dynamic>{'handlerId': InnerAudioHandlerB.handlerId});
 
       innerAudioHandlerB.playbackState.add(PlaybackState(
         processingState: AudioProcessingState.loading,
@@ -38,27 +34,20 @@ void main() {
           emitsError('Error occurred'),
         ]),
       );
-
     });
   });
 }
 
 class _TestSwitchAudioHandler extends SwitchAudioHandler {
-
   final InnerAudioHandlerA _innerAudioHandlerA;
   final InnerAudioHandlerB _innerAudioHandlerB;
 
-  _TestSwitchAudioHandler(
-    this._innerAudioHandlerA,
-    this._innerAudioHandlerB
-  ) : super(_innerAudioHandlerA);
+  _TestSwitchAudioHandler(this._innerAudioHandlerA, this._innerAudioHandlerB)
+      : super(_innerAudioHandlerA);
 
   @override
-  Future<dynamic> customAction(
-      String name,
-      [Map<String, dynamic>? extras]
-      ) async {
-
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     switch (name) {
       case 'switchToHandler':
         stop();
@@ -77,9 +66,7 @@ class _TestSwitchAudioHandler extends SwitchAudioHandler {
       default:
         return super.customAction(name, extras);
     }
-
   }
-
 }
 
 class InnerAudioHandlerA extends BaseAudioHandler {
