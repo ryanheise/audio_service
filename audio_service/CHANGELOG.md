@@ -1,3 +1,7 @@
+## 0.18.10
+
+* Fix inner audio handlers were unable to propagate errors when using SwitchAudioHandler (@dropout).
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
