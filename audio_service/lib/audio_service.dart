@@ -2002,16 +2002,39 @@ class SwitchAudioHandler extends CompositeAudioHandler {
     _customEventSubscription?.cancel();
     _customStateSubscription?.cancel();
     _inner = newInner;
-    _playbackStateSubscription = inner.playbackState.listen(_playbackState.add);
-    _queueSubscription = inner.queue.listen(_queue.add);
-    _queueTitleSubscription = inner.queueTitle.listen(_queueTitle.add);
+    _playbackStateSubscription = inner.playbackState.listen(
+      _playbackState.add,
+      onError: _playbackState.addError,
+    );
+    _queueSubscription = inner.queue.listen(
+      _queue.add,
+      onError: _queue.addError,
+    );
+    _queueTitleSubscription = inner.queueTitle.listen(
+      _queueTitle.add,
+      onError: _queueTitle.addError,
+    );
     // XXX: This only works in one direction.
-    _mediaItemSubscription = inner.mediaItem.listen(_mediaItem.add);
-    _androidPlaybackInfoSubscription =
-        inner.androidPlaybackInfo.listen(_androidPlaybackInfo.add);
-    _ratingStyleSubscription = inner.ratingStyle.listen(_ratingStyle.add);
-    _customEventSubscription = inner.customEvent.listen(_customEvent.add);
-    _customStateSubscription = inner.customState.listen(_customState.add);
+    _mediaItemSubscription = inner.mediaItem.listen(
+      _mediaItem.add,
+      onError: _mediaItem.addError,
+    );
+    _androidPlaybackInfoSubscription = inner.androidPlaybackInfo.listen(
+      _androidPlaybackInfo.add,
+      onError: _androidPlaybackInfo.addError,
+    );
+    _ratingStyleSubscription = inner.ratingStyle.listen(
+      _ratingStyle.add,
+      onError: _ratingStyle.addError,
+    );
+    _customEventSubscription = inner.customEvent.listen(
+      _customEvent.add,
+      onError: _customEvent.addError,
+    );
+    _customStateSubscription = inner.customState.listen(
+      _customState.add,
+      onError: _customState.addError,
+    );
   }
 }
 
