@@ -79,16 +79,30 @@ class MainScreen extends StatelessWidget {
                   if (mediaItem == null) return const SizedBox();
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (mediaItem.artUri != null)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Center(
-                              child: Image.network('${mediaItem.artUri!}'),
+                    children: [ 
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Center(
+                            child: ValueListenableBuilder<Uri>(
+                              valueListenable: MediaLibrary.currentFallbackArt,
+                              builder: (context, fallbackArt, child) {
+                                Widget buildFallback() =>
+                                    Image.network(fallbackArt.toString());
+                                final artUri = mediaItem.artUri;
+                                if (artUri == null) {
+                                  return buildFallback();
+                                }
+                                return Image.network(
+                                  '${mediaItem.artUri}',
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      buildFallback(),
+                                );
+                              },
                             ),
                           ),
                         ),
+                      ),
                       Text(mediaItem.album ?? '',
                           style: Theme.of(context).textTheme.headline6),
                       Text(mediaItem.title),
@@ -319,6 +333,42 @@ class ControlButtons extends StatelessWidget {
             },
           ),
         ),
+        IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: () {
+            Navigator.of(context).push<Object?>(
+              MaterialPageRoute<Object?>(
+                builder: (context) => Scaffold(
+                  appBar: AppBar(title: const Text('Settings')),
+                  body: ListView(
+                    children: [
+                      const ListTile(
+                        leading: Icon(Icons.image),
+                        title: Text(
+                          'Choose fallback art',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      for (int i = 0; i < MediaLibrary.fallbackArts.length; i++)
+                        ListTile(
+                          title: Text(MediaLibrary.fallbackArts[i].toString()),
+                          dense: true,
+                          leading: Text(i.toString()),
+                          onTap: () {
+                            MediaLibrary.currentFallbackArt.value =
+                                MediaLibrary.fallbackArts[i];
+                            AudioService.setFallbackArt(
+                              MediaLibrary.fallbackArts[i],
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        )
       ],
     );
   }
@@ -458,6 +508,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   }
 
   Future<void> _init() async {
+    await AudioService.setFallbackArt(MediaLibrary.currentFallbackArt.value);
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.speech());
     // Broadcast speed changes. Debounce so that we don't flood the notification
@@ -652,7 +703,13 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 class MediaLibrary {
   static const albumsRootId = 'albums';
 
-  final items = <String, List<MediaItem>>{
+  static final currentFallbackArt = ValueNotifier(fallbackArts[0]);
+  static final fallbackArts = const [
+    'https://github.com/ryanheise/audio_service/raw/minor/audio_service/example/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png',
+    'https://picsum.photos/id/237/200',
+  ].map(Uri.parse).toList();
+
+  late final items = <String, List<MediaItem>>{
     AudioService.browsableRootId: const [
       MediaItem(
         id: albumsRootId,
@@ -661,33 +718,79 @@ class MediaLibrary {
       ),
     ],
     albumsRootId: [
-      MediaItem(
-        id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
-        album: "Science Friday",
-        title: "A Salute To Head-Scratching Science",
-        artist: "Science Friday and WNYC Studios",
-        duration: const Duration(milliseconds: 5739820),
-        artUri: Uri.parse(
-            'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
-      ),
-      MediaItem(
-        id: 'https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3',
-        album: "Science Friday",
-        title: "From Cat Rheology To Operatic Incompetence",
-        artist: "Science Friday and WNYC Studios",
-        duration: const Duration(milliseconds: 2856950),
-        artUri: Uri.parse(
-            'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
-      ),
-      MediaItem(
-        id: 'https://s3.amazonaws.com/scifri-segments/scifri202011274.mp3',
-        album: "Science Friday",
-        title: "Laugh Along At Home With The Ig Nobel Awards",
-        artist: "Science Friday and WNYC Studios",
-        duration: const Duration(milliseconds: 1791883),
-        artUri: Uri.parse(
-            'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
-      ),
+      ..._goodItems,
+      ..._badItems,
     ],
   };
+
+  final _goodItems = [
+    MediaItem(
+      id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
+      album: "Science Friday",
+      title: "A Salute To Head-Scratching Science",
+      artist: "Science Friday and WNYC Studios",
+      duration: const Duration(milliseconds: 5739820),
+      artUri: Uri.parse(
+          'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
+    ),
+    MediaItem(
+      id: 'https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3',
+      album: "Science Friday",
+      title: "From Cat Rheology To Operatic Incompetence",
+      artist: "Science Friday and WNYC Studios",
+      duration: const Duration(milliseconds: 2856950),
+      artUri: Uri.parse(
+          'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
+    ),
+    MediaItem(
+      id: 'https://s3.amazonaws.com/scifri-segments/scifri202011274.mp3',
+      album: "Science Friday",
+      title: "Laugh Along At Home With The Ig Nobel Awards",
+      artist: "Science Friday and WNYC Studios",
+      duration: const Duration(milliseconds: 1791883),
+      artUri: Uri.parse(
+          'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
+    ),
+  ];
+
+  /// These items contain 4 cases of bad art URIs to test
+  /// that fallback art URI works correctly:
+  ///  1. artUri = null
+  ///  2. invalid network URI
+  ///  3. invalid file URI
+  ///  4. invalid content URI
+  ///
+  /// At the end there is a few of items with valid random arts.
+  late final _badItems = <MediaItem>[
+    for (int i = 0; i < _goodItems.length; i++)
+      _goodItems[i].copyWith(
+        id: '$i',
+        title: 'fallback null URI $i',
+        artUri: null,
+      ),
+    for (int i = 0; i < _goodItems.length; i++)
+      _goodItems[i].copyWith(
+        id: '${i + _goodItems.length}',
+        title: 'fallback bad network URI $i',
+        artUri: Uri.parse("https://www.google.com/"),
+      ),
+    for (int i = 0; i < _goodItems.length; i++)
+      _goodItems[i].copyWith(
+        id: '${i + _goodItems.length * 2}',
+        title: 'fallback bad content URI $i',
+        artUri: Uri.parse("content://123"),
+      ),
+    for (int i = 0; i < _goodItems.length; i++)
+      _goodItems[i].copyWith(
+        id: '${i + _goodItems.length * 3}',
+        title: 'fallback bad file URI $i',
+        artUri: Uri.parse("file://123"),
+      ),
+    for (int i = 0; i < _goodItems.length; i++)
+      _goodItems[i].copyWith(
+        id: '${i + _goodItems.length * 4}',
+        title: 'good art URI $i',
+        artUri: Uri.parse("https://picsum.photos/900/900?random=$i"),
+      )
+  ];
 }

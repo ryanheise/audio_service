@@ -689,6 +689,7 @@ abstract class MediaItemCopyWith {
     String? genre,
     Duration? duration,
     Uri? artUri,
+    Map<String, String>? artHeaders,
     bool? playable,
     String? displayTitle,
     String? displaySubtitle,
@@ -717,6 +718,7 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
     Object? genre = _fakeNull,
     Object? duration = _fakeNull,
     Object? artUri = _fakeNull,
+    Object? artHeaders = _fakeNull,
     Object? playable = _fakeNull,
     Object? displayTitle = _fakeNull,
     Object? displaySubtitle = _fakeNull,
@@ -733,6 +735,9 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
         duration:
             duration == _fakeNull ? value.duration : duration as Duration?,
         artUri: artUri == _fakeNull ? value.artUri : artUri as Uri?,
+        artHeaders: artHeaders == _fakeNull
+            ? value.artHeaders
+            : artHeaders as Map<String, String>?,
         playable: playable == _fakeNull ? value.playable : playable as bool?,
         displayTitle: displayTitle == _fakeNull
             ? value.displayTitle
@@ -881,7 +886,8 @@ class AudioService {
   static BaseCacheManager? _cacheManager;
 
   static late AudioServiceConfig _config;
-  static late AudioHandler _handler;
+  static AudioHandler get _handler => __handler!;
+  static AudioHandler? __handler;
 
   /// The current configuration.
   static AudioServiceConfig get config => _config;
@@ -916,7 +922,7 @@ class AudioService {
   /// correct Service or Activity in your `AndroidManifest.xml` file or if your
   /// Activity does not provide the correct `FlutterEngine`.
   static Future<T> init<T extends AudioHandler>({
-    required T Function() builder,
+    required FutureOr<T> Function() builder,
     AudioServiceConfig? config,
     BaseCacheManager? cacheManager,
   }) async {
@@ -930,8 +936,8 @@ class AudioService {
     _platform.setHandlerCallbacks(callbacks);
     await _platform.configure(ConfigureRequest(config: config._toMessage()));
     _config = config;
-    final handler = builder();
-    _handler = handler;
+    final handler = await builder();
+    __handler = handler;
     callbacks.setHandler(handler);
 
     _observeMediaItem();
@@ -942,35 +948,83 @@ class AudioService {
     return handler;
   }
 
+  /// Allows to specify a URI for an album art (and optionally headers) that will be
+  /// used when [MediaItem.artUri] is null, or loading the art has failed.
+  ///
+  /// All schemes that are supported by [MediaItem.artUri] are supported here as well.
+  static Future<void> setFallbackArt(
+    Uri uri, {
+    Map<String, String>? headers,
+  }) async {
+    assert(_cacheManager != null, 'Call AudioService.init first');
+    _updateFallbackArtCache = true;
+    _fallbackArtUri = uri;
+    _fallbackArtHeaders = headers;
+    if (__handler != null) {
+      final currentMediaItem = __handler!.mediaItem.value;
+      if (currentMediaItem != null) {
+        await AudioService.cacheManager.removeFile(uri.toString());
+        await _updateMediaItem(currentMediaItem);
+      }
+    }
+  }
+
+  static bool _updateFallbackArtCache = false;
+  static Uri? _fallbackArtUri;
+  static Map<String, String>? _fallbackArtHeaders;
+  static Object? _artFetchOperationId;
   static Future<void> _observeMediaItem() async {
-    Object? _artFetchOperationId;
     _handler.mediaItem.listen((mediaItem) async {
       if (mediaItem == null) {
         return;
       }
-      final operationId = Object();
-      _artFetchOperationId = operationId;
-      final artUri = mediaItem.artUri;
-      if (artUri == null || artUri.scheme == 'content') {
-        _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-      } else {
-        /// Sends media item to the platform.
-        /// We potentially need to fetch the art before that.
-        Future<void> _sendToPlatform(String? filePath) async {
-          final extras = mediaItem.extras;
-          final platformMediaItem = mediaItem.copyWith(
-            extras: <String, dynamic>{
-              if (extras != null) ...extras,
-              'artCacheFile': filePath,
-            },
-          );
-          await _platform.setMediaItem(
-              SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
-        }
+      _updateMediaItem(mediaItem);
+    });
+  }
 
+  static Future<void> _updateMediaItem(MediaItem mediaItem) async {
+    final operationId = Object();
+    _artFetchOperationId = operationId;
+
+    final mediaItemArtUri = mediaItem.artUri;
+    final mediaItemArtHeaders = mediaItem.artHeaders;
+    final useFallback = mediaItemArtUri == null && _fallbackArtUri != null;
+    final Uri? artUri;
+    final Map<String, String>? artHeaders;
+    if (useFallback) {
+      artUri = _fallbackArtUri!;
+      artHeaders = _fallbackArtHeaders;
+    } else {
+      artUri = mediaItemArtUri;
+      artHeaders = mediaItemArtHeaders;
+    }
+
+    /// Sends media item to the platform.
+    /// We potentially need to fetch the art before that.
+    Future<void> _sendToPlatform(String? artCacheFilePath) async {
+      final extras = mediaItem.extras;
+      final updateFallbackArtCache = useFallback && _updateFallbackArtCache;
+      final platformMediaItem = mediaItem.copyWith(
+        extras: <String, dynamic>{
+          if (extras != null) ...extras,
+          if (artCacheFilePath != null) 'artCacheFile': artCacheFilePath,
+          if (updateFallbackArtCache)
+            'updateFallbackArtCache': '',
+        },
+      );
+      await _platform.setMediaItem(
+          SetMediaItemRequest(mediaItem: platformMediaItem._toMessage()));
+      if (updateFallbackArtCache) {
+        _updateFallbackArtCache = false;
+      }
+    }
+
+    try {
+      if (artUri == null || artUri.scheme == 'content') {
+        await _sendToPlatform(null);
+      } else {
         if (artUri.scheme == 'file') {
-          _sendToPlatform(artUri.toFilePath());
+          await _sendToPlatform(artUri.toFilePath());
         } else {
           // Try to load a cached file from memory.
           final fileInfo =
@@ -982,7 +1036,7 @@ class AudioService {
 
           if (filePath != null) {
             // If we successfully downloaded the art call to platform.
-            _sendToPlatform(filePath);
+            await _sendToPlatform(filePath);
           } else {
             // We haven't fetched the art yet, so show the metadata now, and again
             // after we load the art.
@@ -992,18 +1046,35 @@ class AudioService {
               return;
             }
             // Load the art.
-            final loadedFilePath = await _loadArtwork(mediaItem);
+            final loadedFilePath = await _loadArtwork(
+              artUri,
+              artHeaders,
+            );
             if (operationId != _artFetchOperationId) {
               return;
             }
             // If we successfully downloaded the art, call to platform.
             if (loadedFilePath != null) {
-              _sendToPlatform(loadedFilePath);
+              await _sendToPlatform(loadedFilePath);
             }
           }
         }
       }
-    });
+    } catch (e) {
+      if (operationId != _artFetchOperationId) {
+        return;
+      }
+      if (!useFallback && _fallbackArtUri != null) {
+        // Try to use fallback, if the actual art loading has failed for some reason.
+        _reportArtworkFallback(artUri, artHeaders);
+        await _updateMediaItem(mediaItem.copyWith(
+          artUri: null,
+          artHeaders: null,
+        ));
+      } else {
+        rethrow;
+      }
+    }
   }
 
   static Future<void> _observeAndroidPlaybackInfo() async {
@@ -1133,29 +1204,66 @@ class AudioService {
 
   static Future<void> _loadAllArtwork(List<MediaItem> queue) async {
     for (var mediaItem in queue) {
-      await _loadArtwork(mediaItem);
+      await _loadArtwork(
+        mediaItem.artUri,
+        mediaItem.artHeaders,
+      );
     }
   }
 
-  static Future<String?> _loadArtwork(MediaItem mediaItem) async {
+  static void _reportArtworkFallback(
+    Uri? artUri,
+    Map<String, String>? artHeaders,
+  ) {
+    debugPrint(
+      '[audio_service] art_loading: failed to load song art artUri=$artUri, '
+      'falling back to using default art artUri=$_fallbackArtUri',
+    );
+  }
+
+  static void _reportArtworkError(Object exception, StackTrace stackTrace) {
+    debugPrint('Error loading artUri: $exception\n$stackTrace');
+  }
+
+  static Future<String?> _loadArtwork(
+    Uri? mediaItemArtUri,
+    Map<String, String>? mediaItemArtHeaders,
+  ) async {
+    final useFallback = mediaItemArtUri == null && _fallbackArtUri != null;
+    final Uri? artUri;
+    final Map<String, String>? artHeaders;
+    if (useFallback) {
+      artUri = _fallbackArtUri!;
+      artHeaders = _fallbackArtHeaders;
+    } else {
+      artUri = mediaItemArtUri;
+      artHeaders = mediaItemArtHeaders;
+    }
     try {
-      final artUri = mediaItem.artUri;
       if (artUri != null) {
         if (artUri.scheme == 'file') {
           return artUri.toFilePath();
         } else {
-          final headers = mediaItem.artHeaders;
-          final file = headers != null
-              ? await cacheManager.getSingleFile(mediaItem.artUri!.toString(),
-                  headers: headers)
-              : await cacheManager.getSingleFile(mediaItem.artUri!.toString());
+          final file = artHeaders != null
+              ? await cacheManager.getSingleFile(
+                  artUri.toString(),
+                  headers: artHeaders,
+                )
+              : await cacheManager.getSingleFile(artUri.toString());
           return file.path;
         }
       }
     } catch (e, st) {
-      // TODO: handle this somehow?
-      // ignore: avoid_print
-      print('Error loading artUri: $e\n$st');
+      if (!useFallback && _fallbackArtUri != null) {
+        // Try to use fallback, if the actual art loading has failed for some reason.
+        _reportArtworkFallback(artUri, artHeaders);
+        return await _loadArtwork(
+          null,
+          null,
+        );
+      } else {
+        _reportArtworkError(e, st);
+      }
     }
     return null;
   }

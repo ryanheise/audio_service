@@ -24,6 +24,7 @@ import android.support.v4.media.RatingCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 import android.util.LruCache;
 import android.util.Size;
 import android.view.KeyEvent;
@@ -168,79 +169,81 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadataCache.get(mediaId);
     }
 
-    Bitmap loadArtBitmap(String artUriString, String loadThumbnailUri) {
-        Bitmap bitmap = artBitmapCache.get(artUriString);
-        if (bitmap != null) return bitmap;
-        try {
-            // There are 3 cases handled by this function:
-            //   1. content URI with openFileDescriptor
-            //   2. content URI with loadThumbnail (when Android >= Q and specified by the config)
-            //   3. not content URI - loading from the file, or cache file created by the Dart side
-            Uri artUri = Uri.parse(artUriString);
-            boolean usesContentScheme = "content".equals(artUri.getScheme());
-            FileDescriptor fileDescriptor = null;
-            if (usesContentScheme) {
-                try {
-                    if (loadThumbnailUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        Size defaultSize = new Size(192, 192);
-                        bitmap = getContentResolver().loadThumbnail(
-                                artUri,
-                                new Size(config.artDownscaleWidth == -1
-                                                ? defaultSize.getWidth()
-                                                : config.artDownscaleWidth,
-                                        config.artDownscaleHeight == -1
-                                                ? defaultSize.getHeight()
-                                                : config.artDownscaleHeight),
-                                null);
-                        if (bitmap == null) {
-                            return null;
-                        }
-                    } else {
-                        ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(artUri, "r");
-                        if (parcelFileDescriptor != null) {
-                            fileDescriptor = parcelFileDescriptor.getFileDescriptor();
-                        } else {
-                            return null;
-                        }
-                    }
-                } catch (FileNotFoundException ex) {
-                    return null;
-                } catch (IOException ex) {
-                    return null;
-                }
-            }
-            // Decode the image ourselves for scenarios 1 and 3 (see the comment above).
-            if (!usesContentScheme || fileDescriptor != null) {
-                if (config.artDownscaleWidth != -1) {
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inJustDecodeBounds = true;
-                    if (fileDescriptor != null) {
-                        BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-                    } else {
-                        BitmapFactory.decodeFile(artUri.getPath(), options);
-                    }
-                    options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
-                    options.inJustDecodeBounds = false;
-
-                    if (fileDescriptor != null) {
-                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-                    } else {
-                        bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
+    // This will rethrow any errors it will encounter during loading,
+    // so that Dart side can detect that and load default art instead.
+    Bitmap loadArtBitmap(String artUriString, String loadThumbnailUri, boolean updateFallbackArtCache) {
+        Bitmap bitmap = null;
+        if (!updateFallbackArtCache) {
+            Bitmap cachedBitmap = artBitmapCache.get(artUriString);
+            if (cachedBitmap != null) return cachedBitmap;
+        }
+        // There are 3 cases handled by this function:
+        //   1. content URI with openFileDescriptor
+        //   2. content URI with loadThumbnail (when Android >= Q and specified by the config)
+        //   3. not content URI - loading from the file, or cache file created by the Dart side
+        Uri artUri = Uri.parse(artUriString);
+        boolean usesContentScheme = "content".equals(artUri.getScheme());
+        FileDescriptor fileDescriptor = null;
+        if (usesContentScheme) {
+            try {
+                if (loadThumbnailUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    Size defaultSize = new Size(192, 192);
+                    bitmap = getContentResolver().loadThumbnail(
+                            Uri.parse(loadThumbnailUri),
+                            new Size(config.artDownscaleWidth == -1
+                                            ? defaultSize.getWidth()
+                                            : config.artDownscaleWidth,
+                                    config.artDownscaleHeight == -1
+                                            ? defaultSize.getHeight()
+                                            : config.artDownscaleHeight),
+                            null);
+                    if (bitmap == null) {
+                        return null;
                     }
                 } else {
-                    if (fileDescriptor != null) {
-                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+                    ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(artUri, "r");
+                    if (parcelFileDescriptor != null) {
+                        fileDescriptor = parcelFileDescriptor.getFileDescriptor();
                     } else {
-                        bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                        return null;
                     }
                 }
+            } catch (FileNotFoundException ex) {
+                Log.e("audio_service", "FileNotFoundException, artUriString=" + artUriString + ", loadThumbnailUri=" + loadThumbnailUri);
+                throw new RuntimeException(ex);
+            } catch (IOException ex) {
+                Log.e("audio_service", "IOException, artUriString=" + artUriString + ", loadThumbnailUri=" + loadThumbnailUri);
+                throw new RuntimeException(ex);
             }
-            artBitmapCache.put(artUriString, bitmap);
-            return bitmap;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
         }
+        // Decode the image ourselves for scenarios 1 and 3 (see the comment above).
+        if (!usesContentScheme || fileDescriptor != null) {
+            if (config.artDownscaleWidth != -1) {
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                if (fileDescriptor != null) {
+                    BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                } else {
+                    BitmapFactory.decodeFile(artUri.getPath(), options);
+                }
+                options.inSampleSize = calculateInSampleSize(options, config.artDownscaleWidth, config.artDownscaleHeight);
+                options.inJustDecodeBounds = false;
+
+                if (fileDescriptor != null) {
+                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                } else {
+                    bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
+                }
+            } else {
+                if (fileDescriptor != null) {
+                    bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+                } else {
+                    bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                }
+            }
+        }
+        artBitmapCache.put(artUriString, bitmap);
+        return bitmap;
     }
 
     private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
@@ -727,17 +730,18 @@ public class AudioService extends MediaBrowserServiceCompat {
      *  - https://9to5google.com/2020/08/02/android-11-lockscreen-art/
      */
     synchronized void setMetadata(MediaMetadataCompat mediaMetadata) {
+        boolean updateFallbackArtCache = mediaMetadata.getString("updateFallbackArtCache") != null;
         String artCacheFilePath = mediaMetadata.getString("artCacheFile");
         if (artCacheFilePath != null) {
             // Load local files and network images, cached in files
-            artBitmap = loadArtBitmap(artCacheFilePath, null);
+            artBitmap = loadArtBitmap(artCacheFilePath, null, updateFallbackArtCache);
             mediaMetadata = putArtToMetadata(mediaMetadata);
         } else {
             // Load content:// URIs
             String artUri = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
             if (artUri != null && artUri.startsWith("content:")) {
                 String loadThumbnailUri = mediaMetadata.getString("loadThumbnailUri");
-                artBitmap = loadArtBitmap(artUri, loadThumbnailUri);
+                artBitmap = loadArtBitmap(artUri, loadThumbnailUri, updateFallbackArtCache);
                 mediaMetadata = putArtToMetadata(mediaMetadata);
             } else {
                 artBitmap = null;
