@@ -1,3 +1,9 @@
+## 0.18.10
+
+* Add `AudioService.setFallbackArt` that allows to specify a URI for a default album art (@nt4f04und)
+* Fix `loadThumbnailUri` key in extras never being used (@nt4f04und)
+* Art updates now will log all errors (@nt4f04und)
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
