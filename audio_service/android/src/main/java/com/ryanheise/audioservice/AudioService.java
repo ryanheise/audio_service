@@ -211,7 +211,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                     return null;
                 }
             }
-            // Decode the image ourselves for scenarios 2 and 3 (see the comment above).
+            // Decode the image ourselves for scenarios 1 and 3 (see the comment above).
             if (!usesContentScheme || fileDescriptor != null) {
                 if (config.artDownscaleWidth != -1) {
                     BitmapFactory.Options options = new BitmapFactory.Options();

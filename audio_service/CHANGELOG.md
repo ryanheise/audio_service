@@ -1,6 +1,16 @@
+## 0.18.10
+
+* Support custom media controls (@defsub)
+* Support fast forward, rewind and stop when targeting Android 13 (@defsub)
+
+## 0.18.9
+
+* Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
+* Add Android Auto manifest entry for example app (@ColinSchmale).
+
 ## 0.18.8
 
-* Support fast forward and rewind when targeting Android 13 (@defsub)
+* Improve efficiency of mediaItem updates (@nt4f04uNd).
 
 ## 0.18.7
 
