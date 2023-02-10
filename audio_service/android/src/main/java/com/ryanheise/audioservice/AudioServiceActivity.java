@@ -10,6 +10,7 @@ import io.flutter.embedding.engine.FlutterEngine;
 public class AudioServiceActivity extends FlutterActivity {
     @Override
     public FlutterEngine provideFlutterEngine(@NonNull Context context) {
+        AudioServicePlugin.setArmStartup(true);
         return AudioServicePlugin.getFlutterEngine(context);
     }
 }
