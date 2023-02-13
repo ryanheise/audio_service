@@ -25,7 +25,7 @@ enum MediaButton {
   previous,
 }
 
-/// The actons associated with playing audio.
+/// The actions associated with playing audio.
 enum MediaAction {
   /// Stop playing audio.
   stop,
@@ -102,6 +102,9 @@ enum MediaAction {
 
   /// Set speed.
   setSpeed,
+
+  /// Custom MediaAction.
+  custom,
 }
 
 /// The states of audio processing.
@@ -843,17 +846,28 @@ class MediaControl {
   /// The action to be executed by this control
   final MediaAction action;
 
+  /// The action name to receive in [MediaAction.customAction]
+  final String? customAction;
+
+  /// Creates a custom [MediaControl].
+  MediaControl.custom({
+    required this.androidIcon,
+    required this.label,
+    required this.customAction}) : action = MediaAction.custom;
+
   /// Creates a custom [MediaControl].
   const MediaControl({
     required this.androidIcon,
     required this.label,
     required this.action,
+    this.customAction
   });
 
   MediaControlMessage _toMessage() => MediaControlMessage(
         androidIcon: androidIcon,
         label: label,
         action: MediaActionMessage.values[action.index],
+        customAction: customAction,
       );
 
   @override

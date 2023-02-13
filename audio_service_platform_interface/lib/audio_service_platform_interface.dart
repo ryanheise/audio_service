@@ -260,6 +260,9 @@ enum MediaActionMessage {
   seekBackward,
   seekForward,
   setSpeed,
+
+  /// This media action should be used for custom actions.
+  custom,
 }
 
 class MediaControlMessage {
@@ -273,17 +276,23 @@ class MediaControlMessage {
   /// The action to be executed by this control
   final MediaActionMessage action;
 
+  /// The action string used in [customAction] when the action occurs. This should
+  /// be used along with [MediaAction.custom].
+  final String? customAction;
+
   @literal
   const MediaControlMessage({
     required this.androidIcon,
     required this.label,
     required this.action,
+    this.customAction
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'androidIcon': androidIcon,
         'label': label,
         'action': action.index,
+        if (customAction != null) 'customAction': customAction
       };
 }
 

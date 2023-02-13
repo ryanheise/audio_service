@@ -4,11 +4,13 @@ public class MediaControl {
     public final String icon;
     public final String label;
     public final long actionCode;
+    public final String customAction;
 
-	public MediaControl(String icon, String label, long actionCode) {
+	public MediaControl(String icon, String label, long actionCode, String customAction) {
         this.icon = icon;
         this.label = label;
         this.actionCode = actionCode;
+        this.customAction = customAction;
 	}
 
     @Override

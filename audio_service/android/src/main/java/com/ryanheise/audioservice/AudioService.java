@@ -61,8 +61,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
-    public static final String MEDIA_BUTTON_REWIND_ACTION = "com.ryanheise.audioservice.MEDIA_BUTTON_REWIND";
-    public static final String MEDIA_BUTTON_FAST_FORWARD_ACTION = "com.ryanheise.audioservice.MEDIA_BUTTON_FAST_FORWARD_ACTION";
+    public static final String CUSTOM_MEDIA_BUTTON_ACTION = "com.ryanheise.audioservice.CUSTOM_MEDIA_BUTTON";
+    public static final String EXTRA_ACTION_CODE = "actionCode";
+    public static final String EXTRA_CUSTOM_ACTION = "customAction";
     private static final String BROWSABLE_ROOT_ID = "root";
     private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
@@ -436,25 +437,34 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private boolean needCustomMediaControl(MediaControl control) {
-        return control.actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD ||
-                control.actionCode == PlaybackStateCompat.ACTION_REWIND;
+        if (control.customAction != null && control.customAction.length() > 0) {
+            return true;
+        }
+
+        // Android 13 changes MediaControl behavior as documented here:
+        // https://developer.android.com/about/versions/13/behavior-changes-13
+        // The below actions will be added to slots 1-3, if included.
+        // 1 - ACTION_PLAY, ACTION_PLAY
+        // 2 - ACTION_SKIP_TO_PREVIOUS
+        // 3 - ACTION_SKIP_TO_NEXT
+        // Custom actions will use slots 2-5 if included.
+        // - ACTION_STOP
+        // - ACTION_FAST_FORWARD
+        // - ACTION_REWIND
+        return (Build.VERSION.SDK_INT >= 33 &&
+                (control.actionCode == PlaybackStateCompat.ACTION_STOP ||
+                control.actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD ||
+                control.actionCode == PlaybackStateCompat.ACTION_REWIND));
     }
 
-    private String toCustomActionName(long actionCode) {
-        if (actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD) {
-            return MEDIA_BUTTON_FAST_FORWARD_ACTION;
-        }
-        if (actionCode == PlaybackStateCompat.ACTION_REWIND) {
-            return MEDIA_BUTTON_REWIND_ACTION;
-        }
-        return "";
-    }
-
-    PlaybackStateCompat.CustomAction createCustomAction(String resource, String label, long actionCode) {
-        int iconId = getResourceId(resource);
-        String action = toCustomActionName(actionCode);
+    PlaybackStateCompat.CustomAction createCustomAction(MediaControl action) {
+        int iconId = getResourceId(action.icon);
+        Bundle extras = new Bundle();
+        extras.putLong(EXTRA_ACTION_CODE, action.actionCode);
+        extras.putString(EXTRA_CUSTOM_ACTION, action.customAction);
         PlaybackStateCompat.CustomAction.Builder builder =
-                new PlaybackStateCompat.CustomAction.Builder(action, label, iconId);
+                new PlaybackStateCompat.CustomAction.Builder(
+                        CUSTOM_MEDIA_BUTTON_ACTION, action.label, iconId).setExtras(extras);
         return builder.build();
     }
 
@@ -494,12 +504,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         this.nativeActions.clear();
         this.customActions.clear();
         for (MediaControl action : actions) {
-            if (Build.VERSION.SDK_INT >= 33 && needCustomMediaControl(action)) {
-                // Android 13 changes MediaControl behavior as documented here:
-                // https://developer.android.com/about/versions/13/behavior-changes-13
-                // Generally speaking, play, pause, prev & next are handled based on state.
-                // Other media controls are only supported as custom actions.
-                customActions.add(createCustomAction(action.icon, action.label, action.actionCode));
+            if (needCustomMediaControl(action)) {
+                customActions.add(createCustomAction(action));
             } else {
                 nativeActions.add(createAction(action.icon, action.label, action.actionCode));
             }
@@ -517,10 +523,8 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .setState(getPlaybackState(), position, speed, updateTime)
                 .setBufferedPosition(bufferedPosition);
 
-        if (Build.VERSION.SDK_INT >= 33) {
-            for (PlaybackStateCompat.CustomAction action : this.customActions) {
-                stateBuilder.addCustomAction(action);
-            }
+        for (PlaybackStateCompat.CustomAction action : this.customActions) {
+            stateBuilder.addCustomAction(action);
         }
 
         if (queueIndex != null)
@@ -600,7 +604,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private Notification buildNotification() {
         int[] compactActionIndices = this.compactActionIndices;
         if (compactActionIndices == null) {
-            compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, actions.size())];
+            compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, nativeActions.size())];
             for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
         }
         NotificationCompat.Builder builder = getNotificationBuilder();
@@ -1065,15 +1069,24 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onCustomAction(String action, Bundle extras) {
             if (listener == null) return;
-            switch (action) {
-                case MEDIA_BUTTON_FAST_FORWARD_ACTION:
-                    listener.onFastForward();
-                    return;
-                case MEDIA_BUTTON_REWIND_ACTION:
+            if (CUSTOM_MEDIA_BUTTON_ACTION.equals(action)) {
+                long actionCode = extras.getLong(EXTRA_ACTION_CODE, -1);
+                String customAction = extras.getString(EXTRA_CUSTOM_ACTION);
+                if (customAction != null && customAction.length() > 0) {
+                    listener.onCustomAction(customAction, Bundle.EMPTY);
+                }
+                else if (actionCode == PlaybackStateCompat.ACTION_STOP) {
+                    listener.onStop();
+                } else if (actionCode == PlaybackStateCompat.ACTION_REWIND) {
                     listener.onRewind();
-                    return;
+                } else if (actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD) {
+                    listener.onFastForward();
+                } else {
+                    listener.onCustomAction(action, extras);
+                }
+            } else {
+                listener.onCustomAction(action, extras);
             }
-            listener.onCustomAction(action, extras);
         }
 
         @Override
