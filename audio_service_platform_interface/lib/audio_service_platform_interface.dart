@@ -278,7 +278,7 @@ class MediaControlMessage {
 
   /// The action string used in [customAction] when the action occurs. This should
   /// be used along with [MediaAction.custom].
-  final String? customAction;
+  final CustomActionMessage? customAction;
 
   @literal
   const MediaControlMessage({
@@ -292,8 +292,25 @@ class MediaControlMessage {
         'androidIcon': androidIcon,
         'label': label,
         'action': action.index,
-        if (customAction != null) 'customAction': customAction
+        if (customAction != null) 'customAction': customAction?.toMap()
       };
+}
+
+class CustomActionMessage {
+  /// Custom action name
+  final String name;
+
+  /// A map of additional data for the custom action.
+  ///
+  /// The values must be integers or strings.
+  final Map<String, dynamic>? extras;
+
+  CustomActionMessage({required this.name, this.extras});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+    'name': name,
+    'extras': extras,
+  };
 }
 
 /// The playback state which includes a [playing] boolean state, a processing

@@ -1,3 +1,7 @@
+## 0.2.0
+
+* Add customAction to MediaControlMessage (@defsub)
+
 ## 0.1.0
 
 * Remove unused androidEnableQueue option

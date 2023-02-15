@@ -1,21 +1,14 @@
 // ignore_for_file: public_member_api_docs
 
-// FOR MORE EXAMPLES, VISIT THE GITHUB REPOSITORY AT:
+// This example demonstrates:
 //
-//  https://github.com/ryanheise/audio_service
-//
-// This example implements a minimal audio handler that renders the current
-// media item and playback state to the system notification and responds to 4
-// media actions:
-//
-// - play
-// - pause
-// - seek
-// - stop
+// - Android 13 fast forward, rewind, and stop working with custom actions
+// - Fast forward interval of 30 seconds with custom icons
+// - Android notification with custom "favorite" icon and custom handler.
 //
 // To run this example, use:
 //
-// flutter run
+// flutter run -t lib/example_custom_action.dart
 
 import 'dart:async';
 
@@ -37,6 +30,7 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
+      fastForwardInterval: Duration(seconds: 30),
     ),
   );
   runApp(const MyApp());
@@ -92,7 +86,7 @@ class MainScreen extends StatelessWidget {
                     else
                       _button(Icons.play_arrow, _audioHandler.play),
                     _button(Icons.stop, _audioHandler.stop),
-                    _button(Icons.fast_forward, _audioHandler.fastForward),
+                    _button(Icons.forward_30, _audioHandler.fastForward),
                   ],
                 );
               },
@@ -198,7 +192,9 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) {
     if (kDebugMode) {
-      print(name);
+      if (name == 'favoriteAction') {
+        print('Click favorite, level is ${extras?['level']}');
+      }
     }
     return super.customAction(name, extras);
   }
@@ -214,9 +210,15 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         MediaControl.rewind,
         if (_player.playing) MediaControl.pause else MediaControl.play,
         MediaControl.stop,
-        MediaControl.fastForward,
+        // add fast forward with custom icon
+        const MediaControl(androidIcon: "drawable/baseline_forward_30_24",
+            label: "fast forward",
+            action: MediaAction.fastForward),
+        // add custom action with heart icon
         MediaControl.custom(androidIcon: "drawable/ic_baseline_favorite_24",
-            label: "favorite", customAction: "favorite"),
+            label: "favorite",
+            name: "favoriteAction",
+            extras: <String, dynamic>{'level':1}),
       ],
       systemActions: const {
         MediaAction.seek,

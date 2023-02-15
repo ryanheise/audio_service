@@ -753,6 +753,42 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
       );
 }
 
+/// Custom action information used to define an action name and optional extras
+/// that are sent to [AudioHandler.customAction] when the associated media control is used.
+class CustomAction {
+  /// Custom action name
+  final String name;
+
+  /// A map of additional data for the custom action.
+  ///
+  /// The values must be integers or strings.
+  final Map<String, dynamic>? extras;
+
+  /// Creates a [CustomAction].
+  CustomAction({required this.name, this.extras});
+
+  /// Convert to a Map.
+  Map<String, dynamic> toMap() => <String, dynamic>{
+    'name': name,
+    'extras': extras,
+  };
+
+  CustomActionMessage _toMessage() => CustomActionMessage(
+    name: name,
+    extras: extras,
+  );
+
+  @override
+  int get hashCode => Object.hash(name, extras);
+
+  @override
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+          other is CustomAction &&
+          name == other.name &&
+          mapEquals<String, dynamic>(extras, other.extras);
+}
+
 /// A button to appear in the Android notification, lock screen, Android smart
 /// watch, or Android Auto device. The set of buttons you would like to display
 /// at any given moment should be streamed via [AudioHandler.playbackState].
@@ -846,14 +882,18 @@ class MediaControl {
   /// The action to be executed by this control
   final MediaAction action;
 
-  /// The action name to receive in [MediaAction.customAction]
-  final String? customAction;
+  /// The custom action name and optional extras to receive in
+  /// [AudioHandler.customAction]
+  final CustomAction? customAction;
 
   /// Creates a custom [MediaControl].
-  MediaControl.custom({
-    required this.androidIcon,
-    required this.label,
-    required this.customAction}) : action = MediaAction.custom;
+  MediaControl.custom(
+      {required this.androidIcon,
+      required this.label,
+      required String name,
+      Map<String, dynamic>? extras})
+      : action = MediaAction.custom,
+        customAction = CustomAction(name: name, extras: extras);
 
   /// Creates a custom [MediaControl].
   const MediaControl({
@@ -867,7 +907,7 @@ class MediaControl {
         androidIcon: androidIcon,
         label: label,
         action: MediaActionMessage.values[action.index],
-        customAction: customAction,
+        customAction: customAction?._toMessage(),
       );
 
   @override

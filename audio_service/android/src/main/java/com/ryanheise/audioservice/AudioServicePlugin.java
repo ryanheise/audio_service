@@ -869,8 +869,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     String resource = (String)rawControl.get("androidIcon");
                     String label = (String)rawControl.get("label");
                     long actionCode = 1 << ((Integer)rawControl.get("action"));
-                    String customAction = (String)rawControl.get("customAction");
                     actionBits |= actionCode;
+                    Map<?, ?> customActionMap = (Map<?, ?>)rawControl.get("customAction");
+                    CustomAction customAction = null;
+                    if (customActionMap != null) {
+                        String name = (String) customActionMap.get("name");
+                        Map<?, ?> extras = (Map<?, ?>) customActionMap.get("extras");
+                        customAction = new CustomAction(name, extras);
+                    }
                     actions.add(new MediaControl(resource, label, actionCode, customAction));
                 }
                 for (Integer rawSystemAction : rawSystemActions) {
