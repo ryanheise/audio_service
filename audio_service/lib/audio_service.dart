@@ -880,9 +880,9 @@ class AudioService {
   static BaseCacheManager get cacheManager => _cacheManager!;
   static BaseCacheManager? _cacheManager;
 
-  /// The method used to generate the cache key for interacting with artwork in
-  /// the cache.
-  /// Defaults to [MediaItem.artUri.toString].
+  /// The method used to generate the cache key for interacting with a
+  /// MedieItem's artwork in the cache manager.
+  /// Defaults to using [MediaItem.artUri.toString] as the cache key.
   static FutureOr<String> Function(MediaItem mediaItem) get cacheKeyResolver =>
       _cacheKeyResolver!;
   static FutureOr<String> Function(MediaItem mediaItem)? _cacheKeyResolver;
