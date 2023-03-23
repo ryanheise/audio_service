@@ -1,3 +1,7 @@
+## 0.18.10
+
+* Add optional `cacheKeyResolver` for MediaItem art (@austinried).
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
