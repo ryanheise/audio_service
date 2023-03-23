@@ -1,6 +1,6 @@
 name: audio_service
 description: Flutter plugin to play audio in the background while the screen is off.
-version: 0.18.9
+version: 0.18.10
 homepage: https://github.com/ryanheise/audio_service/tree/master/audio_service
 
 environment:
