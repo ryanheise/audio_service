@@ -146,7 +146,8 @@ class MediaState {
 }
 
 /// An [AudioHandler] for playing a single item.
-class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
+class AudioPlayerHandler extends BaseAudioHandler
+    with SeekHandler, CustomActionHandler {
   static final _item = MediaItem(
     id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
     album: "Science Friday",
@@ -191,11 +192,10 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) {
-    if (kDebugMode) {
-      if (name == 'favoriteAction') {
-        print('Click favorite, level is ${extras?['level']}');
-      }
+    if (name == 'favorite') {
+      print('Click favorite, level is ${extras?['level']}');
     }
+    // see [CustomActionHandler] mixin other custom action handling.
     return super.customAction(name, extras);
   }
 
@@ -207,18 +207,16 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   PlaybackState _transformEvent(PlaybackEvent event) {
     return PlaybackState(
       controls: [
-        MediaControl.rewind,
+        CustomAction.rewindControl,
         if (_player.playing) MediaControl.pause else MediaControl.play,
-        MediaControl.stop,
-        // add fast forward with custom icon
-        const MediaControl(androidIcon: "drawable/baseline_forward_30_24",
-            label: "fast forward",
-            action: MediaAction.fastForward),
-        // add custom action with heart icon
-        MediaControl.custom(androidIcon: "drawable/ic_baseline_favorite_24",
-            label: "favorite",
-            name: "favoriteAction",
-            extras: <String, dynamic>{'level':1}),
+        CustomAction.stopControl,
+        CustomAction.fastForwardControl
+            .copyWith(androidIcon: 'drawable/baseline_forward_30_24'),
+        MediaControl.custom(
+            androidIcon: 'drawable/ic_baseline_favorite_24',
+            label: 'favorite',
+            name: 'favorite',
+            extras: <String, dynamic>{'level': 1}),
       ],
       systemActions: const {
         MediaAction.seek,

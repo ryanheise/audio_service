@@ -61,10 +61,6 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
-    public static final String CUSTOM_MEDIA_BUTTON_ACTION = "com.ryanheise.audioservice.CUSTOM_MEDIA_BUTTON";
-    public static final String EXTRA_ACTION_CODE = "actionCode";
-    public static final String EXTRA_CUSTOM_ACTION_NAME = "actionName";
-    public static final String EXTRA_CUSTOM_ACTION_EXTRAS = "actionExtras";
     private static final String BROWSABLE_ROOT_ID = "root";
     private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
@@ -459,6 +455,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private Bundle mapToBundle(Map<?, ?> map) {
+        if (map == null) {
+            return null;
+        }
         Bundle bundle = new Bundle();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             String key = entry.getKey().toString();
@@ -476,17 +475,9 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     PlaybackStateCompat.CustomAction createCustomAction(MediaControl action) {
         int iconId = getResourceId(action.icon);
-        Bundle extras = new Bundle();
-        extras.putLong(EXTRA_ACTION_CODE, action.actionCode);
-        if (action.customAction != null) {
-            extras.putString(EXTRA_CUSTOM_ACTION_NAME, action.customAction.name);
-            if (action.customAction.extras != null) {
-                extras.putBundle(EXTRA_CUSTOM_ACTION_EXTRAS, mapToBundle(action.customAction.extras));
-            }
-        }
         PlaybackStateCompat.CustomAction.Builder builder =
-                new PlaybackStateCompat.CustomAction.Builder(
-                        CUSTOM_MEDIA_BUTTON_ACTION, action.label, iconId).setExtras(extras);
+                new PlaybackStateCompat.CustomAction.Builder(action.customAction.name,
+                        action.label, iconId).setExtras(mapToBundle(action.customAction.extras));
         return builder.build();
     }
 
@@ -1091,28 +1082,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onCustomAction(String action, Bundle extras) {
             if (listener == null) return;
-            if (CUSTOM_MEDIA_BUTTON_ACTION.equals(action)) {
-                long actionCode = extras.getLong(EXTRA_ACTION_CODE, -1);
-                String actionName = extras.getString(EXTRA_CUSTOM_ACTION_NAME);
-                if (actionName != null && actionName.length() > 0) {
-                    Bundle actionExtras = extras.getBundle(EXTRA_CUSTOM_ACTION_EXTRAS);
-                    if (actionExtras == null) {
-                        actionExtras = Bundle.EMPTY;
-                    }
-                    listener.onCustomAction(actionName, actionExtras);
-                }
-                else if (actionCode == PlaybackStateCompat.ACTION_STOP) {
-                    listener.onStop();
-                } else if (actionCode == PlaybackStateCompat.ACTION_REWIND) {
-                    listener.onRewind();
-                } else if (actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD) {
-                    listener.onFastForward();
-                } else {
-                    listener.onCustomAction(action, extras);
-                }
-            } else {
-                listener.onCustomAction(action, extras);
-            }
+            listener.onCustomAction(action, extras);
         }
 
         @Override

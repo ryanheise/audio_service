@@ -756,6 +756,36 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
 /// Custom action information used to define an action name and optional extras
 /// that are sent to [AudioHandler.customAction] when the associated media control is used.
 class CustomAction {
+  /// Custom action name for stop.
+  static const stop = 'stop';
+  /// Custom action control for stop.
+  static const stopControl = MediaControl(
+    androidIcon: 'drawable/audio_service_stop',
+    label: 'Stop',
+    action: MediaAction.custom,
+    customAction: CustomAction(name: stop),
+  );
+
+  /// Custom action name for rewind.
+  static const rewind = 'rewind';
+  /// Custom action control for rewind.
+  static const rewindControl = MediaControl(
+    androidIcon: 'drawable/audio_service_fast_rewind',
+    label: 'Rewind',
+    action: MediaAction.custom,
+    customAction: CustomAction(name: rewind),
+  );
+
+  /// Custom action name for fast forward.
+  static const fastForward = 'fastForward';
+  /// Custom action control for fast forward.
+  static const fastForwardControl = MediaControl(
+    androidIcon: 'drawable/audio_service_fast_forward',
+    label: 'Fast Forward',
+    action: MediaAction.custom,
+    customAction: CustomAction(name: fastForward),
+  );
+
   /// Custom action name
   final String name;
 
@@ -765,18 +795,18 @@ class CustomAction {
   final Map<String, dynamic>? extras;
 
   /// Creates a [CustomAction].
-  CustomAction({required this.name, this.extras});
+  const CustomAction({required this.name, this.extras});
 
   /// Convert to a Map.
   Map<String, dynamic> toMap() => <String, dynamic>{
-    'name': name,
-    'extras': extras,
-  };
+        'name': name,
+        'extras': extras,
+      };
 
   CustomActionMessage _toMessage() => CustomActionMessage(
-    name: name,
-    extras: extras,
-  );
+        name: name,
+        extras: extras,
+      );
 
   @override
   int get hashCode => Object.hash(name, extras);
@@ -784,9 +814,9 @@ class CustomAction {
   @override
   bool operator ==(Object other) =>
       other.runtimeType == runtimeType &&
-          other is CustomAction &&
-          name == other.name &&
-          mapEquals<String, dynamic>(extras, other.extras);
+      other is CustomAction &&
+      name == other.name &&
+      mapEquals<String, dynamic>(extras, other.extras);
 }
 
 /// A button to appear in the Android notification, lock screen, Android smart
@@ -896,12 +926,23 @@ class MediaControl {
         customAction = CustomAction(name: name, extras: extras);
 
   /// Creates a custom [MediaControl].
-  const MediaControl({
-    required this.androidIcon,
-    required this.label,
-    required this.action,
-    this.customAction
-  });
+  const MediaControl(
+      {required this.androidIcon,
+      required this.label,
+      required this.action,
+      this.customAction});
+
+  /// Creates a copy of this control with given fields replaced by new values.
+  MediaControl copyWith(
+          {String? androidIcon,
+          String? label,
+          MediaAction? action,
+          CustomAction? customAction}) =>
+      MediaControl(
+          androidIcon: androidIcon ?? this.androidIcon,
+          label: label ?? this.label,
+          action: action ?? this.action,
+          customAction: customAction ?? this.customAction);
 
   MediaControlMessage _toMessage() => MediaControlMessage(
         androidIcon: androidIcon,
@@ -2006,19 +2047,26 @@ class SwitchAudioHandler extends CompositeAudioHandler {
 
   @override
   ValueStream<PlaybackState> get playbackState => _playbackState;
+
   @override
   ValueStream<List<MediaItem>> get queue => _queue;
+
   @override
   ValueStream<String> get queueTitle => _queueTitle;
+
   @override
   ValueStream<MediaItem?> get mediaItem => _mediaItem;
+
   @override
   ValueStream<AndroidPlaybackInfo> get androidPlaybackInfo =>
       _androidPlaybackInfo;
+
   @override
   ValueStream<RatingStyle> get ratingStyle => _ratingStyle;
+
   @override
   Stream<dynamic> get customEvent => _customEvent;
+
   @override
   ValueStream<dynamic> get customState => _customState;
 
@@ -3326,6 +3374,23 @@ mixin QueueHandler on BaseAudioHandler {
     final index = playbackState.nvalue!.queueIndex!;
     if (index < 0 || index >= queue.length) return;
     return skipToQueueItem(index + offset);
+  }
+}
+
+/// This mixin provides default implementations for stop, fastForward, and
+/// rewind custom controls.
+mixin CustomActionHandler on BaseAudioHandler {
+  @override
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) {
+    switch (name) {
+      case CustomAction.stop:
+        return stop();
+      case CustomAction.fastForward:
+        return fastForward();
+      case CustomAction.rewind:
+        return rewind();
+    }
+    return super.customAction(name, extras);
   }
 }
 
