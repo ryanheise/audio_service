@@ -758,6 +758,7 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
 class CustomAction {
   /// Custom action name for stop.
   static const stop = 'stop';
+
   /// Custom action control for stop.
   static const stopControl = MediaControl(
     androidIcon: 'drawable/audio_service_stop',
@@ -768,6 +769,7 @@ class CustomAction {
 
   /// Custom action name for rewind.
   static const rewind = 'rewind';
+
   /// Custom action control for rewind.
   static const rewindControl = MediaControl(
     androidIcon: 'drawable/audio_service_fast_rewind',
@@ -778,6 +780,7 @@ class CustomAction {
 
   /// Custom action name for fast forward.
   static const fastForward = 'fastForward';
+
   /// Custom action control for fast forward.
   static const fastForwardControl = MediaControl(
     androidIcon: 'drawable/audio_service_fast_forward',
@@ -917,32 +920,35 @@ class MediaControl {
   final CustomAction? customAction;
 
   /// Creates a custom [MediaControl].
-  MediaControl.custom(
-      {required this.androidIcon,
-      required this.label,
-      required String name,
-      Map<String, dynamic>? extras})
-      : action = MediaAction.custom,
+  MediaControl.custom({
+    required this.androidIcon,
+    required this.label,
+    required String name,
+    Map<String, dynamic>? extras,
+  })  : action = MediaAction.custom,
         customAction = CustomAction(name: name, extras: extras);
 
   /// Creates a custom [MediaControl].
-  const MediaControl(
-      {required this.androidIcon,
-      required this.label,
-      required this.action,
-      this.customAction});
+  const MediaControl({
+    required this.androidIcon,
+    required this.label,
+    required this.action,
+    this.customAction,
+  });
 
   /// Creates a copy of this control with given fields replaced by new values.
-  MediaControl copyWith(
-          {String? androidIcon,
-          String? label,
-          MediaAction? action,
-          CustomAction? customAction}) =>
+  MediaControl copyWith({
+    String? androidIcon,
+    String? label,
+    MediaAction? action,
+    CustomAction? customAction,
+  }) =>
       MediaControl(
-          androidIcon: androidIcon ?? this.androidIcon,
-          label: label ?? this.label,
-          action: action ?? this.action,
-          customAction: customAction ?? this.customAction);
+        androidIcon: androidIcon ?? this.androidIcon,
+        label: label ?? this.label,
+        action: action ?? this.action,
+        customAction: customAction ?? this.customAction,
+      );
 
   MediaControlMessage _toMessage() => MediaControlMessage(
         androidIcon: androidIcon,

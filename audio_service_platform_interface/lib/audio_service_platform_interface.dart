@@ -285,14 +285,14 @@ class MediaControlMessage {
     required this.androidIcon,
     required this.label,
     required this.action,
-    this.customAction
+    this.customAction,
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'androidIcon': androidIcon,
         'label': label,
         'action': action.index,
-        if (customAction != null) 'customAction': customAction?.toMap()
+        if (customAction != null) 'customAction': customAction?.toMap(),
       };
 }
 
