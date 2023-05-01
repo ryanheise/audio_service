@@ -3186,7 +3186,16 @@ class BaseAudioHandler extends AudioHandler {
 
   @override
   Future<dynamic> customAction(String name,
-      [Map<String, dynamic>? extras]) async {}
+      [Map<String, dynamic>? extras]) async {
+    switch (name) {
+      case CustomAction.stop:
+        return stop();
+      case CustomAction.fastForward:
+        return fastForward();
+      case CustomAction.rewind:
+        return rewind();
+    }
+  }
 
   @override
   Future<void> onTaskRemoved() async {}

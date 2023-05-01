@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -877,6 +878,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                         Map<?, ?> extras = (Map<?, ?>) customActionMap.get("extras");
                         customAction = new CustomAction(name, extras);
                     }
+                    // check if we need to insert a CustomAction to support this MediaControl
+                    if (needCustomAction(actionCode) && customAction == null) {
+                        customAction = createCustomAction(actionCode);
+                    }
                     actions.add(new MediaControl(resource, label, actionCode, customAction));
                 }
                 for (Integer rawSystemAction : rawSystemActions) {
@@ -1165,6 +1170,36 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             i++;
         }
         return queue;
+    }
+
+    private static boolean needCustomAction(long actionCode) {
+        // Android 13 changes MediaControl behavior as documented here:
+        // https://developer.android.com/about/versions/13/behavior-changes-13
+        // The below actions will be added to slots 1-3, if included.
+        // 1 - ACTION_PLAY, ACTION_PLAY
+        // 2 - ACTION_SKIP_TO_PREVIOUS
+        // 3 - ACTION_SKIP_TO_NEXT
+        // Custom actions will use slots 2-5 if included.
+        // - ACTION_STOP
+        // - ACTION_FAST_FORWARD
+        // - ACTION_REWIND
+        return Build.VERSION.SDK_INT >= 33 &&
+                (actionCode == PlaybackStateCompat.ACTION_STOP ||
+                        actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD ||
+                        actionCode == PlaybackStateCompat.ACTION_REWIND);
+    }
+
+    private static CustomAction createCustomAction(long actionCode) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (actionCode == PlaybackStateCompat.ACTION_STOP) {
+                return new CustomAction(AudioService.CUSTOM_ACTION_STOP, null);
+            } else if (actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD) {
+                return new CustomAction(AudioService.CUSTOM_ACTION_FAST_FORWARD, null);
+            } else if (actionCode == PlaybackStateCompat.ACTION_REWIND) {
+                return new CustomAction(AudioService.CUSTOM_ACTION_REWIND, null);
+            }
+        }
+        return null;
     }
 
     public static Long getLong(Object o) {

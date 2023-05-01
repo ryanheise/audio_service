@@ -61,6 +61,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
+    public static final String CUSTOM_ACTION_STOP = "com.ryanheise.audioservice.action.STOP";
+    public static final String CUSTOM_ACTION_FAST_FORWARD = "com.ryanheise.audioservice.action.FAST_FORWARD";
+    public static final String CUSTOM_ACTION_REWIND = "com.ryanheise.audioservice.action.REWIND";
     private static final String BROWSABLE_ROOT_ID = "root";
     private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
@@ -434,24 +437,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private boolean needCustomMediaControl(MediaControl control) {
-        if (control.customAction != null) {
-            return true;
-        }
-
-        // Android 13 changes MediaControl behavior as documented here:
-        // https://developer.android.com/about/versions/13/behavior-changes-13
-        // The below actions will be added to slots 1-3, if included.
-        // 1 - ACTION_PLAY, ACTION_PLAY
-        // 2 - ACTION_SKIP_TO_PREVIOUS
-        // 3 - ACTION_SKIP_TO_NEXT
-        // Custom actions will use slots 2-5 if included.
-        // - ACTION_STOP
-        // - ACTION_FAST_FORWARD
-        // - ACTION_REWIND
-        return (Build.VERSION.SDK_INT >= 33 &&
-                (control.actionCode == PlaybackStateCompat.ACTION_STOP ||
-                control.actionCode == PlaybackStateCompat.ACTION_FAST_FORWARD ||
-                control.actionCode == PlaybackStateCompat.ACTION_REWIND));
+        return control.customAction != null;
     }
 
     private Bundle mapToBundle(Map<?, ?> map) {
@@ -1082,7 +1068,15 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onCustomAction(String action, Bundle extras) {
             if (listener == null) return;
-            listener.onCustomAction(action, extras);
+            if (CUSTOM_ACTION_STOP.equals(action)) {
+                listener.onStop();
+            } else if (CUSTOM_ACTION_FAST_FORWARD.equals(action)) {
+                listener.onFastForward();
+            } else if (CUSTOM_ACTION_REWIND.equals(action)) {
+                listener.onRewind();
+            } else {
+                listener.onCustomAction(action, extras);
+            }
         }
 
         @Override
