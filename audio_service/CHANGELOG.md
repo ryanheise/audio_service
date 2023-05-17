@@ -1,3 +1,7 @@
+## 0.18.10
+
+* Added the namespace field to comply to new Android AGP needs. 
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
