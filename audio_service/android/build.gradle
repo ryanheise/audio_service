@@ -40,7 +40,9 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
-    namespace 'com.ryanheise.audioservice'
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.ryanheise.audioservice'
+    }
 }
 
 dependencies {
