@@ -3,11 +3,11 @@ package com.ryanheise.audioservice;
 import java.util.Map;
 import java.util.Objects;
 
-public class CustomAction {
+public class CustomMediaAction {
     public final String name;
     public final Map<?, ?> extras;
 
-    public CustomAction(String name, Map<?, ?> extras) {
+    public CustomMediaAction(String name, Map<?, ?> extras) {
         this.name = name;
         this.extras = extras;
     }
@@ -16,7 +16,7 @@ public class CustomAction {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        CustomAction that = (CustomAction) o;
+        CustomMediaAction that = (CustomMediaAction) o;
         return name.equals(that.name) && Objects.equals(extras, that.extras);
     }
 

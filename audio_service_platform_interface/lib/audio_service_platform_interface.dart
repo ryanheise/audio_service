@@ -278,7 +278,7 @@ class MediaControlMessage {
 
   /// The action string used in [customAction] when the action occurs. This should
   /// be used along with [MediaAction.custom].
-  final CustomActionMessage? customAction;
+  final CustomMediaActionMessage? customAction;
 
   @literal
   const MediaControlMessage({
@@ -296,7 +296,7 @@ class MediaControlMessage {
       };
 }
 
-class CustomActionMessage {
+class CustomMediaActionMessage {
   /// Custom action name
   final String name;
 
@@ -305,12 +305,12 @@ class CustomActionMessage {
   /// The values must be integers or strings.
   final Map<String, dynamic>? extras;
 
-  CustomActionMessage({required this.name, this.extras});
+  CustomMediaActionMessage({required this.name, this.extras});
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-    'name': name,
-    'extras': extras,
-  };
+        'name': name,
+        'extras': extras,
+      };
 }
 
 /// The playback state which includes a [playing] boolean state, a processing

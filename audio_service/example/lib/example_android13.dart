@@ -146,8 +146,7 @@ class MediaState {
 }
 
 /// An [AudioHandler] for playing a single item.
-class AudioPlayerHandler extends BaseAudioHandler
-    with SeekHandler, CustomActionHandler {
+class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   static final _item = MediaItem(
     id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
     album: "Science Friday",
@@ -193,9 +192,9 @@ class AudioPlayerHandler extends BaseAudioHandler
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) {
     if (name == 'favorite') {
+      // ignore: avoid_print
       print('Click favorite, level is ${extras?['level']}');
     }
-    // see [CustomActionHandler] mixin other custom action handling.
     return super.customAction(name, extras);
   }
 

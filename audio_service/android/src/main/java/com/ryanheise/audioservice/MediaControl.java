@@ -6,14 +6,14 @@ public class MediaControl {
     public final String icon;
     public final String label;
     public final long actionCode;
-    public final CustomAction customAction;
+    public final CustomMediaAction customAction;
 
-	public MediaControl(String icon, String label, long actionCode, CustomAction customAction) {
+    public MediaControl(String icon, String label, long actionCode, CustomMediaAction customAction) {
         this.icon = icon;
         this.label = label;
         this.actionCode = actionCode;
         this.customAction = customAction;
-	}
+    }
 
     @Override
     public boolean equals(Object other) {
