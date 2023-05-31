@@ -1,3 +1,9 @@
+## 0.18.10
+
+* Add support for AGP 8 (@theskyblockman).
+* Update AGP to 7.3.0.
+* Update minimum flutter version to 3.0.
+
 ## 0.18.9
 
 * Fix cache bug in AudioServiceFragmentActivity (@Mordtimer).
