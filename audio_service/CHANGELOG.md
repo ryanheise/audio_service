@@ -1,6 +1,8 @@
 ## 0.18.10
 
-* Added the namespace field to comply to new Android AGP needs. 
+* Add support for AGP 8 (@theskyblockman).
+* Update AGP to 7.3.0.
+* Update minimum flutter version to 3.0.
 
 ## 0.18.9
 
