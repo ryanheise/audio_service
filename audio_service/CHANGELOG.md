@@ -2,6 +2,9 @@
 
 * Support custom media controls (@defsub)
 * Support fast forward, rewind and stop when targeting Android 13 (@defsub)
+* Add support for AGP 8 (@theskyblockman).
+* Update AGP to 7.3.0.
+* Update minimum flutter version to 3.0.
 
 ## 0.18.9
 
