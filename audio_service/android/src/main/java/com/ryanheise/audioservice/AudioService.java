@@ -806,6 +806,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             listener.onTaskRemoved();
         }
         super.onTaskRemoved(rootIntent);
+        this.stopSelf();
     }
 
     public class MediaSessionCallback extends MediaSessionCompat.Callback {
