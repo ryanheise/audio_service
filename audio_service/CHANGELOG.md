@@ -1,3 +1,7 @@
+## 0.18.11
+
+* Add deep link support for FlutterFragmentActivity (@jan-milovanovic)
+
 ## 0.18.10
 
 * Add support for AGP 8 (@theskyblockman).
