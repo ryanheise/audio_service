@@ -595,6 +595,9 @@ class MediaItemMessage {
   /// The rating of the MediaItemMessage.
   final RatingMessage? rating;
 
+  /// Denotes whether the now playing is a live stream
+  final bool? isLiveStream;
+
   /// A map of additional metadata for the media item.
   ///
   /// The values must be integers or strings.
@@ -617,6 +620,7 @@ class MediaItemMessage {
     this.displaySubtitle,
     this.displayDescription,
     this.rating,
+    this.isLiveStream,
     this.extras,
   });
 
@@ -641,6 +645,7 @@ class MediaItemMessage {
         rating: raw['rating'] != null
             ? RatingMessage.fromMap(_castMap(raw['rating'] as Map)!)
             : null,
+        isLiveStream: raw['isLiveStream'] as bool?,
         extras: _castMap(raw['extras'] as Map?),
       );
 
@@ -659,6 +664,7 @@ class MediaItemMessage {
         'displaySubtitle': displaySubtitle,
         'displayDescription': displayDescription,
         'rating': rating?.toMap(),
+        'isLiveStream': isLiveStream,
         'extras': extras,
       };
 }
