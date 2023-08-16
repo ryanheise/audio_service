@@ -1,3 +1,6 @@
+## 0.18.11
+* Fix AudioService.position stream inconsistencies
+
 ## 0.18.10
 
 * Add support for AGP 8 (@theskyblockman).
