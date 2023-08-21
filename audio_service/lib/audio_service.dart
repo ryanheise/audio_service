@@ -1299,7 +1299,7 @@ class AudioService {
   @Deprecated("Use PlaybackState.processingState instead.")
   static bool get running => runningStream.nvalue ?? false;
 
-  static StreamSubscription? _childrenSubscription;
+  static StreamSubscription<Map<String, dynamic>>? _childrenSubscription;
 
   /// Deprecated. The new [AudioHandler] API now automatically starts the
   /// service when your implementation enters the playing state. Parameters can
@@ -3840,7 +3840,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   }
 
   @override
-  Future customAction(CustomActionRequest request) async =>
+  Future<dynamic> customAction(CustomActionRequest request) async =>
       (await handlerFuture).customAction(request.name, request.extras);
 
   @override

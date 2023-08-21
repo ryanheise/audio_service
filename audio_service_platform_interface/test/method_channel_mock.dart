@@ -10,16 +10,16 @@ class MockMethodChannel {
     required String channelName,
     this.methods,
   }) : methodChannel = MethodChannel(channelName) {
-    //TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
-    //    .setMockMethodCallHandler(methodChannel, _handler);
-    methodChannel.setMockMethodCallHandler(_handler);
+    _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(methodChannel, _handler);
   }
 
   MockMethodChannel copyWith(Map<String, dynamic> methods) {
     return MockMethodChannel(channelName: methodChannel.name, methods: methods);
   }
 
-  Future _handler(MethodCall call) async {
+  Future<Object?> _handler(MethodCall call) async {
     log.add(call);
 
     if (!methods!.containsKey(call.method)) {
@@ -37,3 +37,5 @@ class MockMethodChannel {
     return Future<dynamic>.value(result);
   }
 }
+
+T? _ambiguate<T>(T? value) => value;
