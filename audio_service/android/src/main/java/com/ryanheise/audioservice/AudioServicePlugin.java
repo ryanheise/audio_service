@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -870,7 +871,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     String label = (String)rawControl.get("label");
                     long actionCode = 1 << ((Integer)rawControl.get("action"));
                     actionBits |= actionCode;
-                    actions.add(new MediaControl(resource, label, actionCode));
+                    Map<?, ?> customActionMap = (Map<?, ?>)rawControl.get("customAction");
+                    CustomMediaAction customAction = null;
+                    if (customActionMap != null) {
+                        String name = (String) customActionMap.get("name");
+                        Map<?, ?> extras = (Map<?, ?>) customActionMap.get("extras");
+                        customAction = new CustomMediaAction(name, extras);
+                    }
+                    actions.add(new MediaControl(resource, label, actionCode, customAction));
                 }
                 for (Integer rawSystemAction : rawSystemActions) {
                     long actionCode = 1 << rawSystemAction;

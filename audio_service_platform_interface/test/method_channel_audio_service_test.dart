@@ -15,7 +15,9 @@ class MockMethodChannelAudioService extends MethodChannelAudioService
     implements MockPlatformInterfaceMixin {
   @override
   void setHandlerCallbacks(AudioHandlerCallbacks callbacks) {
-    handlerChannel.setMockMethodCallHandler((call) async {
+    _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(handlerChannel, (call) async {
       return handlerCallbacksCallHandler(callbacks, call);
     });
   }
@@ -704,3 +706,5 @@ void main() {
     });
   });
 }
+
+T? _ambiguate<T>(T? value) => value;

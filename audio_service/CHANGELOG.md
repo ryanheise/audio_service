@@ -2,6 +2,11 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.11
+
+* Support custom media controls (@defsub)
+* Support fast forward, rewind and stop when targeting Android 13 (@defsub)
+
 ## 0.18.10
 
 * Add support for AGP 8 (@theskyblockman).

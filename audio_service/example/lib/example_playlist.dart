@@ -90,7 +90,7 @@ class MainScreen extends StatelessWidget {
                           ),
                         ),
                       Text(mediaItem.album ?? '',
-                          style: Theme.of(context).textTheme.headline6),
+                          style: Theme.of(context).textTheme.titleLarge),
                       Text(mediaItem.title),
                     ],
                   );
@@ -149,7 +149,7 @@ class MainScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     "Playlist",
-                    style: Theme.of(context).textTheme.headline6,
+                    style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
                 ),

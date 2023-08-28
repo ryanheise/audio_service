@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:audio_service_platform_interface/no_op_audio_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -260,6 +259,9 @@ enum MediaActionMessage {
   seekBackward,
   seekForward,
   setSpeed,
+
+  /// This media action should be used for custom actions.
+  custom,
 }
 
 class MediaControlMessage {
@@ -273,17 +275,40 @@ class MediaControlMessage {
   /// The action to be executed by this control
   final MediaActionMessage action;
 
+  /// The action string used in [customAction] when the action occurs. This should
+  /// be used along with [MediaAction.custom].
+  final CustomMediaActionMessage? customAction;
+
   @literal
   const MediaControlMessage({
     required this.androidIcon,
     required this.label,
     required this.action,
+    this.customAction,
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'androidIcon': androidIcon,
         'label': label,
         'action': action.index,
+        if (customAction != null) 'customAction': customAction?.toMap(),
+      };
+}
+
+class CustomMediaActionMessage {
+  /// Custom action name
+  final String name;
+
+  /// A map of additional data for the custom action.
+  ///
+  /// The values must be integers or strings.
+  final Map<String, dynamic>? extras;
+
+  CustomMediaActionMessage({required this.name, this.extras});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name,
+        'extras': extras,
       };
 }
 
@@ -639,9 +664,10 @@ class MediaItemMessage {
         displaySubtitle: raw['displaySubtitle'] as String?,
         displayDescription: raw['displayDescription'] as String?,
         rating: raw['rating'] != null
-            ? RatingMessage.fromMap(_castMap(raw['rating'] as Map)!)
+            ? RatingMessage.fromMap(
+                _castMap(raw['rating'] as Map<dynamic, dynamic>)!)
             : null,
-        extras: _castMap(raw['extras'] as Map?),
+        extras: _castMap(raw['extras'] as Map<dynamic, dynamic>?),
       );
 
   /// Converts this [MediaItemMessage] to a map of key/value pairs corresponding to
@@ -1410,4 +1436,5 @@ class AudioServiceConfigMessage {
 /// Used mostly to unwrap [MethodCall.arguments] which in case with maps
 /// is always `Map<Object?, Object?>`.
 @pragma('vm:prefer-inline')
-Map<String, dynamic>? _castMap(Map? map) => map?.cast<String, dynamic>();
+Map<String, dynamic>? _castMap(Map<dynamic, dynamic>? map) =>
+    map?.cast<String, dynamic>();
