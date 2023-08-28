@@ -25,7 +25,7 @@ enum MediaButton {
   previous,
 }
 
-/// The actons associated with playing audio.
+/// The actions associated with playing audio.
 enum MediaAction {
   /// Stop playing audio.
   stop,
@@ -102,6 +102,9 @@ enum MediaAction {
 
   /// Set speed.
   setSpeed,
+
+  /// Custom MediaAction.
+  custom,
 }
 
 /// The states of audio processing.
@@ -750,6 +753,42 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
       );
 }
 
+/// Custom action information used to define an action name and optional extras
+/// that are sent to [AudioHandler.customAction] when the associated media control is used.
+class CustomMediaAction {
+  /// Custom action name
+  final String name;
+
+  /// A map of additional data for the custom action.
+  ///
+  /// The values must be integers or strings.
+  final Map<String, dynamic>? extras;
+
+  /// Creates a [CustomMediaAction].
+  const CustomMediaAction({required this.name, this.extras});
+
+  /// Convert to a Map.
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'name': name,
+        'extras': extras,
+      };
+
+  CustomMediaActionMessage _toMessage() => CustomMediaActionMessage(
+        name: name,
+        extras: extras,
+      );
+
+  @override
+  int get hashCode => Object.hash(name, extras);
+
+  @override
+  bool operator ==(Object other) =>
+      other.runtimeType == runtimeType &&
+      other is CustomMediaAction &&
+      name == other.name &&
+      mapEquals<String, dynamic>(extras, other.extras);
+}
+
 /// A button to appear in the Android notification, lock screen, Android smart
 /// watch, or Android Auto device. The set of buttons you would like to display
 /// at any given moment should be streamed via [AudioHandler.playbackState].
@@ -843,17 +882,48 @@ class MediaControl {
   /// The action to be executed by this control
   final MediaAction action;
 
+  /// The custom action name and optional extras to receive in
+  /// [AudioHandler.customAction]
+  final CustomMediaAction? customAction;
+
+  /// Creates a custom [MediaControl].
+  MediaControl.custom({
+    required this.androidIcon,
+    required this.label,
+    required String name,
+    Map<String, dynamic>? extras,
+  })  : action = MediaAction.custom,
+        customAction = CustomMediaAction(name: name, extras: extras) {
+    assert(action != MediaAction.custom || customAction != null);
+  }
+
   /// Creates a custom [MediaControl].
   const MediaControl({
     required this.androidIcon,
     required this.label,
     required this.action,
+    this.customAction,
   });
+
+  /// Creates a copy of this control with given fields replaced by new values.
+  MediaControl copyWith({
+    String? androidIcon,
+    String? label,
+    MediaAction? action,
+    CustomMediaAction? customAction,
+  }) =>
+      MediaControl(
+        androidIcon: androidIcon ?? this.androidIcon,
+        label: label ?? this.label,
+        action: action ?? this.action,
+        customAction: customAction ?? this.customAction,
+      );
 
   MediaControlMessage _toMessage() => MediaControlMessage(
         androidIcon: androidIcon,
         label: label,
         action: MediaActionMessage.values[action.index],
+        customAction: customAction?._toMessage(),
       );
 
   @override
@@ -1229,7 +1299,7 @@ class AudioService {
   @Deprecated("Use PlaybackState.processingState instead.")
   static bool get running => runningStream.nvalue ?? false;
 
-  static StreamSubscription? _childrenSubscription;
+  static StreamSubscription<Map<String, dynamic>>? _childrenSubscription;
 
   /// Deprecated. The new [AudioHandler] API now automatically starts the
   /// service when your implementation enters the playing state. Parameters can
@@ -1952,19 +2022,26 @@ class SwitchAudioHandler extends CompositeAudioHandler {
 
   @override
   ValueStream<PlaybackState> get playbackState => _playbackState;
+
   @override
   ValueStream<List<MediaItem>> get queue => _queue;
+
   @override
   ValueStream<String> get queueTitle => _queueTitle;
+
   @override
   ValueStream<MediaItem?> get mediaItem => _mediaItem;
+
   @override
   ValueStream<AndroidPlaybackInfo> get androidPlaybackInfo =>
       _androidPlaybackInfo;
+
   @override
   ValueStream<RatingStyle> get ratingStyle => _ratingStyle;
+
   @override
   Stream<dynamic> get customEvent => _customEvent;
+
   @override
   ValueStream<dynamic> get customState => _customState;
 
@@ -3763,7 +3840,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
   }
 
   @override
-  Future customAction(CustomActionRequest request) async =>
+  Future<dynamic> customAction(CustomActionRequest request) async =>
       (await handlerFuture).customAction(request.name, request.extras);
 
   @override

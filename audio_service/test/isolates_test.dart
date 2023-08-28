@@ -339,7 +339,7 @@ class _MockAudioHandler implements BaseAudioHandler {
       case 'add':
         final streamName = extras!['stream'] as String;
         final dynamic arg = extras['arg'];
-        <String, Subject>{
+        <String, Subject<dynamic>>{
           'playbackState': playbackState,
           'queue': queue,
           'queueTitle': queueTitle,
