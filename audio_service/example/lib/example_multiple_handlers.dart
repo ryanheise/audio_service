@@ -47,7 +47,6 @@ Future<void> main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ryanheise.myapp.channel.audio',
       androidNotificationChannelName: 'Audio playback',
-      androidNotificationOngoing: true,
     ),
   );
   runApp(const MyApp());

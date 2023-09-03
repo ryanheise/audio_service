@@ -2828,7 +2828,11 @@ class AudioServiceConfig {
   /// If you set this to true, [androidStopForegroundOnPause] must be true as well,
   /// otherwise this will not do anything, because when foreground service is active,
   /// it forces notification to be ongoing.
-  final bool androidNotificationOngoing;
+  ///
+  /// Leave this unset if you would like the plugin to automatically set the
+  /// ongoing status whenever your handler is playing audio (i.e.
+  /// [PlaybackState.playing] and [AudioProcessingState.ready] are true.)
+  final bool? androidNotificationOngoing;
 
   /// Whether the Android service should switch to a lower priority state when
   /// playback is paused allowing the user to swipe away the notification. Note
@@ -2877,7 +2881,7 @@ class AudioServiceConfig {
     this.androidNotificationIcon = 'mipmap/ic_launcher',
     this.androidShowNotificationBadge = false,
     this.androidNotificationClickStartsActivity = true,
-    this.androidNotificationOngoing = false,
+    this.androidNotificationOngoing,
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
@@ -2887,7 +2891,9 @@ class AudioServiceConfig {
     this.androidBrowsableRootExtras,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
         assert(
-          !androidNotificationOngoing || androidStopForegroundOnPause,
+          androidNotificationOngoing == null ||
+              !androidNotificationOngoing ||
+              androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
         );
 
@@ -2902,7 +2908,9 @@ class AudioServiceConfig {
         androidShowNotificationBadge: androidShowNotificationBadge,
         androidNotificationClickStartsActivity:
             androidNotificationClickStartsActivity,
-        androidNotificationOngoing: androidNotificationOngoing,
+        // TODO: update AudioServiceConfigMessage.androidNotificationOngoing
+        // to be nullable.
+        androidNotificationOngoing: androidNotificationOngoing ?? false,
         androidStopForegroundOnPause: androidStopForegroundOnPause,
         artDownscaleWidth: artDownscaleWidth,
         artDownscaleHeight: artDownscaleHeight,
