@@ -2,6 +2,10 @@
 
 * Remove deprecated BackgroundAudioTask API.
 
+## 0.18.12
+
+* Fix crash with Oppo/OnePlus devices running Android 13.
+
 ## 0.18.11
 
 * Support custom media controls (@defsub)
