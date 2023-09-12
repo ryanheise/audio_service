@@ -650,8 +650,10 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.addAction(action);
         }
         final MediaStyle style = new MediaStyle()
-            .setMediaSession(mediaSession.getSessionToken())
-            .setShowActionsInCompactView(compactActionIndices);
+            .setMediaSession(mediaSession.getSessionToken());
+        if (Build.VERSION.SDK_INT < 33) {
+            style.setShowActionsInCompactView(compactActionIndices);
+        }
         if (config.androidNotificationOngoing) {
             style.setShowCancelButton(true);
             style.setCancelButtonIntent(buildMediaButtonPendingIntent(PlaybackStateCompat.ACTION_STOP));
@@ -772,7 +774,7 @@ public class AudioService extends MediaBrowserServiceCompat {
      * Gets called from background thread.
      */
     synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
-        this.queue = queue;
+        AudioService.queue = queue;
         mediaSession.setQueue(queue);
     }
 
