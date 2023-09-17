@@ -129,6 +129,15 @@ enum AudioProcessingState {
   /// [PlaybackState.errorCode] and [PlaybackState.errorMessage] will be not null
   /// in this state.
   error,
+
+  // The player is playing
+  playing,
+
+  // The player was stopped
+  stopped,
+
+  // The player was paused
+  paused
 }
 
 /// The playback state which includes a [playing] boolean state, a processing
@@ -3042,7 +3051,12 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> prepareFromUri(Uri uri, [Map<String, dynamic>? extras]) async {}
 
   @override
-  Future<void> play() async {}
+  Future<void> play() async {
+    playbackState.add(playbackState.nvalue!
+        .copyWith(processingState: AudioProcessingState.playing));
+    await playbackState.firstWhere(
+            (state) => state.processingState == AudioProcessingState.playing);
+  }
 
   @override
   Future<void> playFromMediaId(String mediaId,
@@ -3059,7 +3073,12 @@ class BaseAudioHandler extends AudioHandler {
   Future<void> playMediaItem(MediaItem mediaItem) async {}
 
   @override
-  Future<void> pause() async {}
+  Future<void> pause() async {
+    playbackState.add(playbackState.nvalue!
+        .copyWith(processingState: AudioProcessingState.paused));
+    await playbackState.firstWhere(
+            (state) => state.processingState == AudioProcessingState.paused);
+  }
 
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
@@ -3088,9 +3107,9 @@ class BaseAudioHandler extends AudioHandler {
   @override
   Future<void> stop() async {
     playbackState.add(playbackState.nvalue!
-        .copyWith(processingState: AudioProcessingState.idle));
+        .copyWith(processingState: AudioProcessingState.stopped));
     await playbackState.firstWhere(
-        (state) => state.processingState == AudioProcessingState.idle);
+        (state) => state.processingState == AudioProcessingState.stopped);
   }
 
   @override

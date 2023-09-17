@@ -220,6 +220,15 @@ enum AudioProcessingStateMessage {
   /// [PlaybackStateMessage.errorCode] and [PlaybackStateMessage.errorMessage] will be not null
   /// in this state.
   error,
+
+  /// The player is playing
+  playing,
+
+  /// The player has been paused
+  paused,
+
+  /// The player has been stopped
+  stopped,
 }
 
 /// The actions associated with playing audio. The index of each enum value from

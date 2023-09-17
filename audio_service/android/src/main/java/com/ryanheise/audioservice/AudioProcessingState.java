@@ -7,4 +7,7 @@ public enum AudioProcessingState {
     ready,
     completed,
     error,
+    playing,
+    stopped,
+    paused
 }

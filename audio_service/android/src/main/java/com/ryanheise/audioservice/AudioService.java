@@ -611,12 +611,15 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public int getPlaybackState() {
         switch (processingState) {
-        case idle: return PlaybackStateCompat.STATE_STOPPED;
+        case idle: return PlaybackStateCompat.STATE_NONE;
         case loading: return PlaybackStateCompat.STATE_CONNECTING;
         case buffering: return PlaybackStateCompat.STATE_BUFFERING;
         case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         case error: return PlaybackStateCompat.STATE_ERROR;
+        case playing: return PlaybackStateCompat.STATE_PLAYING;
+        case stopped: return PlaybackStateCompat.STATE_STOPPED;
+        case paused: return PlaybackStateCompat.STATE_PAUSED;
         default: return PlaybackStateCompat.STATE_NONE;
         }
     }
