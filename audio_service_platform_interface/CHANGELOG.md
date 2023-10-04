@@ -1,3 +1,7 @@
+## 0.1.2
+
+* Support for MPNowPlayingInfoPropertyIsLiveStream on IOS
+
 ## 0.1.1
 
 * Add customAction to MediaControlMessage (@defsub)

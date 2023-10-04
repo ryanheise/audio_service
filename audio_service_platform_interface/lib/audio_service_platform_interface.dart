@@ -620,6 +620,9 @@ class MediaItemMessage {
   /// The rating of the MediaItemMessage.
   final RatingMessage? rating;
 
+  // Whether this is a livestream
+  final bool? isLive;
+
   /// A map of additional metadata for the media item.
   ///
   /// The values must be integers or strings.
@@ -642,6 +645,7 @@ class MediaItemMessage {
     this.displaySubtitle,
     this.displayDescription,
     this.rating,
+    this.isLive,
     this.extras,
   });
 
@@ -667,6 +671,7 @@ class MediaItemMessage {
             ? RatingMessage.fromMap(
                 _castMap(raw['rating'] as Map<dynamic, dynamic>)!)
             : null,
+        isLive: raw['isLive'] as bool?,
         extras: _castMap(raw['extras'] as Map<dynamic, dynamic>?),
       );
 
@@ -685,6 +690,7 @@ class MediaItemMessage {
         'displaySubtitle': displaySubtitle,
         'displayDescription': displayDescription,
         'rating': rating?.toMap(),
+        'isLive': isLive,
         'extras': extras,
       };
 }
