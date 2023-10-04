@@ -1,3 +1,7 @@
+## 0.18.13
+
+* Support for MPNowPlayingInfoPropertyIsLiveStream on IOS
+
 ## 0.18.12
 
 * Fix crash with Oppo/OnePlus devices running Android 13.
