@@ -1,3 +1,6 @@
+## 0.18.13
+* Fix AudioService.position stream inconsistencies
+
 ## 0.18.12
 
 * Fix crash with Oppo/OnePlus devices running Android 13.
