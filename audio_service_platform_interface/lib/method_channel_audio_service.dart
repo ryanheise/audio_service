@@ -73,17 +73,20 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'prepareFromMediaId':
         await callbacks.prepareFromMediaId(PrepareFromMediaIdRequest(
             mediaId: call.arguments['mediaId'] as String,
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'prepareFromSearch':
         await callbacks.prepareFromSearch(PrepareFromSearchRequest(
             query: call.arguments['query'] as String,
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'prepareFromUri':
         await callbacks.prepareFromUri(PrepareFromUriRequest(
             uri: Uri.parse(call.arguments['uri'] as String),
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'play':
         await callbacks.play(const PlayRequest());
@@ -91,22 +94,25 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'playFromMediaId':
         await callbacks.playFromMediaId(PlayFromMediaIdRequest(
             mediaId: call.arguments['mediaId'] as String,
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'playFromSearch':
         await callbacks.playFromSearch(PlayFromSearchRequest(
             query: call.arguments['query'] as String,
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'playFromUri':
         await callbacks.playFromUri(PlayFromUriRequest(
             uri: Uri.parse(call.arguments['uri'] as String),
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'playMediaItem':
         await callbacks.playMediaItem(PlayMediaItemRequest(
-            mediaItem: MediaItemMessage.fromMap(
-                _castMap(call.arguments['mediaItem'] as Map)!)));
+            mediaItem: MediaItemMessage.fromMap(_castMap(
+                call.arguments['mediaItem'] as Map<dynamic, dynamic>)!)));
         return null;
       case 'pause':
         await callbacks.pause(const PauseRequest());
@@ -121,19 +127,19 @@ class MethodChannelAudioService extends AudioServicePlatform {
         return null;
       case 'addQueueItem':
         await callbacks.addQueueItem(AddQueueItemRequest(
-            mediaItem: MediaItemMessage.fromMap(
-                _castMap(call.arguments['mediaItem'] as Map)!)));
+            mediaItem: MediaItemMessage.fromMap(_castMap(
+                call.arguments['mediaItem'] as Map<dynamic, dynamic>)!)));
         return null;
       case 'insertQueueItem':
         await callbacks.insertQueueItem(InsertQueueItemRequest(
             index: call.arguments['index'] as int,
-            mediaItem: MediaItemMessage.fromMap(
-                _castMap(call.arguments['mediaItem'] as Map)!)));
+            mediaItem: MediaItemMessage.fromMap(_castMap(
+                call.arguments['mediaItem'] as Map<dynamic, dynamic>)!)));
         return null;
       case 'removeQueueItem':
         await callbacks.removeQueueItem(RemoveQueueItemRequest(
-            mediaItem: MediaItemMessage.fromMap(
-                _castMap(call.arguments['mediaItem'] as Map)!)));
+            mediaItem: MediaItemMessage.fromMap(_castMap(
+                call.arguments['mediaItem'] as Map<dynamic, dynamic>)!)));
         return null;
       case 'removeQueueItemAt':
         await callbacks.removeQueueItemAt(
@@ -163,8 +169,9 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'setRating':
         await callbacks.setRating(SetRatingRequest(
             rating: RatingMessage.fromMap(
-                _castMap(call.arguments['rating'] as Map)!),
-            extras: _castMap(call.arguments['extras'] as Map?)));
+                _castMap(call.arguments['rating'] as Map<dynamic, dynamic>)!),
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'setCaptioningEnabled':
         await callbacks.setCaptioningEnabled(SetCaptioningEnabledRequest(
@@ -195,7 +202,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'customAction':
         await callbacks.customAction(CustomActionRequest(
             name: call.arguments['name'] as String,
-            extras: _castMap(call.arguments['extras'] as Map?)));
+            extras:
+                _castMap(call.arguments['extras'] as Map<dynamic, dynamic>?)));
         return null;
       case 'onTaskRemoved':
         await callbacks.onTaskRemoved(const OnTaskRemovedRequest());
@@ -211,7 +219,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'getChildren':
         return (await callbacks.getChildren(GetChildrenRequest(
                 parentMediaId: call.arguments['parentMediaId'] as String,
-                options: _castMap(call.arguments['options'] as Map?))))
+                options: _castMap(
+                    call.arguments['options'] as Map<dynamic, dynamic>?))))
             .toMap();
       case 'getMediaItem':
         return (await callbacks.getMediaItem(GetMediaItemRequest(
@@ -220,7 +229,8 @@ class MethodChannelAudioService extends AudioServicePlatform {
       case 'search':
         return (await callbacks.search(SearchRequest(
                 query: call.arguments['query'] as String,
-                extras: _castMap(call.arguments['extras'] as Map?))))
+                extras: _castMap(
+                    call.arguments['extras'] as Map<dynamic, dynamic>?))))
             .toMap();
       case 'androidSetRemoteVolume':
         await callbacks.androidSetRemoteVolume(AndroidSetRemoteVolumeRequest(
@@ -245,4 +255,5 @@ class MethodChannelAudioService extends AudioServicePlatform {
 /// Used mostly to unwrap [MethodCall.arguments] which in case with maps
 /// is always `Map<Object?, Object?>`.
 @pragma('vm:prefer-inline')
-Map<String, dynamic>? _castMap(Map? map) => map?.cast<String, dynamic>();
+Map<String, dynamic>? _castMap(Map<dynamic, dynamic>? map) =>
+    map?.cast<String, dynamic>();

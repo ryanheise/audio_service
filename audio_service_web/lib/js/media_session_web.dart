@@ -82,7 +82,7 @@ abstract class MediaSessionActions {
 }
 
 /// A callback signature for the [MediaSession.setActionHandler].
-typedef MediaSessionActionHandler = Function(MediaSessionActionDetails);
+typedef MediaSessionActionHandler = dynamic Function(MediaSessionActionDetails);
 
 /// Specifies the type of action which needs to be performed
 /// as well as the data needed to perform the action.
