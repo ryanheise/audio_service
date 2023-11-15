@@ -916,6 +916,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 final Integer maxVolume = (Integer)playbackInfo.get("maxVolume");
                 final Integer volume = (Integer)playbackInfo.get("volume");
                 AudioService.instance.setPlaybackInfo(playbackType, volumeControlType, maxVolume, volume);
+                result.success(null);
                 break;
             }
             case "notifyChildrenChanged": {

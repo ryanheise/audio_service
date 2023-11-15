@@ -3,6 +3,10 @@
 * Remove deprecated BackgroundAudioTask API.
 * BREAKING: playbackState.copyWith no longer changes updateTime by default.
 
+## 0.18.13
+
+* Fix setAndroidPlaybackInfo call blocking (@julianscheel).
+
 ## 0.18.12
 
 * Fix crash with Oppo/OnePlus devices running Android 13.
