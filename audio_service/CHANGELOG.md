@@ -1,6 +1,6 @@
 ## 0.18.13
 
-* Fix setAndroidPlaybackInfo call blocking.
+* Fix setAndroidPlaybackInfo call blocking (@julianscheel).
 
 ## 0.18.12
 
