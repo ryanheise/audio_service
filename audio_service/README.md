@@ -1,6 +1,6 @@
 # audio_service
 
-This plugin wraps around your existing audio code to allow it to run in the background and interact with the media notification, the lock screen, headset buttons, wearables and Android Auto. It supports Android, iOS, web and Windows (via [audio_service_mpris](https://pub.dev/packages/audio_service_mpris)). It is suitable for:
+This plugin wraps around your existing audio code to allow it to run in the background and interact with the media notification, the lock screen, headset buttons, wearables and Android Auto. It supports Android, iOS, web and Linux (via [audio_service_mpris](https://pub.dev/packages/audio_service_mpris)). It is suitable for:
 
 * Music players
 * Text-to-speech readers
