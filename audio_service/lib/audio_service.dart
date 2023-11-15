@@ -355,6 +355,7 @@ abstract class PlaybackStateCopyWith {
     Duration updatePosition,
     Duration bufferedPosition,
     double speed,
+    DateTime? updateTime,
     int? errorCode,
     String? errorMessage,
     AudioServiceRepeatMode repeatMode,
@@ -384,6 +385,7 @@ class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
     Object? updatePosition = _fakeNull,
     Object? bufferedPosition = _fakeNull,
     Object? speed = _fakeNull,
+    Object? updateTime = _fakeNull,
     Object? errorCode = _fakeNull,
     Object? errorMessage = _fakeNull,
     Object? repeatMode = _fakeNull,
@@ -412,6 +414,8 @@ class _PlaybackStateCopyWith extends PlaybackStateCopyWith {
             ? value.bufferedPosition
             : bufferedPosition as Duration,
         speed: speed == _fakeNull ? value.speed : speed as double,
+        updateTime:
+            updateTime == _fakeNull ? value.updateTime : updateTime as DateTime,
         errorCode: errorCode == _fakeNull ? value.errorCode : errorCode as int?,
         errorMessage: errorMessage == _fakeNull
             ? value.errorMessage
