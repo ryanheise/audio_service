@@ -11,20 +11,22 @@ dependencies:
     sdk: flutter
 
   path_provider: ^2.0.1
-  audio_session: ^0.1.7
-  just_audio: ^0.9.24
-  flutter_tts: ^3.3.3
-  device_info_plus: ^3.2.1
-  android_content_provider: ^0.2.0
-  permission_handler : ^8.3.0
+  audio_session: ^0.1.18
+  just_audio: ^0.9.36
+  flutter_tts: ^3.8.3
+  device_info_plus: ^9.1.0
+  android_content_provider: ^0.4.1
+  permission_handler : ^11.0.1
   rxdart: ^0.27.2
   audio_service:
     path: ../
+  audio_service_mpris: ^0.1.3
+  just_audio_mpv: ^0.1.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^1.0.4
+  flutter_lints: ^3.0.1
 
 flutter:
   uses-material-design: true
