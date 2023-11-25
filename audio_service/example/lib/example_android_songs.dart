@@ -1,4 +1,4 @@
-// ignore_for_file: public_member_api_docs
+// ignore_for_file: public_member_api_docs, dangling_library_doc_comments
 
 /// This example demonstrates working songs on Android, in particular it shows:
 ///
@@ -71,7 +71,7 @@ Future<void> main() async {
 
   DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
   AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-  sdkInt = androidInfo.version.sdkInt!;
+  sdkInt = androidInfo.version.sdkInt;
 
   _audioHandler = await AudioService.init(
     builder: () => AudioPlayerHandler(),
@@ -192,8 +192,8 @@ class _MainScreenState extends State<MainScreen> {
       child = Scaffold(
         body: Center(
           child: ElevatedButton(
-            child: const Text('Grant storage permissions'),
             onPressed: _fetch,
+            child: const Text('Grant storage permissions'),
           ),
         ),
       );
@@ -209,8 +209,8 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             const Text('There is no music on your device'),
             ElevatedButton(
-              child: const Text('Refetch'),
               onPressed: _fetch,
+              child: const Text('Refetch'),
             ),
           ],
         ),
