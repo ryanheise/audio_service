@@ -1,6 +1,6 @@
 ## 0.18.14
 
-* Fix ForegroundServiceStartNotAllowedException when androidDisableForeground is set to true.
+* Fix ForegroundServiceStartNotAllowedException when androidDisableForeground is set to true (@JoseBarreto1).
 
 ## 0.18.13
 
