@@ -1350,6 +1350,9 @@ class AudioServiceConfigMessage {
   /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
 
+  /// If you set this to true Disable Foreground
+  final bool androidDisableForeground;
+
   /// If not null, causes the artwork specified by [MediaItemMessage.artUri] to be
   /// downscaled to this maximum pixel width. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
@@ -1395,6 +1398,7 @@ class AudioServiceConfigMessage {
     this.androidNotificationClickStartsActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
+    this.androidDisableForeground = false,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
@@ -1422,6 +1426,7 @@ class AudioServiceConfigMessage {
             androidNotificationClickStartsActivity,
         'androidNotificationOngoing': androidNotificationOngoing,
         'androidStopForegroundOnPause': androidStopForegroundOnPause,
+        'androidDisableForeground': androidDisableForeground,
         'artDownscaleWidth': artDownscaleWidth,
         'artDownscaleHeight': artDownscaleHeight,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,

@@ -1,3 +1,6 @@
+## 0.1.2
+* Add interface androidDisableForeground
+
 ## 0.1.1
 
 * Add customAction to MediaControlMessage (@defsub)

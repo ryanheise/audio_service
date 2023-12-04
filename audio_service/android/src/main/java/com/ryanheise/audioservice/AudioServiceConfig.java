@@ -19,6 +19,7 @@ public class AudioServiceConfig {
     private static final String KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY = "androidNotificationClickStartsActivity";
     private static final String KEY_ANDROID_NOTIFICATION_ONGOING = "androidNotificationOngoing";
     private static final String KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE = "androidStopForegroundOnPause";
+    private static final String KEY_ANDROID_DISABLE_FOREGROUND = "androidDisableForeground";
     private static final String KEY_ART_DOWNSCALE_WIDTH = "artDownscaleWidth";
     private static final String KEY_ART_DOWNSCALE_HEIGHT = "artDownscaleHeight";
     private static final String KEY_ACTIVITY_CLASS_NAME = "activityClassName";
@@ -35,6 +36,7 @@ public class AudioServiceConfig {
     public boolean androidNotificationClickStartsActivity;
     public boolean androidNotificationOngoing;
     public boolean androidStopForegroundOnPause;
+    public boolean androidDisableForeground;
     public int artDownscaleWidth;
     public int artDownscaleHeight;
     public String activityClassName;
@@ -52,6 +54,7 @@ public class AudioServiceConfig {
         androidNotificationClickStartsActivity = preferences.getBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, true);
         androidNotificationOngoing = preferences.getBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, false);
         androidStopForegroundOnPause = preferences.getBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, true);
+        androidDisableForeground = preferences.getBoolean(KEY_ANDROID_DISABLE_FOREGROUND, false);
         artDownscaleWidth = preferences.getInt(KEY_ART_DOWNSCALE_WIDTH, -1);
         artDownscaleHeight = preferences.getInt(KEY_ART_DOWNSCALE_HEIGHT, -1);
         activityClassName = preferences.getString(KEY_ACTIVITY_CLASS_NAME, null);
@@ -111,6 +114,7 @@ public class AudioServiceConfig {
             .putBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, androidNotificationClickStartsActivity)
             .putBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, androidNotificationOngoing)
             .putBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, androidStopForegroundOnPause)
+            .putBoolean(KEY_ANDROID_DISABLE_FOREGROUND, androidDisableForeground)
             .putInt(KEY_ART_DOWNSCALE_WIDTH, artDownscaleWidth)
             .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
             .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)

@@ -714,7 +714,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void enterPlayingState() {
-        ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        if (!config.androidDisableForeground) {
+            ContextCompat.startForegroundService(this, new Intent(AudioService.this, AudioService.class));
+        }
         if (!mediaSession.isActive())
             mediaSession.setActive(true);
 
@@ -730,12 +732,16 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void exitForegroundState() {
-        legacyStopForeground(false);
-        releaseWakeLock();
+        if (!config.androidDisableForeground) {
+            legacyStopForeground(false);
+            releaseWakeLock();
+        }
     }
 
     private void internalStartForeground() {
-        startForeground(NOTIFICATION_ID, buildNotification());
+        if (!config.androidDisableForeground) {
+            startForeground(NOTIFICATION_ID, buildNotification());
+        }
         notificationCreated = true;
     }
 

@@ -1,3 +1,7 @@
+## 0.18.14
+
+* Fix ForegroundServiceStartNotAllowedException when androidDisableForeground is set to true.
+
 ## 0.18.13
 
 * Fix setAndroidPlaybackInfo call blocking (@julianscheel).
