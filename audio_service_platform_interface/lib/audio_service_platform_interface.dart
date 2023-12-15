@@ -1350,6 +1350,13 @@ class AudioServiceConfigMessage {
   /// able to kill your service at any time to reclaim resources.
   final bool androidStopForegroundOnPause;
 
+  /// Similar to [androidStopForegroundOnPause] except on occurs when the
+  /// AudioProcessingState == AudioProcessingState.completed. The Android service will
+  /// switch to a lower priority state allowing the user to swipe away the notification.
+  /// Note that while in this lower priority state, the operating system will also be
+  /// able to kill your service at any time to reclaim resources.
+  final bool androidStopForegroundOnCompleted;
+
   /// If not null, causes the artwork specified by [MediaItemMessage.artUri] to be
   /// downscaled to this maximum pixel width. If the resolution of your artwork
   /// is particularly high, this can help to conserve memory. If specified,
@@ -1395,6 +1402,7 @@ class AudioServiceConfigMessage {
     this.androidNotificationClickStartsActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
+    this.androidStopForegroundOnCompleted = true,
     this.artDownscaleWidth,
     this.artDownscaleHeight,
     this.fastForwardInterval = const Duration(seconds: 10),
@@ -1422,6 +1430,7 @@ class AudioServiceConfigMessage {
             androidNotificationClickStartsActivity,
         'androidNotificationOngoing': androidNotificationOngoing,
         'androidStopForegroundOnPause': androidStopForegroundOnPause,
+        'androidStopForegroundOnCompleted': androidStopForegroundOnCompleted,
         'artDownscaleWidth': artDownscaleWidth,
         'artDownscaleHeight': artDownscaleHeight,
         'fastForwardInterval': fastForwardInterval.inMilliseconds,
