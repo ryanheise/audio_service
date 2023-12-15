@@ -189,8 +189,8 @@ public class AudioService extends MediaBrowserServiceCompat {
                         bitmap = getContentResolver().loadThumbnail(
                                 artUri,
                                 new Size(config.artDownscaleWidth == -1
-                                    ? defaultSize.getWidth()
-                                    : config.artDownscaleWidth,
+                                                ? defaultSize.getWidth()
+                                                : config.artDownscaleWidth,
                                         config.artDownscaleHeight == -1
                                                 ? defaultSize.getHeight()
                                                 : config.artDownscaleHeight),
