@@ -189,8 +189,8 @@ public class AudioService extends MediaBrowserServiceCompat {
                         bitmap = getContentResolver().loadThumbnail(
                                 artUri,
                                 new Size(config.artDownscaleWidth == -1
-                                        ? defaultSize.getWidth()
-                                        : config.artDownscaleWidth,
+                                    ? defaultSize.getWidth()
+                                    : config.artDownscaleWidth,
                                         config.artDownscaleHeight == -1
                                                 ? defaultSize.getHeight()
                                                 : config.artDownscaleHeight),
@@ -401,8 +401,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     public void configure(AudioServiceConfig config) {
         this.config = config;
         notificationChannelId = (config.androidNotificationChannelId != null)
-                ? config.androidNotificationChannelId
-                : getApplication().getPackageName() + ".channel";
+            ? config.androidNotificationChannelId
+            : getApplication().getPackageName() + ".channel";
 
         if (config.activityClassName != null) {
             Context context = getApplicationContext();
@@ -463,8 +463,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         int iconId = getResourceId(control.icon);
         if (control.customAction != null) {
             return new PlaybackStateCompat.CustomAction.Builder(control.customAction.name, control.label, iconId)
-                    .setExtras(mapToBundle(control.customAction.extras))
-                    .build();
+                .setExtras(mapToBundle(control.customAction.extras))
+                .build();
         } else if (Build.VERSION.SDK_INT >= 33) {
             // Android 13 changes MediaControl behavior as documented here:
             // https://developer.android.com/about/versions/13/behavior-changes-13
@@ -616,13 +616,13 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public int getPlaybackState() {
         switch (processingState) {
-            case idle: return PlaybackStateCompat.STATE_NONE;
-            case loading: return PlaybackStateCompat.STATE_CONNECTING;
-            case buffering: return PlaybackStateCompat.STATE_BUFFERING;
-            case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-            case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-            case error: return PlaybackStateCompat.STATE_ERROR;
-            default: return PlaybackStateCompat.STATE_NONE;
+        case idle: return PlaybackStateCompat.STATE_NONE;
+        case loading: return PlaybackStateCompat.STATE_CONNECTING;
+        case buffering: return PlaybackStateCompat.STATE_BUFFERING;
+        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+        case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+        case error: return PlaybackStateCompat.STATE_ERROR;
+        default: return PlaybackStateCompat.STATE_NONE;
         }
     }
 
@@ -655,7 +655,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.addAction(action);
         }
         final MediaStyle style = new MediaStyle()
-                .setMediaSession(mediaSession.getSessionToken());
+            .setMediaSession(mediaSession.getSessionToken());
         if (Build.VERSION.SDK_INT < 33) {
             style.setShowActionsInCompactView(compactActionIndices);
         }
@@ -964,38 +964,38 @@ public class AudioService extends MediaBrowserServiceCompat {
             final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().getParcelable(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 switch (event.getKeyCode()) {
-                    case KEYCODE_BYPASS_PLAY:
-                        onPlay();
-                        break;
-                    case KEYCODE_BYPASS_PAUSE:
-                        onPause();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_STOP:
-                        onStop();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                        onFastForward();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_REWIND:
-                        onRewind();
-                        break;
-                    // Android unfortunately reroutes media button clicks to
-                    // KEYCODE_MEDIA_PLAY/PAUSE instead of the expected KEYCODE_HEADSETHOOK
-                    // or KEYCODE_MEDIA_PLAY_PAUSE. As a result, we can't genuinely tell if
-                    // onMediaButtonEvent was called because a media button was actually
-                    // pressed or because a PLAY/PAUSE action was pressed instead! To get
-                    // around this, we make PLAY and PAUSE actions use different keycodes:
-                    // KEYCODE_BYPASS_PLAY/PAUSE. Now if we get KEYCODE_MEDIA_PLAY/PUASE
-                    // we know it is actually a media button press.
-                    case KeyEvent.KEYCODE_MEDIA_NEXT:
-                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                    case KeyEvent.KEYCODE_MEDIA_PLAY:
-                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                        // These are the "genuine" media button click events
-                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                    case KeyEvent.KEYCODE_HEADSETHOOK:
-                        listener.onClick(eventToButton(event));
-                        break;
+                case KEYCODE_BYPASS_PLAY:
+                    onPlay();
+                    break;
+                case KEYCODE_BYPASS_PAUSE:
+                    onPause();
+                    break;
+                case KeyEvent.KEYCODE_MEDIA_STOP:
+                    onStop();
+                    break;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                    onFastForward();
+                    break;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                    onRewind();
+                    break;
+                // Android unfortunately reroutes media button clicks to
+                // KEYCODE_MEDIA_PLAY/PAUSE instead of the expected KEYCODE_HEADSETHOOK
+                // or KEYCODE_MEDIA_PLAY_PAUSE. As a result, we can't genuinely tell if
+                // onMediaButtonEvent was called because a media button was actually
+                // pressed or because a PLAY/PAUSE action was pressed instead! To get
+                // around this, we make PLAY and PAUSE actions use different keycodes:
+                // KEYCODE_BYPASS_PLAY/PAUSE. Now if we get KEYCODE_MEDIA_PLAY/PUASE
+                // we know it is actually a media button press.
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    // These are the "genuine" media button click events
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_HEADSETHOOK:
+                    listener.onClick(eventToButton(event));
+                    break;
                 }
             }
             return true;
@@ -1003,15 +1003,15 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         private MediaButton eventToButton(KeyEvent event) {
             switch (event.getKeyCode()) {
-                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                case KeyEvent.KEYCODE_HEADSETHOOK:
-                    return MediaButton.media;
-                case KeyEvent.KEYCODE_MEDIA_NEXT:
-                    return MediaButton.next;
-                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                    return MediaButton.previous;
-                default:
-                    return MediaButton.media;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_HEADSETHOOK:
+                return MediaButton.media;
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+                return MediaButton.next;
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                return MediaButton.previous;
+            default:
+                return MediaButton.media;
             }
         }
 

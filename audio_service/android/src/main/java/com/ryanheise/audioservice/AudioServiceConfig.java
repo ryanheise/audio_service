@@ -104,21 +104,21 @@ public class AudioServiceConfig {
 
     public void save() {
         preferences.edit()
-                .putBoolean(KEY_ANDROID_RESUME_ON_CLICK, androidResumeOnClick)
-                .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_ID, androidNotificationChannelId)
-                .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_NAME, androidNotificationChannelName)
-                .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_DESCRIPTION, androidNotificationChannelDescription)
-                .putInt(KEY_NOTIFICATION_COLOR, notificationColor)
-                .putString(KEY_ANDROID_NOTIFICATION_ICON, androidNotificationIcon)
-                .putBoolean(KEY_ANDROID_SHOW_NOTIFICATION_BADGE, androidShowNotificationBadge)
-                .putBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, androidNotificationClickStartsActivity)
-                .putBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, androidNotificationOngoing)
-                .putBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, androidStopForegroundOnPause)
-                .putBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_COMPLETED, androidStopForegroundOnCompleted)
-                .putInt(KEY_ART_DOWNSCALE_WIDTH, artDownscaleWidth)
-                .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
-                .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)
-                .putString(KEY_BROWSABLE_ROOT_EXTRAS, browsableRootExtras)
-                .apply();
+            .putBoolean(KEY_ANDROID_RESUME_ON_CLICK, androidResumeOnClick)
+            .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_ID, androidNotificationChannelId)
+            .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_NAME, androidNotificationChannelName)
+            .putString(KEY_ANDROID_NOTIFICATION_CHANNEL_DESCRIPTION, androidNotificationChannelDescription)
+            .putInt(KEY_NOTIFICATION_COLOR, notificationColor)
+            .putString(KEY_ANDROID_NOTIFICATION_ICON, androidNotificationIcon)
+            .putBoolean(KEY_ANDROID_SHOW_NOTIFICATION_BADGE, androidShowNotificationBadge)
+            .putBoolean(KEY_ANDROID_NOTIFICATION_CLICK_STARTS_ACTIVITY, androidNotificationClickStartsActivity)
+            .putBoolean(KEY_ANDROID_NOTIFICATION_ONGOING, androidNotificationOngoing)
+            .putBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_PAUSE, androidStopForegroundOnPause)
+            .putBoolean(KEY_ANDROID_STOP_FOREGROUND_ON_COMPLETED, androidStopForegroundOnCompleted)
+            .putInt(KEY_ART_DOWNSCALE_WIDTH, artDownscaleWidth)
+            .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
+            .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)
+            .putString(KEY_BROWSABLE_ROOT_EXTRAS, browsableRootExtras)
+            .apply();
     }
 }
