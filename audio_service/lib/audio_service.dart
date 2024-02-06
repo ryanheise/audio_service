@@ -3891,7 +3891,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> playFromMediaId(PlayFromMediaIdRequest request) async =>
-      (await handlerFuture).playFromMediaId(request.mediaId);
+      (await handlerFuture).playFromMediaId(request.mediaId, request.extras);
 
   @override
   Future<void> playFromSearch(PlayFromSearchRequest request) async =>
@@ -3899,7 +3899,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> playFromUri(PlayFromUriRequest request) async =>
-      (await handlerFuture).playFromUri(request.uri);
+      (await handlerFuture).playFromUri(request.uri, request.extras);
 
   @override
   Future<void> playMediaItem(PlayMediaItemRequest request) async =>
@@ -3911,15 +3911,15 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> prepareFromMediaId(PrepareFromMediaIdRequest request) async =>
-      (await handlerFuture).prepareFromMediaId(request.mediaId);
+      (await handlerFuture).prepareFromMediaId(request.mediaId, request.extras);
 
   @override
   Future<void> prepareFromSearch(PrepareFromSearchRequest request) async =>
-      (await handlerFuture).prepareFromSearch(request.query);
+      (await handlerFuture).prepareFromSearch(request.query, request.extras);
 
   @override
   Future<void> prepareFromUri(PrepareFromUriRequest request) async =>
-      (await handlerFuture).prepareFromUri(request.uri);
+      (await handlerFuture).prepareFromUri(request.uri, request.extras);
 
   @override
   Future<void> removeQueueItem(RemoveQueueItemRequest request) async =>
