@@ -3895,7 +3895,7 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> playFromSearch(PlayFromSearchRequest request) async =>
-      (await handlerFuture).playFromSearch(request.query);
+      (await handlerFuture).playFromSearch(request.query, request.extras);
 
   @override
   Future<void> playFromUri(PlayFromUriRequest request) async =>
