@@ -336,6 +336,18 @@ class AudioPlayerHandler extends BaseAudioHandler
     }
   }
 
+  // Override this to grab the specific tapped item id.
+  @override
+  Future<void> playFromMediaId(String mediaId,
+      [Map<String, dynamic>? extras]) async {
+    //Get the index of the item on the queue
+
+    var index = queue.value.indexWhere((element) => element.id == mediaId);
+
+    // Skip to the item to start playing.
+    await skipToQueueItem(index);
+  }
+
   @override
   Future<List<MediaItem>> getChildren(String parentMediaId,
       [Map<String, dynamic>? options]) async {
@@ -430,15 +442,18 @@ class MediaLibrary {
   static const albumsRootId = 'albums';
 
   final items = <String, List<MediaItem>>{
-    AudioService.browsableRootId: const [
+    AudioService.browsableRootId: [
       MediaItem(
         id: albumsRootId,
         title: "Albums",
         playable: false,
+        artUri: Uri.parse(
+            'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
       ),
     ],
     albumsRootId: [
       MediaItem(
+        playable: true,
         id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
         album: "Science Friday",
         title: "A Salute To Head-Scratching Science",
@@ -448,6 +463,7 @@ class MediaLibrary {
             'https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg'),
       ),
       MediaItem(
+        playable: true,
         id: 'https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3',
         album: "Science Friday",
         title: "From Cat Rheology To Operatic Incompetence",
