@@ -1,3 +1,5 @@
+// ignore_for_file: close_sinks
+
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
@@ -966,7 +968,6 @@ class AudioService {
   /// The root media ID for browsing the most recently played item(s).
   static const String recentRootId = 'recent';
 
-  // ignore: close_sinks
   static final BehaviorSubject<bool> _notificationClicked =
       BehaviorSubject.seeded(false);
 
@@ -1014,13 +1015,13 @@ class AudioService {
   }
 
   static Future<void> _observeMediaItem() async {
-    Object? _artFetchOperationId;
+    Object? artFetchOperationId;
     _handler.mediaItem.listen((mediaItem) async {
       if (mediaItem == null) {
         return;
       }
       final operationId = Object();
-      _artFetchOperationId = operationId;
+      artFetchOperationId = operationId;
       final artUri = mediaItem.artUri;
       if (artUri == null || artUri.scheme == 'content') {
         _platform.setMediaItem(
@@ -1028,7 +1029,7 @@ class AudioService {
       } else {
         /// Sends media item to the platform.
         /// We potentially need to fetch the art before that.
-        Future<void> _sendToPlatform(String? filePath) async {
+        Future<void> sendToPlatform(String? filePath) async {
           final extras = mediaItem.extras;
           final platformMediaItem = mediaItem.copyWith(
             extras: <String, dynamic>{
@@ -1041,35 +1042,35 @@ class AudioService {
         }
 
         if (artUri.scheme == 'file') {
-          _sendToPlatform(artUri.toFilePath());
+          sendToPlatform(artUri.toFilePath());
         } else {
           // Try to load a cached file from memory.
           final fileInfo =
               await cacheManager.getFileFromMemory(artUri.toString());
           final filePath = fileInfo?.file.path;
-          if (operationId != _artFetchOperationId) {
+          if (operationId != artFetchOperationId) {
             return;
           }
 
           if (filePath != null) {
             // If we successfully downloaded the art call to platform.
-            _sendToPlatform(filePath);
+            sendToPlatform(filePath);
           } else {
             // We haven't fetched the art yet, so show the metadata now, and again
             // after we load the art.
             await _platform.setMediaItem(
                 SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
-            if (operationId != _artFetchOperationId) {
+            if (operationId != artFetchOperationId) {
               return;
             }
             // Load the art.
             final loadedFilePath = await _loadArtwork(mediaItem);
-            if (operationId != _artFetchOperationId) {
+            if (operationId != artFetchOperationId) {
               return;
             }
             // If we successfully downloaded the art, call to platform.
             if (loadedFilePath != null) {
-              _sendToPlatform(loadedFilePath);
+              sendToPlatform(loadedFilePath);
             }
           }
         }
@@ -1116,7 +1117,7 @@ class AudioService {
   /// no slower than once every 200ms.
   ///
   /// See [createPositionStream] for more control over the stream parameters.
-  static late final Stream<Duration> position = createPositionStream(
+  static final Stream<Duration> position = createPositionStream(
       steps: 800,
       minPeriod: const Duration(milliseconds: 16),
       maxPeriod: const Duration(milliseconds: 200));
@@ -1138,7 +1139,6 @@ class AudioService {
     assert(minPeriod <= maxPeriod);
     assert(minPeriod > Duration.zero);
     Duration? last;
-    // ignore: close_sinks
     late StreamController<Duration> controller;
     late StreamSubscription<MediaItem?> mediaItemSubscription;
     late StreamSubscription<PlaybackState> playbackStateSubscription;
@@ -2342,7 +2342,6 @@ class BaseAudioHandler extends AudioHandler {
   /// The state changes broadcast via this stream can be listened to via the
   /// Flutter app's UI
   @override
-  // ignore: close_sinks
   final BehaviorSubject<PlaybackState> playbackState =
       BehaviorSubject.seeded(PlaybackState());
 
@@ -2363,7 +2362,6 @@ class BaseAudioHandler extends AudioHandler {
   /// queueTitle.add(newTitle);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
 
   /// A controller for broadcasting the current media item to the app's UI,
@@ -2373,7 +2371,6 @@ class BaseAudioHandler extends AudioHandler {
   /// mediaItem.add(item);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
 
   /// A controller for broadcasting the current [AndroidPlaybackInfo] to the app's UI,
@@ -2383,7 +2380,6 @@ class BaseAudioHandler extends AudioHandler {
   /// androidPlaybackInfo.add(newPlaybackInfo);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
 
@@ -2394,7 +2390,6 @@ class BaseAudioHandler extends AudioHandler {
   /// ratingStyle.add(style);
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
   /// A controller for broadcasting a custom event to the app's UI.
@@ -2405,7 +2400,6 @@ class BaseAudioHandler extends AudioHandler {
   /// customEventSubject.add(MyCustomEvent(arg: 3));
   /// ```
   @override
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   /// A controller for broadcasting the current custom state to the app's UI.
@@ -2415,7 +2409,6 @@ class BaseAudioHandler extends AudioHandler {
   /// customState.add(MyCustomState(...));
   /// ```
   @override
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
   /// Constructor. Normally this is called from subclasses via `super`.
@@ -3179,15 +3172,15 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> playFromMediaId(PlayFromMediaIdRequest request) async =>
-      (await handlerFuture).playFromMediaId(request.mediaId);
+      (await handlerFuture).playFromMediaId(request.mediaId, request.extras);
 
   @override
   Future<void> playFromSearch(PlayFromSearchRequest request) async =>
-      (await handlerFuture).playFromSearch(request.query);
+      (await handlerFuture).playFromSearch(request.query, request.extras);
 
   @override
   Future<void> playFromUri(PlayFromUriRequest request) async =>
-      (await handlerFuture).playFromUri(request.uri);
+      (await handlerFuture).playFromUri(request.uri, request.extras);
 
   @override
   Future<void> playMediaItem(PlayMediaItemRequest request) async =>
@@ -3199,15 +3192,15 @@ class _HandlerCallbacks extends AudioHandlerCallbacks {
 
   @override
   Future<void> prepareFromMediaId(PrepareFromMediaIdRequest request) async =>
-      (await handlerFuture).prepareFromMediaId(request.mediaId);
+      (await handlerFuture).prepareFromMediaId(request.mediaId, request.extras);
 
   @override
   Future<void> prepareFromSearch(PrepareFromSearchRequest request) async =>
-      (await handlerFuture).prepareFromSearch(request.query);
+      (await handlerFuture).prepareFromSearch(request.query, request.extras);
 
   @override
   Future<void> prepareFromUri(PrepareFromUriRequest request) async =>
-      (await handlerFuture).prepareFromUri(request.uri);
+      (await handlerFuture).prepareFromUri(request.uri, request.extras);
 
   @override
   Future<void> removeQueueItem(RemoveQueueItemRequest request) async =>

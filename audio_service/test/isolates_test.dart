@@ -1,3 +1,5 @@
+// ignore_for_file: close_sinks
+
 import 'dart:isolate';
 
 import 'package:audio_service/audio_service.dart';
@@ -265,7 +267,6 @@ void isolateEntryPoint(SendPort sendPort) {
 
 class _MockAudioHandler implements BaseAudioHandler {
   @override
-  // ignore: close_sinks
   final BehaviorSubject<PlaybackState> playbackState =
       BehaviorSubject.seeded(PlaybackState());
 
@@ -274,28 +275,22 @@ class _MockAudioHandler implements BaseAudioHandler {
       BehaviorSubject.seeded(<MediaItem>[]);
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<String> queueTitle = BehaviorSubject.seeded('');
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<MediaItem?> mediaItem = BehaviorSubject.seeded(null);
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<AndroidPlaybackInfo> androidPlaybackInfo =
       BehaviorSubject();
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<RatingStyle> ratingStyle = BehaviorSubject();
 
   @override
-  // ignore: close_sinks
   final PublishSubject<dynamic> customEvent = PublishSubject<dynamic>();
 
   @override
-  // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
   final Map<String, int> invocationCounts = {};
