@@ -114,6 +114,7 @@ class MainScreen extends StatelessWidget {
                 final processingState =
                     snapshot.data ?? AudioProcessingState.idle;
                 return Text(
+                    // ignore: deprecated_member_use
                     "Processing state: ${describeEnum(processingState)}");
               },
             ),
