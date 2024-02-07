@@ -457,6 +457,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     config.androidNotificationIcon = (String)configMap.get("androidNotificationIcon");
                     config.androidShowNotificationBadge = (Boolean)configMap.get("androidShowNotificationBadge");
                     config.androidStopForegroundOnPause = (Boolean)configMap.get("androidStopForegroundOnPause");
+                    config.androidStopForegroundOnCompleted = (Boolean)configMap.get("androidStopForegroundOnCompleted");
                     config.artDownscaleWidth = configMap.get("artDownscaleWidth") != null ? (Integer)configMap.get("artDownscaleWidth") : -1;
                     config.artDownscaleHeight = configMap.get("artDownscaleHeight") != null ? (Integer)configMap.get("artDownscaleHeight") : -1;
                     config.setBrowsableRootExtras((Map<?,?>)configMap.get("androidBrowsableRootExtras"));

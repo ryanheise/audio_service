@@ -576,6 +576,11 @@ public class AudioService extends MediaBrowserServiceCompat {
         if (oldProcessingState != AudioProcessingState.idle && processingState == AudioProcessingState.idle) {
             // TODO: Handle completed state as well?
             stop();
+        } else if (processingState == AudioProcessingState.completed) {
+            if (config.androidStopForegroundOnCompleted) {
+                legacyStopForeground(false);
+                stop();
+            }
         } else if (processingState != AudioProcessingState.idle && notificationChanged) {
             updateNotification();
         }

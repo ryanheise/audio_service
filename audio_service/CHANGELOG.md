@@ -1,3 +1,7 @@
+## 0.18.14
+
+* Added androidStopForegroundOnCompleted to AudioServiceConfig which will stop foreground service when AudioProcessingState == AudioProcessingState.completed (@skiluk)
+
 ## 0.18.13
 
 * Fix setAndroidPlaybackInfo call blocking (@julianscheel).
