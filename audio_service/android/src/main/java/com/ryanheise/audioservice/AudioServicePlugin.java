@@ -197,6 +197,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private final MediaBrowserCompat.ConnectionCallback connectionCallback = new MediaBrowserCompat.ConnectionCallback() {
         @Override
         public void onConnected() {
+            if (applicationContext == null) return; 
             try {
                 MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
                 mediaController = new MediaControllerCompat(applicationContext, token);
@@ -215,8 +216,8 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     configureResult = null;
                 }
             } catch (Exception e) {
+                System.out.println("onConnected error: " + e.getMessage());
                 e.printStackTrace();
-                throw new RuntimeException(e);
             }
         }
 

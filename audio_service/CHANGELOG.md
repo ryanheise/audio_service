@@ -1,6 +1,6 @@
 ## 0.18.13
 
-* Fix Android NPE in sendNotificationClicked.
+* Fix Android NPE in sendNotificationClicked and onConnected.
 * Fix setAndroidPlaybackInfo call blocking (@julianscheel).
 * Pass through missing extras to playFrom.../prepareFrom... (@Ruchit2759).
 
