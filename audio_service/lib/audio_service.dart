@@ -971,6 +971,11 @@ class AudioService {
   /// A stream that broadcasts the status of the notificationClick event.
   static ValueStream<bool> get notificationClicked => _notificationClicked;
 
+  static final _asyncError = PublishSubject<Object>();
+
+  /// A stream that broadcasts any exceptions that occur asynchronously.
+  static Stream<Object> get asyncError => _asyncError;
+
   static final _compatibilitySwitcher = SwitchAudioHandler();
 
   /// Register the app's [AudioHandler] with configuration options. This must be
@@ -1023,8 +1028,10 @@ class AudioService {
       artFetchOperationId = operationId;
       final artUri = mediaItem.artUri;
       if (artUri == null || artUri.scheme == 'content') {
-        _platform.setMediaItem(
-            SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+        _platform
+            .setMediaItem(
+                SetMediaItemRequest(mediaItem: mediaItem._toMessage()))
+            .catchError(_asyncError.add);
       } else {
         /// Sends media item to the platform.
         /// We potentially need to fetch the art before that.
@@ -1041,7 +1048,7 @@ class AudioService {
         }
 
         if (artUri.scheme == 'file') {
-          sendToPlatform(artUri.toFilePath());
+          sendToPlatform(artUri.toFilePath()).catchError(_asyncError.add);
         } else {
           // Try to load a cached file from memory.
           final fileInfo =
@@ -1053,12 +1060,17 @@ class AudioService {
 
           if (filePath != null) {
             // If we successfully downloaded the art call to platform.
-            sendToPlatform(filePath);
+            sendToPlatform(filePath).catchError(_asyncError.add);
           } else {
             // We haven't fetched the art yet, so show the metadata now, and again
             // after we load the art.
-            await _platform.setMediaItem(
-                SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+            try {
+              await _platform.setMediaItem(
+                  SetMediaItemRequest(mediaItem: mediaItem._toMessage()));
+            } catch (e) {
+              _asyncError.add(e);
+              return;
+            }
             if (operationId != artFetchOperationId) {
               return;
             }
@@ -1069,7 +1081,7 @@ class AudioService {
             }
             // If we successfully downloaded the art, call to platform.
             if (loadedFilePath != null) {
-              sendToPlatform(loadedFilePath);
+              sendToPlatform(loadedFilePath).catchError(_asyncError.add);
             }
           }
         }
@@ -1079,9 +1091,13 @@ class AudioService {
 
   static Future<void> _observeAndroidPlaybackInfo() async {
     await for (var playbackInfo in _handler.androidPlaybackInfo) {
-      await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
-        playbackInfo: playbackInfo._toMessage(),
-      ));
+      try {
+        await _platform.setAndroidPlaybackInfo(SetAndroidPlaybackInfoRequest(
+          playbackInfo: playbackInfo._toMessage(),
+        ));
+      } catch (e) {
+        _asyncError.add(e);
+      }
     }
   }
 
@@ -1090,21 +1106,29 @@ class AudioService {
       if (_config.preloadArtwork) {
         _loadAllArtwork(queue);
       }
-      await _platform.setQueue(SetQueueRequest(
-          queue: queue.map((item) => item._toMessage()).toList()));
+      try {
+        await _platform.setQueue(SetQueueRequest(
+            queue: queue.map((item) => item._toMessage()).toList()));
+      } catch (e) {
+        _asyncError.add(e);
+      }
     }
   }
 
   static Future<void> _observePlaybackState() async {
     var previousState = _handler.playbackState.nvalue;
     await for (var playbackState in _handler.playbackState) {
-      await _platform
-          .setState(SetStateRequest(state: playbackState._toMessage()));
-      if (playbackState.processingState == AudioProcessingState.idle &&
-          previousState?.processingState != AudioProcessingState.idle) {
-        await AudioService._stop();
+      try {
+        await _platform
+            .setState(SetStateRequest(state: playbackState._toMessage()));
+        if (playbackState.processingState == AudioProcessingState.idle &&
+            previousState?.processingState != AudioProcessingState.idle) {
+          await AudioService._stop();
+        }
+        previousState = playbackState;
+      } catch (e) {
+        _asyncError.add(e);
       }
-      previousState = playbackState;
     }
   }
 
