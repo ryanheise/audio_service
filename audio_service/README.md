@@ -306,10 +306,6 @@ Note: If your app uses a number of different audio plugins, e.g. for audio recor
 
 ## Android setup
 
-These instructions assume that your project follows the Flutter 1.12 project template or later. If your project was created prior to 1.12 and uses the old project structure, you can update your project to follow the [new project template](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects).
-
-Additionally:
-
 1. Make the following changes to your project's `AndroidManifest.xml` file:
 
 ```xml
@@ -349,7 +345,7 @@ Additionally:
 </manifest>
 ```
 
-Note: when targeting Android 12 or above, you must set `android:exported` on each component that has an intent filter (the main activity, the service and the receiver). If the manifest merging process causes `"Instantiable"` lint warnings, use `tools:ignore="Instantiable"` (as above) to suppress them.
+Note: As of Android 12, an app must have permission to restart a foreground service in the background, otherwise a `ForegroundServiceStartNotAllowedException` will be thrown. To avoid such an exception, you can either set `androidStopForegroundOnPause` to `false` in your `AudioServiceConfig` which keeps the service in the foreground during a pause so that restarting the foreground service is unnecessary, or you can keep the default `androidStopForegroundOnPause` setting of `true` (in line with best practices) and request the user to turn of battery optimisation for your app via the [optimize_battery](https://pub.dev/packages/optimize_battery) package. For more information, read [this page](https://developer.android.com/training/monitoring-device-state/doze-standby#support_for_other_use_cases).
 
 2. If you use any custom icons in notification, create the file `android/app/src/main/res/raw/keep.xml` to prevent them from being stripped during the build process:
 
