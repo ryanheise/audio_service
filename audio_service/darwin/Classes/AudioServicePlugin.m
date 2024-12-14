@@ -291,6 +291,9 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     if (@available(iOS 13.0, macOS 10.12.2, *)) {
         center.playbackState = playing ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
     }
+    if (@available(iOS 10.0, macOS 10.12.2, *)) {
+        updated |= [self updateNowPlayingField:MPNowPlayingInfoPropertyIsLiveStream value:mediaItem[@"isLive"]];
+    }
     if (updated) {
         //NSLog(@"### updating nowPlayingInfo");
         center.nowPlayingInfo = nowPlayingInfo;
@@ -308,7 +311,6 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     // * MPNowPlayingInfoPropertyCurrentPlaybackDate
     // * MPNowPlayingInfoPropertyExternalContentIdentifier
     // * MPNowPlayingInfoPropertyExternalUserProfileIdentifier
-    // * MPNowPlayingInfoPropertyIsLiveStream
     // * MPNowPlayingInfoPropertyPlaybackProgress
     // * MPNowPlayingInfoPropertyPlaybackQueueCount
     // * MPNowPlayingInfoPropertyPlaybackQueueIndex

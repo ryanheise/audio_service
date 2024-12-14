@@ -630,6 +630,9 @@ class MediaItem {
   /// The rating of the media item.
   final Rating? rating;
 
+  /// Whether this is a live stream.
+  final bool? isLive;
+
   /// A map of additional metadata for the media item.
   ///
   /// The values must be of type `int`, `String`, `bool` or `double`.
@@ -652,6 +655,7 @@ class MediaItem {
     this.displaySubtitle,
     this.displayDescription,
     this.rating,
+    this.isLive,
     this.extras,
   });
 
@@ -679,6 +683,7 @@ class MediaItem {
         displaySubtitle: displaySubtitle,
         displayDescription: displayDescription,
         rating: rating?._toMessage(),
+        isLive: isLive,
         extras: extras,
       );
 
@@ -702,6 +707,7 @@ abstract class MediaItemCopyWith {
     String? displaySubtitle,
     String? displayDescription,
     Rating? rating,
+    bool? isLive,
     Map<String, dynamic>? extras,
   });
 }
@@ -730,6 +736,7 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
     Object? displaySubtitle = _fakeNull,
     Object? displayDescription = _fakeNull,
     Object? rating = _fakeNull,
+    Object? isLive = _fakeNull,
     Object? extras = _fakeNull,
   }) =>
       MediaItem(
@@ -752,6 +759,7 @@ class _MediaItemCopyWith extends MediaItemCopyWith {
             ? value.displayDescription
             : displayDescription as String?,
         rating: rating == _fakeNull ? value.rating : rating as Rating?,
+        isLive: isLive == _fakeNull ? value.isLive : isLive as bool?,
         extras: extras == _fakeNull
             ? value.extras
             : extras as Map<String, dynamic>?,
@@ -2986,6 +2994,7 @@ extension _MediaItemMessageExtension on MediaItemMessage {
         displaySubtitle: displaySubtitle,
         displayDescription: displayDescription,
         rating: rating?.toPlugin(),
+        isLive: isLive,
         extras: extras,
       );
 }

@@ -3,6 +3,10 @@
 * Remove deprecated BackgroundAudioTask API.
 * BREAKING: playbackState.copyWith no longer changes updateTime by default.
 
+## 0.18.16
+
+* Support MPNowPlayingInfoPropertyIsLiveStream on IOS (@MuradSh, @celsoft).
+
 ## 0.18.15
 
 * Add deep link support for FlutterFragmentActivity (@jan-milovanovic).
