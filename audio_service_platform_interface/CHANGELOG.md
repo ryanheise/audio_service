@@ -1,6 +1,6 @@
-## 0.2.0
+## 0.1.3
 
-* 
+* Fix deprecated Color.value.
 
 ## 0.1.2
 
