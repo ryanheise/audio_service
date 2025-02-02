@@ -6,45 +6,7 @@
 @JS()
 library media_session_web;
 
-import 'dart:js' as js;
-import 'dart:html' as html;
-import 'package:js/js.dart';
-
-/// The interface to the Media Session API which allows a web page
-/// to provide custom behaviors for standard media playback interactions,
-/// and to report metadata that can be sent by the user agent
-/// to the device or operating system for presentation in standardized
-/// user interface elements.
-@JS('navigator.mediaSession')
-class MediaSession {
-  /// Returns an instance of [html.MediaMetadata], which contains rich media
-  /// metadata for display in a platform UI.
-  @JS('metadata')
-  external static html.MediaMetadata metadata;
-
-  /// Indicates whether the current media session is playing.
-  ///
-  /// See [MediaSessionPlaybackState] for possible values.
-  @JS('playbackState')
-  external static String playbackState;
-
-  /// Sets an action handler for a media session action, such as play or pause.
-  static void setActionHandler(
-    String action,
-    MediaSessionActionHandler callback,
-  ) =>
-      _setActionHandler(action, js.allowInterop(callback));
-
-  @JS('setActionHandler')
-  external static void _setActionHandler(
-    String action,
-    MediaSessionActionHandler callback,
-  );
-
-  /// Sets the current playback position and speed of the media currently being presented.
-  @JS('setPositionState')
-  external static void setPositionState(MediaSessionPositionState? state);
-}
+import 'dart:js_interop';
 
 /// Media session playback state types.
 ///
@@ -90,7 +52,7 @@ typedef MediaSessionActionHandler = dynamic Function(MediaSessionActionDetails);
 /// The dictionary parameter for [MediaSessionActionHandler] callback.
 @JS()
 @anonymous
-class MediaSessionActionDetails {
+extension type MediaSessionActionDetails._(JSObject _) implements JSObject {
   /// An action type string taken from the [MediaActions], indicating which
   /// type of action needs to be performed.
   external String get action;
@@ -105,7 +67,7 @@ class MediaSessionActionDetails {
   /// This property can be used to indicate that you should use the shortest possible
   /// method to seek the media. This property is not included on the final action in
   /// the seek sequence in this situation.
-  external bool get fastSeek;
+  external bool? get fastSeek;
 
   /// If the action is either `seekforward` or `seekbackward`
   /// and this property is present, it is a floating point value which indicates
@@ -113,13 +75,13 @@ class MediaSessionActionDetails {
   ///
   /// If this property isn't present, those actions should choose a reasonable
   /// default interval.
-  external double get seekOffset;
+  external double? get seekOffset;
 
   /// If the action is `seekto`, this property is present and
   /// indicates the absolute time within the media to move the playback position to.
   ///
   /// This property is not present for other action types.
-  external double get seekTime;
+  external double? get seekTime;
 
   /// Creates the details.
   external factory MediaSessionActionDetails({
@@ -127,33 +89,5 @@ class MediaSessionActionDetails {
     bool? fastSeek,
     double? seekOffset,
     double? seekTime,
-  });
-}
-
-/// A representation of the current playback.
-///
-/// The dictionary parameter for [MediaSession.setPositionState].
-@JS()
-@anonymous
-class MediaSessionPositionState {
-  /// Duration in seconds.
-  external double get duration;
-
-  /// Playback rate.
-  ///
-  /// Can be positive to represent forward playback or negative to
-  /// represent backwards playback.
-  ///
-  /// Cannot be zero.
-  external double get playbackRate;
-
-  /// Position in seconds.
-  external double get position;
-
-  /// Creates the position state.
-  external factory MediaSessionPositionState({
-    double? duration,
-    double? playbackRate,
-    double? position,
   });
 }
