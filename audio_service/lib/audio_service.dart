@@ -1794,11 +1794,10 @@ class IsolatedAudioHandler extends CompositeAudioHandler {
   /// isolate is able to register another new handler with the same name before
   /// this isolate can.
   IsolatedAudioHandler(
-    AudioHandler inner, {
+    super.inner, {
     this.portName = defaultPortName,
     bool overridePortName = false,
-  })  : assert(!kIsWeb),
-        super(inner) {
+  }) : assert(!kIsWeb) {
     _receivePort.listen((dynamic event) async {
       final request = event as _IsolateRequest;
       switch (request.method) {
