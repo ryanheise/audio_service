@@ -87,6 +87,8 @@ xcuserdata
 **/Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 GeneratedPluginRegistrant.*
+.build/
+.swiftpm/
 
 # Exceptions
 !default.pbxuser

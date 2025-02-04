@@ -3,6 +3,10 @@
 * Remove deprecated BackgroundAudioTask API.
 * BREAKING: playbackState.copyWith no longer changes updateTime by default.
 
+## 0.18.17
+
+* Add support for SwiftPM.
+
 ## 0.18.16
 
 * Support MPNowPlayingInfoPropertyIsLiveStream on IOS (@MuradSh, @celsoft).
