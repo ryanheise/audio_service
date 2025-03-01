@@ -1,0 +1,23 @@
+name: Documentation request
+description: Suggest an improvement to the documentation.
+labels: ["1 backlog", "documentation"]
+assignees: ["ryanheise"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an improvement to the documentation.
+  - type: input
+    attributes:
+      label: Documentation link
+      description: |
+        Paste the URL of the documentation page that your suggestion applies to.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Your suggestion
+      description: |
+        Please describe the proposed improvement below.
+    validations:
+      required: true
