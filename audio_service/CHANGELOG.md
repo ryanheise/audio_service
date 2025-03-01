@@ -3,6 +3,10 @@
 * Remove deprecated BackgroundAudioTask API.
 * BREAKING: playbackState.copyWith no longer changes updateTime by default.
 
+## 0.18.18
+
+* Fix setPlaybackState entitlement issue on iOS.
+
 ## 0.18.17
 
 * Add support for SwiftPM.
