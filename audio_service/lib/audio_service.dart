@@ -2402,11 +2402,10 @@ class IsolatedAudioHandler extends CompositeAudioHandler {
   /// isolate is able to register another new handler with the same name before
   /// this isolate can.
   IsolatedAudioHandler(
-    AudioHandler inner, {
+    super.inner, {
     this.portName = defaultPortName,
     bool overridePortName = false,
-  })  : assert(!kIsWeb),
-        super(inner) {
+  }) : assert(!kIsWeb) {
     _receivePort.listen((dynamic event) async {
       final request = event as _IsolateRequest;
       switch (request.method) {
@@ -4062,7 +4061,7 @@ class AudioServiceWidget extends StatelessWidget {
   final Widget child;
 
   /// Deprecated.
-  const AudioServiceWidget({Key? key, required this.child}) : super(key: key);
+  const AudioServiceWidget({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {

@@ -3,7 +3,7 @@ description: Demonstrates how to use the audio_service plugin.
 publish_to: 'none'
 
 environment:
-  sdk: ">=2.14.0 <4.0.0"
+  sdk: ">=3.3.0 <4.0.0"
   flutter: ">=3.0.0"
 
 dependencies:
@@ -11,8 +11,8 @@ dependencies:
     sdk: flutter
 
   path_provider: ^2.0.1
-  audio_session: ^0.1.20
-  just_audio: ^0.9.39
+  audio_session: ^0.1.25
+  just_audio: ^0.9.46
   flutter_tts: ^3.8.3
   device_info_plus: ^9.1.0
   android_content_provider: ^0.4.1
@@ -29,4 +29,5 @@ dev_dependencies:
   flutter_lints: ^3.0.1
 
 flutter:
+  # disable-swift-package-manager: true
   uses-material-design: true

@@ -1,3 +1,11 @@
+## 0.18.18
+
+* Fix setPlaybackState entitlement issue on iOS.
+
+## 0.18.17
+
+* Add support for SwiftPM.
+
 ## 0.18.16
 
 * Support MPNowPlayingInfoPropertyIsLiveStream on IOS (@MuradSh, @celsoft).

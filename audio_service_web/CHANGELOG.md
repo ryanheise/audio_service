@@ -1,3 +1,7 @@
+## 0.1.4
+
+* Migrated to package:web (@ali2236)
+
 ## 0.1.3
 
 * Support rxdart 0.28.x.

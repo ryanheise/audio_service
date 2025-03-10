@@ -1,0 +1,94 @@
+name: Report a compile time bug
+description: You found a bug that occurs at compile time.
+labels: ["1 backlog", "bug"]
+assignees: ["ryanheise"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting a bug report.
+
+        Before doing so, please ensure that you have:
+
+        - read [CONTRIBUTING.md](https://github.com/ryanheise/audio_service/blob/minor/CONTRIBUTING.md)
+        - searched for existing issues
+        - confirmed you are using the plugin correctly according to its documentation
+  - type: checkboxes
+    attributes:
+      label: Platforms exhibiting the bug
+      description: |
+        Please select the platforms exhibiting the bug.
+        For other platforms, please submit your issue to the plugin for that platform.
+      options:
+        - label: Android
+        - label: iOS
+        - label: web
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Devices exhibiting the bug
+      description: Please list which devices experienced the bug.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Minimal reproduction project
+      description: |
+        Please fork this repository and make minimal changes to the official example to reproduce the bug.
+        Paste the URL to your fork below between the backticks.
+        If you modify only one file, you may instead paste just the contents of that one file.
+        If the bug is reproducible with the unmodified official example, just put the pathname of that example.
+      value: |
+        <details open><summary>Minimal reproduction project</summary>
+
+        ```dart
+        [Paste here]
+        ```
+
+        </details>
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: After I copy your project, what steps should I follow to see the error?
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Error output
+      description: |
+        Please copy and paste the complete log of the build process, including the build command,
+        within the backticks below, IN TEXT FORMAT.
+      value: |
+        <details open><summary>Logs</summary>
+
+        ```console
+        [Paste here]
+        ```
+
+        </details>
+  - type: textarea
+    attributes:
+      label: Flutter Doctor output
+      description: |
+        Please copy and paste the output of `flutter doctor`
+      value: |
+        <details open><summary>Doctor output</summary>
+
+        ```console
+        [Paste here]
+        ```
+
+        </details>
+    validations:
+      required: true

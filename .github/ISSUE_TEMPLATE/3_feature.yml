@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a new idea for this project.
+labels: ["1 backlog", "enhancement"]
+assignees: ["ryanheise"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting a feature request.
+
+        Before doing so, please ensure that you have:
+
+        - searched for existing feature requests
+        - confirmed that the feature does not already exist in the documentation
+  - type: textarea
+    attributes:
+      label: Use case
+      description: |
+        Please describe the scenario in which this feature would be useful
+        along with alternative solutions you've considered.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposal
+      description: |
+        Please outline the solution you have in mind, including specific API calls.
+    validations:
+      required: true
