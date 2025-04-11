@@ -47,6 +47,7 @@ gradlew
 gradlew.bat
 local.properties
 **/GeneratedPluginRegistrant.java
+**/.cxx/
 
 # Android Studio will place build artifacts here
 **/android/app/debug
