@@ -3320,9 +3320,10 @@ mixin QueueHandler on BaseAudioHandler {
   }
 
   @override
-  Future<void> updateQueue(List<MediaItem> newQueue) async {
-    queue.add(queue.nvalue!..replaceRange(0, queue.nvalue!.length, newQueue));
-    await super.updateQueue(newQueue);
+  Future<void> updateQueue(List<MediaItem> queue) async {
+    this.queue.add(
+        this.queue.nvalue!..replaceRange(0, this.queue.nvalue!.length, queue));
+    await super.updateQueue(queue);
   }
 
   @override

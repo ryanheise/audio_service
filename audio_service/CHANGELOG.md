@@ -1,6 +1,10 @@
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
+* Fix Android stopForeground deprecation warning.
+* Bump compile/target SDK to 35 on Android.
+* Bump minSdk to 19 on Android.
+* bump AGP to 8.5.2.
 
 ## 0.18.17
 

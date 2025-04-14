@@ -8,8 +8,8 @@ topics:
   - background
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.0.0"
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
 
 dependencies:
   # Use these deps for local development
@@ -34,7 +34,7 @@ dependencies:
   audio_service_platform_interface: ^0.1.3
   audio_service_web: ^0.1.4
 
-  audio_session: ^0.1.25
+  audio_session: '>=0.1.25 <0.3.0'
   rxdart: '>=0.26.0 <0.29.0'
   flutter_cache_manager: ^3.3.1
   clock: ^1.1.0
