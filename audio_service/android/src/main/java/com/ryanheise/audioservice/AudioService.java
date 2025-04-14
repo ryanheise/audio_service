@@ -567,7 +567,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             stop();
         } else if (processingState == AudioProcessingState.completed) {
             if (config.androidStopForegroundOnCompleted) {
-                legacyStopForeground(false);
+                ServiceCompat.stopForeground(this, config.androidResumeOnClick ? STOP_FOREGROUND_DETACH : STOP_FOREGROUND_REMOVE);
                 stop();
             }
         } else if (processingState != AudioProcessingState.idle && notificationChanged) {
