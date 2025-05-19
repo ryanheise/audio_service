@@ -611,10 +611,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private Notification buildNotification() {
-        int[] compactActionIndices = this.compactActionIndices;
-        if (compactActionIndices == null) {
-            compactActionIndices = new int[Math.min(MAX_COMPACT_ACTIONS, nativeActions.size())];
-            for (int i = 0; i < compactActionIndices.length; i++) compactActionIndices[i] = i;
+        int actionCount = nativeActions.size();
+        int maxCompact = Math.min(MAX_COMPACT_ACTIONS, actionCount);
+        int[] compactIndices = new int[maxCompact];
+        for (int i = 0; i < maxCompact; i++) {
+            compactIndices[i] = i;
         }
         NotificationCompat.Builder builder = getNotificationBuilder();
         if (mediaMetadata != null) {
@@ -640,8 +641,9 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         final MediaStyle style = new MediaStyle()
             .setMediaSession(mediaSession.getSessionToken());
-        if (Build.VERSION.SDK_INT < 33) {
-            style.setShowActionsInCompactView(compactActionIndices);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && maxCompact > 0) {
+            style.setShowActionsInCompactView(compactIndices);
         }
         if (config.androidNotificationOngoing) {
             style.setShowCancelButton(true);
