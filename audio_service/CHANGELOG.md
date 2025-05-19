@@ -1,3 +1,7 @@
+## 0.18.19
+
+* Fix buildNotification on older Android devices
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
