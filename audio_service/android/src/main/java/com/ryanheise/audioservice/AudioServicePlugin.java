@@ -327,7 +327,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             // We do this to avoid using the old intent.
             activity.setIntent(new Intent(Intent.ACTION_MAIN));
         }
-        sendNotificationClicked();
+        handleIntent(activity.getIntent());
     }
 
     @Override
@@ -393,17 +393,17 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private void registerOnNewIntentListener() {
         activityPluginBinding.addOnNewIntentListener(newIntentListener = (intent) -> {
             clientInterface.activity.setIntent(intent);
-            sendNotificationClicked();
-            return true;
+            return handleIntent(intent);
         });
     }
 
-    private void sendNotificationClicked() {
-        Activity activity = clientInterface.activity;
-        if (audioHandlerInterface != null && activity.getIntent().getAction() != null) {
-            boolean clicked = activity.getIntent().getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION);
-            audioHandlerInterface.invokeMethod("onNotificationClicked", mapOf("clicked", clicked));
+    private boolean handleIntent(Intent intent) {
+        if (audioHandlerInterface != null && intent.getAction() != null) {
+            boolean handled = intent.getAction().equals(AudioService.NOTIFICATION_CLICK_ACTION);
+            audioHandlerInterface.invokeMethod("onNotificationClicked", mapOf("clicked", handled));
+            return handled;
         }
+        return false;
     }
 
     private static class ClientInterface implements MethodCallHandler {
