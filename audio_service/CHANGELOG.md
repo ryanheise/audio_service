@@ -1,3 +1,8 @@
+## 0.18.19
+
+* Fix onNewIntentListener always returns true (@relaxedSoul)
+  It prevents other plugins to handle new intents from the OS while the app is running. 
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
