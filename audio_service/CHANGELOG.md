@@ -1,3 +1,7 @@
+## 0.18.19
+
+* Add url fragment support for Android deep links
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
