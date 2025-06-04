@@ -85,6 +85,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                             if (data.getQuery() != null && !data.getQuery().isEmpty()) {
                                 initialRoute += "?" + data.getQuery();
                             }
+                            if (data.getFragment() != null && !data.getFragment().isEmpty()) {
+                                initialRoute += "#" + data.getFragment();
+                            }
                         }
                     }
                 }
@@ -98,6 +101,9 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                             initialRoute = data.getPath();
                             if (data.getQuery() != null && !data.getQuery().isEmpty()) {
                                 initialRoute += "?" + data.getQuery();
+                            }
+                            if (data.getFragment() != null && !data.getFragment().isEmpty()) {
+                                initialRoute += "#" + data.getFragment();
                             }
                         }
                     }
