@@ -3,10 +3,12 @@ package com.ryanheise.audioservice;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.util.Log;
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
@@ -45,6 +47,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import androidx.media.utils.MediaConstants;
 
 import io.flutter.embedding.engine.FlutterEngine;
 
@@ -52,13 +58,17 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     public static final String CONTENT_STYLE_PLAYABLE_HINT = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT";
     public static final String CONTENT_STYLE_BROWSABLE_HINT = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
-    public static final int CONTENT_STYLE_LIST_ITEM_HINT_VALUE = 1;
+    public static final String EXTRA_RECENT = "android.service.media.extra.RECENT";
+    public static final String EXTRA_OFFLINE = "android.service.media.extra.OFFLINE";
+    public static final String EXTRA_SUGGESTION_KEYWORDS = "android.service.media.extra.SUGGESTION_KEYWORDS";
     public static final int CONTENT_STYLE_GRID_ITEM_HINT_VALUE = 2;
     public static final int CONTENT_STYLE_CATEGORY_LIST_ITEM_HINT_VALUE = 3;
     public static final int CONTENT_STYLE_CATEGORY_GRID_ITEM_HINT_VALUE = 4;
 
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
-
+    
+    private static final String RECENT_PREFS_KEY = "recent_song";
+    private static final int MAX_RECENT_ITEMS = 20;
     private static final int NOTIFICATION_ID = 1124;
     private static final int REQUEST_CONTENT_INTENT = 1000;
     public static final String NOTIFICATION_CLICK_ACTION = "com.ryanheise.audioservice.NOTIFICATION_CLICK";
@@ -66,7 +76,14 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static final String CUSTOM_ACTION_FAST_FORWARD = "com.ryanheise.audioservice.action.FAST_FORWARD";
     public static final String CUSTOM_ACTION_REWIND = "com.ryanheise.audioservice.action.REWIND";
     private static final String BROWSABLE_ROOT_ID = "root";
+   
     private static final String RECENT_ROOT_ID = "recent";
+
+    // 4 Tab IDs for Android Auto
+    private static final String TAB_HOME_ID = "tab_home";
+    private static final String TAB_RECENTS_ID = "tab_recents";
+    private static final String TAB_BROWSE_ID = "tab_browse";
+    private static final String TAB_LIBRARY_ID = "tab_library";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
     // We hijack KEYCODE_MUTE and KEYCODE_MEDIA_RECORD since the media session subsystem
     // considers these keycodes relevant to media playback and will pass them on to us.
@@ -103,6 +120,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     static AudioService instance;
     private static PendingIntent contentIntent;
     private static ServiceListener listener;
+
+    private static boolean isFlutterConnected = false;
+
+    private static long lastFlutterPing  = 0;
+    private static final long FLUTTER_TIMEOUT_MS  = 5000;
     private static List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
     private static final Map<String, MediaMetadataCompat> mediaMetadataCache = new HashMap<>();
 
@@ -118,6 +140,24 @@ public class AudioService extends MediaBrowserServiceCompat {
         } else {
             return PlaybackStateCompat.toKeyCode(action);
         }
+    }
+
+    public static void updateFlutterConnection(boolean connected) {
+        isFlutterConnected =  connected;
+        lastFlutterPing = System.currentTimeMillis();
+        Log.d("Flutter", "Flutterstate" +  isFlutterConnected);
+    }
+
+    public static boolean isIsFlutterConnected(){
+        if (!isFlutterConnected) return false;
+        long currentTime = System.currentTimeMillis();
+        boolean isTimeOut = currentTime - lastFlutterPing > FLUTTER_TIMEOUT_MS;
+        if (isTimeOut) {
+            isFlutterConnected = false;
+            Log.d("AudioService", "Flutter connection timed out");
+
+        }
+        return isFlutterConnected;
     }
 
     MediaMetadataCompat createMediaMetadata(String mediaId, String title, String album, String artist, String genre, Long duration, String artUri, Boolean playable, String displayTitle, String displaySubtitle, String displayDescription, RatingCompat rating, Map<?, ?> extras) {
@@ -813,17 +853,23 @@ public class AudioService extends MediaBrowserServiceCompat {
                 .build();
     }
 
-    @Override
-    public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
-        if (isRecentRequest == null) isRecentRequest = false;
-        Bundle extras = config.getBrowsableRootExtras();
-        return new BrowserRoot(isRecentRequest ? RECENT_ROOT_ID : BROWSABLE_ROOT_ID, extras);
-        // The response must be given synchronously, and we can't get a
-        // synchronous response from the Dart layer. For now, we hardcode
-        // the root to "root". This may improve in media2.
-        //return listener.onGetRoot(clientPackageName, clientUid, rootHints);
-    }
+  
+ @Override
+public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
+    Boolean isRecentRequest = rootHints == null ? null : (Boolean)rootHints.getBoolean(BrowserRoot.EXTRA_RECENT);
+    if (isRecentRequest == null) isRecentRequest = false;
+
+     int maximumRootChildLimit = rootHints.getInt(
+        MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_LIMIT, 4);
+    int maxRootChildren = rootHints != null ?
+        rootHints.getInt(MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_LIMIT, 4) : 4;
+
+    Bundle extras = config.getBrowsableRootExtras();
+
+
+
+    return new BrowserRoot(isRecentRequest ? RECENT_ROOT_ID : BROWSABLE_ROOT_ID, extras);
+}
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result) {
@@ -832,11 +878,362 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public void onLoadChildren(final String parentMediaId, final Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options) {
+        // Handle 4 tabs for Android Auto
+        if (BROWSABLE_ROOT_ID.equals(parentMediaId)) {
+            result.sendResult(createFourTabs());
+            return;
+        }
+
+        // Handle content for each tab
+        if (TAB_HOME_ID.equals(parentMediaId)) {
+            result.sendResult(createHomeContent());
+            return;
+        }
+
+        if (TAB_RECENTS_ID.equals(parentMediaId)) {
+            result.sendResult(createRecentsContent());
+            return;
+        }
+
+        if (TAB_BROWSE_ID.equals(parentMediaId)) {
+            result.sendResult(createBrowseContent());
+            return;
+        }
+
+        if (TAB_LIBRARY_ID.equals(parentMediaId)) {
+            result.sendResult(createLibraryContent());
+            return;
+        }
+
+        // Handle sub-categories
+        if (parentMediaId.startsWith("browse_")) {
+            result.sendResult(createBrowseSubContent(parentMediaId));
+            return;
+        }
+
+        if (parentMediaId.startsWith("library_")) {
+            result.sendResult(createLibrarySubContent(parentMediaId));
+            return;
+        }
+
         if (listener == null) {
             result.sendResult(new ArrayList<>());
             return;
         }
         listener.onLoadChildren(parentMediaId, result, options);
+    }
+
+    private List<MediaBrowserCompat.MediaItem> createFourTabs() {
+        List<MediaBrowserCompat.MediaItem> tabs = new ArrayList<>();
+
+        // Tab 1: Home
+        MediaDescriptionCompat homeDesc = new MediaDescriptionCompat.Builder()
+            .setMediaId(TAB_HOME_ID)
+            .setTitle("Home")
+            .setIconUri(Uri.parse("android.resource://com.example.dr_play_app/drawable/ic_home"))   
+            .setSubtitle("Your music home")
+            .setExtras(createTabExtras())
+            .build();
+        tabs.add(new MediaBrowserCompat.MediaItem(homeDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+
+        // Tab 2: Recents
+        MediaDescriptionCompat recentsDesc = new MediaDescriptionCompat.Builder()
+            .setMediaId(TAB_RECENTS_ID)
+            .setTitle("Recents")
+              .setIconUri(Uri.parse("android.resource://com.example.dr_play_app/drawable/ic_recent"))   
+            .setSubtitle("Recently played")
+            .setExtras(createTabExtras())
+            .build();
+        tabs.add(new MediaBrowserCompat.MediaItem(recentsDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+
+        // Tab 3: Browse
+        MediaDescriptionCompat browseDesc = new MediaDescriptionCompat.Builder()
+            .setMediaId(TAB_BROWSE_ID)
+            .setTitle("Browse")
+               .setIconUri(Uri.parse("android.resource://com.example.dr_play_app/drawable/ic_collection"))   
+            .setSubtitle("Explore music")
+            .setExtras(createTabExtras())
+            .build();
+        tabs.add(new MediaBrowserCompat.MediaItem(browseDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+
+        // Tab 4: Library
+        MediaDescriptionCompat libraryDesc = new MediaDescriptionCompat.Builder()
+            .setMediaId(TAB_LIBRARY_ID)
+            .setTitle("Library")
+            .setIconUri(Uri.parse("android.resource://com.example.dr_play_app/drawable/ic_lib"))   
+            .setSubtitle("Your collection")
+            .setExtras(createTabExtras())
+            .build();
+        tabs.add(new MediaBrowserCompat.MediaItem(libraryDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE));
+
+        return tabs;
+    }
+
+    private Bundle createTabExtras() {
+        Bundle extras = new Bundle();
+        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                     MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                     MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+        return extras;
+    }
+
+
+
+    // Thêm method override cho createHomeContent
+private List<MediaBrowserCompat.MediaItem> createHomeContent() {
+    List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+    Log.d("AudioService", config.getHomeVideoList() != null ? config.getHomeVideoList().toString() : "null");
+    // Kiểm tra nếu có video list từ config
+    if (config != null && config.getHomeVideoList() != null && !config.getHomeVideoList().isEmpty()) {
+        for (Map<String, Object> videoData : config.getHomeVideoList()) {
+            MediaBrowserCompat.MediaItem item = createMediaItemFromMap(videoData);
+            if (item != null) {
+                items.add(item);
+            }
+        }
+    } else {
+        // Fallback to default content
+        items.add(createPlayableItem("home_quick_mix", "DEMO", "Mixed for you", ""));
+        items.add(createPlayableItem("home_favorites", "DEMO", "Most played songs", ""));
+        items.add(createPlayableItem("home_new_releases", "DEMO", "Latest additions", ""));
+        items.add(createBrowsableItem("home_recent_section", "Recently Played", "Continue listening", ""));
+    }
+    
+    return items;
+}
+
+// Helper method để convert Map thành MediaBrowserCompat.MediaItem
+private MediaBrowserCompat.MediaItem createMediaItemFromMap(Map<String, Object> videoData) {
+    try {
+        String id = (String) videoData.get("id");
+        String title = (String) videoData.get("title");
+        String artist = (String) videoData.get("artist");
+        String album = (String) videoData.get("album");
+        String artUri = (String) videoData.get("artUri");
+        Boolean playable = (Boolean) videoData.get("playable");
+        
+        if (id == null || title == null) {
+            return null;
+        }
+        
+        return createPlayableItem(id, title, artist != null ? artist : "", artUri != null ? artUri : "");
+    } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+    }
+}
+
+    // RECENTS TAB CONTENT
+    private List<MediaBrowserCompat.MediaItem> createRecentsContent() {
+        // Load recent songs from SharedPreferences
+        List<MediaBrowserCompat.MediaItem> items = loadRecentSongs();
+
+        // If no recent songs, show default message
+        if (items.isEmpty()) {
+            items.add(createPlayableItem("recent_empty", "No recent songs", "Start playing music to see recent items", ""));
+        }
+
+        return items;
+    }
+
+    // BROWSE TAB CONTENT
+    private List<MediaBrowserCompat.MediaItem> createBrowseContent() {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+        // Browse categories
+        items.add(createBrowsableItem("browse_genres", "Genres", "Browse by genre", ""));
+        items.add(createBrowsableItem("browse_moods", "Moods", "Music for every mood", ""));
+        items.add(createBrowsableItem("browse_charts", "Charts", "Top songs", ""));
+        items.add(createBrowsableItem("browse_new", "New Music", "Latest releases", ""));
+        items.add(createBrowsableItem("browse_radio", "Radio", "Live stations", ""));
+
+        return items;
+    }
+
+    // LIBRARY TAB CONTENT
+    private List<MediaBrowserCompat.MediaItem> createLibraryContent() {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+        // Library sections
+        items.add(createBrowsableItem("library_playlists", "Playlists", "Your playlists", ""));
+        items.add(createBrowsableItem("library_artists", "Artists", "Browse artists", ""));
+        items.add(createBrowsableItem("library_albums", "Albums", "Browse albums", ""));
+        items.add(createBrowsableItem("library_songs", "Songs", "All your songs", ""));
+        items.add(createBrowsableItem("library_downloads", "Downloads", "Offline music", ""));
+
+        return items;
+    }
+
+    // Helper method to create browsable items
+    private MediaBrowserCompat.MediaItem createBrowsableItem(String mediaId, String title, String subtitle, String iconUri) {
+        MediaDescriptionCompat.Builder builder = new MediaDescriptionCompat.Builder()
+            .setMediaId(mediaId)
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setExtras(createTabExtras());
+
+        if (!iconUri.isEmpty()) {
+            builder.setIconUri(Uri.parse(iconUri));
+        }
+
+        return new MediaBrowserCompat.MediaItem(builder.build(), MediaBrowserCompat.MediaItem.FLAG_BROWSABLE);
+    }
+
+    private void saveRecentSong(String mediaId, String title, String artist, String artUri) {
+        try {
+            SharedPreferences prefs = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+            String existingData = prefs.getString(RECENT_PREFS_KEY, "[]");
+            JSONArray recentsArray = new JSONArray(existingData);
+
+            // Create new recent item
+            JSONObject newItem = new JSONObject();
+            newItem.put("mediaId", mediaId);
+            newItem.put("title", title);
+            newItem.put("artist", artist);
+            newItem.put("artUri", artUri != null ? artUri : "");
+            newItem.put("timestamp", System.currentTimeMillis());
+
+            // Remove if already exists (to move to top)
+            for (int i = 0; i < recentsArray.length(); i++) {
+                JSONObject item = recentsArray.getJSONObject(i);
+                if (mediaId.equals(item.getString("mediaId"))) {
+                    recentsArray.remove(i);
+                    break;
+                }
+            }
+
+            // Add to beginning
+            JSONArray newArray = new JSONArray();
+            newArray.put(newItem);
+            for (int i = 0; i < recentsArray.length() && i < MAX_RECENT_ITEMS - 1; i++) {
+                newArray.put(recentsArray.getJSONObject(i));
+            }
+
+            // Save back to preferences
+            prefs.edit().putString(RECENT_PREFS_KEY, newArray.toString()).apply();
+
+        } catch (JSONException e) {
+            Log.e("AudioService", "Error saving recent song", e);
+        }
+    }
+
+    private List<MediaBrowserCompat.MediaItem> loadRecentSongs() {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+        try {
+            SharedPreferences prefs = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+            String recentsData = prefs.getString(RECENT_PREFS_KEY, "[]");
+            JSONArray recentsArray = new JSONArray(recentsData);
+
+            for (int i = 0; i < recentsArray.length(); i++) {
+                JSONObject item = recentsArray.getJSONObject(i);
+                String mediaId = item.getString("mediaId");
+                String title = item.getString("title");
+                String artist = item.getString("artist");
+                String artUri = item.optString("artUri", "");
+
+                items.add(createPlayableItem(mediaId, title, artist, artUri));
+            }
+
+        } catch (JSONException e) {
+            Log.e("AudioService", "Error loading recent songs", e);
+            // Return default items if error
+            items.add(createPlayableItem("recent_default_1", "No recent songs", "Start playing music", ""));
+        }
+
+        return items;
+    }
+
+    public MediaBrowserCompat.MediaItem createPlayableItem(String mediaId, String title, String artist, String iconUri) {
+        Bundle extras = new Bundle();
+        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                     MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+
+        MediaDescriptionCompat.Builder builder = new MediaDescriptionCompat.Builder()
+            .setMediaId(mediaId)
+            .setTitle(title)
+            .setSubtitle(artist)
+            .setExtras(extras);
+
+        if (!iconUri.isEmpty()) {
+            builder.setIconUri(Uri.parse(iconUri));
+        }
+
+        return new MediaBrowserCompat.MediaItem(builder.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE);
+    }
+
+
+    private List<MediaBrowserCompat.MediaItem> createBrowseSubContent(String parentMediaId) {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+        switch (parentMediaId) {
+            case "browse_genres":
+                items.add(createBrowsableItem("genre_pop", "Pop", "Popular music", ""));
+                items.add(createBrowsableItem("genre_rock", "Rock", "Rock music", ""));
+                items.add(createBrowsableItem("genre_jazz", "Jazz", "Jazz music", ""));
+                items.add(createBrowsableItem("genre_classical", "Classical", "Classical music", ""));
+                break;
+
+            case "browse_moods":
+                items.add(createBrowsableItem("mood_happy", "Happy", "Feel good music", ""));
+                items.add(createBrowsableItem("mood_chill", "Chill", "Relaxing music", ""));
+                items.add(createBrowsableItem("mood_workout", "Workout", "Energy music", ""));
+                items.add(createBrowsableItem("mood_focus", "Focus", "Concentration music", ""));
+                break;
+
+            case "browse_charts":
+                items.add(createPlayableItem("chart_1", "Top Song 1", "Artist 1", ""));
+                items.add(createPlayableItem("chart_2", "Top Song 2", "Artist 2", ""));
+                items.add(createPlayableItem("chart_3", "Top Song 3", "Artist 3", ""));
+                break;
+
+            default:
+                // Default content for other browse categories
+                items.add(createPlayableItem("default_1", "Sample Song 1", "Sample Artist", ""));
+                items.add(createPlayableItem("default_2", "Sample Song 2", "Sample Artist", ""));
+                break;
+        }
+
+        return items;
+    }
+
+    // Handle Library sub-content
+    private List<MediaBrowserCompat.MediaItem> createLibrarySubContent(String parentMediaId) {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+        switch (parentMediaId) {
+            case "library_playlists":
+                items.add(createBrowsableItem("playlist_1", "My Playlist 1", "25 songs", ""));
+                items.add(createBrowsableItem("playlist_2", "My Playlist 2", "18 songs", ""));
+                items.add(createBrowsableItem("playlist_3", "Favorites", "42 songs", ""));
+                break;
+
+            case "library_artists":
+                items.add(createBrowsableItem("artist_1", "Artist 1", "12 songs", ""));
+                items.add(createBrowsableItem("artist_2", "Artist 2", "8 songs", ""));
+                items.add(createBrowsableItem("artist_3", "Artist 3", "15 songs", ""));
+                break;
+
+            case "library_albums":
+                items.add(createBrowsableItem("album_1", "Album 1", "Artist 1 • 2023", ""));
+                items.add(createBrowsableItem("album_2", "Album 2", "Artist 2 • 2023", ""));
+                items.add(createBrowsableItem("album_3", "Album 3", "Artist 3 • 2022", ""));
+                break;
+
+            case "library_songs":
+                items.add(createPlayableItem("song_1", "Song 1", "Artist 1", ""));
+                items.add(createPlayableItem("song_2", "Song 2", "Artist 2", ""));
+                items.add(createPlayableItem("song_3", "Song 3", "Artist 3", ""));
+                items.add(createPlayableItem("song_4", "Song 4", "Artist 4", ""));
+                break;
+
+            default:
+                items.add(createPlayableItem("lib_default_1", "Library Song 1", "Library Artist", ""));
+                break;
+        }
+
+        return items;
     }
 
     @Override
@@ -924,7 +1321,57 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         @Override
         public void onPlayFromMediaId(final String mediaId, final Bundle extras) {
-            if (listener == null) return;
+            Log.d("AudioServiceX", "=== PLAYABLE ITEM CLICKED ===");
+            Log.d("AudioServiceX", "MediaId: " + mediaId);
+            Log.d("AudioServiceX", "This method ONLY called for FLAG_PLAYABLE items");
+
+            boolean isValidPlayableItem = false;
+            String itemTitle = "Unknown";
+            String itemArtist = "Unknown";
+            String itemArtUri = "";
+
+            if (config != null && config.getHomeVideoList() != null) {
+                List<Map<String, Object>> homeVideoList = config.getHomeVideoList();
+
+                for (Map<String, Object> item : homeVideoList) {
+                    String itemId = (String) item.get("id");
+                    if (mediaId.equals(itemId)) {
+                        isValidPlayableItem = true;
+                        itemTitle = (String) item.get("title");
+                        itemArtist = (String) item.get("artist");
+                        itemArtUri = (String) item.get("artUri");
+                        Log.d("AudioServiceX", "✅ FOUND ITEM: " + itemTitle + " - " + itemArtist);
+                        break;
+                    }
+                }
+            }
+
+            if (isValidPlayableItem) {
+                // *** NGAY LẬP TỨC cập nhật UI Android Auto ***
+                Log.d("AudioServiceX", "🔄 UPDATING Android Auto UI immediately...");
+
+                MediaMetadataCompat newMetadata = createMediaMetadata(
+                    mediaId, itemTitle, "Dr Play App", itemArtist, null, null,
+                    itemArtUri, true, null, null, null, null, null
+                );
+
+                // 2. Set metadata ngay lập tức
+                setMetadata(newMetadata);
+
+                // 3. Update playback state để hiển thị đang play
+                setState(controls, AUTO_ENABLED_ACTIONS, compactActionIndices,
+                       AudioProcessingState.ready, true, 0, 0, 1.0f,
+                       System.currentTimeMillis(), null, null, repeatMode, shuffleMode, false, 0L);
+
+                Log.d("AudioServiceX", "✅ Android Auto UI updated to: " + itemTitle);
+            }
+
+            if (listener == null) {
+                Log.e("AudioServiceX", "❌ PROTOCOL ERROR: No listener to handle playback!");
+                return;
+            }
+
+            // Gửi về Flutter để xử lý audio thực tế
             listener.onPlayFromMediaId(mediaId, extras);
         }
 
@@ -1108,7 +1555,6 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public interface ServiceListener {
-        //BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints);
         void onLoadChildren(String parentMediaId, Result<List<MediaBrowserCompat.MediaItem>> result, Bundle options);
         void onLoadItem(String itemId, Result<MediaBrowserCompat.MediaItem> result);
         void onSearch(String query, Bundle extras, Result<List<MediaBrowserCompat.MediaItem>> result);
@@ -1149,6 +1595,8 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         void onPlayMediaItem(MediaMetadataCompat metadata);
         void onTaskRemoved();
+
+        void onLoadHomeContent(Result<List<MediaBrowserCompat.MediaItem>> result);
         void onClose();
         void onDestroy();
     }

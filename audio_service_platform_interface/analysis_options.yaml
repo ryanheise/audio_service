@@ -6,7 +6,7 @@ analyzer:
     strict-inference: true
     strict-raw-types: true
   exclude:
-    - '**/*.mocks.dart'
+    - "**/*.mocks.dart"
 
 linter:
   rules:

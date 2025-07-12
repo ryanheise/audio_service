@@ -468,6 +468,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     Map<?, ?> args = (Map<?, ?>)call.arguments;
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");
                     AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());
+
+                    // Giữ lại homeVideoList từ config cũ nếu có
+                    if (AudioService.instance != null ) {
+                        List<Map<String, Object>> oldHomeVideoList = config.getHomeVideoList();
+                        if (oldHomeVideoList != null) {
+                            config.setHomeVideoList(oldHomeVideoList);
+                        }
+                    }
                     config.androidNotificationClickStartsActivity = (Boolean)configMap.get("androidNotificationClickStartsActivity");
                     config.androidNotificationOngoing = (Boolean)configMap.get("androidNotificationOngoing");
                     config.androidResumeOnClick = (Boolean)configMap.get("androidResumeOnClick");
@@ -481,6 +489,19 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     config.artDownscaleWidth = configMap.get("artDownscaleWidth") != null ? (Integer)configMap.get("artDownscaleWidth") : -1;
                     config.artDownscaleHeight = configMap.get("artDownscaleHeight") != null ? (Integer)configMap.get("artDownscaleHeight") : -1;
                     config.setBrowsableRootExtras((Map<?,?>)configMap.get("androidBrowsableRootExtras"));
+                    config.androidSearchSupported = configMap.get("androidSearchSupported") != null ? (Boolean)configMap.get("androidSearchSupported") : true;
+
+                    // Xử lý homeVideoList
+                    Object homeVideoListObj = configMap.get("homeVideoList");
+                    if (homeVideoListObj instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> homeVideoList = (List<Map<String, Object>>)homeVideoListObj;
+                        config.setHomeVideoList(homeVideoList);
+                    } else {
+                        android.util.Log.w("AudioServicePlugin", "homeVideoList is not a List, got: " + (homeVideoListObj != null ? homeVideoListObj.getClass().getSimpleName() : "null"));
+                        config.setHomeVideoList(null);
+                    }
+                
                     if (activity != null) {
                         config.activityClassName = activity.getClass().getName();
                     }
@@ -704,6 +725,54 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         @Override
         public void onPlayMediaItem(MediaMetadataCompat metadata) {
             invokeMethod("playMediaItem", mapOf("mediaItem", mediaMetadata2raw(metadata)));
+        }
+
+        @Override
+        public void onLoadHomeContent(AudioService.Result<List<MediaBrowserCompat.MediaItem>> result) {
+            // Gọi Flutter để lấy fresh home content
+            invokeMethod("loadHomeContent", mapOf(), new MethodChannel.Result() {
+                @Override
+                public void success(Object o) {
+                    try {
+                        if (o instanceof List) {
+                            @SuppressWarnings("unchecked")
+                            List<Map<?, ?>> rawItems = (List<Map<?, ?>>) o;
+                            List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+                            for (Map<?, ?> rawItem : rawItems) {
+                                // Convert Map to MediaBrowserCompat.MediaItem
+                                String id = (String) rawItem.get("id");
+                                String title = (String) rawItem.get("title");
+                                String artist = (String) rawItem.get("artist");
+                                String artUri = (String) rawItem.get("artUri");
+
+                                if (id != null && title != null) {
+                                    MediaBrowserCompat.MediaItem item = AudioService.instance.createPlayableItem(
+                                        id, title, artist != null ? artist : "", artUri != null ? artUri : ""
+                                    );
+                                    items.add(item);
+                                }
+                            }
+
+                            result.sendResult(items);
+                        } else {
+                            result.sendError(new Bundle());
+                        }
+                    } catch (Exception e) {
+                        result.sendError(new Bundle());
+                    }
+                }
+
+                @Override
+                public void error(String errorCode, String errorMessage, Object errorDetails) {
+                    result.sendError(new Bundle());
+                }
+
+                @Override
+                public void notImplemented() {
+                    result.sendError(new Bundle());
+                }
+            });
         }
 
         @Override

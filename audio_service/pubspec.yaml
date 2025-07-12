@@ -13,8 +13,8 @@ environment:
 
 dependencies:
   # Use these deps for local development
-  # audio_service_platform_interface:
-  #   path: ../audio_service_platform_interface
+  audio_service_platform_interface:
+    path: ../audio_service_platform_interface
   # audio_service_web:
   #   path: ../audio_service_web
 
@@ -31,14 +31,14 @@ dependencies:
   #     path: audio_service_web
 
   # Use these deps when publishing.
-  audio_service_platform_interface: ^0.1.3
-  audio_service_web: ^0.1.4
+  # audio_service_platform_interface: ^0.1.3
+  # audio_service_web: ^0.1.4
 
-  audio_session: '>=0.1.25 <0.3.0'
-  rxdart: '>=0.26.0 <0.29.0'
+  audio_session: ">=0.1.25 <0.3.0"
+  rxdart: ">=0.26.0 <0.29.0"
   flutter_cache_manager: ^3.3.1
   clock: ^1.1.0
-  js: '>=0.6.3 <0.8.0'
+  js: ">=0.6.3 <0.8.0"
   flutter:
     sdk: flutter
   flutter_web_plugins:
