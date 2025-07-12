@@ -4,8 +4,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import java.util.Iterator;
+import android.util.Log;
+
+import java.util.List;
 import java.util.Map;
 import org.json.JSONObject;
+import androidx.media.utils.MediaConstants;
 
 public class AudioServiceConfig {
     private static final String SHARED_PREFERENCES_NAME = "audio_service_preferences";
@@ -23,6 +27,7 @@ public class AudioServiceConfig {
     private static final String KEY_ART_DOWNSCALE_HEIGHT = "artDownscaleHeight";
     private static final String KEY_ACTIVITY_CLASS_NAME = "activityClassName";
     private static final String KEY_BROWSABLE_ROOT_EXTRAS = "androidBrowsableRootExtras";
+    private static final String KEY_ANDROID_SEARCH_SUPPORTED = "androidSearchSupported";
 
     private SharedPreferences preferences;
     public boolean androidResumeOnClick;
@@ -39,6 +44,9 @@ public class AudioServiceConfig {
     public int artDownscaleHeight;
     public String activityClassName;
     public String browsableRootExtras;
+    public boolean androidSearchSupported;
+    private List<Map<String, Object>> homeVideoList;
+
 
     public AudioServiceConfig(Context context) {
         preferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -56,6 +64,7 @@ public class AudioServiceConfig {
         artDownscaleHeight = preferences.getInt(KEY_ART_DOWNSCALE_HEIGHT, -1);
         activityClassName = preferences.getString(KEY_ACTIVITY_CLASS_NAME, null);
         browsableRootExtras = preferences.getString(KEY_BROWSABLE_ROOT_EXTRAS, null);
+        androidSearchSupported = preferences.getBoolean(KEY_ANDROID_SEARCH_SUPPORTED, true);
     }
 
     public void setBrowsableRootExtras(Map<?,?> map) {
@@ -67,36 +76,50 @@ public class AudioServiceConfig {
         }
     }
 
+    public void setHomeVideoList(List<Map<String, Object>> homeVideoList) {
+        android.util.Log.d("AudioServiceConfig", "setHomeVideoList called with: " + (homeVideoList != null ? homeVideoList.size() + " items" : "null"));
+        this.homeVideoList = homeVideoList;
+    }
+
+    public List<Map<String, Object>> getHomeVideoList() {
+        return this.homeVideoList;
+    }
+
     public Bundle getBrowsableRootExtras() {
-        if (browsableRootExtras == null) return null;
-        try {
-            JSONObject json = new JSONObject(browsableRootExtras);
-            Bundle extras = new Bundle();
-            for (Iterator<String> it = json.keys(); it.hasNext();) {
-                String key = it.next();
-                try {
-                    extras.putInt(key, json.getInt(key));
-                } catch (Exception e1) {
+        Bundle extras = new Bundle();
+        extras.putBoolean(MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, androidSearchSupported);
+        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                  MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+
+        if (browsableRootExtras != null) {
+            try {
+                JSONObject json = new JSONObject(browsableRootExtras);
+                for (Iterator<String> it = json.keys(); it.hasNext();) {
+                    String key = it.next();
                     try {
-                        extras.putBoolean(key, json.getBoolean(key));
-                    } catch (Exception e2) {
+                        extras.putInt(key, json.getInt(key));
+                    } catch (Exception e1) {
                         try {
-                            extras.putDouble(key, json.getDouble(key));
-                        } catch (Exception e3) {
+                            extras.putBoolean(key, json.getBoolean(key));
+                        } catch (Exception e2) {
                             try {
-                                extras.putString(key, json.getString(key));
-                            } catch (Exception e4) {
-                                System.out.println("Unsupported extras value for key " + key);
+                                extras.putDouble(key, json.getDouble(key));
+                            } catch (Exception e3) {
+                                try {
+                                    extras.putString(key, json.getString(key));
+                                } catch (Exception e4) {
+                                    Log.w("AudioServiceConfig", "Unsupported extras value for key: " + key);
+                                }
                             }
                         }
                     }
                 }
+            } catch (Exception e) {
+                Log.e("AudioServiceConfig", "Error parsing browsable root extras", e);
             }
-            return extras;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
         }
+
+        return extras;
     }
 
     public void save() {
@@ -115,6 +138,7 @@ public class AudioServiceConfig {
             .putInt(KEY_ART_DOWNSCALE_HEIGHT, artDownscaleHeight)
             .putString(KEY_ACTIVITY_CLASS_NAME, activityClassName)
             .putString(KEY_BROWSABLE_ROOT_EXTRAS, browsableRootExtras)
+            .putBoolean(KEY_ANDROID_SEARCH_SUPPORTED, androidSearchSupported)
             .apply();
     }
 }

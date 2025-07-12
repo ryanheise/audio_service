@@ -3434,6 +3434,9 @@ class AudioServiceConfig {
   /// channel ID that you are currently using.
   final String? androidNotificationChannelId;
 
+  /// Whether to enable search support on Android Auto.
+  final bool androidSearchSupported;
+
   /// The name of the media notification channel, that is visible to user in
   /// settings of your app.
   final String androidNotificationChannelName;
@@ -3454,6 +3457,8 @@ class AudioServiceConfig {
   /// Whether notification badges (also known as notification dots) should
   /// appear on a launcher icon when the app has an active notification.
   final bool androidShowNotificationBadge;
+
+  final List<MediaItem>? homeVideoList;
 
   /// Whether the application activity will be opened on click on notification.
   final bool androidNotificationClickStartsActivity;
@@ -3520,32 +3525,41 @@ class AudioServiceConfig {
     this.rewindInterval = const Duration(seconds: 10),
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
+    this.androidSearchSupported = false,
+    this.homeVideoList,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
         assert(
           !androidNotificationOngoing || androidStopForegroundOnPause,
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
         );
 
-  AudioServiceConfigMessage _toMessage() => AudioServiceConfigMessage(
-        androidResumeOnClick: androidResumeOnClick,
-        androidNotificationChannelId: androidNotificationChannelId,
-        androidNotificationChannelName: androidNotificationChannelName,
-        androidNotificationChannelDescription:
-            androidNotificationChannelDescription,
-        notificationColor: notificationColor,
-        androidNotificationIcon: androidNotificationIcon,
-        androidShowNotificationBadge: androidShowNotificationBadge,
-        androidNotificationClickStartsActivity:
-            androidNotificationClickStartsActivity,
-        androidNotificationOngoing: androidNotificationOngoing,
-        androidStopForegroundOnPause: androidStopForegroundOnPause,
-        artDownscaleWidth: artDownscaleWidth,
-        artDownscaleHeight: artDownscaleHeight,
-        fastForwardInterval: fastForwardInterval,
-        rewindInterval: rewindInterval,
-        preloadArtwork: preloadArtwork,
-        androidBrowsableRootExtras: androidBrowsableRootExtras,
-      );
+  AudioServiceConfigMessage _toMessage() {
+    print('DEBUG: homeVideoList in _toMessage: $homeVideoList');
+    print('DEBUG: homeVideoList length: ${homeVideoList?.length}');
+    final message = AudioServiceConfigMessage(
+      androidResumeOnClick: androidResumeOnClick,
+      androidNotificationChannelId: androidNotificationChannelId,
+      androidNotificationChannelName: androidNotificationChannelName,
+      androidNotificationChannelDescription:
+          androidNotificationChannelDescription,
+      notificationColor: notificationColor,
+      androidNotificationIcon: androidNotificationIcon,
+      androidShowNotificationBadge: androidShowNotificationBadge,
+      androidNotificationClickStartsActivity:
+          androidNotificationClickStartsActivity,
+      androidNotificationOngoing: androidNotificationOngoing,
+      androidStopForegroundOnPause: androidStopForegroundOnPause,
+      artDownscaleWidth: artDownscaleWidth,
+      artDownscaleHeight: artDownscaleHeight,
+      fastForwardInterval: fastForwardInterval,
+      rewindInterval: rewindInterval,
+      preloadArtwork: preloadArtwork,
+      androidBrowsableRootExtras: androidBrowsableRootExtras,
+      androidSearchSupported: androidSearchSupported,
+      homeVideoList: homeVideoList?.map((item) => item._toMessage()).toList(),
+    );
+    return message;
+  }
 
   @override
   String toString() => '${_toMessage().toMap()}';

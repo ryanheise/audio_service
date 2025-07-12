@@ -1389,6 +1389,12 @@ class AudioServiceConfigMessage {
   /// Extras to report on Android in response to an `onGetRoot` request.
   final Map<String, dynamic>? androidBrowsableRootExtras;
 
+  /// Whether to enable search support on Android Auto.
+  final bool androidSearchSupported;
+
+  /// List of media items for home video list
+  final List<MediaItemMessage>? homeVideoList;
+
   @literal
   const AudioServiceConfigMessage({
     this.androidResumeOnClick = true,
@@ -1407,6 +1413,8 @@ class AudioServiceConfigMessage {
     this.rewindInterval = const Duration(seconds: 10),
     this.preloadArtwork = false,
     this.androidBrowsableRootExtras,
+    this.androidSearchSupported = true,
+    this.homeVideoList,
   })  : assert((artDownscaleWidth != null) == (artDownscaleHeight != null)),
         assert(fastForwardInterval > Duration.zero),
         assert(rewindInterval > Duration.zero),
@@ -1415,27 +1423,35 @@ class AudioServiceConfigMessage {
           'The androidNotificationOngoing will make no effect with androidStopForegroundOnPause set to false',
         );
 
-  Map<String, dynamic> toMap() => <String, dynamic>{
-        'androidResumeOnClick': androidResumeOnClick,
-        'androidNotificationChannelId': androidNotificationChannelId,
-        'androidNotificationChannelName': androidNotificationChannelName,
-        'androidNotificationChannelDescription':
-            androidNotificationChannelDescription,
-        // ignore: deprecated_member_use
-        'notificationColor': notificationColor?.value, //_colorValue,
-        'androidNotificationIcon': androidNotificationIcon,
-        'androidShowNotificationBadge': androidShowNotificationBadge,
-        'androidNotificationClickStartsActivity':
-            androidNotificationClickStartsActivity,
-        'androidNotificationOngoing': androidNotificationOngoing,
-        'androidStopForegroundOnPause': androidStopForegroundOnPause,
-        'artDownscaleWidth': artDownscaleWidth,
-        'artDownscaleHeight': artDownscaleHeight,
-        'fastForwardInterval': fastForwardInterval.inMilliseconds,
-        'rewindInterval': rewindInterval.inMilliseconds,
-        'preloadArtwork': preloadArtwork,
-        'androidBrowsableRootExtras': androidBrowsableRootExtras,
-      };
+  Map<String, dynamic> toMap() {
+    print(
+        'DEBUG: AudioServiceConfigMessage toMap - homeVideoList: $homeVideoList');
+    print(
+        'DEBUG: AudioServiceConfigMessage toMap - homeVideoList length: ${homeVideoList?.length}');
+    return <String, dynamic>{
+      'androidResumeOnClick': androidResumeOnClick,
+      'androidNotificationChannelId': androidNotificationChannelId,
+      'androidNotificationChannelName': androidNotificationChannelName,
+      'androidNotificationChannelDescription':
+          androidNotificationChannelDescription,
+      // ignore: deprecated_member_use
+      'notificationColor': notificationColor?.value, //_colorValue,
+      'androidNotificationIcon': androidNotificationIcon,
+      'androidShowNotificationBadge': androidShowNotificationBadge,
+      'androidNotificationClickStartsActivity':
+          androidNotificationClickStartsActivity,
+      'androidNotificationOngoing': androidNotificationOngoing,
+      'androidStopForegroundOnPause': androidStopForegroundOnPause,
+      'artDownscaleWidth': artDownscaleWidth,
+      'artDownscaleHeight': artDownscaleHeight,
+      'fastForwardInterval': fastForwardInterval.inMilliseconds,
+      'rewindInterval': rewindInterval.inMilliseconds,
+      'preloadArtwork': preloadArtwork,
+      'androidBrowsableRootExtras': androidBrowsableRootExtras,
+      'androidSearchSupported': androidSearchSupported,
+      'homeVideoList': homeVideoList?.map((item) => item.toMap()).toList(),
+    };
+  }
 }
 
 /// Casts `Map<dynamic, dynamic>` into `Map<String, dynamic>`.
