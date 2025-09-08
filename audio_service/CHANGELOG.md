@@ -1,3 +1,7 @@
+## 0.18.19
+
+* Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger)
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
