@@ -220,6 +220,9 @@ static NSMutableDictionary *nowPlayingInfo = nil;
             }
         }
         [self updateNowPlayingInfo];
+        if (commandCenter) {
+            [self updateControl:ASetRating];
+        }
         result(@{});
     } else if ([@"setPlaybackInfo" isEqualToString:call.method]) {
         result(@{});
@@ -329,6 +332,70 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (void) updateControl:(enum MediaAction)action {
+    // ASetRating maps to multiple commands depending on the rating style.
+    if (action == ASetRating) {
+        if (!commandCenter) return;
+        BOOL enable = ((actionBits >> action) & 1);
+        NSDictionary *ratingDict = nil;
+        if (mediaItem != nil && mediaItem[@"rating"] != nil && mediaItem[@"rating"] != (id)[NSNull null]) {
+            ratingDict = mediaItem[@"rating"];
+        }
+        int ratingType = ratingDict ? [ratingDict[@"type"] intValue] : 0;
+
+        // Reset all rating-related commands before re-applying.
+        [commandCenter.likeCommand setEnabled:NO];
+        [commandCenter.dislikeCommand setEnabled:NO];
+        [commandCenter.ratingCommand setEnabled:NO];
+        [commandCenter.likeCommand removeTarget:nil];
+        [commandCenter.dislikeCommand removeTarget:nil];
+        [commandCenter.ratingCommand removeTarget:nil];
+
+        if (enable) {
+            switch (ratingType) {
+                case 1: // heart
+                    commandCenter.likeCommand.active = ratingDict && ratingDict[@"value"] != nil && ratingDict[@"value"] != (id)[NSNull null]
+                        ? [ratingDict[@"value"] boolValue]
+                        : NO;
+                    [commandCenter.likeCommand setEnabled:YES];
+                    [commandCenter.likeCommand addTarget:self action:@selector(like:)];
+                    break;
+                case 2: // thumbUpDown
+                    commandCenter.likeCommand.active = ratingDict && ratingDict[@"value"] != nil && ratingDict[@"value"] != (id)[NSNull null]
+                        ? [ratingDict[@"value"] boolValue]
+                        : NO;
+                    commandCenter.dislikeCommand.active = ratingDict && ratingDict[@"value"] != nil && ratingDict[@"value"] != (id)[NSNull null]
+                        ? ![ratingDict[@"value"] boolValue]
+                        : NO;
+                    [commandCenter.likeCommand setEnabled:YES];
+                    [commandCenter.dislikeCommand setEnabled:YES];
+                    [commandCenter.likeCommand addTarget:self action:@selector(like:)];
+                    [commandCenter.dislikeCommand addTarget:self action:@selector(dislike:)];
+                    break;
+                case 3: // range3stars  (maximumRating == ratingType index)
+                case 4: // range4stars
+                case 5: // range5stars
+                    commandCenter.ratingCommand.minimumRating = 0.0;
+                    commandCenter.ratingCommand.maximumRating = (float)ratingType;
+                    [commandCenter.ratingCommand setEnabled:YES];
+                    [commandCenter.ratingCommand addTarget:self action:@selector(changeRating:)];
+                    break;
+                case 6: // percentage
+                    commandCenter.ratingCommand.minimumRating = 0.0;
+                    commandCenter.ratingCommand.maximumRating = 100.0;
+                    [commandCenter.ratingCommand setEnabled:YES];
+                    [commandCenter.ratingCommand addTarget:self action:@selector(changeRating:)];
+                    break;
+                default:
+                    // No rating type specified: fallback to heart (likeCommand).
+                    commandCenter.likeCommand.active = NO;
+                    [commandCenter.likeCommand setEnabled:YES];
+                    [commandCenter.likeCommand addTarget:self action:@selector(like:)];
+                    break;
+            }
+        }
+        return;
+    }
+
     MPRemoteCommand *command = commands[action];
     if (command == (id)[NSNull null]) return;
     // Shift the actionBits right until the least significant bit is the tested action bit, and AND that with a 1 at the same position.
@@ -398,10 +465,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
             }
             break;
         case ASetRating:
-            // TODO:
-            // commandCenter.ratingCommand
-            // commandCenter.dislikeCommand
-            // commandCenter.bookmarkCommand
+            // Handled before this switch statement (multiple commands depending on rating style).
             break;
         case ASeekTo:
             if (@available(iOS 9.1, macOS 10.12.2, *)) {
@@ -566,6 +630,51 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     }
     [handlerChannel invokeMethod:@"setShuffleMode" arguments:@{
         @"shuffleMode":@(modeIndex)
+    }];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) like: (MPFeedbackCommandEvent *) event {
+    NSDictionary *ratingDict = nil;
+    if (mediaItem != nil && mediaItem[@"rating"] != nil && mediaItem[@"rating"] != (id)[NSNull null]) {
+        ratingDict = mediaItem[@"rating"];
+    }
+    int ratingType = ratingDict ? [ratingDict[@"type"] intValue] : 1;
+    NSDictionary *rating;
+    if (ratingType == 2) {
+        // thumbUpDown: like command = thumbs up
+        rating = @{@"type": @(2), @"value": @(YES)};
+    } else {
+        // heart: iOS toggles likeCommand.active before calling the handler
+        rating = @{@"type": @(1), @"value": @(commandCenter.likeCommand.active)};
+    }
+    [handlerChannel invokeMethod:@"setRating" arguments:@{
+        @"rating": rating,
+        @"extras": [NSNull null]
+    }];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) dislike: (MPFeedbackCommandEvent *) event {
+    // thumbUpDown: dislike command = thumbs down (value = NO)
+    NSDictionary *rating = @{@"type": @(2), @"value": @(NO)};
+    [handlerChannel invokeMethod:@"setRating" arguments:@{
+        @"rating": rating,
+        @"extras": [NSNull null]
+    }];
+    return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus) changeRating: (MPRatingCommandEvent *) event {
+    NSDictionary *ratingDict = nil;
+    if (mediaItem != nil && mediaItem[@"rating"] != nil && mediaItem[@"rating"] != (id)[NSNull null]) {
+        ratingDict = mediaItem[@"rating"];
+    }
+    int ratingType = ratingDict ? [ratingDict[@"type"] intValue] : 5; // default range5stars
+    NSDictionary *rating = @{@"type": @(ratingType), @"value": @(event.rating)};
+    [handlerChannel invokeMethod:@"setRating" arguments:@{
+        @"rating": rating,
+        @"extras": [NSNull null]
     }];
     return MPRemoteCommandHandlerStatusSuccess;
 }
