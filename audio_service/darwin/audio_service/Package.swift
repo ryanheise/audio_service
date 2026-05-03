@@ -19,6 +19,14 @@ let package = Package(
             dependencies: [],
             cSettings: [
                 .headerSearchPath("include/audio_service")
+            ],
+            linkerSettings: [
+                // CarPlay is used on iOS 14+ to update CPNowPlayingTemplate buttons
+                // when a rating command (like/dislike) is active.
+                // The framework is a system framework and does NOT require the CarPlay
+                // entitlement — calling updateNowPlayingButtons is a no-op when no
+                // CarPlay screen is connected.
+                .linkedFramework("CarPlay", .when(platforms: [.iOS]))
             ]
         )
     ]
