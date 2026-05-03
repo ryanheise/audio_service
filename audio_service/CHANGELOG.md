@@ -1,3 +1,8 @@
+## 0.18.19
+
+* [iOS] Implement `MediaAction.setRating` for all rating styles: `heart` (like/unlike via `MPFeedbackCommand`), `thumbUpDown` (like + dislike via `MPFeedbackCommand`), `range3stars`/`range4stars`/`range5stars` and `percentage` (via `MPRatingCommand`). Rating commands are dynamically enabled/disabled and kept in sync whenever the media item changes (@EArminjon)
+* [iOS] Support `heart` and `thumbUpDown` rating types in `CPNowPlayingTemplate` on CarPlay (iOS 14+). When the corresponding command is active, a `CPNowPlayingImageButton` using SF Symbols (`star`/`star.fill` or `hand.thumbsdown`/`hand.thumbsdown.fill`) is added to the CarPlay NowPlaying screen. Tapping the button invokes the Flutter `setRating` callback and the button state updates immediately. `CarPlay.framework` is linked as a system framework (iOS only) and requires no special entitlement — calls are silently ignored when no CarPlay screen is connected (@EArminjon)
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.

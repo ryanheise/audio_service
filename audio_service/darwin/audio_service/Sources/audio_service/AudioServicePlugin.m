@@ -1,6 +1,9 @@
 #import "./include/audio_service/AudioServicePlugin.h"
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
+#if TARGET_OS_IPHONE
+#import <CarPlay/CarPlay.h>
+#endif
 
 // If you'd like to help, please see the TODO comments below, then open a
 // GitHub issue to announce your intention to work on a particular feature, and
@@ -133,6 +136,58 @@ static NSMutableDictionary *nowPlayingInfo = nil;
     [commandCenter.likeCommand setEnabled:NO];
     [commandCenter.dislikeCommand setEnabled:NO];
     [commandCenter.bookmarkCommand setEnabled:NO];
+}
+
+// Static helpers called from CarPlay CPNowPlayingImageButton handlers.
+// They reference only static variables so no instance capture is needed.
+
+// Forward declaration — defined later after the @implementation block.
+#if TARGET_OS_IPHONE
+static void refreshCarPlayNowPlayingButtons(void) API_AVAILABLE(ios(14.0));
+#endif
+
+static void handleCarPlayLikeButtonTap() {
+    if (!commandCenter || !handlerChannel) return;
+    NSDictionary *ratingDict = nil;
+    if (mediaItem != nil && mediaItem[@"rating"] != nil && mediaItem[@"rating"] != (id)[NSNull null]) {
+        ratingDict = mediaItem[@"rating"];
+    }
+    int ratingType = ratingDict ? [ratingDict[@"type"] intValue] : 1;
+    NSDictionary *rating;
+    if (ratingType == 2) {
+        commandCenter.likeCommand.active = YES;
+        commandCenter.dislikeCommand.active = NO;
+        rating = @{@"type": @(2), @"value": @(YES)};
+    } else {
+        rating = @{@"type": @(1), @"value": @(commandCenter.likeCommand.active)};
+    }
+    [handlerChannel invokeMethod:@"setRating" arguments:@{
+        @"rating": rating,
+        @"extras": [NSNull null]
+    }];
+    // Immediately rebuild buttons so the icon reflects the toggled state.
+#if TARGET_OS_IPHONE
+    if (@available(iOS 14.0, *)) {
+        refreshCarPlayNowPlayingButtons();
+    }
+#endif
+}
+
+static void handleCarPlayDislikeButtonTap() {
+    if (!commandCenter || !handlerChannel) return;
+    // thumbUpDown: dislike = thumbs down; update active states for instant feedback
+    commandCenter.likeCommand.active = NO;
+    commandCenter.dislikeCommand.active = YES;
+    NSDictionary *rating = @{@"type": @(2), @"value": @(NO)};
+    [handlerChannel invokeMethod:@"setRating" arguments:@{
+        @"rating": rating,
+        @"extras": [NSNull null]
+    }];
+#if TARGET_OS_IPHONE
+    if (@available(iOS 14.0, *)) {
+        refreshCarPlayNowPlayingButtons();
+    }
+#endif
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -393,6 +448,12 @@ static NSMutableDictionary *nowPlayingInfo = nil;
                     break;
             }
         }
+        // Update CarPlay NowPlaying template buttons to reflect the new rating state.
+#if TARGET_OS_IPHONE
+        if (@available(iOS 14.0, *)) {
+            [self updateCarPlayNowPlayingButtons];
+        }
+#endif
         return;
     }
 
@@ -682,5 +743,40 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 - (void) dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
+
+#if TARGET_OS_IPHONE
+static void refreshCarPlayNowPlayingButtons(void) API_AVAILABLE(ios(14.0)) {
+    if (!commandCenter) return;
+    NSMutableArray *buttons = [NSMutableArray new];
+
+    if (commandCenter.likeCommand.isEnabled) {
+        BOOL isActive = commandCenter.likeCommand.active;
+        UIImage *image = [UIImage systemImageNamed:(isActive ? @"star.fill" : @"star")];
+        if (image) {
+            CPNowPlayingImageButton *btn = [[CPNowPlayingImageButton alloc]
+                initWithImage:image
+                handler:^(CPNowPlayingButton *b) { handleCarPlayLikeButtonTap(); }];
+            [buttons addObject:btn];
+        }
+    }
+
+    if (commandCenter.dislikeCommand.isEnabled) {
+        BOOL isActive = commandCenter.dislikeCommand.active;
+        UIImage *image = [UIImage systemImageNamed:(isActive ? @"hand.thumbsdown.fill" : @"hand.thumbsdown")];
+        if (image) {
+            CPNowPlayingImageButton *btn = [[CPNowPlayingImageButton alloc]
+                initWithImage:image
+                handler:^(CPNowPlayingButton *b) { handleCarPlayDislikeButtonTap(); }];
+            [buttons addObject:btn];
+        }
+    }
+
+    [[CPNowPlayingTemplate sharedTemplate] updateNowPlayingButtons:buttons];
+}
+
+- (void)updateCarPlayNowPlayingButtons API_AVAILABLE(ios(14.0)) {
+    refreshCarPlayNowPlayingButtons();
+}
+#endif
 
 @end
