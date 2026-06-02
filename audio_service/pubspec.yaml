@@ -54,9 +54,6 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
-      android:
-        package: com.ryanheise.audioservice
-        pluginClass: AudioServicePlugin
       ios:
         pluginClass: AudioServicePlugin
         sharedDarwinSource: true
