@@ -11,16 +11,19 @@ dependencies:
 
   path_provider: ^2.0.1
   audio_session: ^0.1.25
-  just_audio: ^0.9.46
-  flutter_tts: ^3.8.3
-  device_info_plus: ^9.1.0
-  android_content_provider: ^0.4.1
+  just_audio: ^0.10.6
+  flutter_tts: ^4.2.5
+  device_info_plus: ^13.2.0
+  # Disabled until compileSdk is bumped
+  # android_content_provider: ^0.5.2
   permission_handler : ^11.0.1
   rxdart: ^0.27.2
   audio_service:
     path: ../
-  audio_service_mpris: ^0.1.3
-  just_audio_mpv: ^0.1.7
+  audio_service_mpris: ^0.2.1
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_linux: any
+  media_kit_libs_windows_audio: any
 
 dev_dependencies:
   flutter_test:

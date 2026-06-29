@@ -1,3 +1,8 @@
+## 0.18.19
+
+* Support AGP 9.
+* Migrate Android build files to .kts
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
