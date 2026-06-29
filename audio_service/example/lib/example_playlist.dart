@@ -184,6 +184,7 @@ class MainScreen extends StatelessWidget {
                   final queueState = snapshot.data ?? QueueState.empty;
                   final queue = queueState.queue;
                   return ReorderableListView(
+                    // ignore: deprecated_member_use
                     onReorder: (int oldIndex, int newIndex) {
                       if (oldIndex < newIndex) newIndex--;
                       _audioHandler.moveQueueItem(oldIndex, newIndex);
@@ -370,7 +371,6 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
       BehaviorSubject.seeded(<MediaItem>[]);
   final _mediaLibrary = MediaLibrary();
   final _player = AudioPlayer();
-  final _playlist = ConcatenatingAudioSource(children: []);
   @override
   final BehaviorSubject<double> volume = BehaviorSubject.seeded(1.0);
   @override
@@ -395,7 +395,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   /// Computes the effective queue index taking shuffle mode into account.
   int? getQueueIndex(
       int? currentIndex, bool shuffleModeEnabled, List<int>? shuffleIndices) {
-    final effectiveIndices = _player.effectiveIndices ?? [];
+    final effectiveIndices = _player.effectiveIndices;
     final shuffleIndicesInv = List.filled(effectiveIndices.length, 0);
     for (var i = 0; i < effectiveIndices.length; i++) {
       shuffleIndicesInv[effectiveIndices[i]] = i;
@@ -501,8 +501,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
             sequence.map((source) => _mediaItemExpando[source]!).toList())
         .pipe(queue);
     // Load the playlist.
-    _playlist.addAll(queue.value.map(_itemToSource).toList());
-    await _player.setAudioSource(_playlist);
+    await _player.addAudioSources(queue.value.map(_itemToSource).toList());
   }
 
   AudioSource _itemToSource(MediaItem mediaItem) {
@@ -545,40 +544,40 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
-    await _playlist.add(_itemToSource(mediaItem));
+    await _player.addAudioSource(_itemToSource(mediaItem));
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
-    await _playlist.addAll(_itemsToSources(mediaItems));
+    await _player.addAudioSources(_itemsToSources(mediaItems));
   }
 
   @override
   Future<void> insertQueueItem(int index, MediaItem mediaItem) async {
-    await _playlist.insert(index, _itemToSource(mediaItem));
+    await _player.insertAudioSource(index, _itemToSource(mediaItem));
   }
 
   @override
   Future<void> updateQueue(List<MediaItem> queue) async {
-    await _playlist.clear();
-    await _playlist.addAll(_itemsToSources(queue));
+    await _player.clearAudioSources();
+    await _player.addAudioSources(_itemsToSources(queue));
   }
 
   @override
   Future<void> updateMediaItem(MediaItem mediaItem) async {
     final index = queue.value.indexWhere((item) => item.id == mediaItem.id);
-    _mediaItemExpando[_player.sequence![index]] = mediaItem;
+    _mediaItemExpando[_player.sequence[index]] = mediaItem;
   }
 
   @override
   Future<void> removeQueueItem(MediaItem mediaItem) async {
     final index = queue.value.indexOf(mediaItem);
-    await _playlist.removeAt(index);
+    await _player.removeAudioSourceAt(index);
   }
 
   @override
   Future<void> moveQueueItem(int currentIndex, int newIndex) async {
-    await _playlist.move(currentIndex, newIndex);
+    await _player.moveAudioSource(currentIndex, newIndex);
   }
 
   @override
@@ -589,12 +588,11 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   @override
   Future<void> skipToQueueItem(int index) async {
-    if (index < 0 || index >= _playlist.children.length) return;
+    if (index < 0 || index >= _player.audioSources.length) return;
     // This jumps to the beginning of the queue item at [index].
     _player.seek(Duration.zero,
-        index: _player.shuffleModeEnabled
-            ? _player.shuffleIndices![index]
-            : index);
+        index:
+            _player.shuffleModeEnabled ? _player.shuffleIndices[index] : index);
   }
 
   @override
@@ -691,3 +689,5 @@ class MediaLibrary {
     ],
   };
 }
+
+
