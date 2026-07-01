@@ -3,6 +3,11 @@
 * Remove deprecated BackgroundAudioTask API.
 * BREAKING: playbackState.copyWith no longer changes updateTime by default.
 
+## 0.18.20
+
+* Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
+* Fix deprecated initWithImage (@SoWrongImRight).
+
 ## 0.18.19
 
 * Support AGP 9.
