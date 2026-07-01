@@ -1,3 +1,7 @@
+## 0.18.19
+
+* Fix deprecated withInitImage
+
 ## 0.1.3
 
 * Fix deprecated Color.value.

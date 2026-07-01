@@ -210,9 +210,11 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 #endif
                 if (artImage != nil) {
 #if TARGET_OS_IPHONE
-                    artwork = [[MPMediaItemArtwork alloc] initWithImage: artImage];
+                    artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:artImage.size requestHandler:^UIImage * _Nonnull(CGSize size) {
+                        return artImage;
+                    }];
 #else
-                    artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:artImage.size requestHandler:^NSImage* _Nonnull(CGSize aSize) {
+                    artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:artImage.size requestHandler:^NSImage * _Nonnull(CGSize size) {
                         return artImage;
                     }];
 #endif
