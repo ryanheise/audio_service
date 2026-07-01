@@ -16,7 +16,7 @@ Flutter plugin to play audio in the background while the screen is off.
   s.public_header_files = 'audio_service/Sources/audio_service/include/**/*.h'
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'
-  s.ios.deployment_target = '12.0'
+  s.ios.deployment_target = '13.0'
   s.osx.deployment_target = '10.14'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 end
