@@ -1,3 +1,13 @@
+## 0.18.20
+
+* Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
+* Fix deprecated initWithImage (@SoWrongImRight).
+
+## 0.18.19
+
+* Support AGP 9.
+* Migrate Android build files to .kts
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.

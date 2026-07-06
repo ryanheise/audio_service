@@ -327,11 +327,9 @@ class AudioPlayerHandler extends BaseAudioHandler
       // the loading state to the completed state. Inserting a delay makes it
       // work. Not sure why!
       //await Future.delayed(Duration(seconds: 2)); // magic delay
-      await _player.setAudioSource(ConcatenatingAudioSource(
-        children: queue.value
-            .map((item) => AudioSource.uri(Uri.parse(item.id)))
-            .toList(),
-      ));
+      await _player.setAudioSources(
+        queue.value.map((item) => AudioSource.uri(Uri.parse(item.id))).toList(),
+      );
     } catch (e) {
       print("Error: $e");
     }
@@ -696,3 +694,5 @@ class Tts {
 }
 
 class TtsInterruptedException {}
+
+
