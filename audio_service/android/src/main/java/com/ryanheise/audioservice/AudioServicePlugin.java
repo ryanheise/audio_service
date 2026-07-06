@@ -81,10 +81,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     if (activity.shouldHandleDeeplinking()) {
                         Uri data = activity.getIntent().getData();
                         if (data != null) {
-                            initialRoute = data.getPath();
-                            if (data.getQuery() != null && !data.getQuery().isEmpty()) {
-                                initialRoute += "?" + data.getQuery();
-                            }
+                            initialRoute = data.toString();
                         }
                     }
                 }
@@ -95,10 +92,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     if (activity.shouldHandleDeeplinking()) {
                         Uri data = activity.getIntent().getData();
                         if (data != null) {
-                            initialRoute = data.getPath();
-                            if (data.getQuery() != null && !data.getQuery().isEmpty()) {
-                                initialRoute += "?" + data.getQuery();
-                            }
+                            initialRoute = data.toString();
                         }
                     }
                 }
