@@ -826,7 +826,19 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
         @Override
         public void onDestroy() {
-            disposeFlutterEngine();
+            // The OS may stop the service while audio is still playing, e.g.
+            // battery saver's App Standby restriction ("Stopping service due
+            // to app idle" after ~9 min without user interaction on some
+            // devices). The audio itself is rendered by plugins living in the
+            // Flutter engine, not by this service — destroying the engine here
+            // would needlessly kill the ongoing playback (and a later app
+            // launch cold-starts from the splash screen even though the
+            // process survived). Keep the engine alive in that case; it is
+            // still disposed in the normal flows, where playback has already
+            // been stopped or paused by the time the service is destroyed.
+            if (AudioService.instance == null || !AudioService.instance.isPlaying()) {
+                disposeFlutterEngine();
+            }
         }
 
         @Override
