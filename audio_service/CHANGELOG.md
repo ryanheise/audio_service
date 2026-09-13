@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Fix Android notification outliving the session after stop() while the app is open (@emil485h).
 
 ## 0.18.19
 

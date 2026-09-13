@@ -354,6 +354,16 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     public void stop() {
         deactivateMediaSession();
+        // deactivateMediaSession() cancels the notification through
+        // NotificationManager, but a foreground service's notification cannot
+        // be cancelled that way: it stays until the service leaves the
+        // foreground. And stopSelf() below does not destroy a service that a
+        // client (the app's own activity, through MediaBrowserCompat) is still
+        // bound to, so onDestroy()'s stopForeground() may not run for as long
+        // as the app stays open. Leave the foreground here, removing the
+        // notification, which is what the idle state promises.
+        ServiceCompat.stopForeground(this, STOP_FOREGROUND_REMOVE);
+        notificationCreated = false;
         stopSelf();
     }
 
