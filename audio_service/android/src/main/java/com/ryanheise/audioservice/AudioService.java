@@ -46,8 +46,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.flutter.embedding.engine.FlutterEngine;
-
 public class AudioService extends MediaBrowserServiceCompat {
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     public static final String CONTENT_STYLE_PLAYABLE_HINT = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT";
@@ -264,7 +262,6 @@ public class AudioService extends MediaBrowserServiceCompat {
         return inSampleSize;
     }
 
-    private FlutterEngine flutterEngine;
     private AudioServiceConfig config;
     private PowerManager.WakeLock wakeLock;
     private MediaSessionCompat mediaSession;
@@ -341,9 +338,6 @@ public class AudioService extends MediaBrowserServiceCompat {
                 return bitmap.getByteCount() / 1024;
             }
         };
-
-        flutterEngine = AudioServicePlugin.getFlutterEngine(this);
-        System.out.println("flutterEngine warmed up");
     }
 
     @Override
