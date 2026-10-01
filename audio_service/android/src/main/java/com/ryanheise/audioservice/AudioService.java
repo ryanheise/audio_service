@@ -232,10 +232,11 @@ public class AudioService extends MediaBrowserServiceCompat {
                         bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
                     }
                 } else {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
                     if (fileDescriptor != null) {
-                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+                        bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
                     } else {
-                        bitmap = BitmapFactory.decodeFile(artUri.getPath());
+                        bitmap = BitmapFactory.decodeFile(artUri.getPath(), options);
                     }
                 }
             }

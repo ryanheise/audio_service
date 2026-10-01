@@ -1,5 +1,6 @@
 ## 0.18.20
 
+* Pass default BitmapFactory.Options when decoding Android artwork without downscaling, preserving the existing decoding behavior (@TN19N).
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
 
