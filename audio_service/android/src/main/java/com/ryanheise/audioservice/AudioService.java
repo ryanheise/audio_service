@@ -713,6 +713,9 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     private void exitPlayingState() {
+        // Nothing needs the CPU while paused, even if the service stays in the
+        // foreground, so the wake lock is released either way.
+        releaseWakeLock();
         if (config.androidStopForegroundOnPause) {
             exitForegroundState();
         }

@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Fix Android wake lock held while paused with androidStopForegroundOnPause=false (@tu-bob).
 
 ## 0.18.19
 
