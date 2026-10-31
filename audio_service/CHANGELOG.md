@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Add androidSetSessionActivity config option for Android TV launchers (@gibbsoft).
 
 ## 0.18.19
 

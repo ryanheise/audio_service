@@ -1343,6 +1343,10 @@ class AudioServiceConfigMessage {
   /// Whether the application activity will be opened on click on notification.
   final bool androidNotificationClickStartsActivity;
 
+  /// Whether the application activity is registered as the media session's
+  /// session activity.
+  final bool androidSetSessionActivity;
+
   /// Whether the notification can be swiped away.
   ///
   /// If you set this to true, [androidStopForegroundOnPause] must be true as well,
@@ -1399,6 +1403,7 @@ class AudioServiceConfigMessage {
     this.androidNotificationIcon = 'mipmap/ic_launcher',
     this.androidShowNotificationBadge = false,
     this.androidNotificationClickStartsActivity = true,
+    this.androidSetSessionActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
@@ -1427,6 +1432,7 @@ class AudioServiceConfigMessage {
         'androidShowNotificationBadge': androidShowNotificationBadge,
         'androidNotificationClickStartsActivity':
             androidNotificationClickStartsActivity,
+        'androidSetSessionActivity': androidSetSessionActivity,
         'androidNotificationOngoing': androidNotificationOngoing,
         'androidStopForegroundOnPause': androidStopForegroundOnPause,
         'artDownscaleWidth': artDownscaleWidth,

@@ -469,6 +469,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     Map<?, ?> configMap = (Map<?, ?>)args.get("config");
                     AudioServiceConfig config = new AudioServiceConfig(context.getApplicationContext());
                     config.androidNotificationClickStartsActivity = (Boolean)configMap.get("androidNotificationClickStartsActivity");
+                    config.androidSetSessionActivity = (Boolean)configMap.get("androidSetSessionActivity");
                     config.androidNotificationOngoing = (Boolean)configMap.get("androidNotificationOngoing");
                     config.androidResumeOnClick = (Boolean)configMap.get("androidResumeOnClick");
                     config.androidNotificationChannelId = (String)configMap.get("androidNotificationChannelId");

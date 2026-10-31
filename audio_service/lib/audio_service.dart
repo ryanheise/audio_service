@@ -3458,6 +3458,17 @@ class AudioServiceConfig {
   /// Whether the application activity will be opened on click on notification.
   final bool androidNotificationClickStartsActivity;
 
+  /// Whether the application activity is registered as the media session's
+  /// session activity, which system UI (e.g. the Android TV launcher's "Now
+  /// Playing" card) uses to open the app.
+  ///
+  /// On Android 14 and later TV launchers, sending that activity
+  /// `PendingIntent` is rejected as a background activity launch and the
+  /// "Open" button does nothing. Setting this to `false` leaves the session
+  /// activity unset, in which case the launcher falls back to starting the
+  /// app's launcher activity itself.
+  final bool androidSetSessionActivity;
+
   /// Whether the notification can be swiped away.
   ///
   /// If you set this to true, [androidStopForegroundOnPause] must be true as well,
@@ -3512,6 +3523,7 @@ class AudioServiceConfig {
     this.androidNotificationIcon = 'mipmap/ic_launcher',
     this.androidShowNotificationBadge = false,
     this.androidNotificationClickStartsActivity = true,
+    this.androidSetSessionActivity = true,
     this.androidNotificationOngoing = false,
     this.androidStopForegroundOnPause = true,
     this.artDownscaleWidth,
@@ -3537,6 +3549,7 @@ class AudioServiceConfig {
         androidShowNotificationBadge: androidShowNotificationBadge,
         androidNotificationClickStartsActivity:
             androidNotificationClickStartsActivity,
+        androidSetSessionActivity: androidSetSessionActivity,
         androidNotificationOngoing: androidNotificationOngoing,
         androidStopForegroundOnPause: androidStopForegroundOnPause,
         artDownscaleWidth: artDownscaleWidth,
