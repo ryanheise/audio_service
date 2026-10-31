@@ -708,7 +708,8 @@ public class AudioService extends MediaBrowserServiceCompat {
             mediaSession.setActive(true);
 
         acquireWakeLock();
-        mediaSession.setSessionActivity(contentIntent);
+        if (config.androidSetSessionActivity)
+            mediaSession.setSessionActivity(contentIntent);
         internalStartForeground();
     }
 

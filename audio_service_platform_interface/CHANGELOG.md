@@ -1,3 +1,7 @@
+## 0.1.4
+
+* Add androidSetSessionActivity config option (@gibbsoft).
+
 ## 0.1.3
 
 * Fix deprecated Color.value.
