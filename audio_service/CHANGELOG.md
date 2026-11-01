@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Fix media session commands being ignored after AudioService is recreated on Android (@imush).
 
 ## 0.18.19
 

@@ -113,6 +113,10 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         return flutterEngine;
     }
 
+    static void reattachHandler() {
+        if (audioHandlerInterface != null) AudioService.init(audioHandlerInterface);
+    }
+
     public static synchronized void disposeFlutterEngine() {
         for (ClientInterface clientInterface : clientInterfaces) {
             if (clientInterface.activity != null) {
