@@ -304,6 +304,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     @Override
     public void onCreate() {
         super.onCreate();
+        // The engine may have outlived a previous instance of this service.
+        AudioServicePlugin.reattachHandler();
         instance = this;
         repeatMode = 0;
         shuffleMode = 0;
