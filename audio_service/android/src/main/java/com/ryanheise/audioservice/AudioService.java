@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
 
 public class AudioService extends MediaBrowserServiceCompat {
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
@@ -342,14 +343,40 @@ public class AudioService extends MediaBrowserServiceCompat {
             }
         };
 
-        flutterEngine = AudioServicePlugin.getFlutterEngine(this);
-        System.out.println("flutterEngine warmed up");
+        // Never boot a headless engine here: on a cold process start this
+        // blocks the main thread past the service start timeout (ANR). The
+        // engine is created by the activity and reused from the cache.
+        flutterEngine = getCachedFlutterEngine();
+        if (flutterEngine != null) {
+            System.out.println("flutterEngine warmed up");
+        }
+    }
+
+    private static FlutterEngine getCachedFlutterEngine() {
+        return FlutterEngineCache.getInstance().get(AudioServicePlugin.getFlutterEngineId());
     }
 
     @Override
     public int onStartCommand(final Intent intent, int flags, int startId) {
+        if (getCachedFlutterEngine() == null) {
+            stopWithoutFlutter();
+            return START_NOT_STICKY;
+        }
         MediaButtonReceiver.handleIntent(mediaSession, intent);
         return START_NOT_STICKY;
+    }
+
+    // No Dart side can handle the command, so drop it and the stale
+    // notification. Enter the foreground first in case the service was
+    // started with startForegroundService, which requires it.
+    private void stopWithoutFlutter() {
+        try {
+            startForeground(NOTIFICATION_ID, getNotificationBuilder().build());
+        } catch (RuntimeException e) {
+            // Not allowed to enter the foreground from this start; nothing to honour.
+        }
+        ServiceCompat.stopForeground(this, STOP_FOREGROUND_REMOVE);
+        stop();
     }
 
     public void stop() {
