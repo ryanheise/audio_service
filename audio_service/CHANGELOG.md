@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Fix Android ANR: don't boot a FlutterEngine in AudioService on a cold start (@IsmailAshour).
 
 ## 0.18.19
 
