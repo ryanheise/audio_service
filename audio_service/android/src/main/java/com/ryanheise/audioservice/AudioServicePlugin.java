@@ -60,6 +60,8 @@ import android.util.Log;
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     private static String flutterEngineId = "audio_service_engine";
+    /** True while getFlutterEngine is constructing the shared engine. */
+    private static boolean creatingSharedEngine = false;
     /** Must be called BEFORE any FlutterEngine is created. e.g. in Application class. */
     public static void setFlutterEngineId(String id) {
         flutterEngineId = id;
@@ -70,9 +72,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
     public static synchronized FlutterEngine getFlutterEngine(Context context) {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(flutterEngineId);
         if (flutterEngine == null) {
-            // XXX: The constructor triggers onAttachedToEngine so this variable doesn't help us.
-            // Maybe need a boolean flag to tell us we're currently loading the main flutter engine.
-            flutterEngine = new FlutterEngine(context.getApplicationContext());
+            // The constructor triggers onAttachedToEngine, which checks this
+            // flag to recognise the shared engine.
+            creatingSharedEngine = true;
+            try {
+                flutterEngine = new FlutterEngine(context.getApplicationContext());
+            } finally {
+                creatingSharedEngine = false;
+            }
             String initialRoute = null;
             if (context instanceof FlutterActivity) {
                 final FlutterActivity activity = (FlutterActivity)context;
@@ -278,9 +285,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             audioHandlerInterface = new AudioHandlerInterface(flutterPluginBinding.getBinaryMessenger());
             AudioService.init(audioHandlerInterface);
         }
-        if (mediaBrowser == null) {
+        // Connecting starts AudioService, whose onCreate creates the shared
+        // engine and runs the app's main(). Engines created by other plugins
+        // (e.g. firebase_messaging's background isolate) must not trigger
+        // that. An activity still connects in onAttachedToActivity.
+        if (mediaBrowser == null && isSharedEngineAttaching()) {
             connect();
         }
+    }
+
+    private static boolean isSharedEngineAttaching() {
+        return creatingSharedEngine
+                || FlutterEngineCache.getInstance().contains(flutterEngineId);
     }
 
     @Override
