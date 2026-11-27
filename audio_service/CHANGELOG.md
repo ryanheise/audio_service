@@ -2,6 +2,7 @@
 
 * Fix AudioServicePlugin not reporting playing state to iOS versions >= 13.0 (@marckornberger).
 * Fix deprecated initWithImage (@SoWrongImRight).
+* Fix Android app launching in the background when another plugin (e.g. firebase_messaging) creates a headless FlutterEngine (@gupzarofficial).
 
 ## 0.18.19
 
