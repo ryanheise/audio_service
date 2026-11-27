@@ -34,6 +34,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.flutter.embedding.android.FlutterActivity;
@@ -235,6 +236,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 e.printStackTrace();
                 if (configureResult != null) {
                     configureResult.error("onConnected error: " + e.getMessage(), null, null);
+                    configureResult = null;
                 } else {
                     clientInterface.setServiceConnectionFailed(true);
                 }
@@ -251,6 +253,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void onConnectionFailed() {
             if (configureResult != null) {
                 configureResult.error("Unable to bind to AudioService. Please ensure you have declared a <service> element as described in the README.", null, null);
+                configureResult = null;
             } else {
                 clientInterface.setServiceConnectionFailed(true);
             }
@@ -289,8 +292,15 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             disconnect();
         }
         clientInterfaces.remove(clientInterface);
-        clientInterface.setContext(null);
-        clientInterface = null;
+        if (mainClientInterface == clientInterface) {
+            mainClientInterface = null;
+        }
+        if (clientInterface != null) {
+            clientInterface.channel.setMethodCallHandler(null);
+            clientInterface.setContext(null);
+            clientInterface.setActivity(null);
+            clientInterface = null;
+        }
         applicationContext = null;
         if (audioHandlerInterface != null
                 && audioHandlerInterface.messenger == flutterPluginBinding.getBinaryMessenger()) {
@@ -388,6 +398,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             mediaBrowser.disconnect();
             mediaBrowser = null;
         }
+        configureResult = null;
     }
 
     private void registerOnNewIntentListener() {
@@ -520,6 +531,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public MethodChannel channel;
         private AudioTrack silenceAudioTrack;
         private final Handler handler = new Handler(Looper.getMainLooper());
+        private final ExecutorService executor = Executors.newSingleThreadExecutor();
         private List<MethodInvocation> methodInvocationQueue = new LinkedList<MethodInvocation>();
 
         public AudioHandlerInterface(BinaryMessenger messenger) {
@@ -835,11 +847,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                 Map<?, ?> args = (Map<?, ?>)call.arguments;
                 switch (call.method) {
                 case "setMediaItem": {
-                    Executors.newSingleThreadExecutor().execute(() -> {
+                    if (executor.isShutdown()) {
+                        result.success(null);
+                        break;
+                    }
+                    executor.execute(() -> {
                         try {
                             Map<?, ?> rawMediaItem = (Map<?, ?>)args.get("mediaItem");
-                            MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
-                            AudioService.instance.setMetadata(mediaMetadata);
+                            AudioService service = AudioService.instance;
+                            if (service != null) {
+                                MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                                service.setMetadata(mediaMetadata);
+                            }
                             handler.post(() -> result.success(null));
                         } catch (Exception e) {
                             handler.post(() -> {
@@ -850,11 +869,18 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     break;
                 }
                 case "setQueue": {
-                    Executors.newSingleThreadExecutor().execute(() -> {
+                    if (executor.isShutdown()) {
+                        result.success(null);
+                        break;
+                    }
+                    executor.execute(() -> {
                         try {
                             @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
-                            List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
-                            AudioService.instance.setQueue(queue);
+                            AudioService service = AudioService.instance;
+                            if (service != null) {
+                                List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);
+                                service.setQueue(queue);
+                            }
                             handler.post(() -> result.success(null));
                         } catch (Exception e) {
                             handler.post(() -> {
@@ -1016,8 +1042,14 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
 
         private void destroy() {
-            if (silenceAudioTrack != null)
+            executor.shutdownNow();
+            handler.removeCallbacksAndMessages(null);
+            methodInvocationQueue.clear();
+            channel.setMethodCallHandler(null);
+            if (silenceAudioTrack != null) {
                 silenceAudioTrack.release();
+                silenceAudioTrack = null;
+            }
         }
     }
 

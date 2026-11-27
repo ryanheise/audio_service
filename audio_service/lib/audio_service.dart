@@ -1204,6 +1204,8 @@ class AudioService {
         });
       },
       onCancel: () {
+        currentTimer?.cancel();
+        currentTimer = null;
         mediaItemSubscription.cancel();
         playbackStateSubscription.cancel();
       },
@@ -2615,7 +2617,9 @@ class IsolatedAudioHandler extends CompositeAudioHandler {
         case 'subscribeToChildren':
           final parentMediaId = request.arguments![0] as String;
           final sendPort = request.arguments![1] as SendPort?;
-          subscribeToChildren(parentMediaId).listen(sendPort!.send);
+          _subscriptions
+              .add(subscribeToChildren(parentMediaId).listen(sendPort!.send));
+          request.sendPort.send(null);
           break;
         case 'getMediaItem':
           final result = await getMediaItem(request.arguments![0] as String);
@@ -2644,20 +2648,28 @@ class IsolatedAudioHandler extends CompositeAudioHandler {
     final success =
         IsolateNameServer.registerPortWithName(_receivePort.sendPort, portName);
     if (!success) {
+      _receivePort.close();
       throw StateError(
           'Port name $portName is already registered by another IsolatedAudioHandler.');
     }
   }
 
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+
   /// Unregisters this handler so that it can no longer be looked up by
   /// [portName].
   void unregister() {
     IsolateNameServer.removePortNameMapping(portName);
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    _subscriptions.clear();
+    _receivePort.close();
   }
 
   /// Forwards events from `stream` to the requesting isolate via [sendPort].
   void _syncStream<T>(Stream<T> stream, SendPort sendPort) {
-    stream.listen(sendPort.send);
+    _subscriptions.add(stream.listen(sendPort.send));
   }
 
   @override
@@ -2908,10 +2920,13 @@ class _ClientIsolatedAudioHandler implements BaseAudioHandler {
       throw StateError('IsolatedAudioHandler $portName not available');
     }
     final receivePort = ReceivePort();
-    sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
-    final dynamic result = await receivePort.first;
-    receivePort.close();
-    return result;
+    try {
+      sendPort.send(_IsolateRequest(receivePort.sendPort, method, arguments));
+      final dynamic result = await receivePort.first;
+      return result;
+    } finally {
+      receivePort.close();
+    }
   }
 }
 
