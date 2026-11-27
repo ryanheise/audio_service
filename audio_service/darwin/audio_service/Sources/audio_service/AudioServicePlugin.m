@@ -231,6 +231,7 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         result(@{});
     } else if ([@"stopService" isEqualToString:call.method]) {
         [commandCenter.changePlaybackRateCommand setEnabled:NO];
+        [commandCenter.changePlaybackRateCommand removeTarget:nil];
         [commandCenter.togglePlayPauseCommand setEnabled:NO];
         [commandCenter.togglePlayPauseCommand removeTarget:nil];
         [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
@@ -238,6 +239,10 @@ static NSMutableDictionary *nowPlayingInfo = nil;
         actionBits = 0;
         [self updateControls];
         _controlsUpdated = NO;
+        artwork = nil;
+        mediaItem = nil;
+        [nowPlayingInfo removeAllObjects];
+        commands = nil;
         startResult = nil;
         commandCenter = nil;
         result(@{});
